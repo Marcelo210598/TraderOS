@@ -1,0 +1,315 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── NextAuth Models ─────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+
+  plan      Plan      @default(FREE)
+  role      Role      @default(USER)
+  xp        Int       @default(0)
+  level     Int       @default(1)
+  timezone  String    @default("America/Sao_Paulo")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  trades        Trade[]
+  setups        Setup[]
+  checkIns      CheckIn[]
+  tradePlans    TradePlan[]
+  achievements  UserAchievement[]
+  streaks       Streak[]
+  subscription  Subscription?
+
+  @@map("users")
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── Journal Models ───────────────────────────────────────────────────────────
+
+model Trade {
+  id          String      @id @default(cuid())
+  userId      String
+  date        DateTime
+  instrument  String      @default("NQ")
+  direction   Direction
+  entryPrice  Decimal     @db.Decimal(12, 4)
+  exitPrice   Decimal     @db.Decimal(12, 4)
+  quantity    Int         @default(1)
+  pnl         Decimal     @db.Decimal(10, 2)
+  pnlPoints   Decimal     @db.Decimal(10, 2)
+  commission  Decimal     @db.Decimal(8, 2) @default(0)
+  result      TradeResult
+  sessionType SessionType @default(AM)
+  setupId     String?
+  notes       String?
+  aiAnalysis  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  setup       Setup?            @relation(fields: [setupId], references: [id])
+  tags        TradeTag[]
+  screenshots TradeScreenshot[]
+
+  @@index([userId, date])
+  @@map("trades")
+}
+
+model TradeTag {
+  id      String @id @default(cuid())
+  tradeId String
+  name    String
+
+  trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@index([tradeId])
+  @@map("trade_tags")
+}
+
+model TradeScreenshot {
+  id        String   @id @default(cuid())
+  tradeId   String
+  url       String
+  key       String
+  label     String?
+  createdAt DateTime @default(now())
+
+  trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@map("trade_screenshots")
+}
+
+// ─── Setup Library ────────────────────────────────────────────────────────────
+
+model Setup {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  rules       String?
+  tags        String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades Trade[]
+
+  @@index([userId])
+  @@map("setups")
+}
+
+// ─── Check-in Emocional ───────────────────────────────────────────────────────
+
+model CheckIn {
+  id           String       @id @default(cuid())
+  userId       String
+  type         CheckInType
+  sessionDate  DateTime
+  emotional    Int          // 1-10
+  energy       Int          // 1-10
+  focus        Int          // 1-10
+  stress       Int          // 1-10 (invertido: 10 = sem stress)
+  confidence   Int          // 1-10
+  notes        String?
+  createdAt    DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sessionDate])
+  @@map("check_ins")
+}
+
+// ─── Plano de Trade ───────────────────────────────────────────────────────────
+
+model TradePlan {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime
+  maxLoss        Decimal  @db.Decimal(10, 2)
+  profitTarget   Decimal  @db.Decimal(10, 2)
+  setupsPlanned  String[]
+  notes          String?
+  executed       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("trade_plans")
+}
+
+// ─── Gamificação ──────────────────────────────────────────────────────────────
+
+model Achievement {
+  id          String          @id @default(cuid())
+  name        String
+  description String
+  icon        String
+  type        AchievementType
+  requirement Int
+  xpReward    Int             @default(50)
+  createdAt   DateTime        @default(now())
+
+  users UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model Streak {
+  id          String     @id @default(cuid())
+  userId      String
+  type        StreakType
+  current     Int        @default(0)
+  best        Int        @default(0)
+  lastUpdated DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@map("streaks")
+}
+
+// ─── Assinatura ───────────────────────────────────────────────────────────────
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  plan                 Plan               @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  mercadoPagoId        String?            @unique
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  TRADER
+  PRO
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Direction {
+  LONG
+  SHORT
+}
+
+enum TradeResult {
+  WIN
+  LOSS
+  BREAKEVEN
+}
+
+enum SessionType {
+  AM
+  PM
+  OVERNIGHT
+}
+
+enum CheckInType {
+  PRE
+  POST
+}
+
+enum AchievementType {
+  TRADES_COUNT
+  WIN_STREAK
+  JOURNAL_STREAK
+  PNL_MILESTONE
+  SETUP_LIBRARY
+  CONSISTENCY
+}
+
+enum StreakType {
+  JOURNAL_ENTRIES
+  PROFITABLE_DAYS
+  CHECK_INS
+  TRADE_PLANS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+}
