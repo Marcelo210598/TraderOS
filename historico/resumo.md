@@ -2,26 +2,44 @@
 
 ## O que é
 SaaS para traders brasileiros de futuros americanos via prop firms (Apex Trader Funding / NinjaTrader).
-Ajuda o trader a manter diário de operações, acompanhar progresso com gamificação e calcular regras da avaliação Apex.
+Ajuda o trader a manter diário de operações, acompanhar progresso com gamificação, calcular regras da avaliação Apex e conversar com IA especializada.
 
 ## Módulos
-- **Journal** ✅ — diário de trades com filtros, paginação, cálculo de PnL automático
+- **Dashboard** ✅ — métricas da semana, gráfico de performance, trades recentes, streaks
+- **Journal** ✅ — diário de trades com filtros, paginação, PnL automático, screenshots (UploadThing), análise IA por trade
 - **Check-in Emocional** ✅ — avaliação diária de estado mental (5 métricas, score de risco)
 - **Biblioteca de Setups** ✅ — catálogo de estratégias com stats (plano Trader+)
 - **Progress** ✅ — XP, level up, 12 conquistas, 4 tipos de streak
 - **Guardian** ✅ — calculadora Apex: trailing drawdown, consistency rule, scaling plan
+- **Calendário** ✅ — grid mensal com P&L por dia (verde = lucrativo, vermelho = negativo)
+- **Ask Claude** ✅ — chat com IA especializada em futuros (plano PRO)
 - **Planos** ✅ — página de pricing (visual pronta, sem gateway ainda)
-- **Cadastro** ✅ — email+senha ou Google OAuth
-- **Ask Claude** 🔴 — análise IA de trades (plano Pro, pendente API key)
-- **Calendário Econômico** 🔴 — pendente
-- **Trilha de Aprendizado** 🔴 — pendente
+- **Cadastro/Login** ✅ — email+senha ou Google OAuth
+- **Trilha de Aprendizado** 🟡 — placeholder "em breve" com 5 módulos planejados
+- **Stripe/Pagamentos** 🔴 — pendente (próxima grande feature)
+- **Configurações** 🔴 — rota no sidebar mas página não implementada
 
 ## Stack
-- Next.js 16.2.6 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI, preset Nova)
+- Next.js 16.2.6 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI)
 - Prisma 7 + @prisma/adapter-pg + Neon PostgreSQL (SA-East-1)
-- NextAuth v5 beta.31 (Google OAuth + Credentials)
+- NextAuth v5 beta.31 (Google OAuth + Credentials JWT)
 - bcryptjs para hash de senhas
-- Resend (email — não ativado ainda) + UploadThing (screenshots — não ativado ainda)
+- Resend v6 (email de boas-vindas no cadastro)
+- UploadThing v7.7.4 (screenshots do Journal — app ID: de0183n798)
+- Anthropic SDK v0.96 (Ask Claude — modelo claude-haiku-4-5-20251001)
+
+## Deploy
+- **Repositório:** github.com/Marcelo210598/TraderOS
+- **URL produção:** https://trader-os-ashy.vercel.app
+- **Projeto Vercel:** trader-os (prj_iZJFGM2AFCg8rgAG3IiVRbqQ5mUl)
+- **Org Vercel:** team_eV0i1XLGL1ae6c4VBGyXSdoo
+
+## Conta de teste
+```
+Email: difoggijuniormarcelo@gmail.com
+Senha: Trader@2026
+Plano: PRO (atualizado manualmente no DB para testar tudo)
+```
 
 ## Design
 Dark mode obrigatório. Paleta "Terminal":
@@ -31,33 +49,46 @@ Dark mode obrigatório. Paleta "Terminal":
 - Profit: oklch(0.70 0.16 162) ≈ #10B981
 - Loss: oklch(0.65 0.24 15) ≈ #F43F5E
 
-## Como rodar
+## Como rodar local
 ```bash
 cd "Desktop/Projetos AI/TraderOS"
 npm run dev
 # http://localhost:3000
-# Login de teste: difoggijuniormarcelo@gmail.com / trader123 (plano TRADER)
 ```
 
-## Status geral: ~75% do MVP
+## Status geral: ~90% do MVP em produção
 
 ## Breaking changes desta stack (IMPORTANTE)
-1. **Prisma 7:** URL no `prisma.config.ts`, NÃO no `schema.prisma`. Requer `@prisma/adapter-pg`
-2. **shadcn Base UI:** sem `asChild`, usar `render` prop ou `<a>` com classes diretas
-3. **Next.js 16:** `middleware.ts` → `proxy.ts` (senão dá warning de deprecação)
-4. **NextAuth v5:** `auth()` server-side (sem `getServerSession`). JWT cacheado — mudar plano exige re-login do usuário
+1. **Prisma 7:** `prisma generate` DEVE rodar antes de `next build` (sem isso, todos os tipos ficam `any[]` no Vercel)
+2. **Prisma 7:** configuração via `prisma.config.ts`, NÃO no `schema.prisma`. Requer `@prisma/adapter-pg`
+3. **shadcn Base UI:** sem `asChild`, usar `render` prop ou `<a>` com classes diretas
+4. **Next.js 16:** `middleware.ts` → renomeado internamente; verificar docs
+5. **NextAuth v5:** `auth()` server-side (sem `getServerSession`). JWT cacheado — mudar plano exige re-login
+6. **Auth dupla query bug:** `authorize()` e `jwt()` NÃO devem cada um fazer `findUnique` — consolidar numa query só
 
-## Próximas sessões (prioridade)
-1. Gateway de pagamento (Stripe/Abacatepay) + webhook para atualizar `user.plan`
-2. UploadThing — configurar `UPLOADTHING_TOKEN` para screenshots no Journal
-3. Resend — email de boas-vindas no cadastro
-4. Deploy Vercel + variáveis de ambiente em produção
-5. Ask Claude (plano Pro) — `ANTHROPIC_API_KEY` + implementar feature
+## Variáveis de ambiente no Vercel (production)
+```
+DATABASE_URL                ✅
+AUTH_SECRET                 ✅
+AUTH_URL                    ✅
+AUTH_GOOGLE_ID              ✅
+AUTH_GOOGLE_SECRET          ✅
+UPLOADTHING_TOKEN           ✅
+RESEND_API_KEY              ✅
+ANTHROPIC_API_KEY           ✅ (adicionada em 23/05)
+RESEND_FROM_EMAIL           ❓ verificar
+```
 
-## Variáveis .env pendentes
-```
-UPLOADTHING_TOKEN=...
-RESEND_API_KEY=...
-ANTHROPIC_API_KEY=...
-# Stripe ou Abacatepay keys (a definir)
-```
+## Próximos passos (prioridade)
+1. **Stripe** — gateway de pagamento + webhook para atualizar `user.plan`
+2. **Página /configuracoes** — perfil do usuário, troca de senha
+3. **Trilha** — implementar conteúdo real (aulas, quizzes)
+4. **Google OAuth** — confirmar JS Origin no Google Cloud Console
+5. **Domínio próprio** — traderos.app (mencionado no template de email)
+
+## Histórico de sessões
+| Data | O que foi feito |
+|------|----------------|
+| 2026-05-18 | Setup inicial, schema Prisma, auth, páginas base |
+| 2026-05-19 | Guardian, Setups, Progress, conquistas, streaks |
+| 2026-05-23 | UploadThing, Resend, Ask Claude, Calendário, Trilha, deploy Vercel, fix login timeout |
