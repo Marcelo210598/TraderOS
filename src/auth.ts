@@ -22,6 +22,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      allowDangerousEmailAccountLinking: true,
     }),
     Credentials({
       name: "credentials",
@@ -72,10 +73,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id ?? ""
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const u = user as any
-        token.plan = u.plan
-        token.role = u.role
-        token.xp = u.xp
-        token.level = u.level
+        // Credentials flow already inclui esses campos. OAuth (Google) não — busca no DB.
+        if (u.plan !== undefined) {
+          token.plan = u.plan
+          token.role = u.role
+          token.xp = u.xp
+          token.level = u.level
+        } else {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id as string },
+            select: { plan: true, role: true, xp: true, level: true },
+          })
+          if (dbUser) {
+            token.plan = dbUser.plan
+            token.role = dbUser.role
+            token.xp = dbUser.xp
+            token.level = dbUser.level
+          }
+        }
       }
       return token
     },
