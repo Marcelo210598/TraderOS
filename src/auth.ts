@@ -35,6 +35,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            image: true,
+            password: true,
+            plan: true,
+            role: true,
+            xp: true,
+            level: true,
+          },
         })
 
         if (!user || !user.password) return null
@@ -47,6 +58,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           image: user.image,
+          plan: user.plan,
+          role: user.role,
+          xp: user.xp,
+          level: user.level,
         }
       },
     }),
@@ -55,16 +70,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id ?? ""
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id as string },
-          select: { plan: true, role: true, xp: true, level: true },
-        })
-        if (dbUser) {
-          token.plan = dbUser.plan
-          token.role = dbUser.role
-          token.xp = dbUser.xp
-          token.level = dbUser.level
-        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const u = user as any
+        token.plan = u.plan
+        token.role = u.role
+        token.xp = u.xp
+        token.level = u.level
       }
       return token
     },
