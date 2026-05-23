@@ -88,7 +88,7 @@ export default async function CheckInPage() {
         {todayCheckIns.length > 0 && (
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Registros de hoje</h3>
-            {todayCheckIns.map((c) => {
+            {todayCheckIns.map((c: (typeof todayCheckIns)[number]) => {
               const avg = Math.round((c.emotional + c.energy + c.focus + c.confidence + c.stress) / 5)
               return (
                 <div key={c.id} className="flex items-center justify-between py-2 border-t border-border first:border-0 first:pt-0">
