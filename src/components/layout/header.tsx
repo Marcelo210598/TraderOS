@@ -1,7 +1,6 @@
 "use client"
 
 import { Bell, LogOut, User, ChevronDown } from "lucide-react"
-import { logoutAction } from "@/app/actions/auth"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,13 +92,11 @@ export function Header({
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border" />
-            <DropdownMenuItem variant="destructive" className="p-0">
-              <form action={logoutAction} className="w-full">
-                <button type="submit" className="flex items-center gap-2 w-full px-2 py-1.5 cursor-pointer">
-                  <LogOut className="w-4 h-4" />
-                  Sair
-                </button>
-              </form>
+            <DropdownMenuItem variant="destructive" className="cursor-pointer gap-2 p-0">
+              <a href="/api/logout" className="flex items-center gap-2 w-full px-1.5 py-1">
+                <LogOut className="w-4 h-4" />
+                Sair
+              </a>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
