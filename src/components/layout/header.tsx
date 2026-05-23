@@ -1,7 +1,7 @@
 "use client"
 
-import { signOut } from "next-auth/react"
 import { Bell, LogOut, User, ChevronDown } from "lucide-react"
+import { logoutAction } from "@/app/actions/auth"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,13 +93,13 @@ export function Header({
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border" />
-            <DropdownMenuItem
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="cursor-pointer gap-2"
-              variant="destructive"
-            >
-              <LogOut className="w-4 h-4" />
-              Sair
+            <DropdownMenuItem asChild variant="destructive">
+              <form action={logoutAction} className="w-full">
+                <button type="submit" className="flex items-center gap-2 w-full cursor-pointer">
+                  <LogOut className="w-4 h-4" />
+                  Sair
+                </button>
+              </form>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
