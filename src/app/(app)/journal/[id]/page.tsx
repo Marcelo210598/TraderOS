@@ -8,6 +8,7 @@ import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus, ArrowLeft, Pencil } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { AiAnalysis } from "@/components/journal/ai-analysis"
 
 export const metadata: Metadata = { title: "Detalhe do Trade" }
 
@@ -148,24 +149,11 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
         )}
 
         {/* Análise IA (plano Pro) */}
-        {trade.aiAnalysis ? (
-          <div className="bg-secondary/5 border border-secondary/20 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold text-secondary uppercase tracking-wider">Análise Claude AI</span>
-            </div>
-            <p className="text-sm text-foreground/80 leading-relaxed">{trade.aiAnalysis}</p>
-          </div>
-        ) : (
-          <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Análise IA disponível no plano Pro</p>
-              <p className="text-xs text-muted-foreground mt-0.5">O Claude analisa seus trades e identifica padrões de comportamento</p>
-            </div>
-            <a href="/planos" className="px-3 py-1.5 rounded-lg bg-secondary/10 text-secondary text-xs font-medium hover:bg-secondary/20 transition-colors shrink-0 ml-3">
-              Ver planos
-            </a>
-          </div>
-        )}
+        <AiAnalysis
+          tradeId={trade.id}
+          initial={trade.aiAnalysis ?? null}
+          isPro={user.plan === "PRO"}
+        />
       </div>
     </div>
   )

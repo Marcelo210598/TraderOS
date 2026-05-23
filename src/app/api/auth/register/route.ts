@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { hash } from "bcryptjs"
 import { z } from "zod"
+import { sendWelcomeEmail } from "@/lib/email"
 
 const schema = z.object({
   name: z.string().min(2).max(80),
@@ -27,6 +28,9 @@ export async function POST(req: NextRequest) {
   await prisma.user.create({
     data: { name, email, password: hashed },
   })
+
+  // Email de boas-vindas — não bloqueia o cadastro se falhar
+  sendWelcomeEmail(email, name).catch(() => null)
 
   return NextResponse.json({ ok: true }, { status: 201 })
 }

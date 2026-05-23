@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Loader2, Calculator, TrendingUp, TrendingDown } from "lucide-react"
+import { Loader2, Calculator, TrendingUp, TrendingDown, ImagePlus } from "lucide-react"
 import type { Setup, Trade } from "@/lib/types"
+import { ScreenshotUploader, type UploadedScreenshot } from "./screenshot-uploader"
 
 const INSTRUMENTS = ["NQ", "ES", "YM", "RTY", "CL", "GC", "SI", "ZB", "6E", "MNQ", "MES"]
 const SESSION_TYPES = [
@@ -28,6 +29,8 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
   const isEdit = !!initial?.id
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  const [screenshots, setScreenshots] = useState<UploadedScreenshot[]>([])
 
   const [form, setForm] = useState({
     date: initial?.date ? new Date(initial.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
@@ -89,6 +92,7 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
       setupId: form.setupId || null,
       notes: form.notes || null,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      screenshots: screenshots.map((s) => ({ url: s.url, key: s.key, label: s.label ?? null })),
     }
 
     const url = isEdit ? `/api/trades/${initial.id}` : "/api/trades"
@@ -274,6 +278,11 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
         />
       </Field>
 
+      {/* Screenshots */}
+      <Field label={<span className="flex items-center gap-1.5"><ImagePlus className="w-3.5 h-3.5" />Screenshots (opcional)</span>}>
+        <ScreenshotUploader value={screenshots} onChange={setScreenshots} />
+      </Field>
+
       {error && (
         <p className="text-sm text-loss bg-loss/10 border border-loss/20 rounded-lg px-4 py-3">
           {error}
@@ -302,7 +311,7 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</label>

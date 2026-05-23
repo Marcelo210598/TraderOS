@@ -19,6 +19,11 @@ const createTradeSchema = z.object({
   setupId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   tags: z.array(z.string()).default([]),
+  screenshots: z.array(z.object({
+    url: z.string().url(),
+    key: z.string(),
+    label: z.string().nullable().optional(),
+  })).default([]),
 })
 
 export async function GET(req: NextRequest) {
@@ -96,7 +101,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { tags, ...data } = parsed.data
+  const { tags, screenshots, ...data } = parsed.data
 
   const trade = await prisma.trade.create({
     data: {
@@ -111,6 +116,11 @@ export async function POST(req: NextRequest) {
       tags: {
         create: tags.map((name) => ({ name })),
       },
+      ...(screenshots.length > 0 && {
+        screenshots: {
+          create: screenshots.map((s) => ({ url: s.url, key: s.key, label: s.label ?? null })),
+        },
+      }),
     },
     include: { tags: true, setup: { select: { id: true, name: true } } },
   })
