@@ -93,9 +93,9 @@ export function Header({
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border" />
-            <DropdownMenuItem asChild variant="destructive">
+            <DropdownMenuItem variant="destructive" className="p-0">
               <form action={logoutAction} className="w-full">
-                <button type="submit" className="flex items-center gap-2 w-full cursor-pointer">
+                <button type="submit" className="flex items-center gap-2 w-full px-2 py-1.5 cursor-pointer">
                   <LogOut className="w-4 h-4" />
                   Sair
                 </button>
