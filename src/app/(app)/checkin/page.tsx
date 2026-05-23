@@ -22,8 +22,8 @@ export default async function CheckInPage() {
     orderBy: { createdAt: "asc" },
   })
 
-  const hasPre = todayCheckIns.some((c) => c.type === "PRE")
-  const hasPost = todayCheckIns.some((c) => c.type === "POST")
+  const hasPre = todayCheckIns.some((c: { type: string }) => c.type === "PRE")
+  const hasPost = todayCheckIns.some((c: { type: string }) => c.type === "POST")
   const nextType: "PRE" | "POST" = hasPre ? "POST" : "PRE"
 
   return (
