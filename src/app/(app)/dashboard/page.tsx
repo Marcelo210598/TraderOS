@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { auth } from "@/auth"
+import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentTrades } from "@/components/dashboard/recent-trades"
@@ -9,6 +10,8 @@ import { DollarSign, TrendingUp, Target, Activity, BookOpen, Plus } from "lucide
 
 export const metadata: Metadata = { title: "Dashboard" }
 
+const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+
 export default async function DashboardPage() {
   const session = await auth()
   const user = session?.user
@@ -17,31 +20,125 @@ export default async function DashboardPage() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite"
 
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+  sevenDaysAgo.setHours(0, 0, 0, 0)
+
+  const [weeklyTrades, recentTradesRaw, streaks] = await Promise.all([
+    prisma.trade.findMany({
+      where: { userId: user!.id, date: { gte: sevenDaysAgo } },
+      select: { date: true, pnl: true, result: true },
+      orderBy: { date: "asc" },
+    }),
+    prisma.trade.findMany({
+      where: { userId: user!.id },
+      include: { setup: { select: { name: true } } },
+      orderBy: { date: "desc" },
+      take: 5,
+    }),
+    prisma.streak.findMany({ where: { userId: user!.id } }),
+  ])
+
+  // Métricas semanais
+  const weekPnl = weeklyTrades.reduce((a, t) => a + Number(t.pnl), 0)
+  const weekWins = weeklyTrades.filter((t) => t.result === "WIN").length
+  const weekWinRate =
+    weeklyTrades.length > 0 ? Math.round((weekWins / weeklyTrades.length) * 100) : 0
+  const weekWinPnl = weeklyTrades
+    .filter((t) => t.result === "WIN")
+    .reduce((a, t) => a + Number(t.pnl), 0)
+  const weekLossPnl = Math.abs(
+    weeklyTrades
+      .filter((t) => t.result === "LOSS")
+      .reduce((a, t) => a + Number(t.pnl), 0)
+  )
+  const profitFactor =
+    weekLossPnl > 0 ? weekWinPnl / weekLossPnl : weekWinPnl > 0 ? 99 : 0
+
+  // Dados do gráfico
+  const dayMap = new Map<string, { pnl: number; trades: number }>()
+  for (const t of weeklyTrades) {
+    const key = t.date.toISOString().slice(0, 10)
+    const existing = dayMap.get(key) ?? { pnl: 0, trades: 0 }
+    dayMap.set(key, { pnl: existing.pnl + Number(t.pnl), trades: existing.trades + 1 })
+  }
+  const chartData = Array.from(dayMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([dateStr, v]) => {
+      const d = new Date(dateStr + "T12:00:00")
+      return { label: DAYS[d.getDay()], pnl: v.pnl, trades: v.trades }
+    })
+
+  // Trades recentes formatados
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const yesterdayDate = new Date()
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+  const yesterdayStr = yesterdayDate.toISOString().slice(0, 10)
+
+  const recentTrades = recentTradesRaw.map((t) => {
+    const dateStr = t.date.toISOString().slice(0, 10)
+    const timeStr = t.date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    let dateFormatted: string
+    if (dateStr === todayStr) dateFormatted = `Hoje, ${timeStr}`
+    else if (dateStr === yesterdayStr) dateFormatted = `Ontem, ${timeStr}`
+    else
+      dateFormatted = `${t.date.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+      })}, ${timeStr}`
+
+    return {
+      id: t.id,
+      dateFormatted,
+      instrument: t.instrument,
+      direction: t.direction as "LONG" | "SHORT",
+      pnl: Number(t.pnl),
+      pnlPoints: Number(t.pnlPoints),
+      result: t.result as "WIN" | "LOSS" | "BREAKEVEN",
+      setup: t.setup?.name ?? null,
+    }
+  })
+
+  const streaksFormatted = streaks.map((s) => ({
+    type: s.type,
+    current: s.current,
+    best: s.best,
+  }))
+
+  // Display helpers
+  const pnlDisplay =
+    weekPnl === 0
+      ? "$0"
+      : `${weekPnl > 0 ? "+" : ""}$${Math.abs(weekPnl).toFixed(0)}`
+  const pfDisplay =
+    profitFactor === 0 ? "—" : profitFactor >= 99 ? "∞" : profitFactor.toFixed(2)
+
   return (
     <div className="flex flex-col flex-1 overflow-auto">
       <Header
         title="Dashboard"
-        subtitle={`${greeting}, ${firstName}`}
         userName={user?.name}
         userEmail={user?.email}
         userImage={user?.image}
         userPlan={user?.plan ?? "FREE"}
       />
 
-      <div className="flex-1 p-6 space-y-6">
-        {/* Boas-vindas + CTA */}
-        <div className="flex items-center justify-between">
+      <div className="flex-1 p-6 lg:p-8 space-y-6">
+        {/* Saudação + CTA */}
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">
+            <h2 className="text-2xl font-bold text-foreground">
               {greeting}, {firstName} 👋
             </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Resumo da sua operação — semana de 12 a 18 de maio
+            <p className="text-sm text-muted-foreground mt-1">
+              {weeklyTrades.length === 0
+                ? "Nenhum trade nos últimos 7 dias. Bora começar!"
+                : `${weeklyTrades.length} trade${weeklyTrades.length > 1 ? "s" : ""} nos últimos 7 dias`}
             </p>
           </div>
           <a
             href="/journal/novo"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
             Registrar Trade
@@ -49,51 +146,44 @@ export default async function DashboardPage() {
         </div>
 
         {/* Métricas principais */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
-            title="P&L da Semana"
-            value="$1.474"
-            change={18.3}
+            title="P&L 7 dias"
+            value={pnlDisplay}
             icon={DollarSign}
-            variant="profit"
+            variant={weekPnl >= 0 ? (weekPnl > 0 ? "profit" : "neutral") : "loss"}
           />
           <StatsCard
             title="Win Rate"
-            value="62"
+            value={weekWinRate.toString()}
             suffix="%"
-            change={4.2}
             icon={Target}
             variant="default"
           />
           <StatsCard
             title="Trades"
-            value="19"
-            change={-5.0}
-            changeLabel="vs semana passada"
+            value={weeklyTrades.length.toString()}
             icon={Activity}
             variant="neutral"
           />
           <StatsCard
             title="Profit Factor"
-            value="1.87"
-            change={12.1}
+            value={pfDisplay}
             icon={TrendingUp}
             variant="default"
           />
         </div>
 
         {/* Check-in rápido */}
-        <div className="bg-teal/5 border border-teal/20 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div className="bg-teal/5 border border-teal/20 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal/15 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-teal/15 flex items-center justify-center shrink-0">
               <BookOpen className="w-4 h-4 text-teal" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">
-                Check-in de hoje ainda não feito
-              </p>
+              <p className="text-sm font-medium text-foreground">Check-in emocional</p>
               <p className="text-xs text-muted-foreground">
-                Avalie seu estado emocional antes de operar
+                Avalie seu estado antes de operar
               </p>
             </div>
           </div>
@@ -105,29 +195,29 @@ export default async function DashboardPage() {
           </a>
         </div>
 
-        {/* Grid principal */}
+        {/* Gráfico + Streaks */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
-            <PerformanceChart />
+            <PerformanceChart data={chartData} />
           </div>
           <div>
-            <StreakWidget />
+            <StreakWidget streaks={streaksFormatted} />
           </div>
         </div>
 
         {/* Trades recentes */}
-        <RecentTrades />
+        <RecentTrades trades={recentTrades} />
 
         {/* Dica do dia */}
-        <div className="bg-card border border-border rounded-xl px-4 py-3 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0 mt-0.5">
-            <span className="text-secondary text-sm">💡</span>
+        <div className="bg-card border border-border rounded-xl px-5 py-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span className="text-base">💡</span>
           </div>
           <div>
-            <p className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">
+            <p className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
               Dica do dia
             </p>
-            <p className="text-sm text-foreground">
+            <p className="text-sm text-foreground leading-relaxed">
               A Apex exige que nenhum dia individual represente mais de{" "}
               <span className="text-teal font-medium">30% do seu lucro total</span> para aprovação
               (Consistency Rule). Monitore isso no{" "}

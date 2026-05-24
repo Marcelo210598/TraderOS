@@ -1,75 +1,50 @@
 import { cn } from "@/lib/utils"
-import { TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, BookOpen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 interface Trade {
   id: string
-  date: string
+  dateFormatted: string
   instrument: string
   direction: "LONG" | "SHORT"
   pnl: number
   pnlPoints: number
   result: "WIN" | "LOSS" | "BREAKEVEN"
-  setup?: string
+  setup?: string | null
 }
 
-const MOCK_TRADES: Trade[] = [
-  {
-    id: "1",
-    date: "Hoje, 09:47",
-    instrument: "NQ",
-    direction: "LONG",
-    pnl: 412.5,
-    pnlPoints: 8.25,
-    result: "WIN",
-    setup: "ICT OB",
-  },
-  {
-    id: "2",
-    date: "Hoje, 10:15",
-    instrument: "NQ",
-    direction: "SHORT",
-    pnl: -200,
-    pnlPoints: -4.0,
-    result: "LOSS",
-    setup: "BOS Reversal",
-  },
-  {
-    id: "3",
-    date: "Ontem, 14:32",
-    instrument: "ES",
-    direction: "LONG",
-    pnl: 187.5,
-    pnlPoints: 3.75,
-    result: "WIN",
-    setup: "VWAP Bounce",
-  },
-  {
-    id: "4",
-    date: "Ontem, 09:05",
-    instrument: "NQ",
-    direction: "LONG",
-    pnl: 0,
-    pnlPoints: 0,
-    result: "BREAKEVEN",
-    setup: "ICT OB",
-  },
-  {
-    id: "5",
-    date: "16/05, 10:22",
-    instrument: "NQ",
-    direction: "SHORT",
-    pnl: 625,
-    pnlPoints: 12.5,
-    result: "WIN",
-    setup: "Fair Value Gap",
-  },
-]
+interface RecentTradesProps {
+  trades: Trade[]
+}
 
-export function RecentTrades() {
+export function RecentTrades({ trades }: RecentTradesProps) {
+  if (trades.length === 0) {
+    return (
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="text-sm font-semibold text-foreground">Trades Recentes</h2>
+          <a href="/journal" className="text-xs text-teal hover:underline font-medium">
+            Ver todos
+          </a>
+        </div>
+        <div className="py-12 flex flex-col items-center justify-center text-center gap-2">
+          <BookOpen className="w-8 h-8 text-muted-foreground/30" />
+          <p className="text-sm font-medium text-foreground">Nenhum trade registrado</p>
+          <p className="text-xs text-muted-foreground">Registre seu primeiro trade no Journal.</p>
+          <a
+            href="/journal/novo"
+            className="mt-2 text-xs text-teal hover:underline font-medium"
+          >
+            + Novo trade
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <h2 className="text-sm font-semibold text-foreground">Trades Recentes</h2>
         <a href="/journal" className="text-xs text-teal hover:underline font-medium">
           Ver todos
@@ -77,12 +52,14 @@ export function RecentTrades() {
       </div>
 
       <div className="divide-y divide-border">
-        {MOCK_TRADES.map((trade) => (
-          <div key={trade.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
-            {/* Direção */}
+        {trades.map((trade) => (
+          <div
+            key={trade.id}
+            className="flex items-center gap-4 px-5 py-3.5 hover:bg-muted/30 transition-colors"
+          >
             <div
               className={cn(
-                "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
                 trade.result === "WIN"
                   ? "bg-profit/10"
                   : trade.result === "LOSS"
@@ -91,18 +68,17 @@ export function RecentTrades() {
               )}
             >
               {trade.result === "WIN" ? (
-                <TrendingUp className="w-3.5 h-3.5 text-profit" />
+                <TrendingUp className="w-4 h-4 text-profit" />
               ) : trade.result === "LOSS" ? (
-                <TrendingDown className="w-3.5 h-3.5 text-loss" />
+                <TrendingDown className="w-4 h-4 text-loss" />
               ) : (
-                <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+                <Minus className="w-4 h-4 text-muted-foreground" />
               )}
             </div>
 
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-medium text-foreground font-mono">
+                <span className="text-sm font-semibold text-foreground font-mono">
                   {trade.instrument}
                 </span>
                 <Badge
@@ -118,14 +94,13 @@ export function RecentTrades() {
                 </Badge>
                 {trade.setup && (
                   <span className="text-xs text-muted-foreground truncate hidden sm:block">
-                    • {trade.setup}
+                    · {trade.setup}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{trade.date}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{trade.dateFormatted}</p>
             </div>
 
-            {/* PnL */}
             <div className="text-right shrink-0">
               <p
                 className={cn(
@@ -138,7 +113,7 @@ export function RecentTrades() {
                 )}
               >
                 {trade.pnl > 0 ? "+" : ""}
-                {trade.pnl === 0 ? "0" : `$${Math.abs(trade.pnl).toFixed(0)}`}
+                {trade.pnl === 0 ? "$0" : `$${Math.abs(trade.pnl).toFixed(0)}`}
               </p>
               <p className="text-xs text-muted-foreground font-mono">
                 {trade.pnlPoints > 0 ? "+" : ""}
