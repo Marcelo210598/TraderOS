@@ -91,18 +91,16 @@ export function Header({
                 Meu Perfil
               </a>
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-border" />
-            <form action="/api/logout" method="GET" className="p-0">
-              <button
-                type="submit"
-                className="w-full flex items-center gap-2 px-1.5 py-1 text-sm text-destructive rounded-md hover:bg-destructive/10 focus:bg-destructive/10 cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-                Sair
-              </button>
-            </form>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <a
+          href="/api/logout"
+          title="Sair"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+        </a>
       </div>
     </header>
   )
