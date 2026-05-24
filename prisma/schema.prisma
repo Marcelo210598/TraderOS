@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ─── NextAuth Models ─────────────────────────────────────────────────────────
@@ -91,10 +92,11 @@ model Trade {
   pnlPoints   Decimal     @db.Decimal(10, 2)
   commission  Decimal     @db.Decimal(8, 2) @default(0)
   result      TradeResult
-  sessionType SessionType @default(AM)
-  setupId     String?
-  notes       String?
-  aiAnalysis  String?
+  sessionType  SessionType @default(AM)
+  accountLabel String      @default("PA")
+  setupId      String?
+  notes        String?
+  aiAnalysis   String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

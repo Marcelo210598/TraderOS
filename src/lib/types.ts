@@ -31,6 +31,7 @@ export interface Trade {
   commission: number
   result: TradeResult
   sessionType: SessionType
+  accountLabel: string
   setupId: string | null
   setup: SetupRef | null
   notes: string | null

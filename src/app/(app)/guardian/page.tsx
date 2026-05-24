@@ -38,12 +38,16 @@ export default async function GuardianPage({ searchParams }: Props) {
   const accountKey = (sp.account && sp.account in ACCOUNTS ? sp.account : "PA100K") as AccountKey
   const account = ACCOUNTS[accountKey]
 
-  // Fetch all trades ordered by date
-  const tradesRaw = await prisma.trade.findMany({
-    where: { userId: user.id },
+  // Fetch trades da conta selecionada (exclui TEST e outras PAs não selecionadas)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tradesRaw = await (prisma.trade as any).findMany({
+    where: {
+      userId: user.id,
+      accountLabel: accountKey,
+    },
     select: { date: true, pnl: true },
     orderBy: { date: "asc" },
-  })
+  }) as { date: Date; pnl: unknown }[]
 
   // Group by trading day
   const dayMap = new Map<string, number>()
@@ -80,7 +84,7 @@ export default async function GuardianPage({ searchParams }: Props) {
             <div>
               <h2 className="text-sm font-semibold text-foreground">Meu Challenge</h2>
               <p className="text-xs text-muted-foreground">
-                Status baseado nos {tradesRaw.length} trades registrados no seu Journal
+                {tradesRaw.length} trades da conta <span className="text-teal">{account.label}</span> no Journal
               </p>
             </div>
           </div>

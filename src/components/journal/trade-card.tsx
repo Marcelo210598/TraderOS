@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus, Trash2, Pencil, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { Trade } from "@/lib/types"
+import { getAccountOption } from "@/lib/accounts"
 
 interface TradeCardProps {
   trade: Trade
@@ -20,6 +21,7 @@ export function TradeCard({ trade, onDeleted }: TradeCardProps) {
 
   const isWin = trade.result === "WIN"
   const isLoss = trade.result === "LOSS"
+  const accountOpt = getAccountOption(trade.accountLabel ?? "PA")
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
@@ -58,6 +60,12 @@ export function TradeCard({ trade, onDeleted }: TradeCardProps) {
               trade.direction === "LONG" ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"
             )}>
               {trade.direction}
+            </Badge>
+            <Badge className={cn(
+              "text-[10px] px-1.5 py-0 h-4 font-mono border",
+              accountOpt.bg, accountOpt.border, accountOpt.color
+            )}>
+              {accountOpt.label}
             </Badge>
             {trade.setup && (
               <Badge className="text-[10px] px-1.5 py-0 h-4 border-0 bg-accent text-teal">

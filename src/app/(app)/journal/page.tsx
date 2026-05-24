@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { TradeFilters } from "@/components/journal/trade-filters"
 import { TradeList } from "@/components/journal/trade-list"
-import { Plus, BookOpen, Upload } from "lucide-react"
+import { Plus, BookOpen, Upload, Tag } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
 
 export const metadata: Metadata = { title: "Journal" }
@@ -62,6 +62,7 @@ export default async function JournalPage({ searchParams }: Props) {
     pnl: Number(t.pnl),
     pnlPoints: Number(t.pnlPoints),
     commission: Number(t.commission),
+    accountLabel: (t as Record<string, unknown>).accountLabel as string ?? "PA",
     createdAt: t.createdAt.toISOString(),
     screenshots: t.screenshots.map((s) => ({ ...s, label: s.label ?? null })),
   }))
@@ -112,6 +113,13 @@ export default async function JournalPage({ searchParams }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href="/journal/contas"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-teal/40 transition-colors"
+            >
+              <Tag className="w-4 h-4" />
+              <span className="hidden sm:inline">Contas</span>
+            </a>
             <a
               href="/journal/importar"
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-teal/40 transition-colors"

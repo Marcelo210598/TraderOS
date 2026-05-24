@@ -12,12 +12,12 @@ Ajuda o trader a manter diário de operações, acompanhar progresso com gamific
 - **Progress** ✅ — XP, level up, 12 conquistas, 4 tipos de streak
 - **Guardian** ✅ — calculadora Apex: trailing drawdown, consistency rule, scaling plan
 - **Calendário** ✅ — grid mensal com P&L por dia (verde = lucrativo, vermelho = negativo)
-- **Ask Claude** ✅ — chat com IA especializada em futuros (plano PRO)
+- **Vega IA** ✅ — chat com IA especializada em futuros (plano PRO) — renomeado de Ask Claude
 - **Planos** ✅ — página de pricing (visual pronta, sem gateway ainda)
 - **Cadastro/Login** ✅ — email+senha ou Google OAuth
+- **Configurações** ✅ — perfil (atualizar nome), troca de senha, info do plano
 - **Trilha de Aprendizado** 🟡 — placeholder "em breve" com 5 módulos planejados
-- **Stripe/Pagamentos** 🔴 — pendente (próxima grande feature)
-- **Configurações** 🔴 — rota no sidebar mas página não implementada
+- **Stripe/Pagamentos** ❌ — pendente (próxima grande feature)
 
 ## Stack
 - Next.js 16.2.6 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI)
@@ -65,6 +65,8 @@ npm run dev
 4. **Next.js 16:** `middleware.ts` → renomeado internamente; verificar docs
 5. **NextAuth v5:** `auth()` server-side (sem `getServerSession`). JWT cacheado — mudar plano exige re-login
 6. **Auth dupla query bug:** `authorize()` e `jwt()` NÃO devem cada um fazer `findUnique` — consolidar numa query só
+7. **Env vars Vercel:** SEMPRE usar `printf` para criar (nunca `echo`) — `echo` adiciona `\n` que quebra tudo silenciosamente
+8. **Google OAuth + credentials:** obrigatório `allowDangerousEmailAccountLinking: true` se mesmo email pode vir de ambos os flows
 
 ## Variáveis de ambiente no Vercel (production)
 ```
@@ -80,15 +82,15 @@ RESEND_FROM_EMAIL           ❓ verificar
 ```
 
 ## Próximos passos (prioridade)
-1. **Stripe** — gateway de pagamento + webhook para atualizar `user.plan`
-2. **Página /configuracoes** — perfil do usuário, troca de senha
+1. **Confirmar** Vega + logout funcionando em prod (deploy de 2026-05-24 em andamento)
+2. **Stripe** — gateway de pagamento + webhook para atualizar `user.plan`
 3. **Trilha** — implementar conteúdo real (aulas, quizzes)
-4. **Google OAuth** — confirmar JS Origin no Google Cloud Console
-5. **Domínio próprio** — traderos.app (mencionado no template de email)
+4. **Domínio próprio** — traderos.app (mencionado no template de email)
 
 ## Histórico de sessões
 | Data | O que foi feito |
 |------|----------------|
 | 2026-05-18 | Setup inicial, schema Prisma, auth, páginas base |
 | 2026-05-19 | Guardian, Setups, Progress, conquistas, streaks |
-| 2026-05-23 | UploadThing, Resend, Ask Claude, Calendário, Trilha, deploy Vercel, fix login timeout |
+| 2026-05-23 | UploadThing, Resend, Ask Claude, Calendário, Trilha, deploy Vercel; fix login timeout, fix logout, fix Google OAuth loop, fix env vars com \n |
+| 2026-05-24 | Logo + favicon oficiais, rename IA → Vega, página /configuracoes, fix logout (signOut client-side), fix Vega modelo depreciado (→ claude-haiku-4-5-20251001), fix UI silent failure Vega |

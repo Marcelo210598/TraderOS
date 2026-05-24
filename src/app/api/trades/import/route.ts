@@ -13,6 +13,7 @@ const rowSchema = z.object({
   pnl: z.number(),
   commission: z.number().min(0).default(0),
   session: z.enum(["AM", "PM", "OVERNIGHT"]).default("AM"),
+  accountLabel: z.string().default("PA"),
   notes: z.string().max(2000).optional(),
 })
 
@@ -57,7 +58,8 @@ export async function POST(req: NextRequest) {
 
       const result = row.pnl > 0 ? "WIN" : row.pnl < 0 ? "LOSS" : "BREAKEVEN"
 
-      await prisma.trade.create({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma.trade as any).create({
         data: {
           userId: session.user.id,
           date: tradeDate,
@@ -71,6 +73,7 @@ export async function POST(req: NextRequest) {
           commission: row.commission,
           result,
           sessionType: row.session,
+          accountLabel: row.accountLabel,
           notes: row.notes ?? null,
         },
       })

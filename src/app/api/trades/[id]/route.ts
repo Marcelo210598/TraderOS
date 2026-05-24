@@ -15,6 +15,7 @@ const updateTradeSchema = z.object({
   commission: z.number().min(0).optional(),
   result: z.enum(["WIN", "LOSS", "BREAKEVEN"]).optional(),
   sessionType: z.enum(["AM", "PM", "OVERNIGHT"]).optional(),
+  accountLabel: z.string().optional(),
   setupId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
@@ -58,7 +59,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { tags, ...data } = parsed.data
 
-  const updated = await prisma.trade.update({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updated = await (prisma.trade as any).update({
     where: { id },
     data: {
       ...data,

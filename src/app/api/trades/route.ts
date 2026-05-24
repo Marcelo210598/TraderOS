@@ -16,6 +16,7 @@ const createTradeSchema = z.object({
   commission: z.number().min(0).default(0),
   result: z.enum(["WIN", "LOSS", "BREAKEVEN"]),
   sessionType: z.enum(["AM", "PM", "OVERNIGHT"]).default("AM"),
+  accountLabel: z.string().default("PA"),
   setupId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   tags: z.array(z.string()).default([]),
@@ -103,7 +104,8 @@ export async function POST(req: NextRequest) {
 
   const { tags, screenshots, ...data } = parsed.data
 
-  const trade = await prisma.trade.create({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const trade = await (prisma.trade as any).create({
     data: {
       ...data,
       date: new Date(data.date),

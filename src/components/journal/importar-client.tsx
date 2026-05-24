@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ACCOUNT_OPTIONS } from "@/lib/accounts"
 
 const TEMPLATE_CSV = [
   "date,instrument,direction,entry_price,exit_price,quantity,pnl,commission,session,notes",
@@ -113,6 +114,7 @@ export function ImportarClient() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ imported: number; errors: number } | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
+  const [importAccount, setImportAccount] = useState("PA")
 
   const validRows = rows?.filter((r) => !r.error) ?? []
   const errorRows = rows?.filter((r) => r.error) ?? []
@@ -148,7 +150,9 @@ export function ImportarClient() {
       const res = await fetch("/api/trades/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trades: validRows }),
+        body: JSON.stringify({
+          trades: validRows.map((r) => ({ ...r, accountLabel: importAccount })),
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Erro ao importar")
@@ -235,6 +239,29 @@ export function ImportarClient() {
           <Download className="w-3.5 h-3.5" />
           Baixar template CSV
         </button>
+      </div>
+
+      {/* Conta do import */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-1">Conta dos trades</h2>
+        <p className="text-xs text-muted-foreground mb-3">Todos os trades do arquivo serão marcados com esta conta</p>
+        <div className="flex flex-wrap gap-2">
+          {ACCOUNT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setImportAccount(opt.value)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-all",
+                importAccount === opt.value
+                  ? cn(opt.bg, opt.border, opt.color)
+                  : "border-border text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Upload */}

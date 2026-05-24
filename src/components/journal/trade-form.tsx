@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Loader2, Calculator, TrendingUp, TrendingDown, ImagePlus } from "lucide-react"
 import type { Setup, Trade } from "@/lib/types"
+import { ACCOUNT_OPTIONS } from "@/lib/accounts"
 import { ScreenshotUploader, type UploadedScreenshot } from "./screenshot-uploader"
 
 const INSTRUMENTS = ["NQ", "ES", "YM", "RTY", "CL", "GC", "SI", "ZB", "6E", "MNQ", "MES"]
@@ -42,6 +43,7 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
     commission: initial?.commission?.toString() ?? "0",
     result: initial?.result ?? "WIN",
     sessionType: initial?.sessionType ?? "AM",
+    accountLabel: initial?.accountLabel ?? "PA",
     setupId: initial?.setupId ?? "",
     notes: initial?.notes ?? "",
     tags: initial?.tags?.map((t) => t.name).join(", ") ?? "",
@@ -89,6 +91,7 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
       commission: parseFloat(form.commission) || 0,
       result: form.result,
       sessionType: form.sessionType,
+      accountLabel: form.accountLabel,
       setupId: form.setupId || null,
       notes: form.notes || null,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
@@ -118,6 +121,28 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Conta */}
+      <div>
+        <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">Conta</p>
+        <div className="flex flex-wrap gap-2">
+          {ACCOUNT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => set("accountLabel", opt.value)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-all",
+                form.accountLabel === opt.value
+                  ? cn(opt.bg, opt.border, opt.color)
+                  : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Linha 1: Data + Sessão */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Data e Hora">
