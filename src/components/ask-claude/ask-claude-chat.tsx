@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Loader2, Bot, User } from "lucide-react"
+import Image from "next/image"
+import { Send, Loader2, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Message {
@@ -64,8 +65,8 @@ export function AskClaudeChat() {
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-lg mx-auto">
-            <div className="w-14 h-14 rounded-2xl bg-teal/10 flex items-center justify-center">
-              <Bot className="w-7 h-7 text-teal" />
+            <div className="w-24 h-24 rounded-2xl overflow-hidden ring-1 ring-teal/30">
+              <Image src="/vega.png" alt="Vega" width={96} height={96} className="object-cover" priority />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-foreground">Vega</h2>
@@ -96,12 +97,12 @@ export function AskClaudeChat() {
             )}
           >
             <div className={cn(
-              "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
-              msg.role === "user" ? "bg-primary" : "bg-teal/10"
+              "w-7 h-7 rounded-lg shrink-0 mt-0.5 flex items-center justify-center overflow-hidden",
+              msg.role === "user" ? "bg-primary" : "bg-card ring-1 ring-teal/30"
             )}>
               {msg.role === "user"
                 ? <User className="w-4 h-4 text-primary-foreground" />
-                : <Bot className="w-4 h-4 text-teal" />
+                : <Image src="/vega-sm.png" alt="Vega" width={28} height={28} className="object-cover" />
               }
             </div>
             <div className={cn(
@@ -117,8 +118,8 @@ export function AskClaudeChat() {
 
         {loading && (
           <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-lg bg-teal/10 flex items-center justify-center shrink-0 mt-0.5">
-              <Bot className="w-4 h-4 text-teal" />
+            <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 mt-0.5 ring-1 ring-teal/30">
+              <Image src="/vega-sm.png" alt="Vega" width={28} height={28} className="object-cover" />
             </div>
             <div className="bg-card border border-border rounded-xl px-4 py-3 flex items-center gap-2">
               <Loader2 className="w-4 h-4 text-teal animate-spin" />
