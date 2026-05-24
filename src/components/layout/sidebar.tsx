@@ -10,6 +10,7 @@ import {
   Shield,
   Calendar,
   BarChart3,
+  BarChart2,
   GraduationCap,
   MessageSquare,
   Settings,
@@ -46,6 +47,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Ferramentas",
     items: [
+      { href: "/analytics", icon: BarChart2, label: "Analytics" },
       { href: "/guardian", icon: Shield, label: "Guardian", planRequired: "TRADER" },
       { href: "/setups", icon: BarChart3, label: "Setups", planRequired: "TRADER" },
       { href: "/calendario", icon: Calendar, label: "Calendário" },
