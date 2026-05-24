@@ -42,9 +42,8 @@ export function AskClaudeChat() {
         body: JSON.stringify({ messages: next }),
       })
       const data = await res.json()
-      if (data.reply) {
-        setMessages([...next, { role: "assistant", content: data.reply }])
-      }
+      const reply = data.reply ?? data.error ?? "Erro ao processar sua pergunta. Tente novamente."
+      setMessages([...next, { role: "assistant", content: reply }])
     } catch {
       setMessages([...next, { role: "assistant", content: "Erro ao conectar. Tente novamente." }])
     } finally {

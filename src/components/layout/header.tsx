@@ -1,6 +1,7 @@
 "use client"
 
 import { Bell, LogOut, User, ChevronDown } from "lucide-react"
+import { signOut } from "next-auth/react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,11 +93,13 @@ export function Header({
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border" />
-            <DropdownMenuItem variant="destructive" className="cursor-pointer gap-2 p-0">
-              <a href="/api/logout" className="flex items-center gap-2 w-full px-1.5 py-1">
-                <LogOut className="w-4 h-4" />
-                Sair
-              </a>
+            <DropdownMenuItem
+              variant="destructive"
+              className="cursor-pointer gap-2"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+            >
+              <LogOut className="w-4 h-4" />
+              Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
