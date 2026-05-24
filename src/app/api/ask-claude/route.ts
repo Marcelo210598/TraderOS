@@ -41,7 +41,9 @@ export async function POST(req: NextRequest) {
     const text = response.content[0].type === "text" ? response.content[0].text : ""
     return NextResponse.json({ reply: text })
   } catch (err) {
-    console.error("[ask-claude]", err)
-    return NextResponse.json({ error: "Erro ao processar sua pergunta. Tente novamente." }, { status: 500 })
+    const errAny = err as { status?: number; message?: string; error?: { error?: { message?: string } } }
+    const detail = errAny?.error?.error?.message || errAny?.message || String(err)
+    console.error("[ask-claude] status:", errAny?.status, "detail:", detail, "full:", JSON.stringify(err, Object.getOwnPropertyNames(err as object)))
+    return NextResponse.json({ error: `Erro Anthropic: ${detail.slice(0, 300)}` }, { status: 500 })
   }
 }
