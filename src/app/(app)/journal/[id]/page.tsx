@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus, ArrowLeft, Pencil } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { AiAnalysis } from "@/components/journal/ai-analysis"
+import { DeleteTradeButton } from "@/components/journal/delete-trade-button"
 
 export const metadata: Metadata = { title: "Detalhe do Trade" }
 
@@ -45,13 +46,16 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
             <ArrowLeft className="w-4 h-4" />
             Voltar ao Journal
           </a>
-          <a
-            href={`/journal/${trade.id}/editar`}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            Editar
-          </a>
+          <div className="flex items-center gap-2">
+            <DeleteTradeButton tradeId={trade.id} />
+            <a
+              href={`/journal/${trade.id}/editar`}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Editar
+            </a>
+          </div>
         </div>
 
         {/* Hero do trade */}
