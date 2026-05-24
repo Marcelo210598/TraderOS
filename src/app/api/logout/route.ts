@@ -1,20 +1,53 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const COOKIES_TO_CLEAR = [
+const COOKIE_NAMES = [
   "authjs.session-token",
   "__Secure-authjs.session-token",
   "authjs.csrf-token",
   "__Host-authjs.csrf-token",
   "authjs.callback-url",
   "__Secure-authjs.callback-url",
+  "authjs.pkce.code_verifier",
+  "__Secure-authjs.pkce.code_verifier",
+  "authjs.state",
+  "__Secure-authjs.state",
+  "authjs.nonce",
+  "__Secure-authjs.nonce",
 ]
 
 export async function GET(request: NextRequest) {
   const loginUrl = new URL("/login", request.nextUrl.origin)
   const response = NextResponse.redirect(loginUrl)
 
-  for (const name of COOKIES_TO_CLEAR) {
-    response.cookies.set({ name, value: "", expires: new Date(0), path: "/" })
+  // Build the full set of names to clear, including chunked variants (.0, .1, ..., .9)
+  const allNames: string[] = []
+  for (const name of COOKIE_NAMES) {
+    allNames.push(name)
+    for (let i = 0; i < 10; i++) {
+      allNames.push(`${name}.${i}`)
+    }
+  }
+
+  // Also clear anything in the incoming cookie jar that starts with authjs (defensive)
+  const incoming = request.cookies.getAll()
+  for (const c of incoming) {
+    if (c.name.startsWith("authjs.") || c.name.startsWith("__Secure-authjs.") || c.name.startsWith("__Host-authjs.")) {
+      if (!allNames.includes(c.name)) allNames.push(c.name)
+    }
+  }
+
+  for (const name of allNames) {
+    const isSecure = name.startsWith("__Secure-") || name.startsWith("__Host-")
+    response.cookies.set({
+      name,
+      value: "",
+      expires: new Date(0),
+      maxAge: 0,
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: isSecure,
+    })
   }
 
   return response
