@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
@@ -80,10 +81,8 @@ export function Sidebar({ userPlan = "FREE", userLevel = 1, userXp = 0 }: Sideba
   return (
     <aside className="flex flex-col w-60 h-screen bg-sidebar border-r border-sidebar-border fixed left-0 top-0 z-30">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 h-14 border-b border-sidebar-border shrink-0">
-        <div className="w-7 h-7 rounded-md bg-teal flex items-center justify-center shrink-0">
-          <span className="text-teal-foreground font-bold text-xs font-mono">T</span>
-        </div>
+      <div className="flex items-center gap-2 px-3 h-14 border-b border-sidebar-border shrink-0">
+        <Image src="/icon-32.png" alt="TraderOS" width={28} height={28} className="shrink-0" />
         <span className="text-sm font-semibold tracking-tight text-foreground">TraderOS</span>
         {userPlan !== "FREE" && (
           <Badge

@@ -20,6 +20,13 @@ export const metadata: Metadata = {
   description:
     "A plataforma definitiva para traders brasileiros de futuros americanos. Journal, análise, gamificação e cálculo de regras Apex.",
   keywords: ["trading", "futures", "NQ", "ES", "Apex Trader Funding", "prop firm", "journal"],
+  icons: {
+    icon: [
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: { url: "/icon-192.png", sizes: "192x192" },
+  },
 }
 
 export default function RootLayout({
