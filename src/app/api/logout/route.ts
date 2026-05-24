@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 const COOKIE_NAMES = [
   "authjs.session-token",
   "__Secure-authjs.session-token",
@@ -53,6 +56,9 @@ export async function GET(request: NextRequest) {
   for (const name of allNames) {
     response.headers.append("Set-Cookie", buildCookieClear(name))
   }
+
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+  response.headers.set("Pragma", "no-cache")
 
   return response
 }
