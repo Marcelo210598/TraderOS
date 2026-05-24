@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, LogOut, User, ChevronDown } from "lucide-react"
+import { Bell, LogOut, User, ChevronDown, Menu } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { useSidebar } from "./sidebar-context"
 
 interface HeaderProps {
   title: string
@@ -30,6 +31,8 @@ export function Header({
   userImage,
   userPlan = "FREE",
 }: HeaderProps) {
+  const { toggleMobile } = useSidebar()
+
   const initials =
     userName
       ?.split(" ")
@@ -39,13 +42,22 @@ export function Header({
       .toUpperCase() ?? "T"
 
   return (
-    <header className="h-14 border-b border-border bg-background/80 backdrop-blur-sm flex items-center px-6 gap-4 sticky top-0 z-20">
-      <div className="flex-1">
-        <h1 className="text-sm font-semibold text-foreground">{title}</h1>
-        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+    <header className="h-14 border-b border-border bg-background/80 backdrop-blur-sm flex items-center px-4 gap-3 sticky top-0 z-20">
+      {/* Hamburguer — só mobile */}
+      <button
+        onClick={toggleMobile}
+        className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+        aria-label="Abrir menu"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <h1 className="text-sm font-semibold text-foreground truncate">{title}</h1>
+        {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <button className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
           <Bell className="w-4 h-4" />
         </button>
@@ -60,7 +72,7 @@ export function Header({
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm text-foreground hidden sm:block max-w-28 truncate">
+            <span className="text-sm text-foreground hidden sm:block max-w-24 truncate">
               {userName ?? "Trader"}
             </span>
             <Badge

@@ -126,14 +126,14 @@ export default async function DashboardPage() {
         userPlan={user?.plan ?? "FREE"}
       />
 
-      <div className="flex-1 p-6 lg:p-8 space-y-6">
+      <div className="flex-1 p-4 lg:p-8 space-y-5">
         {/* Saudação + CTA */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-2xl font-bold text-foreground truncate">
               {greeting}, {firstName} 👋
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               {weeklyTrades.length === 0
                 ? "Nenhum trade nos últimos 7 dias. Bora começar!"
                 : `${weeklyTrades.length} trade${weeklyTrades.length > 1 ? "s" : ""} nos últimos 7 dias`}
@@ -141,15 +141,15 @@ export default async function DashboardPage() {
           </div>
           <a
             href="/journal/novo"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
-            Registrar Trade
+            <span className="hidden sm:inline">Registrar</span> Trade
           </a>
         </div>
 
         {/* Métricas principais */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatsCard
             title="P&L 7 dias"
             value={pnlDisplay}
