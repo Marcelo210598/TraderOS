@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { TradeFilters } from "@/components/journal/trade-filters"
 import { TradeList } from "@/components/journal/trade-list"
-import { Plus, BookOpen } from "lucide-react"
+import { Plus, BookOpen, Upload } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
 
 export const metadata: Metadata = { title: "Journal" }
@@ -111,13 +111,22 @@ export default async function JournalPage({ searchParams }: Props) {
               </p>
             </div>
           </div>
-          <a
-            href="/journal/novo"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Trade
-          </a>
+          <div className="flex items-center gap-2">
+            <a
+              href="/journal/importar"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-teal/40 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Importar CSV</span>
+            </a>
+            <a
+              href="/journal/novo"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Trade
+            </a>
+          </div>
         </div>
 
         {/* Stats do mês */}
