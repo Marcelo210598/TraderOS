@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
-import { Send, Loader2, User } from "lucide-react"
+import { Send, Loader2, User, Database } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Message {
@@ -11,18 +11,25 @@ interface Message {
 }
 
 const SUGGESTIONS = [
-  "Como calcular meu position sizing ideal?",
-  "O que é o trailing drawdown da Apex?",
-  "Como melhorar meu win rate no NQ?",
-  "Explique a Consistency Rule da Apex",
+  "Analise meu desempenho nos últimos 90 dias e diga onde posso melhorar",
+  "Qual sessão (AM/PM) é mais lucrativa para mim e por quê?",
+  "Meu setup mais usado está performando bem? O que os dados dizem?",
+  "Como está meu win rate comparado ao ideal para ser lucrativo?",
 ]
 
 export function AskClaudeChat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [tradeCount, setTradeCount] = useState<number | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    fetch("/api/ask-claude")
+      .then((r) => r.json())
+      .then((d) => { if (typeof d.tradeCount === "number") setTradeCount(d.tradeCount) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -61,6 +68,19 @@ export function AskClaudeChat() {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Context indicator */}
+      {tradeCount !== null && (
+        <div className="border-b border-border px-6 py-2 flex items-center gap-2">
+          <Database className="w-3.5 h-3.5 text-teal shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            {tradeCount > 0
+              ? `Vega tem acesso aos seus últimos ${tradeCount} trades (90 dias) para análise contextual`
+              : "Nenhum trade registrado ainda — registre operações no Journal para análise personalizada"
+            }
+          </p>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && (
@@ -71,7 +91,10 @@ export function AskClaudeChat() {
             <div>
               <h2 className="text-lg font-semibold text-foreground">Vega</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Analista de trading com IA. Pergunte sobre setups, métricas, Apex Funding ou psicologia.
+                {tradeCount && tradeCount > 0
+                  ? `Analisei ${tradeCount} trades seus. Pergunte sobre sua performance, setups ou psicologia.`
+                  : "Analista de trading com IA. Pergunte sobre setups, métricas, Apex Funding ou psicologia."
+                }
               </p>
             </div>
             <div className="grid grid-cols-1 gap-2 w-full">
@@ -123,7 +146,7 @@ export function AskClaudeChat() {
             </div>
             <div className="bg-card border border-border rounded-xl px-4 py-3 flex items-center gap-2">
               <Loader2 className="w-4 h-4 text-teal animate-spin" />
-              <span className="text-sm text-muted-foreground">Analisando...</span>
+              <span className="text-sm text-muted-foreground">Analisando seus dados...</span>
             </div>
           </div>
         )}
@@ -135,11 +158,10 @@ export function AskClaudeChat() {
       <div className="border-t border-border p-4">
         <div className="flex items-end gap-3 max-w-3xl mx-auto">
           <textarea
-            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Pergunte algo sobre trading..."
+            placeholder="Pergunte algo sobre seus trades ou trading em geral..."
             rows={1}
             className="flex-1 resize-none bg-card border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-teal/50 min-h-[48px] max-h-32"
             style={{ overflowY: "auto" }}
