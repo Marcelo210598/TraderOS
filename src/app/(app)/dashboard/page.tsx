@@ -55,19 +55,22 @@ export default async function DashboardPage() {
   const profitFactor =
     weekLossPnl > 0 ? weekWinPnl / weekLossPnl : weekWinPnl > 0 ? 99 : 0
 
-  // Dados do gráfico
+  // Dados do gráfico — sempre 7 dias mesmo sem trades
   const dayMap = new Map<string, { pnl: number; trades: number }>()
   for (const t of weeklyTrades) {
     const key = t.date.toISOString().slice(0, 10)
     const existing = dayMap.get(key) ?? { pnl: 0, trades: 0 }
     dayMap.set(key, { pnl: existing.pnl + Number(t.pnl), trades: existing.trades + 1 })
   }
-  const chartData = Array.from(dayMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([dateStr, v]) => {
-      const d = new Date(dateStr + "T12:00:00")
-      return { label: DAYS[d.getDay()], pnl: v.pnl, trades: v.trades }
-    })
+  const chartData: { label: string; pnl: number; trades: number }[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    const v = dayMap.get(key) ?? { pnl: 0, trades: 0 }
+    const label = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`
+    chartData.push({ label, pnl: v.pnl, trades: v.trades })
+  }
 
   // Trades recentes formatados
   const todayStr = new Date().toISOString().slice(0, 10)
