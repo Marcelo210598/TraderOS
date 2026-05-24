@@ -1,6 +1,7 @@
 "use client"
 
-import { Bell, LogOut, User, ChevronDown, Menu } from "lucide-react"
+import { LogOut, User, ChevronDown, Menu } from "lucide-react"
+import { NotificationBell } from "./notification-bell"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,9 +59,7 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        <button className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-          <Bell className="w-4 h-4" />
-        </button>
+        <NotificationBell />
 
         <DropdownMenu>
           <DropdownMenuTrigger
