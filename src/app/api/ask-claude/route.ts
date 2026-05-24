@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import Anthropic from "@anthropic-ai/sdk"
 
-const SYSTEM_PROMPT = `Você é o Ask Claude, um analista de trading especializado em futuros americanos (NQ, ES, YM, RTY) integrado ao TraderOS.
+const SYSTEM_PROMPT = `Você é um analista de trading especializado em futuros americanos (NQ, ES, YM, RTY) integrado ao TraderOS.
 
 Você ajuda traders a:
 - Analisar setups e estratégias (ICT, SMC, Order Flow, Price Action)
@@ -25,18 +25,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Mensagem inválida" }, { status: 400 })
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-  const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT,
-    messages: messages.map((m: { role: string; content: string }) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-  })
+    const response = await client.messages.create({
+      model: "claude-3-5-haiku-20241022",
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: messages.map((m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
+    })
 
-  const text = response.content[0].type === "text" ? response.content[0].text : ""
-  return NextResponse.json({ reply: text })
+    const text = response.content[0].type === "text" ? response.content[0].text : ""
+    return NextResponse.json({ reply: text })
+  } catch (err) {
+    console.error("[ask-claude]", err)
+    return NextResponse.json({ error: "Erro ao processar sua pergunta. Tente novamente." }, { status: 500 })
+  }
 }
