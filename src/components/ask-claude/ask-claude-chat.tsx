@@ -69,9 +69,9 @@ export function AskClaudeChat() {
               <Bot className="w-7 h-7 text-teal" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Ask Claude</h2>
+              <h2 className="text-lg font-semibold text-foreground">Vega</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Seu analista de trading com IA. Pergunte sobre setups, métricas, Apex Funding ou psicologia.
+                Analista de trading com IA. Pergunte sobre setups, métricas, Apex Funding ou psicologia.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-2 w-full">

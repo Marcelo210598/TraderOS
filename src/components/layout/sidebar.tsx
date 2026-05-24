@@ -53,7 +53,7 @@ const navGroups: NavGroup[] = [
     label: "Aprendizado",
     items: [
       { href: "/trilha", icon: GraduationCap, label: "Trilha" },
-      { href: "/ask-claude", icon: MessageSquare, label: "Ask Claude", planRequired: "PRO" },
+      { href: "/ask-claude", icon: MessageSquare, label: "Vega IA", planRequired: "PRO" },
     ],
   },
 ]

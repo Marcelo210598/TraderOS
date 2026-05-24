@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { Header } from "@/components/layout/header"
 import { AskClaudeChat } from "@/components/ask-claude/ask-claude-chat"
 
-export const metadata: Metadata = { title: "Ask Claude" }
+export const metadata: Metadata = { title: "Vega" }
 
 export default async function AskClaudePage() {
   const session = await auth()
@@ -15,7 +15,7 @@ export default async function AskClaudePage() {
   return (
     <div className="flex flex-col flex-1 overflow-auto">
       <Header
-        title="Ask Claude"
+        title="Vega"
         subtitle="Seu analista de trading com IA"
         userName={user.name}
         userEmail={user.email}
