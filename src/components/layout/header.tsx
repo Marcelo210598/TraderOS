@@ -95,7 +95,12 @@ export function Header({
             <DropdownMenuItem
               variant="destructive"
               className="cursor-pointer gap-2"
-              render={<a href="/api/logout" />}
+              closeOnClick={false}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                window.location.assign("/api/logout")
+              }}
             >
               <LogOut className="w-4 h-4" />
               Sair
