@@ -15,39 +15,43 @@ const COOKIE_NAMES = [
   "__Secure-authjs.nonce",
 ]
 
+function buildCookieClear(name: string): string {
+  const isSecure = name.startsWith("__Secure-") || name.startsWith("__Host-")
+  const parts = [
+    `${name}=`,
+    "Path=/",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "Max-Age=0",
+    "HttpOnly",
+    "SameSite=Lax",
+  ]
+  if (isSecure) parts.push("Secure")
+  return parts.join("; ")
+}
+
 export async function GET(request: NextRequest) {
   const loginUrl = new URL("/login", request.nextUrl.origin)
   const response = NextResponse.redirect(loginUrl)
 
-  // Build the full set of names to clear, including chunked variants (.0, .1, ..., .9)
-  const allNames: string[] = []
+  const allNames = new Set<string>()
   for (const name of COOKIE_NAMES) {
-    allNames.push(name)
-    for (let i = 0; i < 10; i++) {
-      allNames.push(`${name}.${i}`)
-    }
+    allNames.add(name)
+    for (let i = 0; i < 10; i++) allNames.add(`${name}.${i}`)
   }
 
-  // Also clear anything in the incoming cookie jar that starts with authjs (defensive)
   const incoming = request.cookies.getAll()
   for (const c of incoming) {
-    if (c.name.startsWith("authjs.") || c.name.startsWith("__Secure-authjs.") || c.name.startsWith("__Host-authjs.")) {
-      if (!allNames.includes(c.name)) allNames.push(c.name)
+    if (
+      c.name.startsWith("authjs.") ||
+      c.name.startsWith("__Secure-authjs.") ||
+      c.name.startsWith("__Host-authjs.")
+    ) {
+      allNames.add(c.name)
     }
   }
 
   for (const name of allNames) {
-    const isSecure = name.startsWith("__Secure-") || name.startsWith("__Host-")
-    response.cookies.set({
-      name,
-      value: "",
-      expires: new Date(0),
-      maxAge: 0,
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      secure: isSecure,
-    })
+    response.headers.append("Set-Cookie", buildCookieClear(name))
   }
 
   return response
