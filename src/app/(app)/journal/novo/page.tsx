@@ -20,7 +20,7 @@ export default async function NovoTradePage() {
     ...s,
     description: s.description ?? null,
     rules: s.rules ?? null,
-    stats: { total: 0, wins: 0, losses: 0, winRate: 0, totalPnl: 0 },
+    stats: { total: 0, wins: 0, losses: 0, winRate: 0, totalPnl: 0, avgPnl: 0, profitFactor: 0, avgWin: 0, avgLoss: 0 },
     createdAt: s.createdAt.toISOString(),
   }))
 

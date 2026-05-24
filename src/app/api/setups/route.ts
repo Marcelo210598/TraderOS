@@ -27,20 +27,26 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   })
 
-  // Calcular stats por setup
   const setupsWithStats = setups.map((s) => {
-    const wins = s.trades.filter((t) => t.result === "WIN").length
+    const winTrades = s.trades.filter((t) => t.result === "WIN")
+    const lossTrades = s.trades.filter((t) => t.result === "LOSS")
     const total = s.trades.length
     const totalPnl = s.trades.reduce((acc, t) => acc + Number(t.pnl), 0)
+    const grossWins = winTrades.reduce((acc, t) => acc + Number(t.pnl), 0)
+    const grossLosses = Math.abs(lossTrades.reduce((acc, t) => acc + Number(t.pnl), 0))
     return {
       ...s,
       trades: undefined,
       stats: {
         total,
-        wins,
-        losses: s.trades.filter((t) => t.result === "LOSS").length,
-        winRate: total > 0 ? Math.round((wins / total) * 100) : 0,
+        wins: winTrades.length,
+        losses: lossTrades.length,
+        winRate: total > 0 ? Math.round((winTrades.length / total) * 100) : 0,
         totalPnl: Number(totalPnl.toFixed(2)),
+        avgPnl: total > 0 ? Number((totalPnl / total).toFixed(2)) : 0,
+        profitFactor: grossLosses > 0 ? Number((grossWins / grossLosses).toFixed(2)) : grossWins > 0 ? 999 : 0,
+        avgWin: winTrades.length > 0 ? Number((grossWins / winTrades.length).toFixed(2)) : 0,
+        avgLoss: lossTrades.length > 0 ? Number((grossLosses / lossTrades.length).toFixed(2)) : 0,
       },
     }
   })

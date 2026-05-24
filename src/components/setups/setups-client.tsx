@@ -3,17 +3,25 @@
 import { useState } from "react"
 import { SetupCard } from "./setup-card"
 import { SetupModal } from "./setup-modal"
-import { Plus, BarChart3 } from "lucide-react"
+import { SetupPerformanceTable } from "./setup-performance-table"
+import { Plus, BarChart3, LayoutGrid, Table2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { Setup } from "@/lib/types"
 
 interface SetupsClientProps {
   initialSetups: Setup[]
 }
 
+const EMPTY_STATS = {
+  total: 0, wins: 0, losses: 0, winRate: 0,
+  totalPnl: 0, avgPnl: 0, profitFactor: 0, avgWin: 0, avgLoss: 0,
+}
+
 export function SetupsClient({ initialSetups }: SetupsClientProps) {
   const [setups, setSetups] = useState(initialSetups)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Setup | null>(null)
+  const [view, setView] = useState<"cards" | "table">("cards")
 
   function handleEdit(setup: Setup) {
     setEditing(setup)
@@ -29,7 +37,7 @@ export function SetupsClient({ initialSetups }: SetupsClientProps) {
     setSetups((prev) => {
       const exists = prev.find((s) => s.id === saved.id)
       if (exists) return prev.map((s) => (s.id === saved.id ? { ...s, ...saved } : s))
-      return [{ ...saved, stats: { total: 0, wins: 0, losses: 0, winRate: 0, totalPnl: 0 } }, ...prev]
+      return [{ ...saved, stats: EMPTY_STATS }, ...prev]
     })
   }
 
@@ -47,13 +55,40 @@ export function SetupsClient({ initialSetups }: SetupsClientProps) {
             <p className="text-xs text-muted-foreground">{setups.length} setup{setups.length !== 1 ? "s" : ""} cadastrado{setups.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
-        <button
-          onClick={handleNew}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Setup
-        </button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          {setups.length > 0 && (
+            <div className="flex items-center gap-0.5 p-0.5 bg-muted rounded-lg border border-border">
+              <button
+                onClick={() => setView("cards")}
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  view === "cards" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Cards"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setView("table")}
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  view === "table" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Tabela de performance"
+              >
+                <Table2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          <button
+            onClick={handleNew}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Setup
+          </button>
+        </div>
       </div>
 
       {setups.length === 0 ? (
@@ -73,12 +108,14 @@ export function SetupsClient({ initialSetups }: SetupsClientProps) {
             Criar primeiro setup
           </button>
         </div>
-      ) : (
+      ) : view === "cards" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {setups.map((setup) => (
             <SetupCard key={setup.id} setup={setup} onEdit={handleEdit} onDeleted={handleDeleted} />
           ))}
         </div>
+      ) : (
+        <SetupPerformanceTable setups={setups} onEdit={handleEdit} onDeleted={handleDeleted} />
       )}
 
       <SetupModal

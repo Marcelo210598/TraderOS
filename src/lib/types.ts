@@ -54,6 +54,10 @@ export interface Setup {
     losses: number
     winRate: number
     totalPnl: number
+    avgPnl: number
+    profitFactor: number
+    avgWin: number
+    avgLoss: number
   }
   createdAt: string
 }
