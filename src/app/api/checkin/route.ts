@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { giveXp, updateCheckInStreak, checkAndAwardAchievements } from "@/lib/gamification"
+import { XP_REWARDS } from "@/lib/xp"
 
 const checkInSchema = z.object({
   type: z.enum(["PRE", "POST"]),
@@ -54,11 +56,9 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // XP por check-in
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { xp: { increment: 5 } },
-  })
+  await giveXp(session.user.id, XP_REWARDS.CHECK_IN)
+  await updateCheckInStreak(session.user.id)
+  await checkAndAwardAchievements(session.user.id)
 
   return NextResponse.json(checkIn, { status: 201 })
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { giveXp, checkAndAwardAchievements } from "@/lib/gamification"
+import { XP_REWARDS } from "@/lib/xp"
 
 const setupSchema = z.object({
   name: z.string().min(1).max(80),
@@ -72,6 +74,9 @@ export async function POST(req: NextRequest) {
   const setup = await prisma.setup.create({
     data: { ...parsed.data, userId: session.user.id },
   })
+
+  await giveXp(session.user.id, XP_REWARDS.SETUP_CREATED)
+  await checkAndAwardAchievements(session.user.id)
 
   return NextResponse.json(setup, { status: 201 })
 }

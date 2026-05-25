@@ -3,6 +3,8 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { Prisma } from "@prisma/client"
+import { giveXp, updateJournalStreak, updateProfitableDaysStreak, checkAndAwardAchievements } from "@/lib/gamification"
+import { XP_REWARDS } from "@/lib/xp"
 
 const createTradeSchema = z.object({
   date: z.string(),
@@ -129,11 +131,15 @@ export async function POST(req: NextRequest) {
     include: { tags: true, setup: { select: { id: true, name: true } } },
   })
 
-  // XP por trade registrado
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { xp: { increment: 10 } },
-  })
+  // XP + streaks + conquistas
+  await giveXp(session.user.id, XP_REWARDS.TRADE_REGISTERED)
+  if (parsed.data.result === "WIN") {
+    await giveXp(session.user.id, XP_REWARDS.WIN_TRADE)
+  }
+  const tradeDate = new Date(parsed.data.date)
+  await updateJournalStreak(session.user.id, tradeDate)
+  await updateProfitableDaysStreak(session.user.id, tradeDate)
+  await checkAndAwardAchievements(session.user.id)
 
   return NextResponse.json(trade, { status: 201 })
 }
