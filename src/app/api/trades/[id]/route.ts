@@ -18,6 +18,8 @@ const updateTradeSchema = z.object({
   accountLabel: z.string().optional(),
   setupId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  mfe: z.number().optional().nullable(),
+  mae: z.number().optional().nullable(),
   tags: z.array(z.string()).optional(),
 })
 

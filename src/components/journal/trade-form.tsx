@@ -41,6 +41,8 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
     exitPrice: initial?.exitPrice?.toString() ?? "",
     quantity: initial?.quantity?.toString() ?? "1",
     commission: initial?.commission?.toString() ?? "0",
+    mfe: initial?.mfe?.toString() ?? "",
+    mae: initial?.mae?.toString() ?? "",
     result: initial?.result ?? "WIN",
     sessionType: initial?.sessionType ?? "AM",
     accountLabel: initial?.accountLabel ?? "PA",
@@ -94,6 +96,8 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
       accountLabel: form.accountLabel,
       setupId: form.setupId || null,
       notes: form.notes || null,
+      mfe: form.mfe ? parseFloat(form.mfe) : null,
+      mae: form.mae ? parseFloat(form.mae) : null,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       screenshots: screenshots.map((s) => ({ url: s.url, key: s.key, label: s.label ?? null })),
     }
@@ -250,6 +254,32 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
           </div>
         </div>
       )}
+
+      {/* MFE / MAE */}
+      <div className="grid grid-cols-2 gap-4">
+        <Field label={<span title="Maximum Favorable Excursion — máximo que o preço foi a seu favor (em pontos)">MFE <span className="normal-case font-normal opacity-60">(pts) — opcional</span></span>}>
+          <input
+            type="number"
+            step="0.25"
+            min="0"
+            placeholder="ex: 45.00"
+            value={form.mfe}
+            onChange={(e) => set("mfe", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field label={<span title="Maximum Adverse Excursion — máximo que o preço foi contra você (em pontos)">MAE <span className="normal-case font-normal opacity-60">(pts) — opcional</span></span>}>
+          <input
+            type="number"
+            step="0.25"
+            min="0"
+            placeholder="ex: 12.00"
+            value={form.mae}
+            onChange={(e) => set("mae", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+      </div>
 
       {/* Linha 4: Comissão + Resultado + Setup */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

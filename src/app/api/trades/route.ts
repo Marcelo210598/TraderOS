@@ -19,6 +19,8 @@ const createTradeSchema = z.object({
   accountLabel: z.string().default("PA"),
   setupId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  mfe: z.number().optional().nullable(),
+  mae: z.number().optional().nullable(),
   tags: z.array(z.string()).default([]),
   screenshots: z.array(z.object({
     url: z.string().url(),

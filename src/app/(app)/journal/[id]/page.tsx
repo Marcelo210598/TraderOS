@@ -129,6 +129,29 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
           ))}
         </div>
 
+        {/* MFE / MAE */}
+        {(trade.mfe != null || trade.mae != null) && (
+          <div className="grid grid-cols-2 gap-3">
+            {trade.mfe != null && (
+              <div className="bg-card border border-profit/20 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">MFE <span className="opacity-60">(máx. a favor)</span></p>
+                <p className="text-base font-mono font-semibold text-profit mt-1">+{Number(trade.mfe).toFixed(2)} pts</p>
+                {pnlPoints > 0 && (
+                  <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                    capturou {((pnlPoints / Number(trade.mfe)) * 100).toFixed(0)}% do potencial
+                  </p>
+                )}
+              </div>
+            )}
+            {trade.mae != null && (
+              <div className="bg-card border border-loss/20 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">MAE <span className="opacity-60">(máx. contra)</span></p>
+                <p className="text-base font-mono font-semibold text-loss mt-1">-{Number(trade.mae).toFixed(2)} pts</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Screenshots */}
         {trade.screenshots.length > 0 && (
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">

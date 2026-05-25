@@ -97,6 +97,8 @@ model Trade {
   setupId      String?
   notes        String?
   aiAnalysis   String?
+  mfe          Decimal?    @db.Decimal(10, 2)
+  mae          Decimal?    @db.Decimal(10, 2)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

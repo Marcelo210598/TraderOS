@@ -36,6 +36,8 @@ export interface Trade {
   setup: SetupRef | null
   notes: string | null
   aiAnalysis: string | null
+  mfe: number | null
+  mae: number | null
   tags: TradeTag[]
   screenshots: Screenshot[]
   createdAt: string
