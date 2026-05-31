@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { TradeFilters } from "@/components/journal/trade-filters"
 import { TradeList } from "@/components/journal/trade-list"
-import { Plus, BookOpen, Upload, Tag } from "lucide-react"
+import { Plus, BookOpen, Upload, Tag, FileDown } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
 
 export const metadata: Metadata = { title: "Journal" }
@@ -140,6 +140,15 @@ export default async function JournalPage({ searchParams }: Props) {
             >
               <Upload className="w-4 h-4" />
               <span className="hidden sm:inline">Importar CSV</span>
+            </a>
+            <a
+              href={`/journal/print${Object.keys(sp).length > 0 ? `?${new URLSearchParams(sp).toString()}` : ""}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-teal/40 transition-colors"
+            >
+              <FileDown className="w-4 h-4" />
+              <span className="hidden sm:inline">Exportar PDF</span>
             </a>
             <a
               href="/journal/novo"
