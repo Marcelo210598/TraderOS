@@ -140,6 +140,12 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: radial-gradient(
+      ellipse 90% 55% at 50% 0%,
+      oklch(0.13 0.025 244),
+      oklch(0.09 0.022 244) 70%
+    );
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;

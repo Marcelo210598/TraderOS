@@ -12,7 +12,14 @@ export default function LoginPage() {
       {/* Logo e tagline */}
       <div className="text-center">
         <div className="flex justify-center mb-4">
-          <Image src="/logo.png" alt="TraderOS" width={180} height={180} priority />
+          <Image
+            src="/logo.png"
+            alt="TraderOS"
+            width={180}
+            height={180}
+            priority
+            style={{ filter: "drop-shadow(0 0 24px oklch(0.72 0.134 179 / 0.45))" }}
+          />
         </div>
         <h1 className="text-2xl font-bold text-foreground">Bem-vindo de volta</h1>
         <p className="text-sm text-muted-foreground mt-1">
