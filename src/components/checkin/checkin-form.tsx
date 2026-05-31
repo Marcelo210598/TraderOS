@@ -5,6 +5,49 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Loader2, ArrowRight, Sparkles } from "lucide-react"
 
+const FALLBACK_INSIGHTS: Record<"PRE" | "POST", Record<"low" | "medium" | "high", string[]>> = {
+  PRE: {
+    low: [
+      "Estado abaixo do ideal hoje. Se for operar, use metade do tamanho normal e defina o max loss antes de abrir a plataforma.",
+      "Scores baixos são um sinal real — o risco de decisões emocionais é alto agora. Prefira qualidade a quantidade: só setups A+.",
+      "Quando o estado está assim, o mercado te cobra caro por qualquer hesitação. Considere observar hoje ou operar muito menos.",
+    ],
+    medium: [
+      "Estado razoável. Você pode operar, mas fique atento: defina o stop antes de entrar e não mude no meio do trade.",
+      "Scores medianos. Fique nos setups que você mais domina e evite overtrading — menos trades, melhor qualidade.",
+      "Dia mediano emocionalmente. Siga o plano à risca: respeite stops, sem revenge trade se der errado.",
+    ],
+    high: [
+      "Ótimo estado hoje. Você está preparado — confie nos seus setups e mantenha o gerenciamento de risco no ponto.",
+      "Estado sólido para operar. Aproveite o foco e a confiança, mas sem excesso: disciplina é o que separa os dias bons dos grandes.",
+      "Excelente pré-sessão. Foco alto e stress baixo — as condições ideais. Execute seu plano sem improvisar.",
+    ],
+  },
+  POST: {
+    low: [
+      "Sessão pesada emocionalmente. Antes de fechar, anote o que pesou mais — identificar o padrão é o primeiro passo.",
+      "Estado baixo pós-sessão. Descanse antes da próxima. Operar cansado emocional é um dos maiores custos ocultos do trading.",
+      "Dia difícil. Não leve para o próximo — escreva o que aconteceu enquanto está fresco e deixe aqui.",
+    ],
+    medium: [
+      "Sessão razoável. O que você faria diferente em um trade hoje? Um ajuste pequeno por sessão acumula muito no longo prazo.",
+      "Estado mediano. Revise um momento em que hesitou — essa é sempre a melhoria mais valiosa.",
+      "Consistência se constrói em dias medianos também. Amanhã é uma nova sessão.",
+    ],
+    high: [
+      "Boa sessão! Terminar assim é sinal de execução alinhada com o plano. Mantenha esse padrão.",
+      "Estado emocional elevado pós-trade. Anote o que funcionou hoje — esses são os dias para replicar.",
+      "Excelente encerramento. Trader que sai assim está no caminho certo. Descanse e repita amanhã.",
+    ],
+  },
+}
+
+function getFallbackInsight(type: "PRE" | "POST", avg: number): string {
+  const range = avg >= 7 ? "high" : avg >= 5 ? "medium" : "low"
+  const options = FALLBACK_INSIGHTS[type][range]
+  return options[Math.floor(Math.random() * options.length)]
+}
+
 const METRICS = [
   { key: "emotional", label: "Estado emocional", desc: "Como você está se sentindo agora?" },
   { key: "energy", label: "Energia", desc: "Nível de energia e disposição" },
@@ -42,6 +85,7 @@ export function CheckInForm({ type }: CheckInFormProps) {
 
   async function fetchInsight(submittedScores: Record<string, number>, submittedNotes: string) {
     setLoadingInsight(true)
+    const avg = Object.values(submittedScores).reduce((a, b) => a + b, 0) / Object.values(submittedScores).length
     try {
       const res = await fetch("/api/checkin/ai-insight", {
         method: "POST",
@@ -50,10 +94,12 @@ export function CheckInForm({ type }: CheckInFormProps) {
       })
       if (res.ok) {
         const data = await res.json()
-        setInsight(data.insight ?? null)
+        setInsight(data.insight ?? getFallbackInsight(type, avg))
+      } else {
+        setInsight(getFallbackInsight(type, avg))
       }
     } catch {
-      // insight é opcional — falha silenciosa
+      setInsight(getFallbackInsight(type, avg))
     } finally {
       setLoadingInsight(false)
     }
@@ -113,10 +159,8 @@ export function CheckInForm({ type }: CheckInFormProps) {
 
           {loadingInsight ? (
             <p className="text-sm text-muted-foreground italic">Analisando seu estado emocional...</p>
-          ) : insight ? (
-            <p className="text-sm text-foreground leading-relaxed">{insight}</p>
           ) : (
-            <p className="text-sm text-muted-foreground">Análise indisponível no momento.</p>
+            <p className="text-sm text-foreground leading-relaxed">{insight}</p>
           )}
         </div>
 

@@ -7,7 +7,7 @@ import { RecentTrades } from "@/components/dashboard/recent-trades"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { StreakWidget } from "@/components/dashboard/streak-widget"
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
-import { DollarSign, TrendingUp, Target, Activity, BookOpen, Plus } from "lucide-react"
+import { DollarSign, TrendingUp, Target, Activity, BookOpen, Plus, Sparkles, Brain } from "lucide-react"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -183,25 +183,31 @@ export default async function DashboardPage() {
         </div>
 
         {/* Check-in rápido */}
-        <div className="bg-teal/5 border border-teal/20 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
+        <a
+          href="/checkin"
+          className="group relative overflow-hidden bg-gradient-to-r from-teal/10 to-primary/10 border border-teal/30 rounded-xl px-5 py-4 flex items-center justify-between gap-4 hover:border-teal/50 hover:from-teal/15 hover:to-primary/15 transition-all"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-teal/15 flex items-center justify-center shrink-0">
-              <BookOpen className="w-4 h-4 text-teal" />
+            <div className="w-10 h-10 rounded-xl bg-teal/20 flex items-center justify-center shrink-0 group-hover:bg-teal/30 transition-colors">
+              <Brain className="w-5 h-5 text-teal" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">Check-in emocional</p>
+              <div className="flex items-center gap-2 mb-0.5">
+                <p className="text-sm font-semibold text-foreground">Check-in emocional</p>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/15 border border-primary/25 text-[10px] font-medium text-primary">
+                  <Sparkles className="w-2.5 h-2.5" />
+                  Análise IA
+                </span>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Avalie seu estado antes de operar
+                Avalie seu estado — Vega analisa e dá um conselho personalizado
               </p>
             </div>
           </div>
-          <a
-            href="/checkin"
-            className="inline-flex items-center px-3 py-1.5 rounded-lg border border-teal/30 text-teal text-xs font-medium hover:bg-teal/10 transition-colors shrink-0"
-          >
+          <span className="inline-flex items-center px-4 py-2 rounded-lg bg-teal text-white text-xs font-semibold hover:bg-teal/90 transition-colors shrink-0 shadow-sm">
             Fazer check-in
-          </a>
-        </div>
+          </span>
+        </a>
 
         {/* Gráfico + Streaks */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
