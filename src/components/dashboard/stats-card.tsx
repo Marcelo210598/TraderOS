@@ -1,8 +1,6 @@
-"use client"
-
 import { cn } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus, LucideIcon } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { AnimatedValue } from "./animated-value"
 
 type AnimateFormat = "integer" | "decimal2" | "currency" | "currency-profit" | "currency-loss"
 
@@ -19,42 +17,6 @@ interface StatsCardProps {
   animateFormat?: AnimateFormat
 }
 
-function applyFormat(n: number, fmt: AnimateFormat): string {
-  switch (fmt) {
-    case "currency-profit": return `+$${n.toFixed(0)}`
-    case "currency-loss":   return `-$${n.toFixed(0)}`
-    case "currency":        return `$${n.toFixed(0)}`
-    case "decimal2":        return n.toFixed(2)
-    case "integer":
-    default:                return Math.round(n).toString()
-  }
-}
-
-function useCountUp(target: number | undefined, duration = 700) {
-  const [current, setCurrent] = useState(0)
-  const rafRef = useRef<number>(0)
-
-  useEffect(() => {
-    if (target === undefined || target === 0) {
-      setCurrent(0)
-      return
-    }
-    let startTime: number | null = null
-    const animate = (now: number) => {
-      if (startTime === null) startTime = now
-      const elapsed = now - startTime
-      const progress = Math.min(elapsed / duration, 1)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      setCurrent(target * eased)
-      if (progress < 1) rafRef.current = requestAnimationFrame(animate)
-    }
-    rafRef.current = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [target, duration])
-
-  return current
-}
-
 export function StatsCard({
   title,
   value,
@@ -67,10 +29,6 @@ export function StatsCard({
   numericValue,
   animateFormat,
 }: StatsCardProps) {
-  const animated = useCountUp(numericValue)
-  const displayValue =
-    numericValue !== undefined && animateFormat ? applyFormat(animated, animateFormat) : value
-
   const isPositive = change !== undefined && change > 0
   const isNegative = change !== undefined && change < 0
 
@@ -135,7 +93,15 @@ export function StatsCard({
 
       <div>
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-bold font-mono text-foreground">{displayValue}</span>
+          {numericValue !== undefined && animateFormat ? (
+            <AnimatedValue
+              numericValue={numericValue}
+              animateFormat={animateFormat}
+              className="text-2xl font-bold font-mono text-foreground"
+            />
+          ) : (
+            <span className="text-2xl font-bold font-mono text-foreground">{value}</span>
+          )}
           {suffix && <span className="text-sm text-muted-foreground font-mono">{suffix}</span>}
         </div>
 
