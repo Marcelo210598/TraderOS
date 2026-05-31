@@ -63,9 +63,10 @@ const SCALE_LABELS: Record<number, string> = {
 
 interface CheckInFormProps {
   type: "PRE" | "POST"
+  userPlan: "FREE" | "TRADER" | "PRO"
 }
 
-export function CheckInForm({ type }: CheckInFormProps) {
+export function CheckInForm({ type, userPlan }: CheckInFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -130,7 +131,9 @@ export function CheckInForm({ type }: CheckInFormProps) {
 
     setLoading(false)
     setSubmitted(true)
-    fetchInsight(scores, notes)
+    if (userPlan !== "FREE") {
+      fetchInsight(scores, notes)
+    }
   }
 
   const readinessColor =
@@ -148,26 +151,47 @@ export function CheckInForm({ type }: CheckInFormProps) {
           </p>
         </div>
 
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+        {userPlan === "FREE" ? (
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <span className="text-sm font-semibold text-foreground">Análise da Vega</span>
+              <span className="ml-auto text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">Planos pagos</span>
             </div>
-            <span className="text-sm font-semibold text-foreground">Vega</span>
-            {loadingInsight && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-auto" />}
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Com o plano Trader ou Pro, a Vega cruza seu estado emocional de hoje com seu histórico real de performance e dá um conselho personalizado antes de cada sessão.
+            </p>
+            <a
+              href="/planos"
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 text-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Ver planos
+            </a>
           </div>
-
-          {loadingInsight ? (
-            <p className="text-sm text-muted-foreground italic">Analisando seu estado emocional...</p>
-          ) : (
-            <p className="text-sm text-foreground leading-relaxed">{insight}</p>
-          )}
-        </div>
+        ) : (
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+              </div>
+              <span className="text-sm font-semibold text-foreground">Vega</span>
+              {loadingInsight && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-auto" />}
+            </div>
+            {loadingInsight ? (
+              <p className="text-sm text-muted-foreground italic">Analisando seu estado emocional...</p>
+            ) : (
+              <p className="text-sm text-foreground leading-relaxed">{insight}</p>
+            )}
+          </div>
+        )}
 
         <button
           type="button"
           onClick={() => router.push("/dashboard")}
-          className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 text-sm"
+          className="w-full py-3 rounded-xl bg-muted text-foreground font-medium hover:bg-muted/80 transition-colors flex items-center justify-center gap-2 text-sm"
         >
           Ir ao Dashboard
           <ArrowRight className="w-4 h-4" />

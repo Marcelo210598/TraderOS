@@ -80,7 +80,7 @@ export default async function CheckInPage() {
                   : "Como foi sua sessão de trading hoje?"}
               </p>
             </div>
-            <CheckInForm type={nextType} />
+            <CheckInForm type={nextType} userPlan={user.plan ?? "FREE"} />
           </div>
         )}
 
