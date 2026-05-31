@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { EquityCurve } from "@/components/analytics/equity-curve"
+import { DrawdownChart } from "@/components/analytics/drawdown-chart"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
@@ -81,11 +82,12 @@ export default async function AnalyticsPage() {
   // ── Drawdown analysis ────────────────────────────────────────────────────
   let peak = 0
   let maxDrawdown = 0
-  for (const pt of equityPoints) {
+  const drawdownPoints = equityPoints.map((pt) => {
     if (pt.cumPnl > peak) peak = pt.cumPnl
     const dd = peak - pt.cumPnl
     if (dd > maxDrawdown) maxDrawdown = dd
-  }
+    return { label: pt.label, dd: -dd, cumPnl: pt.cumPnl }
+  })
   const finalEquity = equityPoints[equityPoints.length - 1]?.cumPnl ?? 0
   const currentDrawdown = Math.max(0, peak - finalEquity)
 
@@ -222,6 +224,13 @@ export default async function AnalyticsPage() {
 
         {/* ── Equity Curve ── */}
         <EquityCurve points={equityPoints} />
+
+        {/* ── Drawdown Chart ── */}
+        <DrawdownChart
+          points={drawdownPoints}
+          maxDrawdown={maxDrawdown}
+          currentDrawdown={currentDrawdown}
+        />
 
         {/* ── Drawdown & Streaks ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
