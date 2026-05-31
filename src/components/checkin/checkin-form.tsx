@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Loader2 } from "lucide-react"
+import { Loader2, ArrowRight, Sparkles } from "lucide-react"
 
 const METRICS = [
   { key: "emotional", label: "Estado emocional", desc: "Como você está se sentindo agora?" },
@@ -26,6 +26,9 @@ export function CheckInForm({ type }: CheckInFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [submitted, setSubmitted] = useState(false)
+  const [insight, setInsight] = useState<string | null>(null)
+  const [loadingInsight, setLoadingInsight] = useState(false)
   const [scores, setScores] = useState<Record<string, number>>({
     emotional: 5, energy: 5, focus: 5, confidence: 5, stress: 5,
   })
@@ -36,6 +39,25 @@ export function CheckInForm({ type }: CheckInFormProps) {
   }
 
   const average = Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 5)
+
+  async function fetchInsight(submittedScores: Record<string, number>, submittedNotes: string) {
+    setLoadingInsight(true)
+    try {
+      const res = await fetch("/api/checkin/ai-insight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, notes: submittedNotes || null, ...submittedScores }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setInsight(data.insight ?? null)
+      }
+    } catch {
+      // insight é opcional — falha silenciosa
+    } finally {
+      setLoadingInsight(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -60,14 +82,55 @@ export function CheckInForm({ type }: CheckInFormProps) {
       return
     }
 
-    router.push("/dashboard")
-    router.refresh()
+    setLoading(false)
+    setSubmitted(true)
+    fetchInsight(scores, notes)
   }
 
   const readinessColor =
     average >= 7 ? "text-profit" : average >= 5 ? "text-yellow-400" : "text-loss"
   const readinessLabel =
     average >= 7 ? "✅ Pronto para operar" : average >= 5 ? "⚠️ Atenção — opere com cautela" : "🚫 Considere não operar hoje"
+
+  if (submitted) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="text-profit text-lg">✅</span>
+          <p className="text-sm font-medium text-foreground">
+            Check-in {type === "PRE" ? "pré-sessão" : "pós-sessão"} salvo!
+          </p>
+        </div>
+
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+            </div>
+            <span className="text-sm font-semibold text-foreground">Vega</span>
+            {loadingInsight && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-auto" />}
+          </div>
+
+          {loadingInsight ? (
+            <p className="text-sm text-muted-foreground italic">Analisando seu estado emocional...</p>
+          ) : insight ? (
+            <p className="text-sm text-foreground leading-relaxed">{insight}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Análise indisponível no momento.</p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard")}
+          className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 text-sm"
+        >
+          Ir ao Dashboard
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
