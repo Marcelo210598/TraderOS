@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { Header } from "@/components/layout/header"
 import { ProfileForm, PasswordForm } from "@/components/settings/settings-forms"
 import { IntegrationSection } from "@/components/settings/integration-section"
+import Link from "next/link"
 import { Shield, User, CreditCard, Link2 } from "lucide-react"
 
 const PLAN_LABELS: Record<string, { label: string; color: string; description: string }> = {
@@ -94,12 +95,12 @@ export default async function ConfiguracoesPage() {
                 <p className={`text-lg font-bold font-mono ${plan.color}`}>{plan.label}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{plan.description}</p>
               </div>
-              <a
+              <Link
                 href="/planos"
                 className="px-4 py-2 border border-teal text-teal rounded-lg text-sm font-medium hover:bg-teal/10 transition-colors"
               >
                 Ver planos
-              </a>
+              </Link>
             </div>
             <div className="mt-4 pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground">

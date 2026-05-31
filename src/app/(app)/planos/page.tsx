@@ -33,7 +33,7 @@ const PLANS = [
   {
     key: "TRADER",
     name: "Trader",
-    price: "R$47",
+    price: "R$97",
     period: "por mês",
     description: "Para traders sérios",
     color: "border-teal/40",
@@ -54,7 +54,7 @@ const PLANS = [
   {
     key: "PRO",
     name: "Pro",
-    price: "R$97",
+    price: "R$197",
     period: "por mês",
     description: "Para quem quer borda competitiva",
     color: "border-secondary/40",

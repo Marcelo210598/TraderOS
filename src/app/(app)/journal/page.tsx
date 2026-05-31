@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { TradeFilters } from "@/components/journal/trade-filters"
 import { TradeList } from "@/components/journal/trade-list"
+import Link from "next/link"
 import { Plus, BookOpen, Upload, Tag, FileDown } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
 
@@ -127,20 +128,20 @@ export default async function JournalPage({ searchParams }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <a
+            <Link
               href="/journal/contas"
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-teal/40 transition-colors"
             >
               <Tag className="w-4 h-4" />
               <span className="hidden sm:inline">Contas</span>
-            </a>
-            <a
+            </Link>
+            <Link
               href="/journal/importar"
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-teal/40 transition-colors"
             >
               <Upload className="w-4 h-4" />
               <span className="hidden sm:inline">Importar CSV</span>
-            </a>
+            </Link>
             <a
               href={`/journal/print${Object.keys(sp).length > 0 ? `?${new URLSearchParams(sp).toString()}` : ""}`}
               target="_blank"
@@ -150,13 +151,13 @@ export default async function JournalPage({ searchParams }: Props) {
               <FileDown className="w-4 h-4" />
               <span className="hidden sm:inline">Exportar PDF</span>
             </a>
-            <a
+            <Link
               href="/journal/novo"
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Novo Trade
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -181,9 +182,9 @@ export default async function JournalPage({ searchParams }: Props) {
             <p className="text-sm text-yellow-400">
               ⚠️ Você usou {monthlyTrades.length}/10 trades do plano Free este mês.
             </p>
-            <a href="/planos" className="text-xs text-yellow-400 underline underline-offset-2 font-medium shrink-0 ml-3">
+            <Link href="/planos" className="text-xs text-yellow-400 underline underline-offset-2 font-medium shrink-0 ml-3">
               Fazer upgrade
-            </a>
+            </Link>
           </div>
         )}
 

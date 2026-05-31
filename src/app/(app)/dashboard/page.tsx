@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
@@ -7,7 +8,7 @@ import { RecentTrades } from "@/components/dashboard/recent-trades"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { StreakWidget } from "@/components/dashboard/streak-widget"
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
-import { DollarSign, TrendingUp, Target, Activity, BookOpen, Plus, Sparkles, Brain } from "lucide-react"
+import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from "lucide-react"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -144,13 +145,13 @@ export default async function DashboardPage() {
                 : `${weeklyTrades.length} trade${weeklyTrades.length > 1 ? "s" : ""} nos últimos 7 dias`}
             </p>
           </div>
-          <a
+          <Link
             href="/journal/novo"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Registrar</span> Trade
-          </a>
+          </Link>
         </div>
 
         {/* Métricas principais */}
@@ -158,12 +159,18 @@ export default async function DashboardPage() {
           <StatsCard
             title="P&L 7 dias"
             value={pnlDisplay}
+            numericValue={Math.abs(weekPnl)}
+            formatValue={(n) =>
+              weekPnl > 0 ? `+$${n.toFixed(0)}` : weekPnl < 0 ? `-$${n.toFixed(0)}` : "$0"
+            }
             icon={DollarSign}
             variant={weekPnl >= 0 ? (weekPnl > 0 ? "profit" : "neutral") : "loss"}
           />
           <StatsCard
             title="Win Rate"
             value={weekWinRate.toString()}
+            numericValue={weekWinRate}
+            formatValue={(n) => Math.round(n).toString()}
             suffix="%"
             icon={Target}
             variant="default"
@@ -171,19 +178,23 @@ export default async function DashboardPage() {
           <StatsCard
             title="Trades"
             value={weeklyTrades.length.toString()}
+            numericValue={weeklyTrades.length}
+            formatValue={(n) => Math.round(n).toString()}
             icon={Activity}
             variant="neutral"
           />
           <StatsCard
             title="Profit Factor"
             value={pfDisplay}
+            numericValue={profitFactor > 0 && profitFactor < 99 ? profitFactor : undefined}
+            formatValue={(n) => n.toFixed(2)}
             icon={TrendingUp}
             variant="default"
           />
         </div>
 
         {/* Check-in rápido */}
-        <a
+        <Link
           href="/checkin"
           className="group relative overflow-hidden bg-gradient-to-r from-teal/10 to-primary/10 border border-teal/30 rounded-xl px-5 py-4 flex items-center justify-between gap-4 hover:border-teal/50 hover:from-teal/15 hover:to-primary/15 transition-all"
         >
@@ -207,7 +218,7 @@ export default async function DashboardPage() {
           <span className="inline-flex items-center px-4 py-2 rounded-lg bg-teal text-white text-xs font-semibold hover:bg-teal/90 transition-colors shrink-0 shadow-sm">
             Fazer check-in
           </span>
-        </a>
+        </Link>
 
         {/* Gráfico + Streaks */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -235,9 +246,9 @@ export default async function DashboardPage() {
               A Apex exige que nenhum dia individual represente mais de{" "}
               <span className="text-teal font-medium">30% do seu lucro total</span> para aprovação
               (Consistency Rule). Monitore isso no{" "}
-              <a href="/guardian" className="text-teal underline underline-offset-2">
+              <Link href="/guardian" className="text-teal underline underline-offset-2">
                 Guardian
-              </a>
+              </Link>
               .
             </p>
           </div>

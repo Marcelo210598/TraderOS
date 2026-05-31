@@ -21,6 +21,11 @@ const updateTradeSchema = z.object({
   mfe: z.number().optional().nullable(),
   mae: z.number().optional().nullable(),
   tags: z.array(z.string()).optional(),
+  screenshots: z.array(z.object({
+    url: z.string().url(),
+    key: z.string(),
+    label: z.string().nullable().optional(),
+  })).optional(),
 })
 
 async function getTradeOrFail(id: string, userId: string) {
@@ -59,7 +64,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const parsed = updateTradeSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-  const { tags, ...data } = parsed.data
+  const { tags, screenshots, ...data } = parsed.data
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updated = await (prisma.trade as any).update({
@@ -71,6 +76,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         tags: {
           deleteMany: {},
           create: tags.map((name) => ({ name })),
+        },
+      }),
+      ...(screenshots !== undefined && {
+        screenshots: {
+          deleteMany: {},
+          create: screenshots.map((s) => ({ url: s.url, key: s.key, label: s.label ?? null })),
         },
       }),
     },

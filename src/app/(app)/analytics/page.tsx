@@ -6,6 +6,7 @@ import { EquityCurve } from "@/components/analytics/equity-curve"
 import { DrawdownChart } from "@/components/analytics/drawdown-chart"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 import {
   TrendingUp, TrendingDown, Target, Activity,
   Clock, BarChart2, Zap, Award, Flame, AlertTriangle,
@@ -34,18 +35,32 @@ export default async function AnalyticsPage() {
           userPlan={user.plan ?? "FREE"}
         />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-3 p-8">
-            <p className="text-4xl">📊</p>
-            <p className="text-base font-semibold text-foreground">Nenhum trade ainda</p>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              Registre seus primeiros trades no Journal para ver analytics completos aqui.
-            </p>
-            <a
+          <div className="text-center space-y-4 p-8">
+            <div className="flex justify-center text-muted-foreground/40">
+              <svg viewBox="0 0 160 100" fill="none" className="w-40 h-24" xmlns="http://www.w3.org/2000/svg">
+                <line x1="24" y1="8" x2="24" y2="76" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
+                <line x1="24" y1="76" x2="148" y2="76" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
+                <line x1="24" y1="56" x2="148" y2="56" stroke="currentColor" strokeWidth="0.75" strokeDasharray="4 4" opacity="0.3"/>
+                <line x1="24" y1="40" x2="148" y2="40" stroke="currentColor" strokeWidth="0.75" strokeDasharray="4 4" opacity="0.3"/>
+                <line x1="24" y1="24" x2="148" y2="24" stroke="currentColor" strokeWidth="0.75" strokeDasharray="4 4" opacity="0.3"/>
+                <rect x="34" y="52" width="16" height="24" rx="3" fill="currentColor" opacity="0.12"/>
+                <rect x="58" y="44" width="16" height="32" rx="3" fill="currentColor" opacity="0.12"/>
+                <rect x="82" y="60" width="16" height="16" rx="3" fill="currentColor" opacity="0.12"/>
+                <rect x="106" y="48" width="16" height="28" rx="3" fill="currentColor" opacity="0.12"/>
+              </svg>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-base font-semibold text-foreground">Nenhum trade ainda</p>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                Registre seus primeiros trades no Journal para ver analytics completos aqui.
+              </p>
+            </div>
+            <Link
               href="/journal/novo"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
             >
               + Registrar Trade
-            </a>
+            </Link>
           </div>
         </div>
       </div>

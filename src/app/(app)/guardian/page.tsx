@@ -8,6 +8,7 @@ import { ChallengeStatus } from "@/components/guardian/challenge-status"
 import { GuardianAccountSelector } from "@/components/guardian/account-selector"
 import { MultiAccountGrid } from "@/components/guardian/multi-account-grid"
 import { ACCOUNTS, type AccountKey } from "@/lib/guardian"
+import Link from "next/link"
 import { Shield, LayoutGrid, Monitor } from "lucide-react"
 
 export const metadata: Metadata = { title: "Guardian" }
@@ -102,7 +103,7 @@ export default async function GuardianPage({ searchParams }: Props) {
 
         {/* Toggle de view */}
         <div className="flex items-center gap-2">
-          <a
+          <Link
             href="/guardian"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
               viewMode === "single"
@@ -112,8 +113,8 @@ export default async function GuardianPage({ searchParams }: Props) {
           >
             <Monitor className="w-3.5 h-3.5" />
             Conta única
-          </a>
-          <a
+          </Link>
+          <Link
             href="/guardian?view=multi"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
               viewMode === "multi"
@@ -123,7 +124,7 @@ export default async function GuardianPage({ searchParams }: Props) {
           >
             <LayoutGrid className="w-3.5 h-3.5" />
             Todas as contas
-          </a>
+          </Link>
         </div>
 
         {/* ── MODO MULTI ── */}

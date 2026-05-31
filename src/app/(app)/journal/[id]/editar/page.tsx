@@ -15,7 +15,7 @@ export default async function EditarTradePage({ params }: { params: Promise<{ id
   const [trade, setups] = await Promise.all([
     prisma.trade.findFirst({
       where: { id, userId: user.id },
-      include: { tags: true, setup: { select: { id: true, name: true } } },
+      include: { tags: true, setup: { select: { id: true, name: true } }, screenshots: true },
     }),
     prisma.setup.findMany({
       where: { userId: user.id, isActive: true },
@@ -35,7 +35,7 @@ export default async function EditarTradePage({ params }: { params: Promise<{ id
     pnlPoints: Number(trade.pnlPoints),
     commission: Number(trade.commission),
     createdAt: trade.createdAt.toISOString(),
-    screenshots: [],
+    screenshots: trade.screenshots.map((s) => ({ id: s.id, url: s.url, label: s.label, key: s.key })),
     aiAnalysis: trade.aiAnalysis ?? null,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mfe: (trade as any).mfe != null ? Number((trade as any).mfe) : null,

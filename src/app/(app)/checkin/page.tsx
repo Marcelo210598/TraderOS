@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { CheckInForm } from "@/components/checkin/checkin-form"
+import Link from "next/link"
 import { format, startOfDay, endOfDay } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -64,9 +65,9 @@ export default async function CheckInPage() {
             <p className="text-sm text-muted-foreground">
               Você completou pré e pós-sessão hoje. Continue assim!
             </p>
-            <a href="/dashboard" className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+            <Link href="/dashboard" className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
               Voltar ao Dashboard
-            </a>
+            </Link>
           </div>
         ) : (
           <div className="bg-card border border-border rounded-xl p-6">

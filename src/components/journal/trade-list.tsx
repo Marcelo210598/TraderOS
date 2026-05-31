@@ -34,14 +34,28 @@ export function TradeList({ initial }: TradeListProps) {
 
   if (trades.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-        <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
-          <span className="text-2xl">📓</span>
+      <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+        <div className="text-muted-foreground/35">
+          <svg viewBox="0 0 100 80" fill="none" className="w-24 h-20" xmlns="http://www.w3.org/2000/svg">
+            <rect x="8" y="12" width="38" height="56" rx="3" fill="currentColor" opacity="0.1"/>
+            <rect x="8" y="12" width="38" height="56" rx="3" stroke="currentColor" strokeWidth="1.2" opacity="0.2"/>
+            <rect x="54" y="12" width="38" height="56" rx="3" fill="currentColor" opacity="0.1"/>
+            <rect x="54" y="12" width="38" height="56" rx="3" stroke="currentColor" strokeWidth="1.2" opacity="0.2"/>
+            <line x1="46" y1="12" x2="46" y2="68" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.25"/>
+            <line x1="16" y1="30" x2="38" y2="30" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.25"/>
+            <line x1="16" y1="40" x2="38" y2="40" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.25"/>
+            <line x1="16" y1="50" x2="28" y2="50" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.25"/>
+            <line x1="62" y1="30" x2="84" y2="30" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.25"/>
+            <line x1="62" y1="40" x2="84" y2="40" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.25"/>
+            <line x1="62" y1="50" x2="74" y2="50" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.25"/>
+          </svg>
         </div>
-        <p className="text-sm font-medium text-foreground">Nenhum trade encontrado</p>
-        <p className="text-xs text-muted-foreground max-w-xs">
-          Ainda não tem trades com esses filtros, ou registre seu primeiro trade clicando em "Novo Trade".
-        </p>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">Nenhum trade encontrado</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Ainda não tem trades com esses filtros, ou registre seu primeiro trade clicando em &ldquo;Novo Trade&rdquo;.
+          </p>
+        </div>
       </div>
     )
   }

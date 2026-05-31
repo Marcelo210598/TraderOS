@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { SetupsClient } from "@/components/setups/setups-client"
+import Link from "next/link"
 import { Zap } from "lucide-react"
 
 export const metadata: Metadata = { title: "Setups" }
@@ -29,13 +30,13 @@ export default async function SetupsPage() {
           <div>
             <h2 className="text-lg font-semibold text-foreground">Recurso do plano Trader</h2>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              A Biblioteca de Setups com estatísticas por estratégia está disponível no plano Trader (R$ 47/mês) ou Pro.
+              A Biblioteca de Setups com estatísticas por estratégia está disponível no plano Trader (R$ 97/mês) ou Pro.
             </p>
           </div>
-          <a href="/planos" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+          <Link href="/planos" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             <Zap className="w-4 h-4" />
             Ver planos
-          </a>
+          </Link>
         </div>
       </div>
     )

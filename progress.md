@@ -1,11 +1,11 @@
 # TraderOS — Progresso
 
-## Última atualização: 31/05/2026 — Sessão estética Tier 1
+## Última atualização: 31/05/2026 — Sessão estética Tier 2
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
 - **Stack:** Next.js 16 + TypeScript + Tailwind v4 + shadcn/ui + Prisma 7 + Neon PostgreSQL + NextAuth v5
-- **Status:** ~85% do MVP — núcleo funcional completo + estética Tier 1 entregue
+- **Status:** ~88% do MVP — núcleo funcional completo + estética Tier 1 e Tier 2 entregues
 - **URL Produção:** trader-os-ashy.vercel.app ✅
 
 ## ✅ Concluído
@@ -63,16 +63,17 @@
 ## 🚧 Em progresso
 - Nenhum no momento
 
+### Estética Tier 2 — 31/05/2026 (3/3 entregues)
+- [x] **Count-up animation** — StatsCard vira client component, hook useCountUp (easeOut 700ms), props numericValue/formatValue
+- [x] **Bottom navigation bar mobile** — 5 itens fixos: Dashboard, Journal, FAB +Trade (teal), Analytics, Guardian. Oculto em lg+
+- [x] **Empty states com SVG** — SVG monocromático de chart vazio (Analytics) e livro aberto (Journal/TradeList)
+
 ## 📋 Próximos passos
 
-### Estética Tier 2 (próxima sessão)
-- [ ] **Count-up animation** nos valores dos StatsCards
-- [ ] **Bottom navigation bar mobile** — 5 ítens (Dashboard, Journal, Analytics, Guardian, +Trade)
-- [ ] **Empty states com SVG** — ilustrações monocromáticas para Analytics/Journal vazios
-
 ### Produto
-- [ ] **Domínio traderos.app** (~15min)
-- [ ] **Stripe** — planos Trader R$47 / Pro R$97, webhook para atualizar user.plan (~8-12h)
+- [ ] **UploadThing** — screenshots no Journal (UPLOADTHING_TOKEN pendente)
+- [ ] **Domínio traderos.app** (~15min, mais pra frente)
+- [ ] **Stripe** — planos Trader R$97 / Pro R$197, webhook para atualizar user.plan (~8-12h)
 - [ ] **NinjaTrader** — reescrever NinjaScript como Strategy ou CSV watcher
 - [ ] **UploadThing** — screenshots no Journal (UPLOADTHING_TOKEN pendente)
 - [ ] **Email de boas-vindas** — Resend após cadastro (RESEND_API_KEY pendente)

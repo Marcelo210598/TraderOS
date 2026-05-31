@@ -32,7 +32,14 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const [screenshots, setScreenshots] = useState<UploadedScreenshot[]>([])
+  const [screenshots, setScreenshots] = useState<UploadedScreenshot[]>(
+    initial?.screenshots?.map((s) => ({
+      url: s.url,
+      key: s.key ?? s.id,
+      name: s.label ?? "screenshot",
+      label: s.label ?? undefined,
+    })) ?? []
+  )
   const [tags, setTags] = useState<string[]>(initial?.tags?.map((t) => t.name) ?? [])
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
 

@@ -16,6 +16,7 @@ export interface Screenshot {
   id: string
   url: string
   label: string | null
+  key?: string
 }
 
 export interface Trade {

@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/header"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 import { TrendingUp, TrendingDown, Minus, ArrowLeft, Pencil } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { AiAnalysis } from "@/components/journal/ai-analysis"
@@ -42,10 +43,10 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
       <div className="flex-1 p-6 max-w-3xl mx-auto w-full space-y-4">
         {/* Nav */}
         <div className="flex items-center justify-between">
-          <a href="/journal" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/journal" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Voltar ao Journal
-          </a>
+          </Link>
           <div className="flex items-center gap-2">
             <DeleteTradeButton tradeId={trade.id} />
             <a
