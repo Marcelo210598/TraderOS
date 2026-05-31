@@ -35,6 +35,7 @@ model User {
   streaks       Streak[]
   subscription  Subscription?
   notifications Notification[]
+  apiKeys       UserApiKey[]
 
   @@map("users")
 }
@@ -99,6 +100,7 @@ model Trade {
   aiAnalysis   String?
   mfe          Decimal?    @db.Decimal(10, 2)
   mae          Decimal?    @db.Decimal(10, 2)
+  externalId   String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -108,6 +110,7 @@ model Trade {
   screenshots TradeScreenshot[]
 
   @@index([userId, date])
+  @@unique([userId, externalId])
   @@map("trades")
 }
 
@@ -275,6 +278,22 @@ model Subscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
+}
+
+// ─── API Keys (integrações externas) ─────────────────────────────────────────
+
+model UserApiKey {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String    @default("NinjaTrader")
+  key       String    @unique
+  lastUsed  DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_api_keys")
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────

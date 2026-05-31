@@ -16,9 +16,10 @@ const INSTRUMENTS = ["", "NQ", "ES", "MNQ", "MES", "YM", "RTY", "CL", "GC"]
 
 interface TradeFiltersProps {
   setups: Setup[]
+  tags?: string[]
 }
 
-export function TradeFilters({ setups }: TradeFiltersProps) {
+export function TradeFilters({ setups, tags = [] }: TradeFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -38,6 +39,7 @@ export function TradeFilters({ setups }: TradeFiltersProps) {
     result: searchParams.get("result") ?? "",
     instrument: searchParams.get("instrument") ?? "",
     setupId: searchParams.get("setupId") ?? "",
+    tag: searchParams.get("tag") ?? "",
     from: searchParams.get("from") ?? "",
     to: searchParams.get("to") ?? "",
   }
@@ -86,6 +88,20 @@ export function TradeFilters({ setups }: TradeFiltersProps) {
           <option value="">Todos os setups</option>
           {setups.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      )}
+
+      {/* Tag */}
+      {tags.length > 0 && (
+        <select
+          value={current.tag}
+          onChange={(e) => updateFilter("tag", e.target.value)}
+          className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">Todas as tags</option>
+          {tags.map((t) => (
+            <option key={t} value={t}>{t}</option>
           ))}
         </select>
       )}

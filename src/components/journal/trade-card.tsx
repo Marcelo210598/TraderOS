@@ -73,10 +73,15 @@ export function TradeCard({ trade, onDeleted }: TradeCardProps) {
               </Badge>
             )}
             {trade.tags.slice(0, 2).map((tag) => (
-              <span key={tag.id} className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              <span key={tag.id} className="text-[10px] text-teal bg-teal/10 border border-teal/20 px-1.5 py-0.5 rounded font-mono">
                 {tag.name}
               </span>
             ))}
+            {trade.tags.length > 2 && (
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                +{trade.tags.length - 2}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground font-mono">

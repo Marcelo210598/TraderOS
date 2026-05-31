@@ -67,6 +67,16 @@
 - [ ] **Trilha de Aprendizado** — conteúdo estruturado para traders iniciantes
 - [ ] **Página /configuracoes** — perfil, alterar senha, preferências
 
+### 🔮 Futuro — IA no Check-in (Vega IA / diagnóstico emocional)
+- Após o usuário submeter o check-in (5 métricas: estado emocional, energia, foco, confiança, ausência de stress), a IA analisa as respostas e traça um diagnóstico personalizado
+- **Cenário ruim (score baixo):** indica para NÃO operar, explica o motivo (ex: "Seu nível de stress alto combinado com baixa confiança aumenta risco de revenge trading")
+- **Cenário neutro:** alerta específico baseado nas métricas fracas + conselhos práticos (ex: "Energia baixa pode causar lapsos de atenção — reduza tamanho de posição")
+- **Cenário bom:** valida o estado mas alerta contra armadilhas (ex: "Alta confiança pode virar ganância — respeite o max loss e saia no alvo")
+- A IA deve considerar COMBINAÇÕES de métricas, não só o score geral (ex: energia alta + foco baixo = cenário específico diferente de energia baixa + foco alto)
+- Exibir o diagnóstico logo após a submissão do check-in, antes do usuário ir operar
+- Usar Claude API (ANTHROPIC_API_KEY já está no roadmap) — modelo Haiku para custo baixo
+- Guardar diagnóstico junto ao check-in no banco para histórico
+
 ## ⚠️ Decisões técnicas importantes
 - **Prisma 7:** URL no `prisma.config.ts`, NÃO no `schema.prisma`
 - **Prisma 7:** Requer `@prisma/adapter-pg` como driver adapter

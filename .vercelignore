@@ -1,0 +1,9 @@
+# Arquivos duplicados macOS (cópias com " 2" no nome)
+**/* 2.*
+**/* 2/
+
+# Histórico de sessões (não precisa ir ao deploy)
+historico/
+
+# Snapshots extras
+progress.md

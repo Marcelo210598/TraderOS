@@ -7,6 +7,7 @@ import { Loader2, Calculator, TrendingUp, TrendingDown, ImagePlus } from "lucide
 import type { Setup, Trade } from "@/lib/types"
 import { ACCOUNT_OPTIONS } from "@/lib/accounts"
 import { ScreenshotUploader, type UploadedScreenshot } from "./screenshot-uploader"
+import { TagInput } from "./tag-input"
 
 const INSTRUMENTS = ["NQ", "ES", "YM", "RTY", "CL", "GC", "SI", "ZB", "6E", "MNQ", "MES"]
 const SESSION_TYPES = [
@@ -32,6 +33,8 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
   const [error, setError] = useState("")
 
   const [screenshots, setScreenshots] = useState<UploadedScreenshot[]>([])
+  const [tags, setTags] = useState<string[]>(initial?.tags?.map((t) => t.name) ?? [])
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
 
   const [form, setForm] = useState({
     date: initial?.date ? new Date(initial.date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
@@ -48,7 +51,6 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
     accountLabel: initial?.accountLabel ?? "PA",
     setupId: initial?.setupId ?? "",
     notes: initial?.notes ?? "",
-    tags: initial?.tags?.map((t) => t.name).join(", ") ?? "",
     emotional: "5",
   })
 
@@ -64,6 +66,14 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
     pnlPoints = form.direction === "LONG" ? exit - entry : entry - exit
   }
   const pnlDollars = pnlPoints * pointValue * qty - commission
+
+  // Carregar sugestões de tags do usuário
+  useEffect(() => {
+    fetch("/api/trades/tags")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setTagSuggestions(data) })
+      .catch(() => {})
+  }, [])
 
   // Auto-detectar resultado
   useEffect(() => {
@@ -98,7 +108,7 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
       notes: form.notes || null,
       mfe: form.mfe ? parseFloat(form.mfe) : null,
       mae: form.mae ? parseFloat(form.mae) : null,
-      tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      tags,
       screenshots: screenshots.map((s) => ({ url: s.url, key: s.key, label: s.label ?? null })),
     }
 
@@ -312,13 +322,12 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
       </div>
 
       {/* Tags */}
-      <Field label="Tags (separadas por vírgula)">
-        <input
-          type="text"
-          placeholder="ICT, OB, FVG, revenge trade..."
-          value={form.tags}
-          onChange={(e) => set("tags", e.target.value)}
-          className={inputCls}
+      <Field label="Tags">
+        <TagInput
+          value={tags}
+          onChange={setTags}
+          suggestions={tagSuggestions}
+          placeholder="ICT, OB, FVG, revenge-trade... (Enter ou vírgula)"
         />
       </Field>
 
