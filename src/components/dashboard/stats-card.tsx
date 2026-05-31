@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus, LucideIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
+type AnimateFormat = "integer" | "decimal2" | "currency" | "currency-profit" | "currency-loss"
+
 interface StatsCardProps {
   title: string
   value: string
@@ -14,7 +16,18 @@ interface StatsCardProps {
   suffix?: string
   className?: string
   numericValue?: number
-  formatValue?: (n: number) => string
+  animateFormat?: AnimateFormat
+}
+
+function applyFormat(n: number, fmt: AnimateFormat): string {
+  switch (fmt) {
+    case "currency-profit": return `+$${n.toFixed(0)}`
+    case "currency-loss":   return `-$${n.toFixed(0)}`
+    case "currency":        return `$${n.toFixed(0)}`
+    case "decimal2":        return n.toFixed(2)
+    case "integer":
+    default:                return Math.round(n).toString()
+  }
 }
 
 function useCountUp(target: number | undefined, duration = 700) {
@@ -52,11 +65,11 @@ export function StatsCard({
   suffix,
   className,
   numericValue,
-  formatValue,
+  animateFormat,
 }: StatsCardProps) {
   const animated = useCountUp(numericValue)
   const displayValue =
-    numericValue !== undefined && formatValue ? formatValue(animated) : value
+    numericValue !== undefined && animateFormat ? applyFormat(animated, animateFormat) : value
 
   const isPositive = change !== undefined && change > 0
   const isNegative = change !== undefined && change < 0

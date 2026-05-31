@@ -160,9 +160,7 @@ export default async function DashboardPage() {
             title="P&L 7 dias"
             value={pnlDisplay}
             numericValue={Math.abs(weekPnl)}
-            formatValue={(n) =>
-              weekPnl > 0 ? `+$${n.toFixed(0)}` : weekPnl < 0 ? `-$${n.toFixed(0)}` : "$0"
-            }
+            animateFormat={weekPnl > 0 ? "currency-profit" : weekPnl < 0 ? "currency-loss" : "currency"}
             icon={DollarSign}
             variant={weekPnl >= 0 ? (weekPnl > 0 ? "profit" : "neutral") : "loss"}
           />
@@ -170,7 +168,7 @@ export default async function DashboardPage() {
             title="Win Rate"
             value={weekWinRate.toString()}
             numericValue={weekWinRate}
-            formatValue={(n) => Math.round(n).toString()}
+            animateFormat="integer"
             suffix="%"
             icon={Target}
             variant="default"
@@ -179,7 +177,7 @@ export default async function DashboardPage() {
             title="Trades"
             value={weeklyTrades.length.toString()}
             numericValue={weeklyTrades.length}
-            formatValue={(n) => Math.round(n).toString()}
+            animateFormat="integer"
             icon={Activity}
             variant="neutral"
           />
@@ -187,7 +185,7 @@ export default async function DashboardPage() {
             title="Profit Factor"
             value={pfDisplay}
             numericValue={profitFactor > 0 && profitFactor < 99 ? profitFactor : undefined}
-            formatValue={(n) => n.toFixed(2)}
+            animateFormat="decimal2"
             icon={TrendingUp}
             variant="default"
           />
