@@ -103,19 +103,19 @@ export function Sidebar({ userPlan = "FREE", userLevel = 1, userXp = 0 }: Sideba
         <div className="flex items-center gap-2 px-3 h-14 border-b border-sidebar-border shrink-0">
           <Image src="/icon-32.png" alt="TraderOS" width={28} height={28} className="shrink-0" />
           <span className="text-sm font-semibold tracking-tight text-foreground">TraderOS</span>
-          {userPlan !== "FREE" && (
-            <Badge
-              variant="outline"
-              className={cn(
-                "ml-auto text-[10px] px-1.5 py-0 h-4 font-mono font-bold border-0",
-                userPlan === "PRO"
-                  ? "bg-secondary/20 text-secondary"
-                  : "bg-teal/15 text-teal"
-              )}
-            >
-              {userPlan}
-            </Badge>
-          )}
+          <Badge
+            variant="outline"
+            className={cn(
+              "ml-auto text-[11px] px-2 py-0.5 h-5 font-mono font-bold rounded-md border",
+              userPlan === "PRO"
+                ? "bg-secondary/20 text-secondary border-secondary/30"
+                : userPlan === "TRADER"
+                ? "bg-teal/15 text-teal border-teal/30"
+                : "bg-muted text-muted-foreground border-border"
+            )}
+          >
+            {userPlan}
+          </Badge>
           <button
             onClick={closeMobile}
             className="lg:hidden ml-auto w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -181,10 +181,14 @@ export function Sidebar({ userPlan = "FREE", userLevel = 1, userXp = 0 }: Sideba
                 {userXp}/{xpToNextLevel} XP
               </span>
             </div>
-            <div className="h-1 rounded-full bg-muted overflow-hidden">
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div
-                className="h-full bg-teal rounded-full transition-all duration-500"
-                style={{ width: `${xpProgress}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${xpProgress}%`,
+                  background: "linear-gradient(90deg, oklch(0.65 0.12 179), oklch(0.72 0.134 179))",
+                  boxShadow: "0 0 6px oklch(0.72 0.134 179 / 0.5)",
+                }}
               />
             </div>
           </div>
