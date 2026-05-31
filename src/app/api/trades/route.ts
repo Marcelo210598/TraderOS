@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
   const result = searchParams.get("result")
   const instrument = searchParams.get("instrument")
   const setupId = searchParams.get("setupId")
+  const tag = searchParams.get("tag")
   const from = searchParams.get("from")
   const to = searchParams.get("to")
 
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
     ...(result && { result: result as "WIN" | "LOSS" | "BREAKEVEN" }),
     ...(instrument && { instrument }),
     ...(setupId && { setupId }),
+    ...(tag && { tags: { some: { name: tag } } }),
     ...(from || to
       ? {
           date: {

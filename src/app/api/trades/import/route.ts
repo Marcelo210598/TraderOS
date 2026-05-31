@@ -15,6 +15,8 @@ const rowSchema = z.object({
   session: z.enum(["AM", "PM", "OVERNIGHT"]).default("AM"),
   accountLabel: z.string().default("PA"),
   notes: z.string().max(2000).optional(),
+  mfe: z.number().optional().nullable(),
+  mae: z.number().optional().nullable(),
 })
 
 const importSchema = z.object({
@@ -75,6 +77,8 @@ export async function POST(req: NextRequest) {
           sessionType: row.session,
           accountLabel: row.accountLabel,
           notes: row.notes ?? null,
+          mfe: row.mfe ?? null,
+          mae: row.mae ?? null,
         },
       })
       imported++

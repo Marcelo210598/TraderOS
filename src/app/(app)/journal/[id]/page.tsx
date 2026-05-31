@@ -130,23 +130,29 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* MFE / MAE */}
-        {(trade.mfe != null || trade.mae != null) && (
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {((trade as any).mfe != null || (trade as any).mae != null) && (
           <div className="grid grid-cols-2 gap-3">
-            {trade.mfe != null && (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(trade as any).mfe != null && (
               <div className="bg-card border border-profit/20 rounded-xl p-3">
                 <p className="text-xs text-muted-foreground">MFE <span className="opacity-60">(máx. a favor)</span></p>
-                <p className="text-base font-mono font-semibold text-profit mt-1">+{Number(trade.mfe).toFixed(2)} pts</p>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                <p className="text-base font-mono font-semibold text-profit mt-1">+{Number((trade as any).mfe).toFixed(2)} pts</p>
                 {pnlPoints > 0 && (
                   <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-                    capturou {((pnlPoints / Number(trade.mfe)) * 100).toFixed(0)}% do potencial
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    capturou {((pnlPoints / Number((trade as any).mfe)) * 100).toFixed(0)}% do potencial
                   </p>
                 )}
               </div>
             )}
-            {trade.mae != null && (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(trade as any).mae != null && (
               <div className="bg-card border border-loss/20 rounded-xl p-3">
                 <p className="text-xs text-muted-foreground">MAE <span className="opacity-60">(máx. contra)</span></p>
-                <p className="text-base font-mono font-semibold text-loss mt-1">-{Number(trade.mae).toFixed(2)} pts</p>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                <p className="text-base font-mono font-semibold text-loss mt-1">-{Number((trade as any).mae).toFixed(2)} pts</p>
               </div>
             )}
           </div>

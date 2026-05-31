@@ -26,6 +26,7 @@ export default async function JournalPage({ searchParams }: Props) {
     ...(sp.result && { result: sp.result as "WIN" | "LOSS" | "BREAKEVEN" }),
     ...(sp.instrument && { instrument: sp.instrument }),
     ...(sp.setupId && { setupId: sp.setupId }),
+    ...(sp.tag && { tags: { some: { name: sp.tag } } }),
     ...((sp.from || sp.to) ? {
       date: {
         ...(sp.from && { gte: new Date(sp.from) }),
@@ -34,7 +35,7 @@ export default async function JournalPage({ searchParams }: Props) {
     } : {}),
   }
 
-  const [tradesRaw, total, setups] = await Promise.all([
+  const [tradesRaw, total, setups, tagsRaw] = await Promise.all([
     prisma.trade.findMany({
       where,
       include: {
@@ -52,6 +53,14 @@ export default async function JournalPage({ searchParams }: Props) {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (prisma as any).tradeTag.groupBy({
+      by: ["name"],
+      where: { trade: { userId: user.id } },
+      _count: { name: true },
+      orderBy: { _count: { name: "desc" } },
+      take: 50,
+    }),
   ])
 
   const trades = tradesRaw.map((t) => ({
@@ -63,9 +72,14 @@ export default async function JournalPage({ searchParams }: Props) {
     pnlPoints: Number(t.pnlPoints),
     commission: Number(t.commission),
     accountLabel: (t as Record<string, unknown>).accountLabel as string ?? "PA",
+    mfe: (t as Record<string, unknown>).mfe != null ? Number((t as Record<string, unknown>).mfe) : null,
+    mae: (t as Record<string, unknown>).mae != null ? Number((t as Record<string, unknown>).mae) : null,
     createdAt: t.createdAt.toISOString(),
     screenshots: t.screenshots.map((s) => ({ ...s, label: s.label ?? null })),
   }))
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userTags: string[] = (tagsRaw as any[]).map((t) => t.name as string)
 
   const setupsFormatted = setups.map((s) => ({
     ...s, description: null, rules: null, tags: [], isActive: true,
@@ -166,7 +180,7 @@ export default async function JournalPage({ searchParams }: Props) {
 
         {/* Filtros */}
         <Suspense>
-          <TradeFilters setups={setupsFormatted} />
+          <TradeFilters setups={setupsFormatted} tags={userTags} />
         </Suspense>
 
         {/* Lista */}

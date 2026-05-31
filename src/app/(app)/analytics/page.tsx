@@ -7,7 +7,7 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import {
   TrendingUp, TrendingDown, Target, Activity,
-  Clock, BarChart2, Zap, Award,
+  Clock, BarChart2, Zap, Award, Flame, AlertTriangle,
 } from "lucide-react"
 
 export const metadata: Metadata = { title: "Analytics" }
@@ -77,6 +77,51 @@ export default async function AnalyticsPage() {
       cumPnl: Math.round(cumPnl * 100) / 100,
     }
   })
+
+  // ── Drawdown analysis ────────────────────────────────────────────────────
+  let peak = 0
+  let maxDrawdown = 0
+  for (const pt of equityPoints) {
+    if (pt.cumPnl > peak) peak = pt.cumPnl
+    const dd = peak - pt.cumPnl
+    if (dd > maxDrawdown) maxDrawdown = dd
+  }
+  const finalEquity = equityPoints[equityPoints.length - 1]?.cumPnl ?? 0
+  const currentDrawdown = Math.max(0, peak - finalEquity)
+
+  // ── Streak analysis ───────────────────────────────────────────────────────
+  let maxWinStreak = 0
+  let maxLossStreak = 0
+  let curWin = 0
+  let curLoss = 0
+  for (const t of trades) {
+    if (t.result === "WIN") {
+      curWin++; curLoss = 0
+      if (curWin > maxWinStreak) maxWinStreak = curWin
+    } else if (t.result === "LOSS") {
+      curLoss++; curWin = 0
+      if (curLoss > maxLossStreak) maxLossStreak = curLoss
+    } else {
+      curWin = 0; curLoss = 0
+    }
+  }
+  const currentStreakValue = curWin > 0 ? curWin : curLoss > 0 ? -curLoss : 0
+
+  // ── MFE / MAE aggregate ───────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tradesWithMfe = trades.filter((t) => (t as any).mfe != null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tradesWithMae = trades.filter((t) => (t as any).mae != null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const avgMfe = tradesWithMfe.length > 0 ? tradesWithMfe.reduce((a, t) => a + Number((t as any).mfe), 0) / tradesWithMfe.length : null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const avgMae = tradesWithMae.length > 0 ? tradesWithMae.reduce((a, t) => a + Number((t as any).mae), 0) / tradesWithMae.length : null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tradesWithBoth = trades.filter((t) => (t as any).mfe != null && Number((t as any).mfe) > 0 && Number(t.pnlPoints) > 0)
+  const avgCaptureRate = tradesWithBoth.length > 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ? tradesWithBoth.reduce((a, t) => a + Math.min(Number(t.pnlPoints) / Number((t as any).mfe), 1), 0) / tradesWithBoth.length
+    : null
 
   // ── Breakdown por sessão ────────────────────────────────────────────────
   const sessions = ["AM", "PM", "OVERNIGHT"] as const
@@ -177,6 +222,111 @@ export default async function AnalyticsPage() {
 
         {/* ── Equity Curve ── */}
         <EquityCurve points={equityPoints} />
+
+        {/* ── Drawdown & Streaks ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            {
+              label: "Max Drawdown",
+              value: maxDrawdown > 0 ? `-$${maxDrawdown.toFixed(0)}` : "$0",
+              sub: "pior recuperação",
+              color: maxDrawdown > 0 ? "text-loss" : "text-foreground",
+              icon: TrendingDown,
+            },
+            {
+              label: "Drawdown Atual",
+              value: currentDrawdown > 0 ? `-$${currentDrawdown.toFixed(0)}` : "$0",
+              sub: currentDrawdown > 0 ? "abaixo do pico" : "no topo",
+              color: currentDrawdown > 0 ? "text-yellow-400" : "text-profit",
+              icon: AlertTriangle,
+            },
+            {
+              label: "Max Win Streak",
+              value: maxWinStreak.toString(),
+              sub: "wins seguidos",
+              color: "text-profit",
+              icon: Flame,
+            },
+            {
+              label: "Max Loss Streak",
+              value: maxLossStreak.toString(),
+              sub: "losses seguidos",
+              color: maxLossStreak >= 5 ? "text-loss" : "text-foreground",
+              icon: Activity,
+            },
+          ].map((s) => (
+            <div key={s.label} className="bg-card border border-border rounded-xl p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <s.icon className="w-3.5 h-3.5 text-muted-foreground/60" />
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+              </div>
+              <p className={cn("text-2xl font-bold font-mono", s.color)}>{s.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{s.sub}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Streak atual */}
+        {currentStreakValue !== 0 && (
+          <div className={cn(
+            "rounded-xl border px-5 py-3 flex items-center gap-3",
+            currentStreakValue > 0 ? "bg-profit/5 border-profit/20" : "bg-loss/5 border-loss/20"
+          )}>
+            <span className="text-xl">{currentStreakValue > 0 ? "🔥" : "🧊"}</span>
+            <div>
+              <p className={cn("text-sm font-semibold", currentStreakValue > 0 ? "text-profit" : "text-loss")}>
+                {currentStreakValue > 0
+                  ? `${currentStreakValue} win${currentStreakValue > 1 ? "s" : ""} seguidos!`
+                  : `${Math.abs(currentStreakValue)} loss${Math.abs(currentStreakValue) > 1 ? "es" : ""} seguidos`}
+              </p>
+              <p className="text-xs text-muted-foreground">streak atual com base nos últimos trades</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── MFE / MAE ── */}
+        {(avgMfe != null || avgMae != null) && (
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-foreground">MFE / MAE — Qualidade de Execução</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Baseado em {tradesWithMfe.length} trade{tradesWithMfe.length !== 1 ? "s" : ""} com dados registrados
+              </p>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {avgMfe != null && (
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Avg MFE</p>
+                  <p className="text-2xl font-bold font-mono text-profit">+{avgMfe.toFixed(1)} pts</p>
+                  <p className="text-[10px] text-muted-foreground">potencial médio a favor</p>
+                </div>
+              )}
+              {avgMae != null && (
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Avg MAE</p>
+                  <p className="text-2xl font-bold font-mono text-loss">-{avgMae.toFixed(1)} pts</p>
+                  <p className="text-[10px] text-muted-foreground">excursão adversa média</p>
+                </div>
+              )}
+              {avgCaptureRate != null && (
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Taxa de Captura</p>
+                  <p className={cn("text-2xl font-bold font-mono", avgCaptureRate >= 0.6 ? "text-profit" : avgCaptureRate >= 0.4 ? "text-yellow-400" : "text-loss")}>
+                    {(avgCaptureRate * 100).toFixed(0)}%
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">do potencial MFE capturado</p>
+                </div>
+              )}
+            </div>
+            {avgCaptureRate != null && avgCaptureRate < 0.5 && (
+              <div className="px-5 pb-4">
+                <p className="text-xs text-yellow-400/80 bg-yellow-500/5 border border-yellow-500/20 rounded-lg px-3 py-2">
+                  ⚠ Você está capturando menos de 50% do potencial dos seus trades. Considere ajustar seus alvos ou trailing stop.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Avg Winner / Loser + Trades ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

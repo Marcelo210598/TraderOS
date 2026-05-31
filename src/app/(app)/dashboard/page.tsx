@@ -6,6 +6,7 @@ import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentTrades } from "@/components/dashboard/recent-trades"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { StreakWidget } from "@/components/dashboard/streak-widget"
+import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { DollarSign, TrendingUp, Target, Activity, BookOpen, Plus } from "lucide-react"
 
 export const metadata: Metadata = { title: "Dashboard" }
@@ -108,6 +109,8 @@ export default async function DashboardPage() {
     best: s.best,
   }))
 
+  const isNewUser = recentTradesRaw.length === 0
+
   // Display helpers
   const pnlDisplay =
     weekPnl === 0
@@ -117,6 +120,8 @@ export default async function DashboardPage() {
     profitFactor === 0 ? "—" : profitFactor >= 99 ? "∞" : profitFactor.toFixed(2)
 
   return (
+    <>
+    <OnboardingModal isNewUser={isNewUser} />
     <div className="flex flex-col flex-1 overflow-auto">
       <Header
         title="Dashboard"
@@ -233,5 +238,6 @@ export default async function DashboardPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

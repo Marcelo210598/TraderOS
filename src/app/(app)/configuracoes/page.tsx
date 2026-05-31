@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { Header } from "@/components/layout/header"
 import { ProfileForm, PasswordForm } from "@/components/settings/settings-forms"
-import { Shield, User, CreditCard } from "lucide-react"
+import { IntegrationSection } from "@/components/settings/integration-section"
+import { Shield, User, CreditCard, Link2 } from "lucide-react"
 
 const PLAN_LABELS: Record<string, { label: string; color: string; description: string }> = {
   FREE:   { label: "Free",   color: "text-muted-foreground", description: "Acesso básico ao Journal e Dashboard" },
@@ -15,10 +16,18 @@ export default async function ConfiguracoesPage() {
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { name: true, email: true, image: true, password: true, plan: true, createdAt: true },
-  })
+  const [user, apiKeys] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, email: true, image: true, password: true, plan: true, createdAt: true },
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (prisma as any).userApiKey.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, key: true, lastUsed: true, createdAt: true },
+    }),
+  ])
 
   if (!user) redirect("/login")
 
@@ -54,6 +63,24 @@ export default async function ConfiguracoesPage() {
               <h2 className="text-sm font-semibold text-foreground">Segurança</h2>
             </div>
             <PasswordForm hasPassword={!!user.password} />
+          </section>
+
+          {/* Integrações */}
+          <section className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Link2 className="w-4 h-4 text-teal" />
+              <h2 className="text-sm font-semibold text-foreground">Integrações</h2>
+            </div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <span className="text-sm font-bold font-mono text-foreground">NT</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">NinjaTrader 8</p>
+                <p className="text-xs text-muted-foreground">Sync automático de trades — funciona com contas Apex</p>
+              </div>
+            </div>
+            <IntegrationSection initialKeys={apiKeys} />
           </section>
 
           {/* Plano */}

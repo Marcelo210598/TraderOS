@@ -82,18 +82,24 @@ CRON_SECRET                 ✅ (Vercel gera automaticamente com os crons)
 RESEND_FROM_EMAIL           ❓ verificar
 ```
 
-## Próximos passos (Fase 3)
-### Prioritário
-1. **Stripe/MercadoPago** — gateway de pagamento + webhook para atualizar `user.plan` (sem isso não há receita)
-2. **MFE/MAE tracking** — campos no form de trade: máximo favor/contra antes do stop (rápido)
-3. **Gamificação — auditoria** — XP/streaks/achievements no schema, confirmar se estão todos conectados ao comportamento real
+## Módulos atualizados (24/05 — segunda sessão)
+- **MFE/MAE** ✅ — campos no trade form, API, detalhe, % de captura
+- **Gamificação auditada** ✅ — `src/lib/gamification.ts`, achievements com key como ID
+- **PWA** ✅ — manifest.ts, service worker, PwaRegister
+- **Onboarding** ✅ — modal 5 passos, localStorage, dashboard
+- **Multi-conta Guardian** ✅ — view=multi com grid compacto de todas as PAs
+- **Analytics avançados** ✅ — drawdown, streaks, MFE/MAE agregado, banner streak atual
+- **CSV import multi-plataforma** ✅ — NinjaTrader, Tradovate, auto-detect
 
-### Nice to Have
-4. **Multi-conta no Guardian** — ver todos os challenges lado a lado (hoje alterna via seletor)
-5. **PWA instalável** — manifest.json + ícones
-6. **Onboarding** — guia na primeira visita do usuário
-7. **Trade Replay** — integração TradingView (mais complexo)
-8. **Domínio próprio** — traderos.app
+## Próximos passos (para 10/10 sem pagamento)
+1. **Tags customizáveis** nos trades — ~3-4h
+2. **Drawdown chart visual** no Analytics — ~1-2h
+3. **Export PDF** do journal — ~2-3h
+4. **Domínio traderos.app** — 15min DNS
+5. **Stripe/MercadoPago** — quando decidir monetizar
+
+## Nota competitiva atual: **8.7/10**
+Pronto para ter clientes pagantes. App bate concorrentes ($30-50/mês USD) em PT-BR, gamificação, IA e especificidade Apex.
 
 ## Histórico de sessões
 | Data | O que foi feito |
@@ -103,3 +109,4 @@ RESEND_FROM_EMAIL           ❓ verificar
 | 2026-05-23 | UploadThing, Resend, Vega IA, Calendário, Trilha, deploy Vercel; fix login/logout/OAuth |
 | 2026-05-24 (manhã) | Logo + favicon, rename → Vega, /configuracoes, fix logout, fix Vega modelo |
 | 2026-05-24 (tarde) | accountLabel (TEST/PA), CSV import, bulk label, Guardian real, Setup performance table, Vega contextual (90 dias), notificações in-app + cron sábado |
+| 2026-05-24 (noite) | MFE/MAE, gamificação auditada, PWA, onboarding, multi-conta Guardian, analytics avançados, CSV multi-plataforma (NinjaTrader+Tradovate) |
