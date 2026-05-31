@@ -1,11 +1,12 @@
 # TraderOS — Progresso
 
-## Última atualização: 19/05/2026 — Sessão 3
+## Última atualização: 31/05/2026 — Sessão estética Tier 1
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
-- **Stack:** Next.js 16 + TypeScript + Tailwind v4 + shadcn/ui (Base UI) + Prisma 7 + Neon PostgreSQL + NextAuth v5
-- **Status:** ~75% do MVP — núcleo funcional completo
+- **Stack:** Next.js 16 + TypeScript + Tailwind v4 + shadcn/ui + Prisma 7 + Neon PostgreSQL + NextAuth v5
+- **Status:** ~85% do MVP — núcleo funcional completo + estética Tier 1 entregue
+- **URL Produção:** trader-os-ashy.vercel.app ✅
 
 ## ✅ Concluído
 
@@ -45,37 +46,36 @@
 - [x] **API /api/auth/register** — bcrypt hash + verificação de duplicata
 - [x] **Página de Planos** (`/planos`) — Free / Trader R$47 / Pro R$97, "Seu plano" destacado
 
+### Sessão estética — 30/05/2026 (noite) + 31/05/2026
+- [x] **IA no Check-in (Vega):** endpoint `/api/checkin/ai-insight`, fallback de 18 respostas pré-escritas, segmentação por plano FREE vs TRADER/PRO
+- [x] **Drawdown Chart visual** em /analytics — SVG de área com pior ponto marcado
+- [x] **Export PDF do Journal** — rota `/journal/print`, A4 landscape, auto-print, respeita filtros
+- [x] **Fix deploy** — cast de `user.plan` para union type resolvido no Vercel
+- [x] **Tier 1 Estética (7/7 itens):**
+  - StatsCards com accent bar colorida (profit/loss/teal/neutral) + gradient overlay
+  - Sidebar active indicator: barra vertical teal 2px à esquerda (estilo Linear)
+  - Background com radial gradient fixo (profundidade de tela)
+  - Botão Google com ícone "G" oficial colorido (substituiu Globe genérico)
+  - Logo do login com drop-shadow teal
+  - XP bar mais espessa (h-2) + gradient + glow neon
+  - Plan badge maior com borda colorida por plano
+
 ## 🚧 Em progresso
 - Nenhum no momento
 
-## 📋 Próximos passos — Sessão 4 (prioridade)
+## 📋 Próximos passos
 
-### Alta prioridade
-- [ ] **Gateway de pagamento** — Stripe ou Abacatepay para os planos Trader e Pro
-  - Webhook para atualizar `user.plan` no banco após confirmação de pagamento
-  - Botão "Assinar" nos cards de plano funcionando
-- [ ] **UploadThing** — screenshots no Journal (UPLOADTHING_TOKEN pendente no .env)
+### Estética Tier 2 (próxima sessão)
+- [ ] **Count-up animation** nos valores dos StatsCards
+- [ ] **Bottom navigation bar mobile** — 5 ítens (Dashboard, Journal, Analytics, Guardian, +Trade)
+- [ ] **Empty states com SVG** — ilustrações monocromáticas para Analytics/Journal vazios
+
+### Produto
+- [ ] **Domínio traderos.app** (~15min)
+- [ ] **Stripe** — planos Trader R$47 / Pro R$97, webhook para atualizar user.plan (~8-12h)
+- [ ] **NinjaTrader** — reescrever NinjaScript como Strategy ou CSV watcher
+- [ ] **UploadThing** — screenshots no Journal (UPLOADTHING_TOKEN pendente)
 - [ ] **Email de boas-vindas** — Resend após cadastro (RESEND_API_KEY pendente)
-
-### Média prioridade
-- [ ] **Deploy Vercel** — variáveis de ambiente em produção + domínio
-- [ ] **Ask Claude** — análise IA de trades para plano Pro (ANTHROPIC_API_KEY pendente)
-- [ ] **JWT refresh automático** — ao mudar plano, invalidar sessão sem precisar re-logar
-
-### Baixa prioridade
-- [ ] **Calendário Econômico** — eventos macro (Trading Economics / Forex Factory API)
-- [ ] **Trilha de Aprendizado** — conteúdo estruturado para traders iniciantes
-- [ ] **Página /configuracoes** — perfil, alterar senha, preferências
-
-### 🔮 Futuro — IA no Check-in (Vega IA / diagnóstico emocional)
-- Após o usuário submeter o check-in (5 métricas: estado emocional, energia, foco, confiança, ausência de stress), a IA analisa as respostas e traça um diagnóstico personalizado
-- **Cenário ruim (score baixo):** indica para NÃO operar, explica o motivo (ex: "Seu nível de stress alto combinado com baixa confiança aumenta risco de revenge trading")
-- **Cenário neutro:** alerta específico baseado nas métricas fracas + conselhos práticos (ex: "Energia baixa pode causar lapsos de atenção — reduza tamanho de posição")
-- **Cenário bom:** valida o estado mas alerta contra armadilhas (ex: "Alta confiança pode virar ganância — respeite o max loss e saia no alvo")
-- A IA deve considerar COMBINAÇÕES de métricas, não só o score geral (ex: energia alta + foco baixo = cenário específico diferente de energia baixa + foco alto)
-- Exibir o diagnóstico logo após a submissão do check-in, antes do usuário ir operar
-- Usar Claude API (ANTHROPIC_API_KEY já está no roadmap) — modelo Haiku para custo baixo
-- Guardar diagnóstico junto ao check-in no banco para histórico
 
 ## ⚠️ Decisões técnicas importantes
 - **Prisma 7:** URL no `prisma.config.ts`, NÃO no `schema.prisma`

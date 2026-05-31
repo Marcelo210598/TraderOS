@@ -98,8 +98,22 @@ RESEND_FROM_EMAIL           ❓ verificar
 4. **Domínio traderos.app** — 15min DNS
 5. **Stripe/MercadoPago** — quando decidir monetizar
 
-## Nota competitiva atual: **8.7/10**
-Pronto para ter clientes pagantes. App bate concorrentes ($30-50/mês USD) em PT-BR, gamificação, IA e especificidade Apex.
+## Nota competitiva atual: **9.2/10**
+Pronto para ter clientes pagantes. App bate concorrentes ($30-50/mês USD) em PT-BR, gamificação, IA e especificidade Apex. Estética Tier 1 entregue — visual polido e profissional.
+
+## Estética Tier 1 — 31/05/2026 (7 itens entregues)
+- StatsCards com accent bar colorida + gradient overlay
+- Sidebar active indicator (barra vertical teal)
+- Radial gradient no background
+- Ícone Google real no login
+- Drop-shadow teal no logo
+- XP bar mais espessa com glow neon
+- Plan badge com borda colorida por plano
+
+## Estética Tier 2 — PENDENTE
+- Count-up animation nos valores
+- Bottom nav mobile (5 ítens)
+- Empty states com SVG
 
 ## Histórico de sessões
 | Data | O que foi feito |
@@ -110,3 +124,6 @@ Pronto para ter clientes pagantes. App bate concorrentes ($30-50/mês USD) em PT
 | 2026-05-24 (manhã) | Logo + favicon, rename → Vega, /configuracoes, fix logout, fix Vega modelo |
 | 2026-05-24 (tarde) | accountLabel (TEST/PA), CSV import, bulk label, Guardian real, Setup performance table, Vega contextual (90 dias), notificações in-app + cron sábado |
 | 2026-05-24 (noite) | MFE/MAE, gamificação auditada, PWA, onboarding, multi-conta Guardian, analytics avançados, CSV multi-plataforma (NinjaTrader+Tradovate) |
+| 2026-05-28 | Tags customizáveis, integração NinjaTrader (API Keys + endpoint sync), NinjaScript v6 |
+| 2026-05-30 | Vega no check-in (TRADER/PRO), fallback 18 respostas, drawdown chart SVG, export PDF journal, fix deploy |
+| 2026-05-31 | Estética Tier 1 completa: 7 melhorias visuais (StatsCards, sidebar, background, login, XP bar, badge) |
