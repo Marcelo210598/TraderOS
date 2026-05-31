@@ -29,12 +29,33 @@ export function StatsCard({
   return (
     <div
       className={cn(
-        "bg-card border border-border rounded-xl p-4 flex flex-col gap-3 hover:border-border/80 transition-colors",
-        variant === "profit" && "border-profit/20 hover:border-profit/40",
-        variant === "loss" && "border-loss/20 hover:border-loss/40",
+        "relative bg-card border border-border rounded-xl p-4 flex flex-col gap-3 transition-all duration-150 overflow-hidden",
+        "hover:border-border/60 hover:shadow-md hover:shadow-black/20",
+        variant === "profit" && "border-profit/20 hover:border-profit/30",
+        variant === "loss" && "border-loss/20 hover:border-loss/30",
         className
       )}
     >
+      {/* Accent bar esquerda */}
+      <div
+        className={cn(
+          "absolute left-0 top-3 bottom-3 w-[3px] rounded-full",
+          variant === "profit" && "bg-profit",
+          variant === "loss" && "bg-loss",
+          variant === "neutral" && "bg-muted-foreground/40",
+          variant === "default" && "bg-teal"
+        )}
+      />
+      {/* Gradient overlay sutil */}
+      <div
+        className={cn(
+          "absolute inset-0 opacity-[0.04] rounded-xl pointer-events-none",
+          variant === "profit" && "bg-gradient-to-br from-profit to-transparent",
+          variant === "loss" && "bg-gradient-to-br from-loss to-transparent",
+          (variant === "default" || !variant) && "bg-gradient-to-br from-teal to-transparent",
+          variant === "neutral" && "bg-transparent"
+        )}
+      />
       <div className="flex items-start justify-between">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
         <div
