@@ -1,11 +1,11 @@
 # TraderOS — Progresso
 
-## Última atualização: 31/05/2026 — Sessão estética Tier 2
+## Última atualização: 01/06/2026 — Fix Vercel Analytics
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
 - **Stack:** Next.js 16 + TypeScript + Tailwind v4 + shadcn/ui + Prisma 7 + Neon PostgreSQL + NextAuth v5
-- **Status:** ~88% do MVP — núcleo funcional completo + estética Tier 1 e Tier 2 entregues
+- **Status:** ~90% do MVP — núcleo funcional completo + estética Tier 1/2 + Analytics em produção
 - **URL Produção:** trader-os-ashy.vercel.app ✅
 
 ## ✅ Concluído
@@ -59,6 +59,10 @@
   - Logo do login com drop-shadow teal
   - XP bar mais espessa (h-2) + gradient + glow neon
   - Plan badge maior com borda colorida por plano
+
+### Fix deploy — 01/06/2026
+- [x] **Vercel Analytics + Speed Insights** — `@vercel/analytics` e `@vercel/speed-insights` instalados e funcionando em produção
+- [x] **Fix lockfile** — `npm error Invalid Version: ` resolvido (campo `version` faltando em dep opcional do lockfile)
 
 ## 🚧 Em progresso
 - Nenhum no momento

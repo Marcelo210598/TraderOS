@@ -110,10 +110,14 @@ Pronto para ter clientes pagantes. App bate concorrentes ($30-50/mês USD) em PT
 - XP bar mais espessa com glow neon
 - Plan badge com borda colorida por plano
 
-## Estética Tier 2 — PENDENTE
-- Count-up animation nos valores
+## Estética Tier 2 — 31/05/2026 ✅ ENTREGUE
+- Count-up animation nos StatsCards
 - Bottom nav mobile (5 ítens)
 - Empty states com SVG
+
+## Analytics em produção — 01/06/2026 ✅
+- `@vercel/analytics` + `@vercel/speed-insights` funcionando
+- Fix: `package-lock.json` tinha campo `version` vazio em dep opcional (`@unrs/resolver-binding-openharmony-arm64`)
 
 ## Histórico de sessões
 | Data | O que foi feito |
@@ -127,3 +131,4 @@ Pronto para ter clientes pagantes. App bate concorrentes ($30-50/mês USD) em PT
 | 2026-05-28 | Tags customizáveis, integração NinjaTrader (API Keys + endpoint sync), NinjaScript v6 |
 | 2026-05-30 | Vega no check-in (TRADER/PRO), fallback 18 respostas, drawdown chart SVG, export PDF journal, fix deploy |
 | 2026-05-31 | Estética Tier 1 completa: 7 melhorias visuais (StatsCards, sidebar, background, login, XP bar, badge) |
+| 2026-06-01 | Fix deploy: Vercel Analytics ativo — lockfile corrompido (version vazia em dep opcional) |
