@@ -36,6 +36,7 @@ model User {
   subscription  Subscription?
   notifications Notification[]
   apiKeys       UserApiKey[]
+  challenges    Challenge[]
 
   @@map("users")
 }
@@ -294,6 +295,25 @@ model UserApiKey {
 
   @@index([userId])
   @@map("user_api_keys")
+}
+
+// ─── Desafios ─────────────────────────────────────────────────────────────────
+
+model Challenge {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  name        String
+  description String?
+  rules       Json     @default("[]")
+  isActive    Boolean  @default(true) @map("is_active")
+  startedAt   DateTime @default(now()) @map("started_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("challenges")
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────

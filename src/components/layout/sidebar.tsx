@@ -12,6 +12,7 @@ import {
   BarChart3,
   BarChart2,
   GraduationCap,
+  Trophy,
   MessageSquare,
   Settings,
   ChevronRight,
@@ -51,6 +52,7 @@ const navGroups: NavGroup[] = [
       { href: "/guardian", icon: Shield, label: "Guardian", planRequired: "TRADER" },
       { href: "/setups", icon: BarChart3, label: "Setups", planRequired: "TRADER" },
       { href: "/calendario", icon: Calendar, label: "Calendário" },
+      { href: "/desafios", icon: Trophy, label: "Desafios" },
     ],
   },
   {
