@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { EquityCurve } from "@/components/analytics/equity-curve"
 import { DrawdownChart } from "@/components/analytics/drawdown-chart"
+import { WhatIfSimulator } from "@/components/analytics/what-if-simulator"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -540,6 +541,17 @@ export default async function AnalyticsPage() {
             </div>
           )}
         </div>
+
+        {/* ── Simulador "E se" ── */}
+        <WhatIfSimulator
+          trades={trades.map(t => ({
+            pnl: Number(t.pnl),
+            pnlPoints: Number(t.pnlPoints),
+            result: t.result,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            mfe: (t as any).mfe != null ? Number((t as any).mfe) : null,
+          }))}
+        />
 
         {/* ── Dia da semana ── */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
