@@ -1,6 +1,6 @@
 # TraderOS — Progresso
 
-## Última atualização: 01/06/2026 — Fix Vercel Analytics
+## Última atualização: 02/06/2026 — Reescrita integração NinjaTrader (Indicator → AddOn)
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
@@ -65,7 +65,7 @@
 - [x] **Fix lockfile** — `npm error Invalid Version: ` resolvido (campo `version` faltando em dep opcional do lockfile)
 
 ## 🚧 Em progresso
-- Nenhum no momento
+- **Integração NinjaTrader (AddOn):** código reescrito em `integration-section.tsx`, aguardando teste de compilação no NT8 real
 
 ### Estética Tier 2 — 31/05/2026 (3/3 entregues)
 - [x] **Count-up animation** — StatsCard vira client component, hook useCountUp (easeOut 700ms), props numericValue/formatValue
@@ -78,7 +78,7 @@
 - [ ] **UploadThing** — screenshots no Journal (UPLOADTHING_TOKEN pendente)
 - [ ] **Domínio traderos.app** (~15min, mais pra frente)
 - [ ] **Stripe** — planos Trader R$97 / Pro R$197, webhook para atualizar user.plan (~8-12h)
-- [ ] **NinjaTrader** — reescrever NinjaScript como Strategy ou CSV watcher
+- [ ] **NinjaTrader** — código reescrito como AddOn ✅, aguardando teste de compilação no NT8 → commit + deploy após validar
 - [ ] **UploadThing** — screenshots no Journal (UPLOADTHING_TOKEN pendente)
 - [ ] **Email de boas-vindas** — Resend após cadastro (RESEND_API_KEY pendente)
 

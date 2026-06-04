@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { Copy, Check, Trash2, Plus, ChevronDown, ChevronUp, Download, Clock, Terminal, FolderOpen, Zap, TrendingUp } from "lucide-react"
+import { Copy, Check, Trash2, Plus, ChevronDown, ChevronUp, Download, Clock, Terminal, FolderOpen, Zap, TrendingUp, Settings, FileText, Upload, AlertTriangle, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ApiKey {
@@ -446,7 +446,7 @@ export function IntegrationSection({ initialKeys }: Props) {
               </button>
             </div>
             <p className="text-[10px] text-muted-foreground text-center">
-              Baixe os 2 arquivos → siga o tutorial abaixo → pronto em 2 minutos
+              Baixe os 2 arquivos → siga o tutorial abaixo → pronto em ~3 minutos
             </p>
           </div>
 
@@ -466,125 +466,143 @@ export function IntegrationSection({ initialKeys }: Props) {
             {tutorialOpen && (
               <div className="divide-y divide-border">
 
-                {/* Passo 1 */}
-                <TutorialStep n={1} title="Baixe os 2 arquivos aqui no TraderOS" icon={<Download className="w-4 h-4" />}>
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    Clique nos dois botões acima: <strong className="text-foreground">1. Baixar Config</strong> e{" "}
-                    <strong className="text-foreground">2. Baixar AddOn (.zip)</strong>. Você terá dois arquivos:
+                {/* Aviso de tempo */}
+                <div className="px-5 py-3 bg-teal/5 flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-teal shrink-0" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Configuração única de <strong className="text-foreground">~3 minutos</strong>. Depois é automático para sempre. Siga os passos na ordem.
                   </p>
-                  <div className="space-y-2">
+                </div>
+
+                {/* Passo 1 */}
+                <TutorialStep n={1} title="Acesse Configurações no TraderOS" icon={<Settings className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    No menu lateral esquerdo, clique em <strong className="text-foreground">Configurações</strong> (no rodapé) e role até a seção <strong className="text-foreground">Integrações → NinjaTrader 8</strong>.
+                  </p>
+                  <TutorialImage src="/tutorial/step1-dashboard.png" alt="Dashboard do TraderOS" caption="O botão Configurações fica no canto inferior esquerdo" />
+                </TutorialStep>
+
+                {/* Passo 2 */}
+                <TutorialStep n={2} title="Baixe os 2 arquivos" icon={<Download className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    Clique em <strong className="text-foreground">1. Baixar Config</strong> e depois em <strong className="text-foreground">2. Baixar AddOn (.zip)</strong>. Você vai receber dois arquivos:
+                  </p>
+                  <div className="space-y-2 mb-3">
                     <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
+                      <FileText className="w-4 h-4 text-teal shrink-0" />
                       <span className="text-teal font-mono text-[11px]">traderos_config.txt</span>
                       <span className="text-muted-foreground text-[10px]">→ sua API Key (gerada automaticamente)</span>
                     </div>
                     <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
+                      <Download className="w-4 h-4 text-teal shrink-0" />
                       <span className="text-teal font-mono text-[11px]">TraderOSSync.zip</span>
                       <span className="text-muted-foreground text-[10px]">→ o AddOn do NinjaTrader</span>
                     </div>
                   </div>
-                  <div className="rounded-xl overflow-hidden border border-border mt-3">
-                    <Image
-                      src="/tutorial/step1-settings.png"
-                      alt="TraderOS — Configurações → Integrações com botão de download"
-                      width={900}
-                      height={500}
-                      className="w-full object-cover"
-                    />
-                  </div>
-                </TutorialStep>
-
-                {/* Passo 2 */}
-                <TutorialStep n={2} title="Cole o traderos_config.txt na pasta do NinjaTrader" icon={<FolderOpen className="w-4 h-4" />}>
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    Mova o arquivo <span className="font-mono text-[10px] text-teal">traderos_config.txt</span> para a pasta do NinjaTrader.
-                    Use o atalho abaixo para abrir direto:
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-3 bg-muted/20 rounded-lg border border-border">
-                      <kbd className="px-2 py-1 bg-muted rounded text-[10px] font-mono text-foreground shrink-0">Win+R</kbd>
-                      <span className="text-xs text-muted-foreground">→ cole o caminho abaixo → Enter</span>
-                    </div>
-                    <div className="p-3 bg-[#0a0f1a] rounded-lg border border-border">
-                      <code className="text-[11px] font-mono text-teal break-all">
-                        %USERPROFILE%\Documents\NinjaTrader 8
-                      </code>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Cole o arquivo <span className="font-mono text-[10px]">traderos_config.txt</span> diretamente nessa pasta (não em subpastas).
-                    </p>
-                  </div>
+                  <TutorialImage src="/tutorial/step2-configuracoes-integracoes.png" alt="Botões de download do AddOn" caption="Os dois botões de download na seção NinjaTrader 8" />
                 </TutorialStep>
 
                 {/* Passo 3 */}
-                <TutorialStep n={3} title="Importe o AddOn no NinjaTrader" icon={<Terminal className="w-4 h-4" />}>
+                <TutorialStep n={3} title="Abra a pasta do NinjaTrader" icon={<FolderOpen className="w-4 h-4" />}>
                   <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    No NinjaTrader 8, importe o <span className="font-mono text-[10px] text-teal">TraderOSSync.zip</span> pelo menu:
+                    No Windows, pressione <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono text-foreground">Win + R</kbd>, cole o caminho abaixo e pressione <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono text-foreground">Enter</kbd>:
                   </p>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5 flex-wrap p-3 bg-muted/20 rounded-lg border border-border">
-                      <kbd className="bg-muted px-2 py-1 rounded text-[10px] font-mono">Ferramentas</kbd>
-                      <span className="text-muted-foreground text-xs">→</span>
-                      <kbd className="bg-muted px-2 py-1 rounded text-[10px] font-mono">Importar</kbd>
-                      <span className="text-muted-foreground text-xs">→</span>
-                      <kbd className="bg-teal/10 border border-teal/30 text-teal px-2 py-1 rounded text-[10px] font-mono">Complemento NinjaScript</kbd>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Selecione o arquivo <span className="font-mono text-[10px]">TraderOSSync.zip</span> → clique <strong className="text-foreground">OK</strong> → aguarde compilar → <strong className="text-foreground">Reinicie o NinjaTrader</strong>.
-                    </p>
-                    <div className="p-3 bg-teal/5 border border-teal/20 rounded-lg">
-                      <p className="text-[10px] text-teal">Sem editor, sem F5, sem copiar arquivos. O NT8 instala automaticamente.</p>
-                    </div>
+                  <div className="p-3 bg-[#0a0f1a] rounded-lg border border-border mb-3">
+                    <code className="text-[11px] font-mono text-teal break-all">
+                      %USERPROFILE%\Documents\NinjaTrader 8
+                    </code>
                   </div>
+                  <TutorialImage src="/tutorial/step3-winr-correto.png" alt="Janela Executar com o caminho" caption="Cole o caminho exatamente como está acima" />
                 </TutorialStep>
 
                 {/* Passo 4 */}
-                <TutorialStep n={4} title="Confirme que o AddOn está ativo" icon={<Zap className="w-4 h-4" />}>
+                <TutorialStep n={4} title="Coloque o config dentro dessa pasta" icon={<FileText className="w-4 h-4" />}>
                   <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    Após reiniciar, abra:
+                    Mova o arquivo <span className="font-mono text-[10px] text-teal">traderos_config.txt</span> (que você baixou no passo 2) para dentro da pasta <span className="font-mono text-[10px]">NinjaTrader 8</span> que acabou de abrir — direto na raiz, <strong className="text-foreground">não em subpastas</strong>.
+                  </p>
+                  <TutorialImage src="/tutorial/step5-traderos-config-na-pasta.png" alt="Arquivo de config na pasta do NinjaTrader" caption="O traderos_config.txt deve ficar na raiz da pasta NinjaTrader 8" />
+                </TutorialStep>
+
+                {/* Passo 5 */}
+                <TutorialStep n={5} title="Importe o AddOn no NinjaTrader" icon={<Upload className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    Abra o NinjaTrader 8. No menu superior, vá em:
+                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap p-3 bg-muted/20 rounded-lg border border-border mb-3">
+                    <kbd className="bg-muted px-2 py-1 rounded text-[10px] font-mono">Ferramentas</kbd>
+                    <span className="text-muted-foreground text-xs">→</span>
+                    <kbd className="bg-muted px-2 py-1 rounded text-[10px] font-mono">Importar</kbd>
+                    <span className="text-muted-foreground text-xs">→</span>
+                    <kbd className="bg-teal/10 border border-teal/30 text-teal px-2 py-1 rounded text-[10px] font-mono">Complemento de NinjaScript</kbd>
+                  </div>
+                  <TutorialImage src="/tutorial/step20-ferramentas-importar-novo.png" alt="Menu Ferramentas → Importar" caption="Ferramentas → Importar → Complemento de NinjaScript" />
+                </TutorialStep>
+
+                {/* Passo 6 */}
+                <TutorialStep n={6} title="Selecione o arquivo TraderOSSync.zip" icon={<FolderOpen className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    Na janela que abrir, navegue até a pasta <strong className="text-foreground">Downloads</strong>, selecione o arquivo{" "}
+                    <span className="font-mono text-[10px] text-teal">TraderOSSync.zip</span> e clique em <strong className="text-foreground">Abrir</strong>.
+                  </p>
+                  <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg mb-3">
+                    <p className="text-[10px] text-amber-500/90">Não descompacte o arquivo — selecione o .zip do jeito que está.</p>
+                  </div>
+                  <TutorialImage src="/tutorial/step21-selecionar-zip-importar.png" alt="Seletor de arquivo com o zip" caption="Selecione o TraderOSSync.zip e clique em Abrir" />
+                </TutorialStep>
+
+                {/* Passo 7 */}
+                <TutorialStep n={7} title="Confirme o aviso (é normal)" icon={<AlertTriangle className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    Pode aparecer um aviso de <em>&ldquo;versão incompatível&rdquo;</em>. Isso é <strong className="text-foreground">normal</strong> e não afeta o funcionamento — apenas clique em <strong className="text-foreground">OK</strong> para continuar.
+                  </p>
+                  <TutorialImage src="/tutorial/step22-aviso-versao-normal.png" alt="Aviso de versão do NinjaTrader" caption="Clique em OK — o aviso pode ser ignorado com segurança" />
+                </TutorialStep>
+
+                {/* Passo 8 */}
+                <TutorialStep n={8} title="Compile o AddOn (F5)" icon={<Terminal className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    Agora abra o editor para ativar o AddOn:
+                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap p-3 bg-muted/20 rounded-lg border border-border mb-3">
+                    <kbd className="bg-muted px-2 py-1 rounded text-[10px] font-mono">Novo</kbd>
+                    <span className="text-muted-foreground text-xs">→</span>
+                    <kbd className="bg-muted px-2 py-1 rounded text-[10px] font-mono">Editor NinjaScript</kbd>
+                    <span className="text-muted-foreground text-xs">→</span>
+                    <kbd className="bg-muted px-2 py-1 rounded text-[10px] font-mono">AddOns</kbd>
+                    <span className="text-muted-foreground text-xs">→</span>
+                    <kbd className="bg-teal/10 border border-teal/30 text-teal px-2 py-1 rounded text-[10px] font-mono">TraderOSSync</kbd>
+                    <span className="text-muted-foreground text-xs">→ duplo clique →</span>
+                    <kbd className="bg-muted px-2 py-1 rounded text-[10px] font-mono font-bold">F5</kbd>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed mb-3">
+                    No painel direito, abra a pasta <span className="font-mono text-[10px]">AddOns</span>, dê duplo clique em <span className="font-mono text-[10px]">TraderOSSync</span> e pressione <kbd className="bg-muted px-1 rounded font-mono text-[10px]">F5</kbd>. Um som confirma a compilação — e <strong className="text-foreground">nenhuma mensagem de erro vermelha</strong> aparece embaixo.
+                  </p>
+                  <TutorialImage src="/tutorial/step11-editor-com-traderos.png" alt="Editor NinjaScript com TraderOSSync" caption="TraderOSSync aparece dentro da pasta AddOns no painel direito" />
+                  <TutorialImage src="/tutorial/step12-compilado-sucesso.png" alt="Código compilado sem erros" caption="Após o F5: código aberto e sem erros = compilado com sucesso" />
+                </TutorialStep>
+
+                {/* Passo 9 */}
+                <TutorialStep n={9} title="Confirme que o AddOn está ativo" icon={<CheckCircle2 className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    Abra a janela de saída para conferir:
                     <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono mx-1">Novo</kbd>→
                     <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono mx-1">Saída NinjaScript</kbd>.
                     Deve aparecer:
                   </p>
-                  <div className="p-4 bg-[#0a0f1a] rounded-xl border border-border font-mono text-[11px] space-y-1">
+                  <div className="p-4 bg-[#0a0f1a] rounded-xl border border-border font-mono text-[11px] space-y-1 mb-3">
                     <p className="text-green-400">[TraderOS] Config carregada. Pronto para sincronizar.</p>
                     <p className="text-green-400">[TraderOS] Ativo. Monitorando 4 conta(s). Aguardando execucoes.</p>
-                    <p className="text-green-300/60 mt-2">— após fechar um trade —</p>
-                    <p className="text-teal">[TraderOS] Trade: NQ LONG x1 | PnL=$+75 — enviando...</p>
-                    <p className="text-teal">[TraderOS] HTTP 201 OK</p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1.5">
-                    Se aparecer <span className="text-profit font-mono text-[10px]">Ativo. Monitorando</span>, a integração está pronta.
-                  </p>
+                  <TutorialImage src="/tutorial/step23-saida-ativo.png" alt="Saída NinjaScript com TraderOS ativo" caption="Se aparecer 'Ativo. Monitorando', a integração está pronta" />
                 </TutorialStep>
 
-                {/* Passo 5 */}
-                <TutorialStep n={5} title="Pronto! Trades sincronizados automaticamente" icon={<TrendingUp className="w-4 h-4" />}>
+                {/* Passo 10 */}
+                <TutorialStep n={10} title="Pronto! Trades sincronizados automaticamente" icon={<TrendingUp className="w-4 h-4" />}>
                   <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    A partir de agora, cada trade fechado no NinjaTrader aparece automaticamente no Journal do TraderOS em poucos segundos.
-                    Sem copiar dados, sem importar CSV — tudo em tempo real.
+                    A partir de agora, cada trade fechado no NinjaTrader aparece <strong className="text-foreground">automaticamente</strong> no Journal do TraderOS em poucos segundos. Sem copiar dados, sem importar CSV — tudo em tempo real.
                   </p>
-                  <div className="space-y-2">
-                    {[
-                      { dir: "LONG",  inst: "NQ", entry: "30440.00", exit: "30441.50", pnl: "+$30",  pts: "+1.50 pts", win: true },
-                      { dir: "SHORT", inst: "NQ", entry: "30491.25", exit: "30487.75", pnl: "+$70",  pts: "+3.50 pts", win: true },
-                      { dir: "LONG",  inst: "NQ", entry: "30456.75", exit: "30454.50", pnl: "-$45",  pts: "-2.25 pts", win: false },
-                    ].map((t, i) => (
-                      <div key={i} className="flex items-center justify-between px-3 py-2.5 bg-muted/20 rounded-lg border border-border">
-                        <div className="flex items-center gap-2.5">
-                          <div className={cn("w-1.5 h-1.5 rounded-full", t.win ? "bg-profit" : "bg-loss")} />
-                          <span className="text-xs font-medium text-foreground">{t.inst}</span>
-                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-bold", t.dir === "LONG" ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss")}>
-                            {t.dir}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">E: {t.entry} → S: {t.exit}</span>
-                        </div>
-                        <div className="text-right">
-                          <p className={cn("text-sm font-bold", t.win ? "text-profit" : "text-loss")}>{t.pnl}</p>
-                          <p className="text-[9px] text-muted-foreground">{t.pts}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <TutorialImage src="/tutorial/step24-trade-ninjatrader.png" alt="Trade executado no NinjaTrader" caption="Você opera normalmente no NinjaTrader…" />
+                  <TutorialImage src="/tutorial/step25-trade-traderos-journal.png" alt="Trade no Journal do TraderOS" caption="…e o trade aparece sozinho no Journal do TraderOS" />
                   <div className="mt-3 p-3 bg-profit/5 border border-profit/20 rounded-lg">
                     <p className="text-xs font-semibold text-foreground mb-0.5">Configura uma vez, funciona para sempre.</p>
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
@@ -605,8 +623,14 @@ export function IntegrationSection({ initialKeys }: Props) {
                   <Faq q="Trades antigos vão duplicar?">
                     Não. Cada trade tem um ID único. Se já foi enviado, o TraderOS ignora automaticamente.
                   </Faq>
+                  <Faq q="O aviso de 'versão incompatível' é problema?">
+                    Não. É só um aviso do NinjaTrader sobre a versão de exportação. Clique OK e siga normalmente — a integração funciona perfeitamente.
+                  </Faq>
+                  <Faq q="Por que preciso pressionar F5?">
+                    O NinjaTrader importa o arquivo, mas só ativa o AddOn após compilar uma vez. É rápido: duplo clique no TraderOSSync e F5. Depois disso, ele liga sozinho toda vez que o NinjaTrader abre.
+                  </Faq>
                   <Faq q="Posso revogar a API Key?">
-                    Sim. Clique no ícone de lixeira. O sync para imediatamente. Baixe um novo .cs após gerar nova chave.
+                    Sim. Clique no ícone de lixeira. O sync para imediatamente. Para reconectar, baixe um novo traderos_config.txt e substitua o antigo na pasta do NinjaTrader.
                   </Faq>
                   <Faq q="O AddOn afeta minha performance de trading?">
                     Não. O envio é assíncrono e nunca bloqueia a thread de ordens do NinjaTrader.
@@ -674,6 +698,27 @@ export function IntegrationSection({ initialKeys }: Props) {
       )}
 
     </div>
+  )
+}
+
+function TutorialImage({ src, alt, caption }: { src: string; alt: string; caption?: string }) {
+  return (
+    <figure className="mt-3">
+      <div className="rounded-xl overflow-hidden border border-border bg-[#0a0f1a]">
+        <Image
+          src={src}
+          alt={alt}
+          width={1200}
+          height={680}
+          className="w-full h-auto"
+        />
+      </div>
+      {caption && (
+        <figcaption className="text-[10px] text-muted-foreground mt-1.5 text-center italic">
+          {caption}
+        </figcaption>
+      )}
+    </figure>
   )
 }
 
