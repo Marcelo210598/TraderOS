@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Copy, Check, Trash2, Plus, ChevronDown, ChevronUp, Zap, Clock } from "lucide-react"
+import { Copy, Check, Trash2, Plus, ChevronDown, ChevronUp, Zap, Clock, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ApiKey {
@@ -20,63 +20,89 @@ const NINJA_SCRIPT = `#region Using declarations
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using NinjaTrader.Cbi;
 using NinjaTrader.NinjaScript;
 #endregion
 
-namespace NinjaTrader.NinjaScript.Indicators
+// === TraderOS Sync (AddOn) ===
+// Roda automaticamente quando o NinjaTrader abre. Nao precisa de grafico.
+// Configure a API Key no arquivo:  Documentos\\NinjaTrader 8\\traderos_config.txt
+namespace NinjaTrader.NinjaScript.AddOns
 {
-    public class TraderOSSync : Indicator
+    public class TraderOSSync : NinjaTrader.NinjaScript.AddOnBase
     {
-        private HttpClient _client;
-        private Dictionary<string, double[]> _entries;
+        private HttpClient                  _client;
+        private FileSystemWatcher           _watcher;
+        private Dictionary<string, Pos>     _positions;
+        private HashSet<string>             _seen;
+        private string                      _configPath;
+        private string                      _logPath;
+        private string                      _apiKey    = "";
+        private string                      _serverUrl = "https://trader-os-ashy.vercel.app";
+        private readonly object             _lock = new object();
+
+        // Estado da posicao aberta por conta|instrumento (round-trip)
+        private class Pos
+        {
+            public int    Dir;         // +1 long, -1 short
+            public int    Net;         // quantidade liquida com sinal
+            public double AvgEntry;    // preco medio de entrada
+            public long   EntryTicks;  // horario da 1a entrada
+            public double ExitValue;   // soma (preco * qtd) das saidas
+            public int    ExitQty;     // qtd total fechada
+            public double Commission;  // comissao acumulada do round-trip
+        }
 
         protected override void OnStateChange()
         {
             if (State == State.SetDefaults)
             {
-                Name                     = "TraderOS Sync";
-                Description              = "Sincroniza trades com o TraderOS automaticamente";
-                Calculate                = Calculate.OnBarClose;
-                IsOverlay                = true;
-                DisplayInDataBox         = false;
-                DrawOnPricePanel         = false;
-                PaintPriceMarkers        = false;
-                IsSuspendedWhileInactive = false;
-                ApiKey                   = "";
-                ServerUrl                = "https://trader-os-ashy.vercel.app";
+                Name        = "TraderOS Sync";
+                Description = "Sincroniza automaticamente seus trades com o TraderOS.";
             }
             else if (State == State.Configure)
             {
-                // Força TLS 1.2 — necessário para conexão com Vercel
+                // Vercel exige TLS 1.2
                 ServicePointManager.SecurityProtocol =
                     SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
-                _client  = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-                _entries = new Dictionary<string, double[]>();
+
+                _client    = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+                _positions = new Dictionary<string, Pos>();
+                _seen      = new HashSet<string>();
+
+                string docs = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "NinjaTrader 8");
+                _configPath = Path.Combine(docs, "traderos_config.txt");
+                _logPath    = Path.Combine(docs, "traderos_log.txt");
+
+                LoadConfig(true);
+                StartWatcher(docs);
             }
             else if (State == State.Active)
             {
-                Print("[TraderOS] Indicador ativo. Inscrevendo em contas...");
                 lock (Account.All)
                     foreach (Account a in Account.All)
-                    {
-                        Print("[TraderOS] Conta encontrada: " + a.Name);
                         a.ExecutionUpdate += OnExecution;
-                    }
+
                 Account.All.CollectionChanged += OnAccountsChanged;
-                Print("[TraderOS] Pronto — aguardando execucoes.");
+                Print("[TraderOS] Ativo. Monitorando " + Account.All.Count + " conta(s). Aguardando execucoes.");
             }
             else if (State == State.Terminated)
             {
-                Account.All.CollectionChanged -= OnAccountsChanged;
-                lock (Account.All)
-                    foreach (Account a in Account.All)
-                        a.ExecutionUpdate -= OnExecution;
-                if (_client != null) { _client.Dispose(); _client = null; }
+                if (Account.All != null)
+                {
+                    Account.All.CollectionChanged -= OnAccountsChanged;
+                    lock (Account.All)
+                        foreach (Account a in Account.All)
+                            a.ExecutionUpdate -= OnExecution;
+                }
+                if (_watcher != null) { _watcher.Dispose(); _watcher = null; }
+                if (_client  != null) { _client.Dispose();  _client  = null; }
             }
         }
 
@@ -84,74 +110,188 @@ namespace NinjaTrader.NinjaScript.Indicators
         {
             if (e.NewItems == null) return;
             foreach (Account a in e.NewItems)
-            {
-                Print("[TraderOS] Nova conta conectada: " + a.Name);
                 a.ExecutionUpdate += OnExecution;
-            }
         }
 
+        // ===== Configuracao por arquivo (reload automatico ao salvar) =====
+        private void LoadConfig(bool createIfMissing)
+        {
+            try
+            {
+                if (!File.Exists(_configPath))
+                {
+                    if (createIfMissing)
+                    {
+                        File.WriteAllText(_configPath, ConfigTemplate());
+                        Print("[TraderOS] Arquivo de configuracao criado em:");
+                        Print("[TraderOS]   " + _configPath);
+                        Print("[TraderOS] Abra esse arquivo, cole sua API Key e salve. Nao precisa reiniciar.");
+                    }
+                    return;
+                }
+
+                string apiKey = "", server = "";
+                foreach (string line in File.ReadAllLines(_configPath))
+                {
+                    string l = line.Trim();
+                    if (l.Length == 0 || l.StartsWith("#")) continue;
+                    int eq = l.IndexOf('=');
+                    if (eq < 0) continue;
+                    string k = l.Substring(0, eq).Trim().ToLowerInvariant();
+                    string v = l.Substring(eq + 1).Trim();
+                    if (k == "apikey") apiKey = v;
+                    else if (k == "server" && v.Length > 0) server = v;
+                }
+
+                _apiKey = apiKey;
+                if (server.Length > 0) _serverUrl = server.TrimEnd('/');
+
+                if (string.IsNullOrEmpty(_apiKey) || _apiKey == "COLE_SUA_API_KEY_AQUI")
+                    Print("[TraderOS] API Key ainda nao configurada. Edite: " + _configPath);
+                else
+                    Print("[TraderOS] Config carregada. Pronto para sincronizar.");
+            }
+            catch (Exception ex) { Print("[TraderOS] Erro ao ler config: " + ex.Message); }
+        }
+
+        private void StartWatcher(string dir)
+        {
+            try
+            {
+                _watcher = new FileSystemWatcher(dir, "traderos_config.txt");
+                _watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size;
+                _watcher.Changed += (s, e) =>
+                {
+                    try { System.Threading.Thread.Sleep(300); LoadConfig(false); Print("[TraderOS] Config recarregada."); }
+                    catch { }
+                };
+                _watcher.EnableRaisingEvents = true;
+            }
+            catch (Exception ex) { Print("[TraderOS] Watcher desativado: " + ex.Message); }
+        }
+
+        private string ConfigTemplate()
+        {
+            return string.Join(Environment.NewLine, new string[]
+            {
+                "# === Configuracao TraderOS ===",
+                "# 1) Cole sua API Key do TraderOS abaixo.",
+                "#    (No site: Configuracoes > Integracoes > Copiar chave)",
+                "# 2) Salve este arquivo. Nao precisa reiniciar o NinjaTrader.",
+                "",
+                "apikey=COLE_SUA_API_KEY_AQUI",
+                "server=https://trader-os-ashy.vercel.app"
+            });
+        }
+
+        // ===== Captura de execucoes e montagem do trade (round-trip) =====
         private void OnExecution(object sender, ExecutionEventArgs e)
         {
-            var ex = e.Execution;
-            if (ex == null || ex.Instrument == null) return;
-
-            Print("[TraderOS] Execucao: " + ex.Instrument.FullName
-                + " IsEntry=" + ex.IsEntry + " IsExit=" + ex.IsExit
-                + " Qty=" + ex.Quantity + " Price=" + ex.Price);
-
-            if (string.IsNullOrEmpty(ApiKey))
+            try
             {
-                Print("[TraderOS] ERRO: API Key nao configurada. Abra as propriedades do indicador.");
+                Execution ex = e.Execution;
+                if (ex == null || ex.Instrument == null || ex.Quantity <= 0) return;
+
+                // Evita reprocessar a mesma execucao dentro desta sessao do AddOn
+                string exId = ex.ExecutionId;
+                if (string.IsNullOrEmpty(exId)) return;
+
+                string acct = ex.Account != null ? ex.Account.Name : "";
+                string key  = acct + "|" + ex.Instrument.FullName;
+                int    side = ex.MarketPosition == MarketPosition.Long ? 1 : -1;
+                int    q    = ex.Quantity;
+                double px   = ex.Price;
+
+                lock (_lock)
+                {
+                    if (!_seen.Add(exId)) return;
+
+                    Pos p;
+                    if (!_positions.TryGetValue(key, out p) || p.Net == 0)
+                    {
+                        // Abre nova posicao
+                        _positions[key] = new Pos
+                        {
+                            Dir = side, Net = side * q, AvgEntry = px,
+                            EntryTicks = ex.Time.Ticks, Commission = ex.Commission,
+                            ExitValue = 0, ExitQty = 0
+                        };
+                        return;
+                    }
+
+                    if (Math.Sign(p.Net) == side)
+                    {
+                        // Aumenta posicao (scaling in) — recalcula preco medio
+                        int absPrev = Math.Abs(p.Net);
+                        p.AvgEntry  = (p.AvgEntry * absPrev + px * q) / (absPrev + q);
+                        p.Net      += side * q;
+                        p.Commission += ex.Commission;
+                        return;
+                    }
+
+                    // Reduz / fecha / inverte
+                    int absPrev2 = Math.Abs(p.Net);
+                    int closing  = Math.Min(q, absPrev2);
+                    p.ExitValue += px * closing;
+                    p.ExitQty   += closing;
+                    p.Commission += ex.Commission;
+                    p.Net       += side * q;
+
+                    if (absPrev2 <= q)
+                    {
+                        // Fechou o round-trip (pode ter invertido)
+                        double avgExit = p.ExitValue / p.ExitQty;
+                        ReportTrade(ex, p, avgExit);
+
+                        int remainder = q - absPrev2;
+                        if (remainder > 0)
+                            _positions[key] = new Pos
+                            {
+                                Dir = side, Net = side * remainder, AvgEntry = px,
+                                EntryTicks = ex.Time.Ticks, Commission = 0,
+                                ExitValue = 0, ExitQty = 0
+                            };
+                        else
+                            _positions.Remove(key);
+                    }
+                    // Reducao parcial: posicao segue aberta, nao reporta ainda
+                }
+            }
+            catch (Exception err) { Print("[TraderOS] Erro OnExecution: " + err.Message); }
+        }
+
+        private void ReportTrade(Execution ex, Pos p, double avgExit)
+        {
+            if (string.IsNullOrEmpty(_apiKey) || _apiKey == "COLE_SUA_API_KEY_AQUI")
+            {
+                Print("[TraderOS] Trade detectado, mas API Key nao configurada — nao enviado.");
                 return;
             }
 
-            string acct   = ex.Account != null ? ex.Account.Name : string.Empty;
-            string mapKey = acct + "|" + ex.Instrument.FullName;
+            bool        isLong = p.Dir > 0;
+            int         qty    = p.ExitQty;
+            double      pv     = ex.Instrument.MasterInstrument != null ? ex.Instrument.MasterInstrument.PointValue : 20.0;
+            double      pts    = isLong ? avgExit - p.AvgEntry : p.AvgEntry - avgExit;
+            double      pnl    = Math.Round(pts * pv * qty - p.Commission, 2);
+            string      inst   = ex.Instrument.MasterInstrument != null ? ex.Instrument.MasterInstrument.Name : ex.Instrument.FullName;
+            CultureInfo ic     = CultureInfo.InvariantCulture;
 
-            if (ex.IsEntry)
-            {
-                double dir = ex.MarketPosition == MarketPosition.Long ? 1.0 : 0.0;
-                _entries[mapKey] = new double[] { ex.Price, (double)ex.Quantity, (double)ex.Time.Ticks, dir };
-                Print("[TraderOS] Entry salvo: " + mapKey);
-                return;
-            }
+            Print("[TraderOS] Trade fechado: " + inst + " " + (isLong ? "LONG" : "SHORT") + " x" + qty + " | PnL=$" + pnl + " — enviando...");
 
-            if (!ex.IsExit) return;
-
-            double[] entry;
-            if (!_entries.TryGetValue(mapKey, out entry))
-            {
-                Print("[TraderOS] Exit sem entry para: " + mapKey + " — ignorado.");
-                return;
-            }
-            _entries.Remove(mapKey);
-
-            bool   isLong    = entry[3] > 0;
-            double pv        = ex.Instrument.MasterInstrument != null
-                               ? ex.Instrument.MasterInstrument.PointValue : 20.0;
-            double pnlPts    = isLong ? ex.Price - entry[0] : entry[0] - ex.Price;
-            double pnl       = Math.Round(pnlPts * pv * entry[1] - ex.Commission, 2);
-            string inst      = ex.Instrument.MasterInstrument != null
-                               ? ex.Instrument.MasterInstrument.Name : ex.Instrument.FullName;
-            var    ic        = System.Globalization.CultureInfo.InvariantCulture;
-
-            Print("[TraderOS] Trade fechado — " + inst + " PnL=$" + pnl + " | Enviando...");
-
-            // Captura tudo ANTES do Task.Run (acesso cross-thread ao NT8 é proibido dentro da Task)
-            string keyCopy      = ApiKey;
-            string urlCopy      = ServerUrl.TrimEnd('/') + "/api/sync/ninjatrader";
-            string exId         = "NT_" + ex.ExecutionId;
-            string direction    = isLong ? "LONG" : "SHORT";
-            string entryTimeStr = new DateTime((long)entry[2]).ToString("o");
-            string exitTimeStr  = ex.Time.ToString("o");
-            double entryPx      = entry[0];
-            double exitPx       = ex.Price;
-            int    qty          = (int)entry[1];
-            double comm         = ex.Commission;
-            double pnlCopy      = pnl;
-            double pnlPtsCopy   = Math.Round(pnlPts, 4);
-            string acctCopy     = acct;
-            HttpClient cli      = _client;
+            // Snapshot ANTES do Task.Run (acesso cross-thread ao NT8 e proibido)
+            string urlCopy   = _serverUrl.TrimEnd('/') + "/api/sync/ninjatrader";
+            string keyCopy   = _apiKey;
+            string logPath   = _logPath;
+            string extId     = "NT_" + ex.ExecutionId;
+            string direction = isLong ? "LONG" : "SHORT";
+            string entryTime = new DateTime(p.EntryTicks).ToString("o", ic);
+            string exitTime  = ex.Time.ToString("o", ic);
+            string acctName  = ex.Account != null ? ex.Account.Name : "";
+            double entryPx   = p.AvgEntry;
+            double exitPx    = avgExit;
+            double comm      = p.Commission;
+            double pnlPts    = Math.Round(pts, 4);
+            HttpClient cli   = _client;
 
             Task.Run(async () =>
             {
@@ -164,51 +304,46 @@ namespace NinjaTrader.NinjaScript.Indicators
                         new KeyValuePair<string, string>("entryPrice",  entryPx.ToString("G17", ic)),
                         new KeyValuePair<string, string>("exitPrice",   exitPx.ToString("G17", ic)),
                         new KeyValuePair<string, string>("quantity",    qty.ToString()),
-                        new KeyValuePair<string, string>("pnl",        pnlCopy.ToString("G17", ic)),
-                        new KeyValuePair<string, string>("pnlPoints",  pnlPtsCopy.ToString("G17", ic)),
+                        new KeyValuePair<string, string>("pnl",         pnl.ToString("G17", ic)),
+                        new KeyValuePair<string, string>("pnlPoints",   pnlPts.ToString("G17", ic)),
                         new KeyValuePair<string, string>("commission",  comm.ToString("G17", ic)),
-                        new KeyValuePair<string, string>("entryTime",   entryTimeStr),
-                        new KeyValuePair<string, string>("exitTime",    exitTimeStr),
-                        new KeyValuePair<string, string>("accountName", acctCopy),
-                        new KeyValuePair<string, string>("externalId",  exId),
+                        new KeyValuePair<string, string>("entryTime",   entryTime),
+                        new KeyValuePair<string, string>("exitTime",    exitTime),
+                        new KeyValuePair<string, string>("accountName", acctName),
+                        new KeyValuePair<string, string>("externalId",  extId),
                     };
 
                     var req = new HttpRequestMessage(HttpMethod.Post, urlCopy);
                     req.Headers.Add("X-API-Key", keyCopy);
                     req.Content = new FormUrlEncodedContent(form);
 
-                    var resp = await cli.SendAsync(req).ConfigureAwait(false);
+                    var    resp = await cli.SendAsync(req).ConfigureAwait(false);
                     string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-                    // Dentro da Task não podemos chamar Print() — usar Debug.WriteLine
-                    System.Diagnostics.Debug.WriteLine(
-                        "[TraderOS] HTTP " + (int)resp.StatusCode + " | " + body);
+                    WriteLog(logPath, "HTTP " + (int)resp.StatusCode + " " + direction + " " + inst + " PnL=" + pnl + " | " + body);
                 }
                 catch (Exception err)
                 {
-                    System.Diagnostics.Debug.WriteLine("[TraderOS] Erro ao enviar: " + err.Message);
+                    WriteLog(logPath, "ERRO ao enviar: " + err.Message);
                 }
             });
         }
 
-        protected override void OnBarUpdate() { }
-
-        [NinjaScriptProperty]
-        [Display(Name = "API Key TraderOS", Order = 1, GroupName = "TraderOS")]
-        public string ApiKey { get; set; }
-
-        [NinjaScriptProperty]
-        [Display(Name = "Servidor", Order = 2, GroupName = "TraderOS")]
-        public string ServerUrl { get; set; }
+        private static void WriteLog(string path, string msg)
+        {
+            try { File.AppendAllText(path, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  " + msg + Environment.NewLine); }
+            catch { }
+        }
     }
 }`
 
 export function IntegrationSection({ initialKeys }: Props) {
   const [keys, setKeys] = useState<ApiKey[]>(initialKeys)
   const [loading, setLoading] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [codeCopied, setCodeCopied] = useState(false)
   const [tutorialOpen, setTutorialOpen] = useState(false)
+  const [manualOpen, setManualOpen] = useState(false)
 
   async function generate() {
     setLoading(true)
@@ -239,6 +374,27 @@ export function IntegrationSection({ initialKeys }: Props) {
     navigator.clipboard.writeText(NINJA_SCRIPT)
     setCodeCopied(true)
     setTimeout(() => setCodeCopied(false), 2000)
+  }
+
+  async function downloadAddon() {
+    setDownloading(true)
+    try {
+      const res = await fetch("/api/integrations/ninjatrader-addon/download")
+      if (!res.ok) { alert("Erro ao gerar o arquivo. Tente novamente."); return }
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement("a")
+      a.href     = url
+      a.download = "TraderOSSync.zip"
+      a.click()
+      URL.revokeObjectURL(url)
+      // Recarrega as keys caso uma nova tenha sido gerada automaticamente
+      const keysRes = await fetch("/api/integrations/apikeys")
+      if (keysRes.ok) setKeys(await keysRes.json())
+      setTutorialOpen(true)
+    } finally {
+      setDownloading(false)
+    }
   }
 
   const lastSync = keys.find((k) => k.lastUsed)?.lastUsed
@@ -311,7 +467,20 @@ export function IntegrationSection({ initialKeys }: Props) {
         </p>
       )}
 
-      {/* Tutorial colapsável */}
+      {/* Botão principal de download */}
+      <button
+        onClick={downloadAddon}
+        disabled={downloading}
+        className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-teal text-teal-foreground rounded-xl text-sm font-semibold hover:bg-teal/90 transition-colors disabled:opacity-50 shadow-sm"
+      >
+        <Download className="w-4 h-4" />
+        {downloading ? "Gerando arquivo..." : "Baixar AddOn para NinjaTrader (.zip)"}
+      </button>
+      <p className="text-[11px] text-muted-foreground text-center -mt-2">
+        Arquivo pré-configurado com sua API Key — pronto para importar em 2 cliques
+      </p>
+
+      {/* Tutorial de instalação */}
       <div className="border border-border rounded-lg overflow-hidden">
         <button
           onClick={() => setTutorialOpen(!tutorialOpen)}
@@ -319,7 +488,7 @@ export function IntegrationSection({ initialKeys }: Props) {
         >
           <span className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-teal" />
-            Como configurar — Tutorial passo a passo
+            Como instalar — 3 passos
           </span>
           {tutorialOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </button>
@@ -327,100 +496,48 @@ export function IntegrationSection({ initialKeys }: Props) {
         {tutorialOpen && (
           <div className="px-5 py-5 space-y-5 text-sm">
 
-            {/* Passo 1 */}
-            <Step n={1} title="Copie sua API Key">
+            <Step n={1} title='Clique em "Baixar AddOn" acima'>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Clique no ícone <Copy className="w-3 h-3 inline" /> ao lado da sua chave acima para copiar a API Key completa.
-                Se ainda não gerou, clique em <strong className="text-foreground">"Gerar API Key"</strong>.
+                O arquivo <span className="font-mono text-teal text-[10px]">TraderOSSync.zip</span> vai ser baixado
+                com sua API Key já configurada. Salve em qualquer lugar do computador.
               </p>
             </Step>
 
-            {/* Passo 2 */}
-            <Step n={2} title="Abra o NinjaScript Editor">
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                No NinjaTrader 8, vá em <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">New</kbd> →{" "}
-                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">NinjaScript Editor</kbd>
+            <Step n={2} title="Importe no NinjaTrader">
+              <p className="text-muted-foreground text-xs leading-relaxed mb-2">
+                No NinjaTrader 8, vá em:
               </p>
-              <div className="mt-2 p-3 bg-muted/30 rounded-lg border border-dashed border-border text-xs text-muted-foreground">
-                💡 Atalho rápido: pressione <kbd className="bg-muted px-1 py-0.5 rounded font-mono">Ctrl+Shift+N</kbd> no NinjaTrader
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Ferramentas</kbd>
+                <span className="text-muted-foreground text-xs">→</span>
+                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Importar</kbd>
+                <span className="text-muted-foreground text-xs">→</span>
+                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">NinjaScript Add-On</kbd>
+              </div>
+              <p className="text-muted-foreground text-xs leading-relaxed mt-2">
+                Selecione o arquivo <span className="font-mono text-[10px]">TraderOSSync.zip</span> baixado.
+                O NinjaTrader compila e instala automaticamente.
+              </p>
+            </Step>
+
+            <Step n={3} title="Confirme que está ativo">
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                Vá em <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Novo</kbd> →{" "}
+                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Saída NinjaScript</kbd>.
+                Deve aparecer:
+              </p>
+              <div className="mt-2 p-2.5 bg-[#0a0f1a] rounded-lg border border-border">
+                <p className="font-mono text-[10px] text-green-400">[TraderOS] Ativo. Monitorando X conta(s). Aguardando execucoes.</p>
               </div>
             </Step>
 
-            {/* Passo 3 */}
-            <Step n={3} title="Crie um novo Indicator">
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                No editor, clique em <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">File</kbd> →{" "}
-                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">New</kbd> →{" "}
-                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Indicator</kbd>.
-                Um arquivo em branco vai aparecer.
-              </p>
-              <div className="mt-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-                <p className="text-xs text-amber-400 font-medium mb-0.5">⚠️ Importante — verifique a Output Window</p>
-                <p className="text-xs text-muted-foreground">
-                  Após adicionar o indicador, abra <strong className="text-foreground">View → Output Window</strong> no NinjaTrader.
-                  Você deve ver mensagens <span className="font-mono text-green-400 text-[10px]">[TraderOS] Indicador ativo...</span> confirmando que está funcionando.
-                </p>
-              </div>
-            </Step>
-
-            {/* Passo 4 */}
-            <Step n={4} title="Cole o código abaixo">
-              <p className="text-muted-foreground text-xs leading-relaxed mb-3">
-                Selecione <strong className="text-foreground">todo o conteúdo</strong> do arquivo com{" "}
-                <kbd className="bg-muted px-1 py-0.5 rounded font-mono text-[10px]">Ctrl+A</kbd> e substitua pelo código abaixo:
-              </p>
-              <div className="relative">
-                <pre className="bg-[#0a0f1a] border border-border rounded-lg p-4 text-[10px] font-mono text-green-400 overflow-x-auto max-h-48 overflow-y-auto leading-relaxed whitespace-pre-wrap">
-                  {NINJA_SCRIPT.slice(0, 400)}...
-                </pre>
-                <button
-                  onClick={copyCode}
-                  className={cn(
-                    "absolute top-2 right-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors",
-                    codeCopied
-                      ? "bg-profit/20 text-profit"
-                      : "bg-muted/80 text-foreground hover:bg-muted"
-                  )}
-                >
-                  {codeCopied ? <><Check className="w-3 h-3" /> Copiado!</> : <><Copy className="w-3 h-3" /> Copiar código</>}
-                </button>
-              </div>
-            </Step>
-
-            {/* Passo 5 */}
-            <Step n={5} title="Compile o indicador">
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                Pressione <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">F5</kbd> ou clique no botão{" "}
-                <strong className="text-foreground">Compile</strong> no menu do editor.
-                Deve aparecer a mensagem <span className="text-profit font-mono text-[10px]">Compilation succeeded</span>.
-              </p>
-            </Step>
-
-            {/* Passo 6 */}
-            <Step n={6} title="Adicione o indicador em qualquer gráfico">
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                Abra qualquer gráfico no NinjaTrader (ex: NQ 1 minuto). Clique com botão direito no gráfico →{" "}
-                <strong className="text-foreground">Indicators</strong> → procure por{" "}
-                <span className="text-teal font-mono">TraderOS Sync</span> → clique em{" "}
-                <strong className="text-foreground">Add</strong>.
-              </p>
-              <div className="mt-2 p-3 bg-teal/5 border border-teal/20 rounded-lg">
-                <p className="text-xs text-teal font-medium mb-1">⚙️ Configure a propriedade &quot;API Key TraderOS&quot;</p>
-                <p className="text-xs text-muted-foreground">
-                  Cole sua API Key copiada no passo 1. O campo <strong className="text-foreground">Servidor</strong> já vem preenchido.
-                  Clique em <strong className="text-foreground">OK</strong>.
-                </p>
-              </div>
-            </Step>
-
-            {/* Concluído */}
             <div className="flex items-start gap-3 p-4 bg-profit/5 border border-profit/20 rounded-lg">
               <span className="text-xl shrink-0">✅</span>
               <div>
-                <p className="text-sm font-semibold text-foreground">Pronto! Tudo configurado.</p>
+                <p className="text-sm font-semibold text-foreground">Pronto! Configura uma vez e esquece.</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  A partir de agora, todo trade fechado no NinjaTrader aparece automaticamente no seu Journal do TraderOS.
-                  Você não precisa fazer mais nada — o indicador roda em segundo plano enquanto o NinjaTrader estiver aberto.
+                  Todo trade fechado no NinjaTrader aparece automaticamente no seu Journal.
+                  O AddOn liga sozinho toda vez que você abre o NT — sem gráfico, sem configuração extra.
                 </p>
               </div>
             </div>
@@ -428,20 +545,59 @@ export function IntegrationSection({ initialKeys }: Props) {
             {/* FAQ */}
             <div className="space-y-2 pt-2 border-t border-border">
               <p className="text-xs font-semibold text-foreground">Dúvidas frequentes</p>
-              <Faq q="Preciso deixar o NinjaTrader aberto?">
-                Sim — o indicador só funciona enquanto o NinjaTrader está aberto. Trades executados com NT fechado não são capturados (use o import CSV como alternativa).
+              <Faq q="Preciso deixar algum gráfico aberto?">
+                Não. O AddOn roda em segundo plano assim que o NinjaTrader abre. Pode fechar todos os gráficos.
               </Faq>
               <Faq q="Funciona com conta Apex?">
-                Sim! A Apex usa o NinjaTrader como plataforma. O indicador captura automaticamente trades de todas as contas conectadas.
+                Sim! A Apex usa o NinjaTrader. O AddOn captura trades de todas as contas conectadas (Eval e PA).
+              </Faq>
+              <Faq q="Trades antigos vão duplicar?">
+                Não. Cada trade tem um ID único — se já foi enviado, o TraderOS ignora automaticamente.
               </Faq>
               <Faq q="Posso revogar a API Key?">
-                Sim, clique no ícone de lixeira ao lado da chave. O sync para imediatamente e você pode gerar uma nova chave.
+                Sim. Clique no ícone de lixeira ao lado da chave. O sync para imediatamente. Baixe um novo arquivo após gerar uma nova chave.
               </Faq>
-              <Faq q="O indicador afeta minha performance de trading?">
-                Não. O envio de dados é feito em segundo plano (async) e nunca bloqueia a thread de ordens do NinjaTrader.
+              <Faq q="O AddOn afeta minha performance de trading?">
+                Não. O envio é assíncrono e nunca bloqueia a thread de ordens do NinjaTrader.
               </Faq>
             </div>
 
+          </div>
+        )}
+      </div>
+
+      {/* Método manual (avançado) */}
+      <div className="border border-border rounded-lg overflow-hidden">
+        <button
+          onClick={() => setManualOpen(!manualOpen)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors text-xs text-muted-foreground"
+        >
+          <span>Método manual (avançado)</span>
+          {manualOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+        {manualOpen && (
+          <div className="px-5 pb-5 space-y-3">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Copie o código abaixo, crie um <strong className="text-foreground">New AddOn</strong> no NinjaScript Editor,
+              cole com <kbd className="bg-muted px-1 py-0.5 rounded font-mono text-[10px]">Ctrl+A</kbd> e compile com{" "}
+              <kbd className="bg-muted px-1 py-0.5 rounded font-mono text-[10px]">F5</kbd>.
+              Após compilar, edite o arquivo <span className="font-mono text-teal text-[10px]">traderos_config.txt</span>{" "}
+              em <span className="font-mono text-[10px]">Documentos\NinjaTrader 8\</span> com sua API Key.
+            </p>
+            <div className="relative">
+              <pre className="bg-[#0a0f1a] border border-border rounded-lg p-4 text-[10px] font-mono text-green-400 overflow-x-auto max-h-48 overflow-y-auto leading-relaxed whitespace-pre-wrap">
+                {NINJA_SCRIPT.slice(0, 400)}...
+              </pre>
+              <button
+                onClick={copyCode}
+                className={cn(
+                  "absolute top-2 right-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium transition-colors",
+                  codeCopied ? "bg-profit/20 text-profit" : "bg-muted/80 text-foreground hover:bg-muted"
+                )}
+              >
+                {codeCopied ? <><Check className="w-3 h-3" /> Copiado!</> : <><Copy className="w-3 h-3" /> Copiar código</>}
+              </button>
+            </div>
           </div>
         )}
       </div>
