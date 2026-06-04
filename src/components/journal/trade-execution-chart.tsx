@@ -14,12 +14,8 @@ interface Props {
 }
 
 const TV_SYMBOL: Record<string, string> = {
-  NQ: "CME_MINI:NQ1!",
-  ES: "CME_MINI:ES1!",
-  YM: "CBOT_MINI:YM1!",
-  RTY: "CME_MINI:RTY1!",
-  MNQ: "CME_MINI:MNQ1!",
-  MES: "CME_MINI:MES1!",
+  NQ: "CME_MINI:NQ1!", ES: "CME_MINI:ES1!", YM: "CBOT_MINI:YM1!",
+  RTY: "CME_MINI:RTY1!", MNQ: "CME_MINI:MNQ1!", MES: "CME_MINI:MES1!",
 }
 
 function tvUrl(instrument: string, date: Date): string {
@@ -33,43 +29,64 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
   const isWin = result === "WIN"
   const isLoss = result === "LOSS"
 
-  // Absolute price levels
-  const mfePrice = mfe != null ? (isLong ? entryPrice + mfe : entryPrice - mfe) : null
-  const maePrice = mae != null ? (isLong ? entryPrice - mae : entryPrice + mae) : null
+  // Convert everything to POINT OFFSETS from entry (entry = 0)
+  // exitDelta: how many pts the price moved (positive = price went up)
+  const exitDelta = exitPrice - entryPrice
 
-  const allPrices = [entryPrice, exitPrice]
-  if (mfePrice != null) allPrices.push(mfePrice)
-  if (maePrice != null) allPrices.push(maePrice)
+  // MFE/MAE in price offset terms
+  // MFE: max favorable movement
+  // For LONG: price went UP (positive delta)
+  // For SHORT: price went DOWN (negative delta)
+  const mfeDelta = mfe != null ? (isLong ? +mfe : -mfe) : null
+  // MAE: max adverse movement
+  // For LONG: price went DOWN (negative delta)
+  // For SHORT: price went UP (positive delta)
+  const maeDelta = mae != null ? (isLong ? -mae : +mae) : null
 
-  const minP = Math.min(...allPrices)
-  const maxP = Math.max(...allPrices)
-  const raw = maxP - minP || Math.abs(entryPrice) * 0.005
-  const pad = raw * 0.30
-  const lo = minP - pad
-  const hi = maxP + pad
-  const span = hi - lo
+  // Collect all deltas to determine display range
+  const allDeltas = [0, exitDelta]
+  if (mfeDelta != null) allDeltas.push(mfeDelta)
+  if (maeDelta != null) allDeltas.push(maeDelta)
 
-  // y% — 0% = top (highest price), 100% = bottom (lowest price)
-  const y = (price: number) => `${((hi - price) / span) * 100}%`
+  const rawMax = Math.max(...allDeltas)
+  const rawMin = Math.min(...allDeltas)
+  const rawRange = rawMax - rawMin
 
-  // zone top/bottom as percent numbers for height calculation
-  const yn = (price: number) => ((hi - price) / span) * 100
+  // Minimum visible range: at least 15 pts for readability
+  const MIN_RANGE = 15
+  const pad = Math.max(rawRange * 0.28, (MIN_RANGE - rawRange) / 2 + rawRange * 0.15)
+  const displayMax = rawMax + pad
+  const displayMin = rawMin - pad
+  const displayRange = displayMax - displayMin
 
-  const entryY = yn(entryPrice)
-  const exitY = yn(exitPrice)
-  const mfeYn = mfePrice != null ? yn(mfePrice) : null
-  const maeYn = maePrice != null ? yn(maePrice) : null
+  // Map a delta (in pts from entry) to SVG y% (0 = top, 100 = bottom)
+  const yPct = (delta: number): string =>
+    `${((displayMax - delta) / displayRange) * 100}%`
+  const yNum = (delta: number): number =>
+    ((displayMax - delta) / displayRange) * 100
 
-  const profitTop = Math.min(entryY, exitY)
-  const profitH = Math.max(Math.abs(exitY - entryY), 1.5)
+  // Zone calculations
+  const zoneTopDelta = Math.max(0, exitDelta)
+  const zoneBotDelta = Math.min(0, exitDelta)
+  const zoneTopPct = yNum(zoneTopDelta)
+  const zoneBotPct = yNum(zoneBotDelta)
+  const zoneHeight = Math.max(zoneBotPct - zoneTopPct, 1.5)
 
-  const mfeMissedTop = mfeYn != null ? Math.min(mfeYn, Math.min(entryY, exitY)) : null
-  const mfeMissedH = mfeYn != null ? Math.abs(Math.min(entryY, exitY) - mfeYn) : null
+  // MFE "missed" zone (between exit and mfe)
+  const mfeMissedTopPct = mfeDelta != null ? yNum(Math.max(mfeDelta, exitDelta)) : null
+  const mfeMissedBotPct = mfeDelta != null ? yNum(Math.min(mfeDelta, exitDelta)) : null
 
-  const maeRiskTop = maeYn != null ? Math.min(maeYn, Math.max(entryY, exitY)) : null
-  const maeRiskH = maeYn != null ? Math.abs(maeYn - Math.max(entryY, exitY)) : null
+  // MAE "held through" zone (between entry and mae)
+  const maeShadowTopPct = maeDelta != null ? yNum(Math.max(0, maeDelta)) : null
+  const maeShadowBotPct = maeDelta != null ? yNum(Math.min(0, maeDelta)) : null
 
+  // Exit efficiency
   const exitEff = mfe != null && mfe > 0 ? Math.round((pnlPoints / mfe) * 100) : null
+
+  // Color
+  const zoneColor = isWin ? "bg-profit/15 border-l-2 border-profit/40"
+    : isLoss ? "bg-loss/15 border-l-2 border-loss/40"
+    : "bg-muted/20 border-l-2 border-border"
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -96,140 +113,170 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
       </div>
 
       <div className="p-4">
-        {/* Chart area */}
+        {/* Chart area — point-relative scale */}
         <div className="relative h-52 select-none">
 
-          {/* MAE risk zone */}
-          {maeRiskTop != null && maeRiskH != null && maeRiskH > 0.5 && (
+          {/* MAE shadow zone */}
+          {maeShadowTopPct != null && maeShadowBotPct != null && (
             <div
-              className="absolute left-0 right-20 bg-loss/6 border-l-2 border-loss/20"
-              style={{ top: `${maeRiskTop}%`, height: `${maeRiskH}%` }}
+              className="absolute left-10 right-24 bg-loss/5 border-l border-loss/20"
+              style={{
+                top: `${Math.min(maeShadowTopPct, maeShadowBotPct)}%`,
+                height: `${Math.max(Math.abs(maeShadowBotPct - maeShadowTopPct), 1)}%`,
+              }}
             />
           )}
 
           {/* Profit / Loss zone */}
-          {profitH > 0 && (
-            <div
-              className={cn(
-                "absolute left-0 right-20 border-l-2",
-                isWin ? "bg-profit/12 border-profit/40" : isLoss ? "bg-loss/12 border-loss/40" : "bg-muted/20 border-border"
-              )}
-              style={{ top: `${profitTop}%`, height: `${profitH}%` }}
-            />
-          )}
+          <div
+            className={cn("absolute left-10 right-24", zoneColor)}
+            style={{ top: `${zoneTopPct}%`, height: `${zoneHeight}%` }}
+          />
 
           {/* MFE missed zone */}
-          {mfeMissedTop != null && mfeMissedH != null && mfeMissedH > 0.5 && (
+          {mfeMissedTopPct != null && mfeMissedBotPct != null && (
             <div
-              className="absolute left-0 right-20 bg-teal/6 border-l-2 border-teal/20"
-              style={{ top: `${mfeMissedTop}%`, height: `${mfeMissedH}%` }}
+              className="absolute left-10 right-24 bg-teal/6 border-l border-teal/25"
+              style={{
+                top: `${Math.min(mfeMissedTopPct, mfeMissedBotPct)}%`,
+                height: `${Math.max(Math.abs(mfeMissedBotPct - mfeMissedTopPct), 1)}%`,
+              }}
             />
           )}
 
-          {/* MFE line */}
-          {mfePrice != null && mfeYn != null && (
-            <div className="absolute left-0 right-0 flex items-center" style={{ top: y(mfePrice), transform: "translateY(-50%)" }}>
-              <div className="flex-1 border-t border-dashed border-teal/50 mr-1" />
-              <div className="w-20 shrink-0 flex justify-between items-center">
-                <span className="text-[9px] text-teal/60 font-mono uppercase">mfe</span>
-                <span className="text-[10px] font-mono text-teal/80">{mfePrice.toFixed(0)}</span>
-              </div>
-            </div>
+          {/* ── MFE line ── */}
+          {mfeDelta != null && (
+            <PriceLine
+              yPct={yPct(mfeDelta)}
+              leftLabel={`+${mfe!.toFixed(1)}`}
+              rightLabel={`${(isLong ? entryPrice + mfe! : entryPrice - mfe!).toFixed(1)}`}
+              rightTag="MFE"
+              lineStyle="dashed"
+              color="teal"
+            />
           )}
 
-          {/* EXIT line */}
-          <div className="absolute left-0 right-0 flex items-center" style={{ top: y(exitPrice), transform: "translateY(-50%)" }}>
-            <div className={cn("flex-1 border-t-2 mr-1", isWin ? "border-profit" : isLoss ? "border-loss" : "border-muted-foreground")} />
-            <div className="w-20 shrink-0 flex justify-between items-center">
-              <span className="text-[9px] text-muted-foreground font-mono uppercase">saída</span>
-              <span className={cn("text-[11px] font-mono font-bold", isWin ? "text-profit" : isLoss ? "text-loss" : "text-foreground")}>
-                {exitPrice.toFixed(0)}
-              </span>
-            </div>
-          </div>
+          {/* ── EXIT line ── */}
+          <PriceLine
+            yPct={yPct(exitDelta)}
+            leftLabel={`${exitDelta >= 0 ? "+" : ""}${exitDelta.toFixed(2)}`}
+            rightLabel={exitPrice.toFixed(2)}
+            rightTag="saída"
+            lineStyle="solid-thick"
+            color={isWin ? "profit" : isLoss ? "loss" : "neutral"}
+          />
 
-          {/* ENTRY line */}
-          <div className="absolute left-0 right-0 flex items-center" style={{ top: y(entryPrice), transform: "translateY(-50%)" }}>
-            <div className="flex-1 border-t-2 border-foreground/50 mr-1" />
-            <div className="w-20 shrink-0 flex justify-between items-center">
-              <span className="text-[9px] text-muted-foreground font-mono uppercase">entrada</span>
-              <span className="text-[11px] font-mono font-bold text-foreground/80">{entryPrice.toFixed(0)}</span>
-            </div>
-          </div>
+          {/* ── ENTRY line ── */}
+          <PriceLine
+            yPct={yPct(0)}
+            leftLabel="0"
+            rightLabel={entryPrice.toFixed(2)}
+            rightTag="entrada"
+            lineStyle="solid-thick"
+            color="neutral"
+          />
 
-          {/* MAE line */}
-          {maePrice != null && (
-            <div className="absolute left-0 right-0 flex items-center" style={{ top: y(maePrice), transform: "translateY(-50%)" }}>
-              <div className="flex-1 border-t border-dashed border-loss/50 mr-1" />
-              <div className="w-20 shrink-0 flex justify-between items-center">
-                <span className="text-[9px] text-loss/60 font-mono uppercase">mae</span>
-                <span className="text-[10px] font-mono text-loss/80">{maePrice.toFixed(0)}</span>
-              </div>
-            </div>
+          {/* ── MAE line ── */}
+          {maeDelta != null && (
+            <PriceLine
+              yPct={yPct(maeDelta)}
+              leftLabel={`${maeDelta.toFixed(1)}`}
+              rightLabel={`${(isLong ? entryPrice + maeDelta : entryPrice + maeDelta).toFixed(1)}`}
+              rightTag="MAE"
+              lineStyle="dashed"
+              color="loss"
+            />
           )}
+
+          {/* Left axis label */}
+          <div className="absolute left-0 top-1">
+            <span className="text-[9px] text-muted-foreground/40 font-mono">pts</span>
+          </div>
         </div>
 
-        {/* Stats bar */}
+        {/* Stats */}
         <div className={cn(
           "mt-3 pt-3 border-t border-border grid gap-3",
-          mfe != null ? "grid-cols-3" : "grid-cols-2"
+          exitEff != null ? "grid-cols-3" : "grid-cols-2"
         )}>
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground mb-0.5">P&L capturado</p>
-            <p className={cn("text-sm font-bold font-mono", isWin ? "text-profit" : isLoss ? "text-loss" : "text-muted-foreground")}>
-              {pnlPoints >= 0 ? "+" : ""}{pnlPoints.toFixed(1)} pts
+            <p className={cn("text-sm font-bold font-mono",
+              isWin ? "text-profit" : isLoss ? "text-loss" : "text-muted-foreground"
+            )}>
+              {pnlPoints >= 0 ? "+" : ""}{pnlPoints.toFixed(2)} pts
             </p>
           </div>
 
-          {mfe != null && (
+          {mfe != null ? (
             <div className="text-center">
               <p className="text-[10px] text-muted-foreground mb-0.5">MFE disponível</p>
               <p className="text-sm font-bold font-mono text-teal">+{mfe.toFixed(1)} pts</p>
-            </div>
-          )}
-
-          {exitEff != null ? (
-            <div className="text-center">
-              <p className="text-[10px] text-muted-foreground mb-0.5">Eficiência</p>
-              <p className={cn("text-sm font-bold font-mono",
-                exitEff >= 70 ? "text-profit" : exitEff >= 45 ? "text-yellow-400" : "text-loss"
-              )}>
-                {exitEff}%
-              </p>
             </div>
           ) : (
             <div className="text-center">
               <p className="text-[10px] text-muted-foreground mb-0.5">Amplitude</p>
               <p className="text-sm font-bold font-mono text-foreground/70">
-                {Math.abs(exitPrice - entryPrice).toFixed(1)}
+                {Math.abs(exitDelta).toFixed(2)} pts
+              </p>
+            </div>
+          )}
+
+          {exitEff != null && (
+            <div className="text-center">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Eficiência</p>
+              <p className={cn("text-sm font-bold font-mono",
+                exitEff >= 70 ? "text-profit" : exitEff >= 40 ? "text-yellow-400" : "text-loss"
+              )}>
+                {exitEff}%
               </p>
             </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
 
-        {/* Legend */}
-        <div className="mt-2 flex flex-wrap gap-3 justify-center">
-          {mfe != null && (
-            <div className="flex items-center gap-1">
-              <div className="w-3 border-t border-dashed border-teal/60" />
-              <span className="text-[9px] text-muted-foreground/60">MFE (potencial)</span>
-            </div>
-          )}
-          <div className="flex items-center gap-1">
-            <div className={cn("w-3 border-t-2", isWin ? "border-profit" : "border-loss")} />
-            <span className="text-[9px] text-muted-foreground/60">Saída</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 border-t-2 border-foreground/50" />
-            <span className="text-[9px] text-muted-foreground/60">Entrada</span>
-          </div>
-          {mae != null && (
-            <div className="flex items-center gap-1">
-              <div className="w-3 border-t border-dashed border-loss/50" />
-              <span className="text-[9px] text-muted-foreground/60">MAE (adverso)</span>
-            </div>
-          )}
-        </div>
+// ── Sub-component: single horizontal price line ────────────────────────────
+interface PriceLineProps {
+  yPct: string
+  leftLabel: string
+  rightLabel: string
+  rightTag: string
+  lineStyle: "solid-thick" | "dashed"
+  color: "profit" | "loss" | "teal" | "neutral"
+}
+
+const colorMap = {
+  profit: { line: "border-profit", text: "text-profit", dim: "text-profit/60" },
+  loss: { line: "border-loss", text: "text-loss", dim: "text-loss/60" },
+  teal: { line: "border-teal/60", text: "text-teal/80", dim: "text-teal/50" },
+  neutral: { line: "border-foreground/40", text: "text-foreground/70", dim: "text-muted-foreground/60" },
+}
+
+function PriceLine({ yPct, leftLabel, rightLabel, rightTag, lineStyle, color }: PriceLineProps) {
+  const c = colorMap[color]
+  return (
+    <div
+      className="absolute left-0 right-0 flex items-center gap-0"
+      style={{ top: yPct, transform: "translateY(-50%)" }}
+    >
+      {/* Left label (pts offset) */}
+      <div className="w-10 shrink-0 text-right pr-1.5">
+        <span className={cn("text-[10px] font-mono font-medium", c.dim)}>{leftLabel}</span>
+      </div>
+
+      {/* Line */}
+      <div className={cn(
+        "flex-1",
+        lineStyle === "solid-thick" ? `border-t-2 ${c.line}` : `border-t border-dashed ${c.line}`
+      )} />
+
+      {/* Right label (price + tag) */}
+      <div className="w-24 shrink-0 pl-1.5 flex items-baseline gap-1">
+        <span className={cn("text-[10px] font-mono font-bold", c.text)}>{rightLabel}</span>
+        <span className="text-[9px] text-muted-foreground/50 font-mono uppercase">{rightTag}</span>
       </div>
     </div>
   )
