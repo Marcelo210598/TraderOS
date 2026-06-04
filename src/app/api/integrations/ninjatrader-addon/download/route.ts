@@ -7,6 +7,7 @@ const CS_TEMPLATE = `#region Using declarations
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -14,8 +15,9 @@ using NinjaTrader.Cbi;
 using NinjaTrader.NinjaScript;
 #endregion
 
-// === TraderOS Sync (AddOn) — gerado automaticamente ===
-// Roda em segundo plano quando o NinjaTrader abre. Nao precisa de grafico.
+// === TraderOS Sync (AddOn) ===
+// Roda automaticamente quando o NinjaTrader abre. Nao precisa de grafico.
+// Lê a API Key do arquivo: Documentos\\NinjaTrader 8\\traderos_config.txt
 namespace NinjaTrader.NinjaScript.AddOns
 {
     public class TraderOSSync : NinjaTrader.NinjaScript.AddOnBase
@@ -23,7 +25,7 @@ namespace NinjaTrader.NinjaScript.AddOns
         private HttpClient              _client;
         private Dictionary<string, Pos> _positions;
         private HashSet<string>         _seen;
-        private readonly string         _apiKey    = "{{API_KEY}}";
+        private string                  _apiKey    = "";
         private readonly string         _serverUrl = "https://trader-os-ashy.vercel.app";
         private readonly object         _lock      = new object();
 
@@ -52,6 +54,21 @@ namespace NinjaTrader.NinjaScript.AddOns
                 _client    = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
                 _positions = new Dictionary<string, Pos>();
                 _seen      = new HashSet<string>();
+
+                string configPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "NinjaTrader 8", "traderos_config.txt"
+                );
+                if (File.Exists(configPath))
+                {
+                    _apiKey = File.ReadAllText(configPath).Trim();
+                    Print("[TraderOS] Config carregada. Pronto para sincronizar.");
+                }
+                else
+                {
+                    Print("[TraderOS] AVISO: traderos_config.txt nao encontrado em " + configPath);
+                    Print("[TraderOS] Baixe em: https://trader-os-ashy.vercel.app/configuracoes");
+                }
             }
             else if (State == State.Active)
             {
@@ -292,17 +309,15 @@ export async function GET() {
     }
   }
 
-  const apiKey   = keys[0].key
-  const csSource = CS_TEMPLATE.replace("{{API_KEY}}", apiKey)
-  const csBuf    = Buffer.from(csSource, "utf8")
-  const zipBuf   = makeZip("TraderOSSync.cs", csBuf)
+  const csBuf  = Buffer.from(CS_TEMPLATE, "utf8")
+  const zipBuf = makeZip("AddOns/TraderOSSync.cs", csBuf)
 
-  return new NextResponse(csBuf, {
+  return new NextResponse(new Uint8Array(zipBuf), {
     status: 200,
     headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="TraderOSSync.cs"',
-      "Content-Length": csBuf.length.toString(),
+      "Content-Type": "application/zip",
+      "Content-Disposition": 'attachment; filename="TraderOSSync.zip"',
+      "Content-Length": zipBuf.length.toString(),
     },
   })
 }
