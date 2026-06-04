@@ -297,12 +297,12 @@ export async function GET() {
   const csBuf    = Buffer.from(csSource, "utf8")
   const zipBuf   = makeZip("TraderOSSync.cs", csBuf)
 
-  return new NextResponse(new Uint8Array(zipBuf), {
+  return new NextResponse(csBuf, {
     status: 200,
     headers: {
-      "Content-Type": "application/zip",
-      "Content-Disposition": 'attachment; filename="TraderOSSync.zip"',
-      "Content-Length": zipBuf.length.toString(),
+      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="TraderOSSync.cs"',
+      "Content-Length": csBuf.length.toString(),
     },
   })
 }

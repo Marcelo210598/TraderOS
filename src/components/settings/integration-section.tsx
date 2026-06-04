@@ -385,7 +385,7 @@ export function IntegrationSection({ initialKeys }: Props) {
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement("a")
       a.href     = url
-      a.download = "TraderOSSync.zip"
+      a.download = "TraderOSSync.cs"
       a.click()
       URL.revokeObjectURL(url)
       // Recarrega as keys caso uma nova tenha sido gerada automaticamente
@@ -474,10 +474,10 @@ export function IntegrationSection({ initialKeys }: Props) {
         className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-teal text-teal-foreground rounded-xl text-sm font-semibold hover:bg-teal/90 transition-colors disabled:opacity-50 shadow-sm"
       >
         <Download className="w-4 h-4" />
-        {downloading ? "Gerando arquivo..." : "Baixar AddOn para NinjaTrader (.zip)"}
+        {downloading ? "Gerando arquivo..." : "Baixar AddOn para NinjaTrader (.cs)"}
       </button>
       <p className="text-[11px] text-muted-foreground text-center -mt-2">
-        Arquivo pré-configurado com sua API Key — pronto para importar em 2 cliques
+        Arquivo pré-configurado com sua API Key — cole na pasta do NinjaTrader e compile
       </p>
 
       {/* Tutorial de instalação */}
@@ -496,37 +496,44 @@ export function IntegrationSection({ initialKeys }: Props) {
         {tutorialOpen && (
           <div className="px-5 py-5 space-y-5 text-sm">
 
-            <Step n={1} title='Clique em "Baixar AddOn" acima'>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                O arquivo <span className="font-mono text-teal text-[10px]">TraderOSSync.zip</span> vai ser baixado
-                com sua API Key já configurada. Salve em qualquer lugar do computador.
+            <Step n={1} title='Baixe o arquivo e mova para a pasta do NT8'>
+              <p className="text-muted-foreground text-xs leading-relaxed mb-2">
+                Clique em <strong className="text-foreground">"Baixar AddOn"</strong> acima. O arquivo{" "}
+                <span className="font-mono text-teal text-[10px]">TraderOSSync.cs</span> já vem com sua API Key.
+                Depois mova-o para a pasta:
               </p>
+              <div className="p-2.5 bg-[#0a0f1a] rounded-lg border border-border mb-2">
+                <p className="font-mono text-[10px] text-teal">Documentos\NinjaTrader 8\bin\Custom\AddOns\</p>
+              </div>
+              <div className="p-2.5 bg-muted/30 rounded-lg border border-dashed border-border text-xs text-muted-foreground">
+                💡 Atalho: pressione <kbd className="bg-muted px-1 py-0.5 rounded font-mono text-[10px]">Win+R</kbd>,
+                cole <span className="font-mono text-[10px]">%USERPROFILE%\Documents\NinjaTrader 8\bin\Custom\AddOns</span> e pressione Enter — a pasta abre direto.
+              </div>
             </Step>
 
-            <Step n={2} title="Importe no NinjaTrader">
+            <Step n={2} title="Compile no NinjaScript Editor">
               <p className="text-muted-foreground text-xs leading-relaxed mb-2">
-                No NinjaTrader 8, vá em:
+                No NinjaTrader 8, abra o editor:
               </p>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Ferramentas</kbd>
+              <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Novo</kbd>
                 <span className="text-muted-foreground text-xs">→</span>
-                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Importar</kbd>
-                <span className="text-muted-foreground text-xs">→</span>
-                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">NinjaScript Add-On</kbd>
+                <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Editor NinjaScript</kbd>
               </div>
-              <p className="text-muted-foreground text-xs leading-relaxed mt-2">
-                Selecione o arquivo <span className="font-mono text-[10px]">TraderOSSync.zip</span> baixado.
-                O NinjaTrader compila e instala automaticamente.
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                No painel esquerdo, expanda <kbd className="bg-muted px-1 py-0.5 rounded font-mono text-[10px]">AddOns</kbd> →
+                clique duas vezes em <span className="font-mono text-teal text-[10px]">TraderOSSync</span> para abrir →
+                pressione <kbd className="bg-muted px-1 py-0.5 rounded font-mono text-[10px]">F5</kbd> para compilar.
               </p>
             </Step>
 
             <Step n={3} title="Confirme que está ativo">
-              <p className="text-muted-foreground text-xs leading-relaxed">
+              <p className="text-muted-foreground text-xs leading-relaxed mb-2">
                 Vá em <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Novo</kbd> →{" "}
                 <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">Saída NinjaScript</kbd>.
                 Deve aparecer:
               </p>
-              <div className="mt-2 p-2.5 bg-[#0a0f1a] rounded-lg border border-border">
+              <div className="p-2.5 bg-[#0a0f1a] rounded-lg border border-border">
                 <p className="font-mono text-[10px] text-green-400">[TraderOS] Ativo. Monitorando X conta(s). Aguardando execucoes.</p>
               </div>
             </Step>
