@@ -11,6 +11,7 @@ import { TrendingUp, TrendingDown, Minus, ArrowLeft, Pencil } from "lucide-react
 import { Badge } from "@/components/ui/badge"
 import { AiAnalysis } from "@/components/journal/ai-analysis"
 import { DeleteTradeButton } from "@/components/journal/delete-trade-button"
+import { TradeExecutionChart } from "@/components/journal/trade-execution-chart"
 
 export const metadata: Metadata = { title: "Detalhe do Trade" }
 
@@ -181,6 +182,21 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{trade.notes}</p>
           </div>
         )}
+
+        {/* Gráfico de Execução */}
+        <TradeExecutionChart
+          entryPrice={Number(trade.entryPrice)}
+          exitPrice={Number(trade.exitPrice)}
+          direction={trade.direction}
+          pnlPoints={pnlPoints}
+          result={trade.result}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          mfe={(trade as any).mfe != null ? Number((trade as any).mfe) : null}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          mae={(trade as any).mae != null ? Number((trade as any).mae) : null}
+          instrument={trade.instrument}
+          date={trade.date}
+        />
 
         {/* Análise IA (plano Pro) */}
         <AiAnalysis
