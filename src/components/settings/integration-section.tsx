@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { Copy, Check, Trash2, Plus, ChevronDown, ChevronUp, Download, Clock, Terminal, FolderOpen, Zap, TrendingUp, Settings, FileText, Upload, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { Copy, Check, Trash2, Plus, ChevronDown, ChevronUp, Download, Clock, Terminal, FolderOpen, Zap, TrendingUp, Settings, FileText, Upload, AlertTriangle, CheckCircle2, ZoomIn } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ApiKey {
@@ -704,7 +704,12 @@ export function IntegrationSection({ initialKeys }: Props) {
 function TutorialImage({ src, alt, caption }: { src: string; alt: string; caption?: string }) {
   return (
     <figure className="mt-3">
-      <div className="rounded-xl overflow-hidden border border-border bg-[#0a0f1a]">
+      <a
+        href={src}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group relative block rounded-xl overflow-hidden border border-border bg-[#0a0f1a]"
+      >
         <Image
           src={src}
           alt={alt}
@@ -712,12 +717,16 @@ function TutorialImage({ src, alt, caption }: { src: string; alt: string; captio
           height={680}
           className="w-full h-auto"
         />
-      </div>
-      {caption && (
-        <figcaption className="text-[10px] text-muted-foreground mt-1.5 text-center italic">
-          {caption}
-        </figcaption>
-      )}
+        {/* Badge "ampliar" — ajuda principalmente no celular, onde a imagem fica pequena */}
+        <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium">
+          <ZoomIn className="w-3 h-3" />
+          Ampliar
+        </span>
+      </a>
+      <figcaption className="text-[10px] text-muted-foreground mt-1.5 text-center">
+        {caption && <span className="italic">{caption}</span>}
+        <span className="block sm:hidden text-teal/80 mt-0.5">Toque na imagem para ver em tela cheia</span>
+      </figcaption>
     </figure>
   )
 }
