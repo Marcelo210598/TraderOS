@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 
-const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/"]
+const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/", "/share"]
 const AUTH_ROUTES = ["/login", "/cadastro"]
 
 export default auth((req) => {
@@ -9,7 +9,7 @@ export default auth((req) => {
   const isLoggedIn = !!session?.user
 
   const isPublicRoute = PUBLIC_ROUTES.some(
-    (route) => nextUrl.pathname === route || nextUrl.pathname.startsWith("/blog")
+    (route) => nextUrl.pathname === route || nextUrl.pathname.startsWith("/blog") || nextUrl.pathname.startsWith("/share")
   )
   const isAuthRoute = AUTH_ROUTES.some((route) => nextUrl.pathname.startsWith(route))
 

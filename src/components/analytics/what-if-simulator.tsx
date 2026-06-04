@@ -21,7 +21,7 @@ export function WhatIfSimulator({ trades }: Props) {
   const [active, setActive] = useState<Scenario>("atual")
 
   const tradesWithMfe = trades.filter(t => t.mfe != null && t.mfe > 0)
-  if (tradesWithMfe.length < 5) return null
+  if (trades.length < 5) return null
 
   // Cenário 1: atual
   const pnlAtual = trades.reduce((a, t) => a + t.pnl, 0)
@@ -56,6 +56,8 @@ export function WhatIfSimulator({ trades }: Props) {
   const avgEff = tradesWithMfe.length > 0
     ? Math.round(tradesWithMfe.reduce((a, t) => a + (t.pnlPoints / t.mfe!), 0) / tradesWithMfe.length * 100)
     : null
+
+  const hasMfeData = tradesWithMfe.length >= 3
 
   const scenarios = [
     {
@@ -114,8 +116,8 @@ export function WhatIfSimulator({ trades }: Props) {
 
       <div className="p-4 space-y-4">
         {/* Botões de cenário */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {scenarios.map(s => (
+        <div className={cn("grid gap-2", hasMfeData ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2")}>
+          {scenarios.filter(s => s.id !== "mfe" || hasMfeData).map(s => (
             <button
               key={s.id}
               onClick={() => setActive(s.id)}

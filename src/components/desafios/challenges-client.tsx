@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Trash2, CheckCircle2, XCircle, Trophy, Flame } from "lucide-react"
+import { Plus, Trash2, CheckCircle2, XCircle, Trophy, Flame, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CreateChallengeModal } from "./create-challenge-modal"
 import { ChallengeRule, ChallengeRuleResult } from "@/lib/challenges"
@@ -23,10 +23,52 @@ interface Props {
   challenges: ChallengeWithResults[]
 }
 
+const PRESET_CHALLENGES = [
+  {
+    name: "Disciplina Total",
+    description: "A base de qualquer trader consistente",
+    rules: [
+      { type: "max_loss_per_trade", value: 150, label: "Max loss por trade" },
+      { type: "max_daily_loss", value: 300, label: "Max loss diário" },
+      { type: "no_behavioral_tag", label: "Sem tags comportamentais" },
+    ],
+  },
+  {
+    name: "Controle de Volume",
+    description: "Para quem opera demais nos dias ruins",
+    rules: [
+      { type: "max_trades_per_day", value: 4, label: "Max trades por dia" },
+      { type: "max_consecutive_losses", value: 3, label: "Max losses consecutivos" },
+      { type: "only_am_session", label: "Operar só AM" },
+    ],
+  },
+  {
+    name: "Consistência 50%",
+    description: "Win rate mínimo + disciplina básica",
+    rules: [
+      { type: "min_win_rate", value: 50, label: "Win rate mínimo" },
+      { type: "max_loss_per_trade", value: 200, label: "Max loss por trade" },
+      { type: "no_behavioral_tag", label: "Sem tags comportamentais" },
+    ],
+  },
+] as const
+
 export function ChallengesClient({ challenges }: Props) {
   const router = useRouter()
   const [showModal, setShowModal] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [creatingPreset, setCreatingPreset] = useState<string | null>(null)
+
+  async function createPreset(preset: typeof PRESET_CHALLENGES[number]) {
+    setCreatingPreset(preset.name)
+    await fetch("/api/challenges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(preset),
+    })
+    router.refresh()
+    setCreatingPreset(null)
+  }
 
   async function handleDelete(id: string) {
     setDeletingId(id)
@@ -54,24 +96,46 @@ export function ChallengesClient({ challenges }: Props) {
       </div>
 
       {/* Lista */}
-      {challenges.length === 0 ? (
-        <div className="bg-card border border-border rounded-xl p-10 text-center space-y-3">
-          <Trophy className="w-10 h-10 text-muted-foreground/30 mx-auto" />
-          <div>
-            <p className="text-sm font-medium text-foreground">Nenhum desafio criado</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Crie um desafio com regras operacionais e acompanhe sua disciplina automaticamente
-            </p>
+      {/* Templates de exemplo */}
+      {challenges.length === 0 && (
+        <div className="space-y-3">
+          <div className="bg-card border border-border rounded-xl p-5 text-center space-y-1">
+            <Trophy className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+            <p className="text-sm font-medium text-foreground">Comece com um template</p>
+            <p className="text-xs text-muted-foreground">Clique em um dos exemplos abaixo ou crie do zero</p>
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal text-teal-foreground text-sm font-medium hover:bg-teal/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Criar primeiro desafio
-          </button>
+
+          <div className="grid gap-2">
+            {PRESET_CHALLENGES.map(preset => (
+              <div key={preset.name} className="bg-card border border-border rounded-xl p-4 flex items-start justify-between gap-3 hover:border-teal/30 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{preset.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{preset.description}</p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {preset.rules.map((r, i) => (
+                      <span key={i} className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
+                        {r.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={() => createPreset(preset)}
+                  disabled={creatingPreset === preset.name}
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal/10 text-teal text-xs font-medium hover:bg-teal/20 transition-colors disabled:opacity-50"
+                >
+                  {creatingPreset === preset.name
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <Plus className="w-3 h-3" />}
+                  Usar
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
-      ) : (
+      )}
+
+      {challenges.length > 0 && (
         <div className="space-y-3">
           {challenges.map(ch => (
             <div key={ch.id} className="bg-card border border-border rounded-xl overflow-hidden">

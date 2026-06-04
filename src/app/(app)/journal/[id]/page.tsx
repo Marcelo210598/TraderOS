@@ -51,11 +51,6 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
           </Link>
           <div className="flex items-center gap-2">
             <DeleteTradeButton tradeId={trade.id} />
-            <ShareButton
-              tradeId={trade.id}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              initialToken={(trade as any).shareToken ?? null}
-            />
             <a
               href={`/journal/${trade.id}/editar`}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -97,13 +92,18 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
 
-            <div className="text-right">
+            <div className="text-right flex flex-col items-end gap-1">
               <p className={cn("text-3xl font-bold font-mono", isWin ? "text-profit" : isLoss ? "text-loss" : "text-muted-foreground")}>
                 {pnl >= 0 ? "+" : ""}${Math.abs(pnl).toFixed(2)}
               </p>
               <p className="text-sm text-muted-foreground font-mono">
                 {pnlPoints >= 0 ? "+" : ""}{pnlPoints.toFixed(2)} pts
               </p>
+              <ShareButton
+                tradeId={trade.id}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                initialToken={(trade as any).shareToken ?? null}
+              />
             </div>
           </div>
 

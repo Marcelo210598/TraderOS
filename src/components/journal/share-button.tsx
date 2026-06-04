@@ -14,12 +14,15 @@ export function ShareButton({ tradeId, initialToken }: Props) {
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const shareUrl = token ? `${typeof window !== "undefined" ? window.location.origin : ""}/share/${token}` : null
+  async function copyUrl(url: string) {
+    await navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
 
   async function handleShare() {
     if (token) {
-      // Copiar link já existente
-      await copy()
+      await copyUrl(`${window.location.origin}/share/${token}`)
       return
     }
     setLoading(true)
@@ -32,48 +35,41 @@ export function ShareButton({ tradeId, initialToken }: Props) {
     setLoading(false)
   }
 
-  async function copyUrl(url: string) {
-    await navigator.clipboard.writeText(url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  async function copy() {
-    if (shareUrl) await copyUrl(shareUrl)
-  }
-
-  async function handleRevoke() {
+  async function handleRevoke(e: React.MouseEvent) {
+    e.stopPropagation()
     setLoading(true)
     await fetch(`/api/trades/${tradeId}/share`, { method: "DELETE" })
     setToken(null)
+    setCopied(false)
     setLoading(false)
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1">
       <button
         onClick={handleShare}
         disabled={loading}
+        title={token ? "Copiar link de compartilhamento" : "Compartilhar trade"}
         className={cn(
-          "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors disabled:opacity-50",
+          "inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50",
           copied
-            ? "bg-profit/10 border-profit/30 text-profit"
-            : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+            ? "bg-profit/10 text-profit"
+            : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
         )}
       >
-        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> :
-         copied ? <Check className="w-3.5 h-3.5" /> :
-         <Share2 className="w-3.5 h-3.5" />}
-        {copied ? "Link copiado!" : token ? "Copiar link" : "Compartilhar"}
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> :
+         copied ? <Check className="w-3 h-3" /> :
+         <Share2 className="w-3 h-3" />}
+        {copied ? "Copiado!" : token ? "Copiar link" : "Compartilhar"}
       </button>
 
-      {token && !loading && (
+      {token && !loading && !copied && (
         <button
           onClick={handleRevoke}
-          className="text-muted-foreground/50 hover:text-loss transition-colors"
-          title="Revogar link"
+          title="Revogar link público"
+          className="text-muted-foreground/40 hover:text-loss transition-colors"
         >
-          <X className="w-3.5 h-3.5" />
+          <X className="w-3 h-3" />
         </button>
       )}
     </div>

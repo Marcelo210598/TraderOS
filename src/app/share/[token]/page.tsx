@@ -9,34 +9,62 @@ import type { Metadata } from "next"
 
 interface Props { params: Promise<{ token: string }> }
 
+interface RawTrade {
+  id: string; user_id: string; date: Date; instrument: string
+  direction: "LONG" | "SHORT"; entry_price: string; exit_price: string
+  quantity: number; pnl: string; pnl_points: string; commission: string
+  result: "WIN" | "LOSS" | "BREAKEVEN"; session_type: string
+  notes: string | null; ai_analysis: string | null
+  mfe: string | null; mae: string | null
+}
+
+interface RawTag { trade_id: string; name: string }
+interface RawSetup { id: string; name: string }
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { token } = await params
-  const trade = await prisma.trade.findFirst({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    where: { shareToken: token } as any,
-  })
-  if (!trade) return { title: "Trade não encontrado" }
-  const pnl = Number(trade.pnl)
+  const rows = await prisma.$queryRaw<RawTrade[]>`
+    SELECT id, pnl, instrument, direction, date FROM trades WHERE share_token = ${token} LIMIT 1
+  `
+  if (rows.length === 0) return { title: "Trade não encontrado" }
+  const t = rows[0]
+  const pnl = Number(t.pnl)
   return {
-    title: `${trade.instrument} ${trade.direction} ${pnl >= 0 ? "+" : ""}$${Math.abs(pnl).toFixed(0)} | TraderOS`,
-    description: `Trade em ${format(trade.date, "dd/MM/yyyy", { locale: ptBR })} via TraderOS`,
+    title: `${t.instrument} ${t.direction} ${pnl >= 0 ? "+" : ""}$${Math.abs(pnl).toFixed(0)} | TraderOS`,
+    description: `Trade em ${format(new Date(t.date), "dd/MM/yyyy", { locale: ptBR })} via TraderOS`,
   }
 }
 
 export default async function SharePage({ params }: Props) {
   const { token } = await params
 
-  const trade = await prisma.trade.findFirst({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    where: { shareToken: token } as any,
-    include: { tags: true, setup: true },
-  })
-  if (!trade) notFound()
+  const rows = await prisma.$queryRaw<RawTrade[]>`
+    SELECT t.id, t.user_id, t.date, t.instrument, t.direction, t.entry_price, t.exit_price,
+           t.quantity, t.pnl, t.pnl_points, t.commission, t.result, t.session_type,
+           t.notes, t.ai_analysis, t.mfe, t.mae
+    FROM trades t WHERE t.share_token = ${token} LIMIT 1
+  `
+  if (rows.length === 0) notFound()
 
+  const trade = rows[0]
   const pnl = Number(trade.pnl)
-  const pnlPoints = Number(trade.pnlPoints)
+  const pnlPoints = Number(trade.pnl_points)
   const isWin = trade.result === "WIN"
   const isLoss = trade.result === "LOSS"
+
+  const [tagRows, setupRow] = await Promise.all([
+    prisma.$queryRaw<RawTag[]>`
+      SELECT trade_id, name FROM trade_tags WHERE trade_id = ${trade.id}
+    `,
+    prisma.$queryRaw<RawSetup[]>`
+      SELECT s.id, s.name FROM setups s
+      JOIN trades t ON t.setup_id = s.id
+      WHERE t.id = ${trade.id} LIMIT 1
+    `,
+  ])
+
+  const tags = tagRows
+  const setupName = setupRow[0]?.name ?? null
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -47,10 +75,7 @@ export default async function SharePage({ params }: Props) {
           <span className="text-muted-foreground/40">·</span>
           <span className="text-xs text-muted-foreground">trade compartilhado</span>
         </div>
-        <a
-          href="/"
-          className="text-xs text-teal hover:text-teal/80 transition-colors"
-        >
+        <a href="/" className="text-xs text-teal hover:text-teal/80 transition-colors">
           Criar conta grátis →
         </a>
       </div>
@@ -75,14 +100,14 @@ export default async function SharePage({ params }: Props) {
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold font-mono text-foreground">{trade.instrument}</span>
                   <span className={cn(
-                    "text-xs font-mono font-bold px-1.5 py-0.5 rounded border-0",
+                    "text-xs font-mono font-bold px-1.5 py-0.5 rounded",
                     trade.direction === "LONG" ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"
                   )}>
                     {trade.direction}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {format(trade.date, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  {format(new Date(trade.date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                 </p>
               </div>
             </div>
@@ -94,13 +119,13 @@ export default async function SharePage({ params }: Props) {
             </div>
           </div>
 
-          {(trade.setup || trade.tags.length > 0) && (
+          {(setupName || tags.length > 0) && (
             <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-border">
-              {trade.setup && (
-                <span className="text-xs bg-teal/10 text-teal px-2 py-0.5 rounded">{trade.setup.name}</span>
+              {setupName && (
+                <span className="text-xs bg-teal/10 text-teal px-2 py-0.5 rounded">{setupName}</span>
               )}
-              {trade.tags.map(tag => (
-                <span key={tag.id} className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{tag.name}</span>
+              {tags.map((tag, i) => (
+                <span key={i} className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{tag.name}</span>
               ))}
             </div>
           )}
@@ -109,10 +134,10 @@ export default async function SharePage({ params }: Props) {
         {/* Dados técnicos */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[
-            { label: "Entrada", value: Number(trade.entryPrice).toFixed(2) },
-            { label: "Saída", value: Number(trade.exitPrice).toFixed(2) },
+            { label: "Entrada", value: Number(trade.entry_price).toFixed(2) },
+            { label: "Saída", value: Number(trade.exit_price).toFixed(2) },
             { label: "Contratos", value: String(trade.quantity) },
-            { label: "Sessão", value: trade.sessionType },
+            { label: "Sessão", value: trade.session_type },
           ].map(item => (
             <div key={item.label} className="bg-card border border-border rounded-xl p-3">
               <p className="text-xs text-muted-foreground">{item.label}</p>
@@ -123,20 +148,17 @@ export default async function SharePage({ params }: Props) {
 
         {/* Gráfico de execução */}
         <TradeExecutionChart
-          entryPrice={Number(trade.entryPrice)}
-          exitPrice={Number(trade.exitPrice)}
+          entryPrice={Number(trade.entry_price)}
+          exitPrice={Number(trade.exit_price)}
           direction={trade.direction}
           pnlPoints={pnlPoints}
           result={trade.result}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          mfe={(trade as any).mfe != null ? Number((trade as any).mfe) : null}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          mae={(trade as any).mae != null ? Number((trade as any).mae) : null}
+          mfe={trade.mfe != null ? Number(trade.mfe) : null}
+          mae={trade.mae != null ? Number(trade.mae) : null}
           instrument={trade.instrument}
-          date={trade.date}
+          date={new Date(trade.date)}
         />
 
-        {/* Notas */}
         {trade.notes && (
           <div className="bg-card border border-border rounded-xl p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Notas</p>
@@ -144,11 +166,10 @@ export default async function SharePage({ params }: Props) {
           </div>
         )}
 
-        {/* Análise IA (pública se existir) */}
-        {trade.aiAnalysis && (
+        {trade.ai_analysis && (
           <div className="bg-indigo/5 border border-indigo/20 rounded-xl p-4 space-y-2">
             <p className="text-xs font-semibold text-indigo uppercase tracking-wider">Análise Vega IA</p>
-            <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{trade.aiAnalysis}</p>
+            <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{trade.ai_analysis}</p>
           </div>
         )}
 
