@@ -102,6 +102,7 @@ model Trade {
   mfe          Decimal?    @db.Decimal(10, 2)
   mae          Decimal?    @db.Decimal(10, 2)
   externalId   String?
+  shareToken   String?     @unique @map("share_token")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

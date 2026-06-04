@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { AiAnalysis } from "@/components/journal/ai-analysis"
 import { DeleteTradeButton } from "@/components/journal/delete-trade-button"
 import { TradeExecutionChart } from "@/components/journal/trade-execution-chart"
+import { ShareButton } from "@/components/journal/share-button"
 
 export const metadata: Metadata = { title: "Detalhe do Trade" }
 
@@ -50,6 +51,11 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
           </Link>
           <div className="flex items-center gap-2">
             <DeleteTradeButton tradeId={trade.id} />
+            <ShareButton
+              tradeId={trade.id}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              initialToken={(trade as any).shareToken ?? null}
+            />
             <a
               href={`/journal/${trade.id}/editar`}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
