@@ -48,7 +48,7 @@ export default async function NotificacoesPage() {
         userPlan={user.plan ?? "FREE"}
       />
       <div className="flex-1 p-6 max-w-3xl w-full mx-auto">
-        <NotificacoesClient notifications={formatted} />
+        <NotificacoesClient notifications={formatted} userPlan={user.plan ?? "FREE"} />
       </div>
     </div>
   )

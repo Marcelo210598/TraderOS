@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, ChevronDown, ChevronUp, BarChart3 } from "lucide-react"
+import { Bell, ChevronDown, ChevronUp, BarChart3, Sparkles, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Notification {
@@ -15,6 +15,7 @@ interface Notification {
 
 interface Props {
   notifications: Notification[]
+  userPlan: string
 }
 
 function formatDate(iso: string) {
@@ -36,7 +37,6 @@ function NotificationCard({ notification }: { notification: Notification }) {
       "bg-card border rounded-xl overflow-hidden transition-all",
       notification.read ? "border-border" : "border-teal/30"
     )}>
-      {/* Header */}
       <button
         onClick={() => setExpanded((e) => !e)}
         className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-muted/30 transition-colors"
@@ -57,12 +57,10 @@ function NotificationCard({ notification }: { notification: Notification }) {
         }
       </button>
 
-      {/* Content */}
       {expanded && (
         <div className="px-5 pb-5 pt-1 border-t border-border">
           <div className="prose-sm prose-invert max-w-none">
             {lines.map((line, i) => {
-              // Headings
               if (line.startsWith("## ")) {
                 return (
                   <h2 key={i} className="text-base font-bold text-foreground mt-4 mb-2 first:mt-0">
@@ -77,7 +75,6 @@ function NotificationCard({ notification }: { notification: Notification }) {
                   </h3>
                 )
               }
-              // Bold line (standalone **texto**)
               if (line.startsWith("**") && line.endsWith("**") && line.length > 4) {
                 return (
                   <p key={i} className="text-sm font-semibold text-foreground my-1">
@@ -85,7 +82,6 @@ function NotificationCard({ notification }: { notification: Notification }) {
                   </p>
                 )
               }
-              // List item
               if (line.startsWith("- ") || line.startsWith("* ")) {
                 const text = line.slice(2)
                 return (
@@ -95,11 +91,9 @@ function NotificationCard({ notification }: { notification: Notification }) {
                   </div>
                 )
               }
-              // Empty line
               if (line.trim() === "") {
                 return <div key={i} className="h-2" />
               }
-              // Normal paragraph
               return (
                 <p
                   key={i}
@@ -122,19 +116,28 @@ function renderInline(text: string): string {
     .replace(/`(.+?)`/g, '<code class="bg-muted px-1 rounded text-xs font-mono">$1</code>')
 }
 
-export function NotificacoesClient({ notifications }: Props) {
-  if (notifications.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-        <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
-          <Bell className="w-6 h-6 text-muted-foreground" />
-        </div>
-        <p className="text-sm font-medium text-foreground">Nenhuma notificação ainda</p>
-        <p className="text-xs text-muted-foreground max-w-xs">
-          Seu resumo semanal aparece aqui todo sábado. Continue registrando seus trades no Journal.
-        </p>
-      </div>
-    )
+export function NotificacoesClient({ notifications: initial, userPlan }: Props) {
+  const [notifications, setNotifications] = useState<Notification[]>(initial)
+  const [generating, setGenerating] = useState(false)
+  const [genError, setGenError] = useState<string | null>(null)
+
+  async function generateSummary() {
+    setGenerating(true)
+    setGenError(null)
+    try {
+      const res = await fetch("/api/notifications/generate-summary", { method: "POST" })
+      const data = await res.json()
+      if (!res.ok) {
+        setGenError(data.error ?? "Erro ao gerar resumo")
+        return
+      }
+      const n = data.notification as Notification
+      setNotifications((prev) => [n, ...prev])
+    } catch {
+      setGenError("Erro de conexão. Tente novamente.")
+    } finally {
+      setGenerating(false)
+    }
   }
 
   return (
@@ -147,11 +150,46 @@ export function NotificacoesClient({ notifications }: Props) {
             <p className="text-xs text-muted-foreground">{notifications.length} mensagen{notifications.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
+        <button
+          onClick={generateSummary}
+          disabled={generating || userPlan === "FREE"}
+          title={userPlan === "FREE" ? "Disponível nos planos Trader e Pro" : "Gerar resumo semanal com Vega IA"}
+          className={cn(
+            "flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border transition-all",
+            userPlan === "FREE"
+              ? "border-border text-muted-foreground/50 cursor-not-allowed"
+              : "border-teal/30 text-teal bg-teal/5 hover:bg-teal/15"
+          )}
+        >
+          {generating
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <Sparkles className="w-3.5 h-3.5" />
+          }
+          {generating ? "Gerando..." : "Gerar resumo"}
+        </button>
       </div>
 
-      {notifications.map((n) => (
-        <NotificationCard key={n.id} notification={n} />
-      ))}
+      {genError && (
+        <div className="bg-loss/10 border border-loss/20 rounded-xl px-4 py-3 text-sm text-loss">
+          {genError}
+        </div>
+      )}
+
+      {notifications.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+            <Bell className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-foreground">Nenhuma notificação ainda</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Clique em &quot;Gerar resumo&quot; para uma análise Vega IA dos seus últimos 7 dias.
+          </p>
+        </div>
+      ) : (
+        notifications.map((n) => (
+          <NotificationCard key={n.id} notification={n} />
+        ))
+      )}
     </div>
   )
 }
