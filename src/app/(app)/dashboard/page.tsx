@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
   sevenDaysAgo.setHours(0, 0, 0, 0)
 
-  const [weeklyTrades, recentTradesRaw, streaks] = await Promise.all([
+  const [weeklyTrades, recentTradesRaw, streaks, allTrades] = await Promise.all([
     prisma.trade.findMany({
       where: { userId: user!.id, date: { gte: sevenDaysAgo } },
       select: { date: true, pnl: true, result: true },
@@ -40,7 +40,23 @@ export default async function DashboardPage() {
       take: 5,
     }),
     prisma.streak.findMany({ where: { userId: user!.id } }),
+    prisma.trade.findMany({
+      where: { userId: user!.id },
+      select: { date: true, pnl: true, accountLabel: true },
+      orderBy: { date: "asc" },
+    }),
   ])
+
+  // Agrupa trades por accountLabel → dias (para o alerta de drawdown automático)
+  const tradesByAccount: Record<string, { date: string; pnl: number }[]> = {}
+  for (const t of allTrades) {
+    const label = t.accountLabel
+    const dateStr = t.date.toISOString().slice(0, 10)
+    if (!tradesByAccount[label]) tradesByAccount[label] = []
+    const existing = tradesByAccount[label].find((d) => d.date === dateStr)
+    if (existing) existing.pnl += Number(t.pnl)
+    else tradesByAccount[label].push({ date: dateStr, pnl: Number(t.pnl) })
+  }
 
   // Métricas semanais
   const weekPnl = weeklyTrades.reduce((a, t) => a + Number(t.pnl), 0)
@@ -192,8 +208,8 @@ export default async function DashboardPage() {
           />
         </div>
 
-        {/* Alerta de drawdown Apex — aparece só se o usuário usou o Guardian hoje */}
-        <DrawdownAlertBanner />
+        {/* Alerta de drawdown Apex — automático via trades ou manual via Guardian */}
+        <DrawdownAlertBanner tradesByAccount={tradesByAccount} />
 
         {/* Check-in rápido */}
         <Link

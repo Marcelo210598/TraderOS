@@ -16,6 +16,7 @@ export interface GuardianAlertData {
   floor: number
   level: GuardianAlertLevel
   savedAt: number
+  source: "manual" | "auto"
 }
 
 const ACCOUNTS = {
@@ -62,7 +63,12 @@ export function ApexCalculator() {
     return { drawdownFloor, safetyMargin, isLocked, profitProgress, pctToTarget, effectiveHwm }
   }, [currentBalance, highWaterMark, account])
 
-  // Salva estado de alerta no localStorage para o Dashboard exibir
+  // Salva conta selecionada para o Dashboard usar no modo automático
+  useEffect(() => {
+    localStorage.setItem("traderos_guardian_account", accountKey)
+  }, [accountKey])
+
+  // Salva alerta manual no localStorage (modo manual do Guardian)
   useEffect(() => {
     if (!currentBalance) return
     const level: GuardianAlertLevel =
@@ -77,6 +83,7 @@ export function ApexCalculator() {
       floor: drawdownCalc.drawdownFloor,
       level,
       savedAt: Date.now(),
+      source: "manual",
     }
     localStorage.setItem(GUARDIAN_ALERT_KEY, JSON.stringify(data))
   }, [drawdownCalc, account, currentBalance])
