@@ -9,6 +9,7 @@ import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { StreakWidget } from "@/components/dashboard/streak-widget"
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from "lucide-react"
+import { DrawdownAlertBanner } from "@/components/dashboard/drawdown-alert-banner"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -190,6 +191,9 @@ export default async function DashboardPage() {
             variant="default"
           />
         </div>
+
+        {/* Alerta de drawdown Apex — aparece só se o usuário usou o Guardian hoje */}
+        <DrawdownAlertBanner />
 
         {/* Check-in rápido */}
         <Link

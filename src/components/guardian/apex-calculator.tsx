@@ -1,8 +1,22 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { AlertTriangle, CheckCircle, TrendingDown, BarChart2, Layers } from "lucide-react"
+
+export const GUARDIAN_ALERT_KEY = "traderos_guardian_alert"
+
+export type GuardianAlertLevel = "safe" | "warning" | "danger"
+
+export interface GuardianAlertData {
+  accountLabel: string
+  safetyMargin: number
+  drawdownMax: number
+  balance: number
+  floor: number
+  level: GuardianAlertLevel
+  savedAt: number
+}
 
 const ACCOUNTS = {
   PA25K: { label: "PA 25K", balance: 25000, drawdown: 1500, target: 1500, minDays: 10, maxContracts: 5 },
@@ -47,6 +61,25 @@ export function ApexCalculator() {
 
     return { drawdownFloor, safetyMargin, isLocked, profitProgress, pctToTarget, effectiveHwm }
   }, [currentBalance, highWaterMark, account])
+
+  // Salva estado de alerta no localStorage para o Dashboard exibir
+  useEffect(() => {
+    if (!currentBalance) return
+    const level: GuardianAlertLevel =
+      drawdownCalc.safetyMargin < account.drawdown * 0.3 ? "danger"
+      : drawdownCalc.safetyMargin < account.drawdown * 0.6 ? "warning"
+      : "safe"
+    const data: GuardianAlertData = {
+      accountLabel: account.label,
+      safetyMargin: drawdownCalc.safetyMargin,
+      drawdownMax: account.drawdown,
+      balance: parseFloat(currentBalance),
+      floor: drawdownCalc.drawdownFloor,
+      level,
+      savedAt: Date.now(),
+    }
+    localStorage.setItem(GUARDIAN_ALERT_KEY, JSON.stringify(data))
+  }, [drawdownCalc, account, currentBalance])
 
   // --- Tab 2: Consistency ---
   const [dailyPnls, setDailyPnls] = useState<string[]>(["", "", "", "", ""])
