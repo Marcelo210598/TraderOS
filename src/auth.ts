@@ -22,7 +22,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-      allowDangerousEmailAccountLinking: true,
     }),
     Credentials({
       name: "credentials",
@@ -70,10 +69,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        // Primeiro login — popula token com dados do usuário
         token.id = user.id ?? ""
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const u = user as any
-        // Credentials flow already inclui esses campos. OAuth (Google) não — busca no DB.
         if (u.plan !== undefined) {
           token.plan = u.plan
           token.role = u.role
@@ -90,6 +89,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.xp = dbUser.xp
             token.level = dbUser.level
           }
+        }
+        token.planUpdatedAt = Math.floor(Date.now() / 1000)
+      } else {
+        // Requests subsequentes — atualiza plano do DB a cada 1h
+        // Garante que downgrade/upgrade de plano reflete em até 60 minutos
+        const ONE_HOUR = 3600
+        const now = Math.floor(Date.now() / 1000)
+        const lastUpdate = (token.planUpdatedAt as number) ?? 0
+        if (now - lastUpdate > ONE_HOUR && token.id) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { plan: true, role: true, xp: true, level: true },
+          })
+          if (dbUser) {
+            token.plan = dbUser.plan
+            token.role = dbUser.role
+            token.xp = dbUser.xp
+            token.level = dbUser.level
+          }
+          token.planUpdatedAt = now
         }
       }
       return token

@@ -3,6 +3,8 @@ import { NextResponse } from "next/server"
 
 const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/", "/share"]
 const AUTH_ROUTES = ["/login", "/cadastro"]
+// Rotas de API que não precisam de sessão (têm auth própria ou são públicas)
+const PUBLIC_API_PREFIXES = ["/api/auth", "/api/sync", "/api/uploadthing"]
 
 export default auth((req) => {
   const { nextUrl, auth: session } = req
@@ -12,18 +14,27 @@ export default auth((req) => {
     (route) => nextUrl.pathname === route || nextUrl.pathname.startsWith("/blog") || nextUrl.pathname.startsWith("/share")
   )
   const isAuthRoute = AUTH_ROUTES.some((route) => nextUrl.pathname.startsWith(route))
+  const isApiRoute = nextUrl.pathname.startsWith("/api/")
+  const isPublicApiRoute = PUBLIC_API_PREFIXES.some((prefix) => nextUrl.pathname.startsWith(prefix))
 
   if (isAuthRoute && isLoggedIn) {
     return NextResponse.redirect(new URL("/dashboard", nextUrl))
   }
 
-  if (!isPublicRoute && !isLoggedIn) {
-    return NextResponse.redirect(new URL("/login", nextUrl))
+  if (!isLoggedIn) {
+    // API routes não autenticadas retornam 401 JSON em vez de redirect
+    if (isApiRoute && !isPublicApiRoute) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+    }
+    if (!isPublicRoute) {
+      return NextResponse.redirect(new URL("/login", nextUrl))
+    }
   }
 
   return NextResponse.next()
 })
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  // Cobre tudo exceto assets estáticos — incluindo /api
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 }

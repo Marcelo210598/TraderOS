@@ -288,7 +288,8 @@ model UserApiKey {
   id        String    @id @default(cuid())
   userId    String
   name      String    @default("NinjaTrader")
-  key       String    @unique
+  key       String    @unique   // SHA-256 hash da raw key
+  keyPrefix String?   @map("key_prefix") // primeiros 16 chars da raw key (display only)
   lastUsed  DateTime?
   createdAt DateTime  @default(now())
 

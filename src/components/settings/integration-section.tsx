@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils"
 interface ApiKey {
   id: string
   name: string
-  key: string
+  keyPrefix: string       // ex: "traderos_a1b2c3" — sempre disponível
+  rawKey?: string         // chave completa — APENAS na resposta de criação, nunca depois
   lastUsed: string | null
   createdAt: string
 }
@@ -28,6 +29,7 @@ const PLATFORMS = [
 export function IntegrationSection({ initialKeys }: Props) {
   const [platform, setPlatform]     = useState("ninjatrader")
   const [keys, setKeys]             = useState<ApiKey[]>(initialKeys)
+  const [newRawKey, setNewRawKey]   = useState<string | null>(null)
   const [loading, setLoading]             = useState(false)
   const [downloading, setDownloading]     = useState(false)
   const [downloadingCfg, setDownloadingCfg] = useState(false)
@@ -40,7 +42,9 @@ export function IntegrationSection({ initialKeys }: Props) {
       const res = await fetch("/api/integrations/apikeys", { method: "POST" })
       const data = await res.json()
       if (!res.ok) { alert(data.error); return }
-      setKeys((prev) => [data, ...prev])
+      // rawKey disponível apenas aqui — nunca mais será retornada pela API
+      if (data.rawKey) setNewRawKey(data.rawKey)
+      setKeys((prev) => [{ ...data, rawKey: undefined }, ...prev])
       setTutorialOpen(true)
     } finally { setLoading(false) }
   }
@@ -52,7 +56,14 @@ export function IntegrationSection({ initialKeys }: Props) {
   }
 
   function copyKey(key: string, id: string) {
-    navigator.clipboard.writeText(key)
+    navigator.clipboard.writeText(key).catch(() => {
+      const el = document.createElement("textarea")
+      el.value = key
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand("copy")
+      document.body.removeChild(el)
+    })
     setCopied(id)
     setTimeout(() => setCopied(null), 2000)
   }
@@ -166,16 +177,34 @@ export function IntegrationSection({ initialKeys }: Props) {
             )}
           </div>
 
-          {/* Lista de keys */}
+          {/* Banner one-time: key completa exibida apenas no momento da criação */}
+          {newRawKey && (
+            <div className="p-3 bg-teal/5 border border-teal/30 rounded-xl space-y-2">
+              <p className="text-[11px] font-semibold text-teal flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5" />
+                Copie sua API Key agora — não será exibida novamente
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-[11px] font-mono text-foreground bg-muted/40 px-2 py-1.5 rounded truncate">
+                  {newRawKey}
+                </code>
+                <button onClick={() => copyKey(newRawKey, "new")} title="Copiar chave"
+                  className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0">
+                  {copied === "new" ? <Check className="w-3.5 h-3.5 text-profit" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Cole esta key no <code className="font-mono">traderos_config.txt</code> dentro da pasta do NinjaTrader 8.
+              </p>
+            </div>
+          )}
+
+          {/* Lista de keys (exibe apenas prefixo — hash não é retornado) */}
           {keys.map((k) => (
             <div key={k.id} className="flex items-center gap-2 p-3 bg-muted/40 rounded-lg border border-border">
               <code className="flex-1 text-xs font-mono text-foreground truncate">
-                {k.key.slice(0, 24)}••••••••••••••••
+                {k.keyPrefix ?? "traderos_••••"}••••••••••••••••
               </code>
-              <button onClick={() => copyKey(k.key, k.id)} title="Copiar chave completa"
-                className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0">
-                {copied === k.id ? <Check className="w-3.5 h-3.5 text-profit" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
               <button onClick={() => revoke(k.id)} title="Revogar chave"
                 className="p-1.5 rounded hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive shrink-0">
                 <Trash2 className="w-3.5 h-3.5" />
