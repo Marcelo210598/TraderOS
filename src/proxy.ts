@@ -22,8 +22,9 @@ export default auth((req) => {
   }
 
   if (!isLoggedIn) {
-    // API routes não autenticadas retornam 401 JSON em vez de redirect
-    if (isApiRoute && !isPublicApiRoute) {
+    if (isApiRoute) {
+      // APIs públicas (sync, auth, uploadthing) passam sem sessão
+      if (isPublicApiRoute) return NextResponse.next()
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
     if (!isPublicRoute) {
