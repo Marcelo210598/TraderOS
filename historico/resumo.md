@@ -98,8 +98,8 @@ RESEND_FROM_EMAIL           ❓ verificar
 4. **Domínio traderos.app** — 15min DNS
 5. **Stripe/MercadoPago** — quando decidir monetizar
 
-## Nota competitiva atual: **9.2/10**
-Pronto para ter clientes pagantes. App bate concorrentes ($30-50/mês USD) em PT-BR, gamificação, IA e especificidade Apex. Estética Tier 1 entregue — visual polido e profissional.
+## Nota competitiva atual: **9.5/10**
+Vega IA agora é o maior diferencial vs Trademetria (80k users, R$49,90/mês Pro). TraderOS tem 4 features exclusivas que eles não têm: check-in emocional correlacionado, simulador "E se", gráfico de execução e desafios por regra operacional.
 
 ## Estética Tier 1 — 31/05/2026 (7 itens entregues)
 - StatsCards com accent bar colorida + gradient overlay
@@ -133,3 +133,4 @@ Pronto para ter clientes pagantes. App bate concorrentes ($30-50/mês USD) em PT
 | 2026-05-31 | Estética Tier 1 completa: 7 melhorias visuais (StatsCards, sidebar, background, login, XP bar, badge) |
 | 2026-06-01 | Fix deploy: Vercel Analytics ativo — lockfile corrompido (version vazia em dep opcional) |
 | 2026-06-02 | Pesquisa NinjaTrader: diagnóstico dos 2 bugs (Indicator instável + IsEntry/IsExit falho). Reescrita completa como **AddOn** com round-trip, config por arquivo, log, FileSystemWatcher. Tutorial atualizado. Aguarda teste de compilação. |
+| 2026-06-04 | **Vega IA enriquecida** (análise de trade → Sonnet + histórico setup; checkin → 7 dias + streaks + tags comportamentais; chat → MFE/MAE/DOW/tags/notas). **4 features novas**: Gráfico de Execução (pts relativos), Simulador "E se" (MFE/piores losses), Desafios com regras operacionais (tabela Neon), Compartilhar trade (link público `/share/[token]`). |
