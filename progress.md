@@ -78,7 +78,8 @@
 - **Env vars:** confirmadas todas na Vercel ✅ (IA, email e upload funcionam pros alunos).
 - **Script de acesso:** `scripts/promote-users.mjs` — promove alunos pra PRO por email (não há checkout). Fluxo: aluno se cadastra → rodar script → aluno faz logout/login (JWT cacheia plano ~1h).
   - Uso: `node scripts/promote-users.mjs aluno@email.com` (suporta `--plan=TRADER` e `--dry`).
-- **Pendências cosméticas conhecidas:** landing anuncia "Trilha" (em breve, sem conteúdo) e "Simulador E se?" (não localizado no código) — esconder/ajustar antes de escalar.
+- **Trilha de Aprendizado:** ✅ CONSTRUÍDA em 08/06/2026 — 5 módulos, 30 aulas escritas (Fundamentos → Gestão de Risco → Leitura de Mercado → Psicologia → Apex). Conteúdo em `src/lib/trilha-content.ts` (editável). Progresso por aula via localStorage (client-side, sem migration). Rotas: `/trilha` (overview) + `/trilha/[moduleId]` (viewer). Free pra todos os planos.
+- **Pendência cosmética restante:** "Simulador E se?" existe (dentro do Analytics) — landing OK.
 - **Sem rate limiting:** OK com poucos alunos; revisar antes de abrir IA pra geral.
 
 ## 📋 Próximos passos
