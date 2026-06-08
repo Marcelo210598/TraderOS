@@ -1,6 +1,6 @@
 # TraderOS — Progresso
 
-## Última atualização: 02/06/2026 — Reescrita integração NinjaTrader (Indicator → AddOn)
+## Última atualização: 08/06/2026 — Auditoria pré-soft-launch + script de promoção PRO
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
@@ -72,6 +72,15 @@
 - [x] **Bottom navigation bar mobile** — 5 itens fixos: Dashboard, Journal, FAB +Trade (teal), Analytics, Guardian. Oculto em lg+
 - [x] **Empty states com SVG** — SVG monocromático de chart vazio (Analytics) e livro aberto (Journal/TradeList)
 
+## 🚀 Soft-launch comunidade Nômade Trader — 08/06/2026
+- **Decisão:** abrir pra poucos alunos selecionados, **de graça**, só pra validação. Sem pagamento por ora.
+- **Auditoria feita:** núcleo 100% funcional e seguro (Journal, Guardian, Analytics, Check-in, Setups, IA Vega/Ask Claude, Sync NinjaTrader, gamificação). Gate de Setups está protegido no backend (`setups/route.ts:63`).
+- **Env vars:** confirmadas todas na Vercel ✅ (IA, email e upload funcionam pros alunos).
+- **Script de acesso:** `scripts/promote-users.mjs` — promove alunos pra PRO por email (não há checkout). Fluxo: aluno se cadastra → rodar script → aluno faz logout/login (JWT cacheia plano ~1h).
+  - Uso: `node scripts/promote-users.mjs aluno@email.com` (suporta `--plan=TRADER` e `--dry`).
+- **Pendências cosméticas conhecidas:** landing anuncia "Trilha" (em breve, sem conteúdo) e "Simulador E se?" (não localizado no código) — esconder/ajustar antes de escalar.
+- **Sem rate limiting:** OK com poucos alunos; revisar antes de abrir IA pra geral.
+
 ## 📋 Próximos passos
 
 ### Produto
@@ -91,15 +100,18 @@
 - **Guardian:** 100% client-side com `useMemo` — sem chamadas ao banco, zero latência
 
 ## 🔧 Variáveis .env (status)
+> ✅ Confirmado via `vercel env ls production` em 08/06/2026 — TODAS as 9 vars estão na produção.
 ```
 DATABASE_URL=✅ configurado (Neon PostgreSQL SA-East-1)
 AUTH_SECRET=✅ configurado
+AUTH_URL=✅ configurado
 AUTH_GOOGLE_ID=✅ configurado
 AUTH_GOOGLE_SECRET=✅ configurado
-UPLOADTHING_TOKEN=🔴 pendente
-RESEND_API_KEY=🔴 pendente
-ANTHROPIC_API_KEY=🔴 pendente
-# Gateway de pagamento=🔴 pendente (definir Stripe ou Abacatepay)
+UPLOADTHING_TOKEN=✅ na Vercel (add 8d atrás) — screenshots OK
+RESEND_API_KEY=✅ na Vercel — email boas-vindas OK
+RESEND_FROM_EMAIL=✅ na Vercel
+ANTHROPIC_API_KEY=✅ na Vercel — IA Vega / Ask Claude OK
+# Gateway de pagamento=🔴 NÃO implementado (botão /planos sem onClick). OK por ora: soft-launch é grátis.
 ```
 
 ## 📚 Dependências principais
