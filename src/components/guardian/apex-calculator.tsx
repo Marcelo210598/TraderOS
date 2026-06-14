@@ -94,7 +94,7 @@ export function ApexCalculator() {
   const consistencyCalc = useMemo(() => {
     const values = dailyPnls.map((v) => parseFloat(v) || 0)
     const total = values.reduce((a, b) => a + b, 0)
-    const maxAllowed = total > 0 ? total * 0.3 : 0
+    const maxAllowed = total > 0 ? total * 0.5 : 0
     const days = values.map((v, i) => ({
       day: i + 1,
       pnl: v,
@@ -310,7 +310,7 @@ export function ApexCalculator() {
       {tab === "consistency" && (
         <div className="space-y-4">
           <div className="bg-muted/30 rounded-xl p-3 text-xs text-muted-foreground leading-relaxed">
-            <strong className="text-foreground">Regra de Consistência:</strong> Nenhum dia pode representar mais de 30% do lucro total acumulado para aprovação do relatório.
+            <strong className="text-foreground">Regra de Consistência:</strong> Nenhum dia pode representar mais de 50% do lucro total acumulado para aprovação do relatório.
           </div>
 
           <div className="space-y-2">

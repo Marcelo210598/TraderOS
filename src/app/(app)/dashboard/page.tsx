@@ -262,7 +262,7 @@ export default async function DashboardPage() {
             </p>
             <p className="text-sm text-foreground leading-relaxed">
               A Apex exige que nenhum dia individual represente mais de{" "}
-              <span className="text-teal font-medium">30% do seu lucro total</span> para aprovação
+              <span className="text-teal font-medium">50% do seu lucro total</span> para aprovação
               (Consistency Rule). Monitore isso no{" "}
               <Link href="/guardian" className="text-teal underline underline-offset-2">
                 Guardian
