@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { AlertTriangle, CheckCircle, TrendingDown, BarChart2, Layers } from "lucide-react"
+import { ACCOUNTS, type AccountKey } from "@/lib/guardian"
 
 export const GUARDIAN_ALERT_KEY = "traderos_guardian_alert"
 
@@ -19,16 +20,7 @@ export interface GuardianAlertData {
   source: "manual" | "auto"
 }
 
-const ACCOUNTS = {
-  PA25K: { label: "PA 25K", balance: 25000, drawdown: 1500, target: 1500, minDays: 10, maxContracts: 5 },
-  PA50K: { label: "PA 50K", balance: 50000, drawdown: 2500, target: 3000, minDays: 10, maxContracts: 10 },
-  PA75K: { label: "PA 75K", balance: 75000, drawdown: 2750, target: 4500, minDays: 10, maxContracts: 12 },
-  PA100K: { label: "PA 100K", balance: 100000, drawdown: 3000, target: 6000, minDays: 10, maxContracts: 14 },
-  PA150K: { label: "PA 150K", balance: 150000, drawdown: 5000, target: 9000, minDays: 15, maxContracts: 17 },
-  PA250K: { label: "PA 250K", balance: 250000, drawdown: 7500, target: 15000, minDays: 20, maxContracts: 20 },
-} as const
-
-type AccountKey = keyof typeof ACCOUNTS
+// ACCOUNTS e AccountKey vêm de @/lib/guardian (contas Apex 2026 EOD — fonte única)
 
 type TabId = "drawdown" | "consistency" | "scaling"
 
@@ -152,11 +144,14 @@ export function ApexCalculator() {
         ))}
       </div>
 
-      {/* Info row */}
+      {/* Info row — dados oficiais da conta (Apex 2026 EOD) */}
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: "Drawdown máx", value: `$${account.drawdown.toLocaleString()}`, color: "text-loss" },
-          { label: "Profit target", value: `$${account.target.toLocaleString()}`, color: "text-profit" },
+          { label: "Meta aprovação", value: `$${account.target.toLocaleString()}`, color: "text-profit" },
+          { label: "Lucro mín/dia", value: `$${account.lucroMinDia.toLocaleString()}`, color: "text-foreground" },
+          { label: "Gordura p/ saque", value: `$${account.gorduraSaque.toLocaleString()}`, color: "text-teal" },
+          { label: "Máx saques", value: `${account.maxSaques}`, color: "text-foreground" },
           { label: "Dias mín", value: `${account.minDays} dias`, color: "text-foreground" },
         ].map((s) => (
           <div key={s.label} className="bg-muted/40 rounded-xl p-3 text-center">

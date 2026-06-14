@@ -2,15 +2,13 @@
 
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { ACCOUNTS as ACCOUNT_CONFIG, type AccountKey } from "@/lib/guardian"
 
-const ACCOUNTS = [
-  { key: "PA25K", label: "PA 25K" },
-  { key: "PA50K", label: "PA 50K" },
-  { key: "PA75K", label: "PA 75K" },
-  { key: "PA100K", label: "PA 100K" },
-  { key: "PA150K", label: "PA 150K" },
-  { key: "PA250K", label: "PA 250K" },
-]
+// Deriva a lista das contas oficiais (fonte única em @/lib/guardian)
+const ACCOUNTS = (Object.keys(ACCOUNT_CONFIG) as AccountKey[]).map((key) => ({
+  key,
+  label: ACCOUNT_CONFIG[key].label,
+}))
 
 interface Props {
   currentAccount: string

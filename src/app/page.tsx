@@ -379,7 +379,7 @@ const FEATURES = [
   {
     icon: <Shield className="w-5 h-5" />,
     title: "Guardian Apex",
-    desc: "Calculadora em tempo real de trailing drawdown, consistency rule e scaling plan para contas Apex — do PA 25K ao PA 250K.",
+    desc: "Calculadora em tempo real de drawdown, consistency rule e scaling plan para contas Apex — do PA 25K ao PA 150K.",
     badge: "Específico para Apex",
   },
   {
