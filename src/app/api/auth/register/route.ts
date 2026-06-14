@@ -6,7 +6,8 @@ import { sendWelcomeEmail } from "@/lib/email"
 
 const schema = z.object({
   name: z.string().min(2).max(80),
-  email: z.string().email(),
+  // normaliza o email (trim + minusculo) p/ evitar duplicidade e falha de login por case
+  email: z.string().email().transform((e) => e.trim().toLowerCase()),
   password: z.string().min(8).max(100),
 })
 

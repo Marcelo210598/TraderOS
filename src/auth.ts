@@ -7,7 +7,8 @@ import { compare } from "bcryptjs"
 import { z } from "zod"
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
+  // normaliza o email (trim + minusculo) p/ casar com o banco independente do case digitado
+  email: z.string().email().transform((e) => e.trim().toLowerCase()),
   password: z.string().min(8),
 })
 
