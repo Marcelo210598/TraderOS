@@ -2,26 +2,29 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import crypto from "crypto"
+import { generateRawApiKey, hashApiKey, apiKeyPrefix } from "@/lib/apikey"
 
-// A chave é armazenada APENAS como hash SHA-256 (ver schema: key = SHA-256 da raw).
+// A chave é armazenada APENAS como hash SHA-256 (ver @/lib/apikey e o schema).
 // Como o hash é irreversível, não dá pra re-exibir uma chave já criada — então cada
-// download gera uma chave nova, rotacionando a anterior. O sync valida pelo hash.
-function hashKey(rawKey: string): string {
-  return crypto.createHash("sha256").update(rawKey).digest("hex")
-}
+// download gera uma chave nova, rotacionando a anterior. O sync valida pelo mesmo hash.
 
 export async function GET() {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
-  const rawKey = `traderos_${crypto.randomBytes(24).toString("hex")}`
+  const rawKey = generateRawApiKey()
 
   // Rotaciona: remove chaves antigas do usuário e cria a nova (guardando só o hash)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (prisma as any).userApiKey.deleteMany({ where: { userId: session.user.id } })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (prisma as any).userApiKey.create({
-    data: { id: crypto.randomUUID(), userId: session.user.id, key: hashKey(rawKey) },
+    data: {
+      id: crypto.randomUUID(),
+      userId: session.user.id,
+      key: hashApiKey(rawKey),
+      keyPrefix: apiKeyPrefix(rawKey),
+    },
   })
 
   // Devolve a chave CRUA (única vez que ela existe em texto) para o traderos_config.txt

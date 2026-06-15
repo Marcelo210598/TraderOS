@@ -2,10 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import crypto from "crypto"
-
-function hashKey(rawKey: string): string {
-  return crypto.createHash("sha256").update(rawKey).digest("hex")
-}
+import { generateRawApiKey, hashApiKey, apiKeyPrefix } from "@/lib/apikey"
 
 export async function GET() {
   const session = await auth()
@@ -32,9 +29,9 @@ export async function POST() {
     return NextResponse.json({ error: "Limite de 3 API Keys atingido" }, { status: 400 })
   }
 
-  const rawKey = `traderos_${crypto.randomBytes(24).toString("hex")}`
-  const keyHash = hashKey(rawKey)
-  const keyPrefix = rawKey.slice(0, 16)
+  const rawKey = generateRawApiKey()
+  const keyHash = hashApiKey(rawKey)
+  const keyPrefix = apiKeyPrefix(rawKey)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const created = await (prisma as any).userApiKey.create({

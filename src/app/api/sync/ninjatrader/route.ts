@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { giveXp, updateJournalStreak, updateProfitableDaysStreak, checkAndAwardAchievements } from "@/lib/gamification"
 import { XP_REWARDS } from "@/lib/xp"
-import crypto from "crypto"
+import { hashApiKey } from "@/lib/apikey"
 
 const syncSchema = z.object({
   instrument: z.string().min(1).max(20),
@@ -50,16 +50,12 @@ function detectAccountLabel(accountName?: string): string {
   return "PA"
 }
 
-function hashKey(rawKey: string): string {
-  return crypto.createHash("sha256").update(rawKey).digest("hex")
-}
-
 export async function POST(req: NextRequest) {
   // Auth via API Key no header — busca pelo hash SHA-256
   const apiKey = req.headers.get("x-api-key") ?? req.headers.get("X-API-Key")
   if (!apiKey) return NextResponse.json({ error: "API Key obrigatória" }, { status: 401 })
 
-  const keyHash = hashKey(apiKey)
+  const keyHash = hashApiKey(apiKey)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const keyRecord = await (prisma as any).userApiKey.findUnique({
