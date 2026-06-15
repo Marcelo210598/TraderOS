@@ -1,0 +1,9 @@
+# traderos_config.txt
+# Coloque ESTE arquivo na sua pasta "Documentos" (Documents).
+# A primeira linha que comecar com "traderos_" sera usada como sua API key.
+# Linhas em branco ou comecando com "#" sao ignoradas.
+#
+# Pegue a sua key no TraderOS em: Configuracoes > Integracao NinjaTrader.
+# NUNCA compartilhe sua key — quem tiver ela manda trade pra SUA conta.
+
+traderos_SUA_KEY_AQUI
