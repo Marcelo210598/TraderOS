@@ -42,6 +42,8 @@ function normalizeInstrument(raw: string): string {
 function detectAccountLabel(accountName?: string): string {
   if (!accountName) return "PA"
   const name = accountName.toUpperCase()
+  // Conta de simulacao (Sim101, SIM-xxx) -> "TEST": forward test do bot NAO suja metricas reais.
+  if (name.includes("SIM")) return "TEST"
   if (name.includes("EVAL") || name.includes("EVALUATION")) return "EVAL"
   if (name.includes("TEST")) return "TEST"
   // Detecta PA por tamanho: PA25K, PA50K, etc
