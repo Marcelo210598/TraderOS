@@ -90,7 +90,7 @@ model Trade {
   direction   Direction
   entryPrice  Decimal     @db.Decimal(12, 4)
   exitPrice   Decimal     @db.Decimal(12, 4)
-  quantity    Int         @default(1)
+  quantity    Decimal     @db.Decimal(12, 2) @default(1)
   pnl         Decimal     @db.Decimal(10, 2)
   pnlPoints   Decimal     @db.Decimal(10, 2)
   commission  Decimal     @db.Decimal(8, 2) @default(0)
