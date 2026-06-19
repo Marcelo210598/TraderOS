@@ -21,9 +21,9 @@ interface Props {
 // Plataformas disponíveis
 const PLATFORMS = [
   { id: "ninjatrader", label: "NinjaTrader 8", short: "NT", active: true, description: "Sincronização automática de trades" },
+  { id: "mt5",         label: "MetaTrader 5",  short: "MT5", active: true, description: "Sincronização automática de trades" },
   { id: "rithmic",     label: "Rithmic",        short: "R",  active: false, description: "Em breve — Q3 2026" },
   { id: "tradestation",label: "TradeStation",   short: "TS", active: false, description: "Em breve — Q4 2026" },
-  { id: "ibkr",        label: "Interactive Brokers", short: "IB", active: false, description: "Em breve — 2027" },
 ]
 
 export function IntegrationSection({ initialKeys }: Props) {
@@ -430,6 +430,187 @@ export function IntegrationSection({ initialKeys }: Props) {
                   </Faq>
                 </div>
 
+              </div>
+            )}
+          </div>
+
+        </div>
+      ) : platform === "mt5" ? (
+        <div className="space-y-4">
+
+          {/* Status + gerar key (a mesma API Key serve pro MT5 e NinjaTrader) */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {hasKeys ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-teal" />
+                  <span className="text-xs text-teal">API Key pronta — a mesma serve pro MT5</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Não configurado</span>
+                </>
+              )}
+            </div>
+            {keys.length < 3 && (
+              <button
+                onClick={generate}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-teal text-teal-foreground rounded-lg text-xs font-medium hover:bg-teal/90 transition-colors disabled:opacity-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {loading ? "Gerando..." : "Gerar API Key"}
+              </button>
+            )}
+          </div>
+
+          {/* Banner one-time da key */}
+          {newRawKey && (
+            <div className="p-3 bg-teal/5 border border-teal/30 rounded-xl space-y-2">
+              <p className="text-[11px] font-semibold text-teal flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5" />
+                Copie sua API Key agora — não será exibida novamente
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-[11px] font-mono text-foreground bg-muted/40 px-2 py-1.5 rounded truncate">
+                  {newRawKey}
+                </code>
+                <button onClick={() => copyKey(newRawKey, "new")} title="Copiar chave"
+                  className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0">
+                  {copied === "new" ? <Check className="w-3.5 h-3.5 text-profit" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Cole esta key no parâmetro <code className="font-mono">ApiKey</code> do EA ao anexá-lo no gráfico.
+              </p>
+            </div>
+          )}
+
+          {/* Lista de keys */}
+          {keys.map((k) => (
+            <div key={k.id} className="flex items-center gap-2 p-3 bg-muted/40 rounded-lg border border-border">
+              <code className="flex-1 text-xs font-mono text-foreground truncate">
+                {k.keyPrefix ?? "traderos_••••"}••••••••••••••••
+              </code>
+              <button onClick={() => revoke(k.id)} title="Revogar chave"
+                className="p-1.5 rounded hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive shrink-0">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+          {keys.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-3">
+              Gere uma API Key para conectar seu MetaTrader 5.
+            </p>
+          )}
+
+          {/* Download do EA */}
+          <a
+            href="/TraderOSSync.mq5"
+            download="TraderOSSync.mq5"
+            className="flex items-center justify-center gap-2 px-3 py-3 bg-teal text-teal-foreground rounded-xl text-xs font-semibold hover:bg-teal/90 transition-colors shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Baixar o Expert Advisor (TraderOSSync.mq5)
+          </a>
+
+          {/* Aviso WebRequest */}
+          <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+            <p className="text-[11px] text-amber-500/90 leading-relaxed">
+              <strong>Passo que todo mundo esquece:</strong> no MT5, vá em <span className="font-mono">Tools → Options → Expert Advisors</span>, marque <strong>&ldquo;Allow WebRequest for listed URL&rdquo;</strong> e adicione:{" "}
+              <span className="font-mono text-foreground break-all">https://trader-os-ashy.vercel.app</span>
+            </p>
+          </div>
+
+          {/* Tutorial passo a passo */}
+          <div className="border border-border rounded-xl overflow-hidden">
+            <button
+              onClick={() => setTutorialOpen(!tutorialOpen)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-muted/20 hover:bg-muted/40 transition-colors text-sm font-medium text-foreground"
+            >
+              <span className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-teal" />
+                Como instalar no MetaTrader 5 — passo a passo
+              </span>
+              {tutorialOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </button>
+
+            {tutorialOpen && (
+              <div className="divide-y divide-border">
+                <div className="px-5 py-3 bg-teal/5 flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-teal shrink-0" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Configuração única de <strong className="text-foreground">~3 minutos</strong>. Depois é automático. Funciona em conta demo e real, netting ou hedging.
+                  </p>
+                </div>
+
+                <TutorialStep n={1} title="Gere sua API Key" icon={<Plus className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Clique em <strong className="text-foreground">Gerar API Key</strong> acima e <strong className="text-foreground">copie a chave</strong> — você vai colá-la no EA daqui a pouco. (Se já usa o NinjaTrader, a mesma key funciona.)
+                  </p>
+                </TutorialStep>
+
+                <TutorialStep n={2} title="Baixe o Expert Advisor" icon={<Download className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Clique em <strong className="text-foreground">Baixar o Expert Advisor</strong> acima. Você recebe o arquivo{" "}
+                    <span className="font-mono text-[10px] text-teal">TraderOSSync.mq5</span>.
+                  </p>
+                </TutorialStep>
+
+                <TutorialStep n={3} title="Abra a pasta de dados do MT5" icon={<FolderOpen className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    No MetaTrader 5: <span className="font-mono text-[10px]">File → Open Data Folder</span>. Entre em{" "}
+                    <span className="font-mono text-[10px] text-teal">MQL5 → Experts</span> e coloque o arquivo <span className="font-mono text-[10px]">TraderOSSync.mq5</span> ali dentro.
+                  </p>
+                </TutorialStep>
+
+                <TutorialStep n={4} title="Compile no MetaEditor (F7)" icon={<Terminal className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Abra o <strong className="text-foreground">MetaEditor</strong> (botão no MT5 ou tecla F4), encontre o <span className="font-mono text-[10px]">TraderOSSync</span> em Experts e pressione{" "}
+                    <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">F7</kbd>. Tem que aparecer <strong className="text-foreground">&ldquo;0 errors&rdquo;</strong>.
+                  </p>
+                </TutorialStep>
+
+                <TutorialStep n={5} title="Libere a URL (WebRequest)" icon={<AlertTriangle className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    No MT5: <span className="font-mono text-[10px]">Tools → Options → Expert Advisors</span>. Marque{" "}
+                    <strong className="text-foreground">&ldquo;Allow WebRequest for listed URL&rdquo;</strong> e adicione a URL abaixo (sem isso o EA não consegue enviar):
+                  </p>
+                  <div className="p-3 bg-[#0a0f1a] rounded-lg border border-border">
+                    <code className="text-[11px] font-mono text-teal break-all">https://trader-os-ashy.vercel.app</code>
+                  </div>
+                </TutorialStep>
+
+                <TutorialStep n={6} title="Anexe o EA e cole a key" icon={<Upload className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    Arraste o EA <span className="font-mono text-[10px]">TraderOSSync</span> (na janela Navigator → Expert Advisors) para <strong className="text-foreground">qualquer gráfico</strong>. Na janela que abrir, na aba <span className="font-mono text-[10px]">Inputs</span>, cole sua API Key no campo <span className="font-mono text-[10px]">ApiKey</span>.
+                  </p>
+                  <div className="p-3 bg-profit/5 border border-profit/20 rounded-lg">
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Por fim, ligue o <strong className="text-foreground">Auto-Trading</strong> (botão verde no topo do MT5). Um smiley 🙂 no canto do gráfico = EA ativo. A partir daí, cada trade fechado cai no Journal automaticamente.
+                    </p>
+                  </div>
+                </TutorialStep>
+
+                <div className="px-5 py-4 space-y-2">
+                  <p className="text-xs font-semibold text-foreground mb-3">Dúvidas frequentes</p>
+                  <Faq q="Preciso deixar o gráfico aberto?">
+                    Sim — o EA roda anexado a um gráfico. Pode ser qualquer símbolo, com o Auto-Trading ligado. Deixe o MT5 aberto.
+                  </Faq>
+                  <Faq q="Funciona com conta demo?">
+                    Sim. Trades de conta demo entram marcados como TEST, pra não misturar com as métricas da conta real.
+                  </Faq>
+                  <Faq q="Conta netting ou hedging?">
+                    Os dois. O EA captura cada posição fechada, então funciona igual nos dois modos.
+                  </Faq>
+                  <Faq q="O EA dá ordem ou copia trade?">
+                    Não. Ele só LÊ e envia seus trades já fechados pro TraderOS. Não abre nem fecha nada.
+                  </Faq>
+                  <Faq q="Trades antigos duplicam?">
+                    Não. Cada posição tem um ID único; se já foi enviada, o TraderOS ignora.
+                  </Faq>
+                </div>
               </div>
             )}
           </div>

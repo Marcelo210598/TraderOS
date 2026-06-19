@@ -31,6 +31,7 @@ export default async function EditarTradePage({ params }: { params: Promise<{ id
     date: trade.date.toISOString(),
     entryPrice: Number(trade.entryPrice),
     exitPrice: Number(trade.exitPrice),
+    quantity: Number(trade.quantity),
     pnl: Number(trade.pnl),
     pnlPoints: Number(trade.pnlPoints),
     commission: Number(trade.commission),

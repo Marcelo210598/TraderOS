@@ -69,6 +69,7 @@ export default async function JournalPage({ searchParams }: Props) {
     date: t.date.toISOString(),
     entryPrice: Number(t.entryPrice),
     exitPrice: Number(t.exitPrice),
+    quantity: Number(t.quantity),
     pnl: Number(t.pnl),
     pnlPoints: Number(t.pnlPoints),
     commission: Number(t.commission),
