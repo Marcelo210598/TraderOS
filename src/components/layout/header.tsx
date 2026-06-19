@@ -5,6 +5,7 @@ import { NotificationBell } from "./notification-bell"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -91,16 +92,19 @@ export function Header({
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-            <DropdownMenuLabel className="font-normal">
-              <p className="text-sm font-medium text-foreground truncate">{userName}</p>
-              <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="font-normal">
+                <p className="text-sm font-medium text-foreground truncate">{userName}</p>
+                <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator className="bg-border" />
-            <DropdownMenuItem className="cursor-pointer text-muted-foreground hover:text-foreground gap-2">
-              <a href="/configuracoes" className="flex items-center gap-2 w-full">
-                <Settings className="w-4 h-4" />
-                Configurações
-              </a>
+            <DropdownMenuItem
+              render={<a href="/configuracoes" />}
+              className="cursor-pointer text-muted-foreground hover:text-foreground gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              Configurações
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
