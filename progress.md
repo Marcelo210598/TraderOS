@@ -1,6 +1,6 @@
 # TraderOS — Progresso
 
-## Última atualização: 18/06/2026 — Alertas de trade in-app (sync NinjaTrader) + fixes 15-18/06
+## Última atualização: 18/06/2026 — Web Push (alertas no celular) + alertas in-app + fixes 15-18/06
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
@@ -72,6 +72,15 @@
   - Backend: `POST /api/sync/ninjatrader` cria uma `Notification` tipo `TRADE_ALERT` após salvar o trade (helper `src/lib/trade-alert.ts`, com try/catch — nunca derruba o sync). `content` guarda os dados em JSON (result, pnl, instrumento, direção, qtd, conta, sessão).
   - Sino do header (`notification-bell.tsx`): passou a fazer **polling a cada 30s** + dispara um **toast colorido** (verde/vermelho conforme WIN/LOSS) no canto superior direito quando chega trade novo. `localStorage` evita repetir o toast ao navegar entre páginas.
   - Página `/notificacoes`: card dedicado pro `TRADE_ALERT` (compacto, colorido por resultado, com PnL/instrumento/conta/sessão).
+- [x] **🔔 Web Push — alerta no celular/desktop com o app FECHADO (18/06):** igual Instagram/Nômade Trader. Estudado e replicado o padrão do Nômade.
+  - Lib `web-push` + VAPID keys (3 env vars na Vercel: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`).
+  - Tabela nova `PushSubscription` (endpoint único, p256dh, auth, userId) — `prisma db push`.
+  - `src/lib/push.ts`: `sendPushToUser` envia pra todos os devices e remove subscriptions mortas (410/404). Nunca lança.
+  - `public/sw.js` v2: handlers `push` + `notificationclick` (abre /notificacoes ao tocar).
+  - Rotas `/api/push/subscribe` (POST/DELETE) e `/api/push/test`.
+  - Componente `PushNotifications` em **Configurações**: botão "Ativar notificações", botão de teste, detecção de iPhone (mostra passo a passo de instalar o PWA — Apple só permite push no app instalado na tela inicial, iOS 16.4+).
+  - Trigger: trade do bot chega no sync → cria notificação in-app → dispara o push.
+  - ⚠️ iPhone: SÓ funciona com o PWA instalado na tela de início. Android/desktop: navegador normal.
 
 ## 🚧 Em progresso
 - **Integração NinjaTrader (AddOn):** código reescrito em `integration-section.tsx`, aguardando teste de compilação no NT8 real
@@ -123,6 +132,9 @@ UPLOADTHING_TOKEN=✅ na Vercel (add 8d atrás) — screenshots OK
 RESEND_API_KEY=✅ na Vercel — email boas-vindas OK
 RESEND_FROM_EMAIL=✅ na Vercel
 ANTHROPIC_API_KEY=✅ na Vercel — IA Vega / Ask Claude OK
+VAPID_PUBLIC_KEY=✅ na Vercel (18/06) — Web Push
+VAPID_PRIVATE_KEY=✅ na Vercel (18/06) — Web Push (SECRETO, nunca no git)
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=✅ na Vercel (18/06) — Web Push (exposta no client, OK)
 # Gateway de pagamento=🔴 NÃO implementado (botão /planos sem onClick). OK por ora: soft-launch é grátis.
 ```
 

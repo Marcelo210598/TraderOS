@@ -4,8 +4,9 @@ import { redirect } from "next/navigation"
 import { Header } from "@/components/layout/header"
 import { ProfileForm, PasswordForm } from "@/components/settings/settings-forms"
 import { IntegrationSection } from "@/components/settings/integration-section"
+import { PushNotifications } from "@/components/settings/push-notifications"
 import Link from "next/link"
-import { Shield, User, CreditCard, Link2 } from "lucide-react"
+import { Shield, User, CreditCard, Link2, Bell } from "lucide-react"
 
 const PLAN_LABELS: Record<string, { label: string; color: string; description: string }> = {
   FREE:   { label: "Free",   color: "text-muted-foreground", description: "Acesso básico ao Journal e Dashboard" },
@@ -64,6 +65,18 @@ export default async function ConfiguracoesPage() {
               <h2 className="text-sm font-semibold text-foreground">Segurança</h2>
             </div>
             <PasswordForm hasPassword={!!user.password} />
+          </section>
+
+          {/* Notificações */}
+          <section className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Bell className="w-4 h-4 text-teal" />
+              <h2 className="text-sm font-semibold text-foreground">Notificações</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-5">
+              Receba os trades do bot (WIN/LOSS) no celular ou desktop, mesmo com o app fechado.
+            </p>
+            <PushNotifications />
           </section>
 
           {/* Integrações */}
