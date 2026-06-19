@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   BookOpen,
   TrendingUp,
-  Shield,
   Calendar,
   BarChart3,
   BarChart2,
@@ -50,7 +49,6 @@ const navGroups: NavGroup[] = [
     label: "Ferramentas",
     items: [
       { href: "/analytics", icon: BarChart2, label: "Analytics" },
-      { href: "/guardian", icon: Shield, label: "Guardian", planRequired: "TRADER" },
       { href: "/setups", icon: BarChart3, label: "Setups", planRequired: "TRADER" },
       { href: "/planner", icon: ClipboardList, label: "Planner" },
       { href: "/calendario", icon: Calendar, label: "Calendário" },

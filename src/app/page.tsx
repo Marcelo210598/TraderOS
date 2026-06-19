@@ -6,7 +6,6 @@ import {
   X,
   Zap,
   Brain,
-  Shield,
   Trophy,
   BarChart3,
   ArrowRight,
@@ -71,7 +70,7 @@ export default async function Home() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-teal/20 bg-teal/5 text-teal text-xs font-medium mb-8">
             <Zap className="w-3 h-3" />
-            Feito para traders de futuros americanos — Apex, TopStep, FTMO
+            O app do trader brasileiro — futuros, forex e ações
           </div>
 
           <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-foreground leading-[1.1] mb-6">
@@ -80,9 +79,9 @@ export default async function Home() {
           </h1>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-10">
-            Journal inteligente com IA, guardian de regras Apex em tempo real,
+            Journal inteligente com IA, sincronização automática da sua corretora,
             análise emocional e gamificação. Tudo que você precisa para operar
-            com consistência e evolir como trader.
+            com consistência e evoluir como trader.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -333,7 +332,7 @@ export default async function Home() {
           </h2>
           <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
             Junte-se a traders que usam o TraderOS para rastrear performance,
-            controlar emoções e cumprir as regras das prop firms.
+            controlar emoções e evoluir de verdade — opere o que você quiser.
           </p>
           <Link
             href="/cadastro"
@@ -377,10 +376,10 @@ const FEATURES = [
     badge: "Claude Sonnet",
   },
   {
-    icon: <Shield className="w-5 h-5" />,
-    title: "Guardian Apex",
-    desc: "Calculadora em tempo real de drawdown, consistency rule e scaling plan para contas Apex — do PA 25K ao PA 150K.",
-    badge: "Específico para Apex",
+    icon: <Zap className="w-5 h-5" />,
+    title: "Sincronização automática",
+    desc: "Conecte NinjaTrader ou MetaTrader 5 e seus trades caem no journal sozinhos, com alerta no celular a cada operação.",
+    badge: "NinjaTrader + MT5",
   },
   {
     icon: <BarChart3 className="w-5 h-5" />,
@@ -424,12 +423,11 @@ const COMPARISON = [
   { feature: "IA integrada para análise", traderos: true, others: false },
   { feature: "Análise por trade com LLM", traderos: true, others: false },
   { feature: "Check-in emocional + correlação", traderos: true, others: false },
-  { feature: "Guardian Apex (drawdown/consistency)", traderos: true, others: false },
   { feature: "Gráfico de execução (MFE/MAE)", traderos: true, others: false },
   { feature: "Simulador 'E se?'", traderos: true, others: false },
   { feature: "Desafios personalizados", traderos: true, others: false },
   { feature: "Gamificação (XP, conquistas, streaks)", traderos: true, others: false },
-  { feature: "Sync automático NinjaTrader 8", traderos: true, others: "Parcial" },
+  { feature: "Sync automático (NinjaTrader + MT5)", traderos: true, others: "Parcial" },
   { feature: "Screenshots no Journal", traderos: true, others: "Parcial" },
   { feature: "Export PDF", traderos: true, others: "Parcial" },
   { feature: "Plano gratuito", traderos: true, others: false },
@@ -445,7 +443,7 @@ const PLANS = [
     features: [
       "Até 10 trades por mês",
       "Journal com PnL automático",
-      "Guardian Apex completo",
+      "Sync com a corretora",
       "Check-in emocional básico",
       "Dashboard de métricas",
     ],

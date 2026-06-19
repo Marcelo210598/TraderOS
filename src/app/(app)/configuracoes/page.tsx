@@ -122,6 +122,24 @@ export default async function ConfiguracoesPage() {
             </div>
           </section>
 
+          {/* Ferramentas de prop firm (Guardian aposentado — acesso discreto) */}
+          <section className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Shield className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold text-foreground">Ferramentas de prop firm</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Calculadoras específicas pra contas de prop firm de futuros (ex: Apex).
+            </p>
+            <Link
+              href="/guardian"
+              className="inline-flex items-center gap-2 px-4 py-2 border border-border text-muted-foreground rounded-lg text-sm font-medium hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Shield className="w-4 h-4" />
+              Abrir Guardian (trailing drawdown)
+            </Link>
+          </section>
+
         </div>
       </div>
     </div>

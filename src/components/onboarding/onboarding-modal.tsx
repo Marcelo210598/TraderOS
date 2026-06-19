@@ -12,7 +12,7 @@ const STEPS = [
     emoji: "🎯",
     title: "Bem-vindo ao TraderOS",
     subtitle: "Seu diário de trading inteligente",
-    body: "Desenvolvido para traders brasileiros que operam futuros americanos via Apex. Aqui você controla tudo — do trade à evolução mental.",
+    body: "O app do trader brasileiro — não importa se você opera futuros, forex ou ações. Aqui você controla tudo, do trade à evolução mental.",
     cta: "Vamos começar",
   },
   {
@@ -23,10 +23,10 @@ const STEPS = [
     cta: "Próximo",
   },
   {
-    emoji: "🛡️",
-    title: "Guardian — regras Apex",
-    subtitle: "Nunca mais se pegar de surpresa",
-    body: "O Guardian acompanha seu trailing drawdown EOD e a Consistency Rule em tempo real. Saiba exatamente onde você está no seu desafio.",
+    emoji: "🔗",
+    title: "Conecte sua corretora",
+    subtitle: "Sincronização automática de trades",
+    body: "Ligue o NinjaTrader ou o MetaTrader 5 e seus trades caem no journal sozinhos — com alerta no celular a cada operação. Sem digitar nada.",
     cta: "Próximo",
   },
   {

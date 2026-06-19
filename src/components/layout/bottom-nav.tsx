@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, BookOpen, BarChart2, Shield, Plus } from "lucide-react"
+import { LayoutDashboard, BookOpen, BarChart2, Calendar, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const leftItems = [
@@ -12,7 +12,7 @@ const leftItems = [
 
 const rightItems = [
   { href: "/analytics", icon: BarChart2, label: "Analytics" },
-  { href: "/guardian", icon: Shield, label: "Guardian" },
+  { href: "/calendario", icon: Calendar, label: "Calendário" },
 ]
 
 export function BottomNav() {

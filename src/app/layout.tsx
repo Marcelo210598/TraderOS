@@ -21,8 +21,8 @@ export const metadata: Metadata = {
     template: "%s | TraderOS",
   },
   description:
-    "A plataforma definitiva para traders brasileiros de futuros americanos. Journal, análise, gamificação e cálculo de regras Apex.",
-  keywords: ["trading", "futures", "NQ", "ES", "Apex Trader Funding", "prop firm", "journal"],
+    "O app do trader brasileiro. Journal, análise e evolução — pra futuros, forex e o que você operar.",
+  keywords: ["trading", "trader", "journal", "forex", "futures", "MetaTrader 5", "NinjaTrader", "análise"],
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

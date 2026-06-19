@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "TraderOS",
     short_name: "TraderOS",
-    description: "Journal e análise para traders de futuros americanos",
+    description: "O app do trader: journal, análise e evolução — futuros, forex e mais",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#080C14",
