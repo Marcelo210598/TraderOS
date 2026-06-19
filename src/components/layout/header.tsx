@@ -1,6 +1,6 @@
 "use client"
 
-import { LogOut, User, ChevronDown, Menu } from "lucide-react"
+import { LogOut, Settings, ChevronDown, Menu } from "lucide-react"
 import { NotificationBell } from "./notification-bell"
 import {
   DropdownMenu,
@@ -97,9 +97,9 @@ export function Header({
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem className="cursor-pointer text-muted-foreground hover:text-foreground gap-2">
-              <a href="/perfil" className="flex items-center gap-2 w-full">
-                <User className="w-4 h-4" />
-                Meu Perfil
+              <a href="/configuracoes" className="flex items-center gap-2 w-full">
+                <Settings className="w-4 h-4" />
+                Configurações
               </a>
             </DropdownMenuItem>
           </DropdownMenuContent>
