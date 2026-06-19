@@ -1,6 +1,6 @@
 # TraderOS — Progresso
 
-## Última atualização: 08/06/2026 — Auditoria pré-soft-launch + script de promoção PRO
+## Última atualização: 18/06/2026 — Alertas de trade in-app (sync NinjaTrader) + fixes 15-18/06
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
@@ -64,6 +64,15 @@
 - [x] **Vercel Analytics + Speed Insights** — `@vercel/analytics` e `@vercel/speed-insights` instalados e funcionando em produção
 - [x] **Fix lockfile** — `npm error Invalid Version: ` resolvido (campo `version` faltando em dep opcional do lockfile)
 
+### Sessões 15-18/06/2026 — Robustez do sync + alertas
+- [x] **Bug auth API Key (15/06):** geração salvava plaintext e validação usava hash SHA-256 → 401 em toda key nova. Centralizada a lógica em `src/lib/apikey.ts` (fonte única) + `scripts/audit-apikeys.mjs`. Keys recriadas e validadas (HTTP 201).
+- [x] **AddOn v9 (15/06):** fila sequencial (`BlockingCollection` + worker) com retry 4x/backoff substituindo fire-and-forget → resolve "A task was canceled" em rajada/replay. `public/TraderOSSync.zip` regenerado (o tutorial do app serve a v9). Validado ao vivo na conta do Andersson.
+- [x] **Trades de simulação separados (18/06):** conta `Sim101` → label `TEST` no sync, não suja métricas reais. Paginação do journal corrigida.
+- [x] **🔔 Alertas de trade in-app (18/06):** quando um trade chega via sync do NinjaTrader, o app gera um alerta em tempo real (foco em quem roda bot na conta).
+  - Backend: `POST /api/sync/ninjatrader` cria uma `Notification` tipo `TRADE_ALERT` após salvar o trade (helper `src/lib/trade-alert.ts`, com try/catch — nunca derruba o sync). `content` guarda os dados em JSON (result, pnl, instrumento, direção, qtd, conta, sessão).
+  - Sino do header (`notification-bell.tsx`): passou a fazer **polling a cada 30s** + dispara um **toast colorido** (verde/vermelho conforme WIN/LOSS) no canto superior direito quando chega trade novo. `localStorage` evita repetir o toast ao navegar entre páginas.
+  - Página `/notificacoes`: card dedicado pro `TRADE_ALERT` (compacto, colorido por resultado, com PnL/instrumento/conta/sessão).
+
 ## 🚧 Em progresso
 - **Integração NinjaTrader (AddOn):** código reescrito em `integration-section.tsx`, aguardando teste de compilação no NT8 real
 
@@ -85,6 +94,8 @@
 ## 📋 Próximos passos
 
 ### Produto
+- [x] ~~**Alertas de trade no app**~~ ✅ feito em 18/06 (toast in-app em tempo real via polling do sino)
+- [ ] **Rate limiting na IA** — antes de abrir o app pro público geral (hoje OK: poucos alunos)
 - [ ] **UploadThing** — screenshots no Journal (UPLOADTHING_TOKEN pendente)
 - [ ] **Domínio traderos.app** (~15min, mais pra frente)
 - [ ] **Stripe** — planos Trader R$97 / Pro R$197, webhook para atualizar user.plan (~8-12h)

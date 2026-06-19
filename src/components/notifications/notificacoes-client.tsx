@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, ChevronDown, ChevronUp, BarChart3, Sparkles, Loader2 } from "lucide-react"
+import { Bell, ChevronDown, ChevronUp, BarChart3, Sparkles, Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Notification {
@@ -18,6 +18,27 @@ interface Props {
   userPlan: string
 }
 
+interface TradeAlertPayload {
+  result: "WIN" | "LOSS" | "BREAKEVEN"
+  pnl: number
+  pnlPoints: number
+  instrument: string
+  direction: "LONG" | "SHORT"
+  quantity: number
+  accountLabel: string
+  session: "AM" | "PM" | "OVERNIGHT"
+}
+
+function parseTradeAlert(content: string): TradeAlertPayload | null {
+  try {
+    const d = JSON.parse(content)
+    if (d && typeof d.pnl === "number" && d.result) return d as TradeAlertPayload
+    return null
+  } catch {
+    return null
+  }
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -27,8 +48,55 @@ function formatDate(iso: string) {
   })
 }
 
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+const SESSION_LABEL: Record<string, string> = { AM: "Manhã", PM: "Tarde", OVERNIGHT: "Overnight" }
+
+function TradeAlertCard({ notification, alert }: { notification: Notification; alert: TradeAlertPayload }) {
+  const isWin = alert.result === "WIN"
+  const isLoss = alert.result === "LOSS"
+  const Icon = isWin ? TrendingUp : isLoss ? TrendingDown : Minus
+  const iconColor = isWin ? "text-profit" : isLoss ? "text-loss" : "text-muted-foreground"
+  const sign = alert.pnl >= 0 ? "+" : "-"
+  const value = Math.abs(alert.pnl).toFixed(0)
+
+  return (
+    <div className={cn(
+      "bg-card border rounded-xl flex items-center gap-3 px-5 py-4 transition-all",
+      notification.read ? "border-border" : isWin ? "border-profit/30" : isLoss ? "border-loss/30" : "border-border"
+    )}>
+      <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-background/60", iconColor)}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-foreground truncate">
+          <span className={iconColor}>{sign}${value}</span>
+          {" · "}
+          {alert.instrument} {alert.direction} ×{alert.quantity}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {alert.accountLabel} · {SESSION_LABEL[alert.session] ?? alert.session} · {formatDateTime(notification.createdAt)}
+        </p>
+      </div>
+      {!notification.read && <span className="w-2 h-2 rounded-full bg-teal shrink-0" />}
+    </div>
+  )
+}
+
 function NotificationCard({ notification }: { notification: Notification }) {
   const [expanded, setExpanded] = useState(true)
+
+  if (notification.type === "TRADE_ALERT") {
+    const alert = parseTradeAlert(notification.content)
+    if (alert) return <TradeAlertCard notification={notification} alert={alert} />
+  }
 
   const lines = notification.content.split("\n")
 

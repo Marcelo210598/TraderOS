@@ -4,6 +4,7 @@ import { z } from "zod"
 import { giveXp, updateJournalStreak, updateProfitableDaysStreak, checkAndAwardAchievements } from "@/lib/gamification"
 import { XP_REWARDS } from "@/lib/xp"
 import { hashApiKey } from "@/lib/apikey"
+import { createTradeAlert } from "@/lib/trade-alert"
 
 const syncSchema = z.object({
   instrument: z.string().min(1).max(20),
@@ -142,6 +143,23 @@ export async function POST(req: NextRequest) {
   await updateJournalStreak(userId, tradeDate)
   await updateProfitableDaysStreak(userId, tradeDate)
   await checkAndAwardAchievements(userId)
+
+  // Alerta in-app em tempo real (foco em quem roda bot na conta).
+  // Nunca pode derrubar o sync — se falhar, o trade já foi salvo (HTTP 201).
+  try {
+    await createTradeAlert(userId, {
+      result,
+      pnl: d.pnl,
+      pnlPoints: d.pnlPoints,
+      instrument,
+      direction: d.direction,
+      quantity: d.quantity,
+      accountLabel,
+      session,
+    })
+  } catch (e) {
+    console.error("[sync] falha ao criar alerta de trade:", e)
+  }
 
   return NextResponse.json({ ok: true, id: trade.id }, { status: 201 })
 }
