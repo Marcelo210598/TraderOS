@@ -546,57 +546,127 @@ export function IntegrationSection({ initialKeys }: Props) {
                 </div>
 
                 <TutorialStep n={1} title="Gere sua API Key" icon={<Plus className="w-4 h-4" />}>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Clique em <strong className="text-foreground">Gerar API Key</strong> acima e <strong className="text-foreground">copie a chave</strong> — você vai colá-la no EA daqui a pouco. (Se já usa o NinjaTrader, a mesma key funciona.)
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    Aqui mesmo, nesta tela (<strong className="text-foreground">Configurações → Integrações → MetaTrader 5</strong>), clique em{" "}
+                    <strong className="text-foreground">Gerar API Key</strong> e <strong className="text-foreground">copie a chave</strong> (algo como{" "}
+                    <span className="font-mono text-[10px] text-teal">traderos_xxxx…</span>) — você vai colá-la no EA mais pra frente.
+                    Se já usa o NinjaTrader, a mesma key funciona.
                   </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step2-integracoes.png" alt="Tela de Integrações com MetaTrader 5 selecionado" caption="Selecione MetaTrader 5, gere a API Key e baixe o Expert Advisor" />
                 </TutorialStep>
 
                 <TutorialStep n={2} title="Baixe o Expert Advisor" icon={<Download className="w-4 h-4" />}>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Clique em <strong className="text-foreground">Baixar o Expert Advisor</strong> acima. Você recebe o arquivo{" "}
-                    <span className="font-mono text-[10px] text-teal">TraderOSSync.mq5</span>.
+                    Nesta mesma tela, clique em <strong className="text-foreground">Baixar o Expert Advisor (TraderOSSync.mq5)</strong>. O arquivo{" "}
+                    <span className="font-mono text-[10px] text-teal">TraderOSSync.mq5</span> vai pra sua pasta de Downloads.
                   </p>
                 </TutorialStep>
 
                 <TutorialStep n={3} title="Abra a pasta de dados do MT5" icon={<FolderOpen className="w-4 h-4" />}>
                   <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    No MetaTrader 5: <span className="font-mono text-[10px]">File → Open Data Folder</span>. Entre em{" "}
-                    <span className="font-mono text-[10px] text-teal">MQL5 → Experts</span> e coloque o arquivo <span className="font-mono text-[10px]">TraderOSSync.mq5</span> ali dentro.
+                    Abra o MetaTrader 5. No menu superior: <span className="font-mono text-[10px]">Arquivo → Abrir Pasta de Dados</span>.
                   </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step4-menu-arquivo.png" alt="Menu Arquivo com Abrir Pasta de Dados" caption="Arquivo → Abrir Pasta de Dados" />
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-3 mb-3">
+                    Na janela que abrir, entre na pasta <span className="font-mono text-[10px] text-teal">MQL5</span> e depois em{" "}
+                    <span className="font-mono text-[10px] text-teal">Experts</span>.
+                  </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step6-pasta-mql5.png" alt="Pasta MQL5" caption="Entre em MQL5…" />
+                  <TutorialImage src="/tutorial/mt5/mt5-step7-pasta-experts.png" alt="Pasta Experts" caption="…e depois em Experts" />
                 </TutorialStep>
 
-                <TutorialStep n={4} title="Compile no MetaEditor (F7)" icon={<Terminal className="w-4 h-4" />}>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Abra o <strong className="text-foreground">MetaEditor</strong> (botão no MT5 ou tecla F4), encontre o <span className="font-mono text-[10px]">TraderOSSync</span> em Experts e pressione{" "}
-                    <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">F7</kbd>. Tem que aparecer <strong className="text-foreground">&ldquo;0 errors&rdquo;</strong>.
-                  </p>
-                </TutorialStep>
-
-                <TutorialStep n={5} title="Libere a URL (WebRequest)" icon={<AlertTriangle className="w-4 h-4" />}>
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    No MT5: <span className="font-mono text-[10px]">Tools → Options → Expert Advisors</span>. Marque{" "}
-                    <strong className="text-foreground">&ldquo;Allow WebRequest for listed URL&rdquo;</strong> e adicione a URL abaixo (sem isso o EA não consegue enviar):
-                  </p>
-                  <div className="p-3 bg-[#0a0f1a] rounded-lg border border-border">
-                    <code className="text-[11px] font-mono text-teal break-all">https://trader-os-ashy.vercel.app</code>
+                <TutorialStep n={4} title="Coloque o EA dentro da pasta Experts" icon={<Upload className="w-4 h-4" />}>
+                  {/* Windows */}
+                  <div className="p-3 bg-muted/20 rounded-lg border border-border mb-2">
+                    <p className="text-[11px] font-semibold text-foreground mb-1">🪟 No Windows</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Arraste o <span className="font-mono text-[10px]">TraderOSSync.mq5</span> da pasta <span className="font-mono text-[10px]">Downloads</span> direto pra dentro da pasta <span className="font-mono text-[10px]">Experts</span> que abriu. Pronto.
+                    </p>
                   </div>
-                </TutorialStep>
 
-                <TutorialStep n={6} title="Anexe o EA e cole a key" icon={<Upload className="w-4 h-4" />}>
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    Arraste o EA <span className="font-mono text-[10px]">TraderOSSync</span> (na janela Navigator → Expert Advisors) para <strong className="text-foreground">qualquer gráfico</strong>. Na janela que abrir, na aba <span className="font-mono text-[10px]">Inputs</span>, cole sua API Key no campo <span className="font-mono text-[10px]">ApiKey</span>.
-                  </p>
-                  <div className="p-3 bg-profit/5 border border-profit/20 rounded-lg">
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Por fim, ligue o <strong className="text-foreground">Auto-Trading</strong> (botão verde no topo do MT5). Um smiley 🙂 no canto do gráfico = EA ativo. A partir daí, cada trade fechado cai no Journal automaticamente.
+                  {/* Mac */}
+                  <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+                    <p className="text-[11px] font-semibold text-amber-500/90 mb-1">🍎 No Mac (atenção — passo diferente!)</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed mb-2">
+                      No Mac o MT5 roda num emulador e <strong className="text-foreground">não deixa arrastar</strong> do Finder pra dentro da janela dele. Faça assim:
+                    </p>
+                    <ol className="text-[11px] text-muted-foreground leading-relaxed list-decimal pl-4 space-y-1">
+                      <li>No Finder, copie o <span className="font-mono text-[10px]">TraderOSSync.mq5</span> (Cmd+C)</li>
+                      <li>No Finder: menu <span className="font-mono text-[10px]">Ir → Ir para Pasta…</span> (Cmd+Shift+G)</li>
+                      <li>Cole este caminho e dê Enter:</li>
+                    </ol>
+                    <div className="p-2 bg-[#0a0f1a] rounded border border-border my-2">
+                      <code className="text-[10px] font-mono text-teal break-all">~/Library/Application Support/net.metaquotes.wine.metatrader5/drive_c/Program Files/MetaTrader 5/MQL5/Experts</code>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Cole o arquivo ali (Cmd+V). <span className="text-foreground/80">Se a corretora usa um MT5 com nome próprio, a pasta <span className="font-mono text-[10px]">net.metaquotes…</span> muda — procure em <span className="font-mono text-[10px]">~/Library/Application Support/</span> a pasta com &ldquo;metatrader&rdquo; no nome.</span>
                     </p>
                   </div>
                 </TutorialStep>
 
+                <TutorialStep n={5} title="Abra o MetaEditor e compile (F7)" icon={<Terminal className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    No MT5, clique no botão <strong className="text-foreground">IDE</strong> (no topo) ou pressione <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">F4</kbd> pra abrir o <strong className="text-foreground">MetaEditor</strong>.
+                  </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step8-botao-ide.png" alt="Botão IDE no MetaTrader 5" caption="Clique em IDE (ou F4) pra abrir o MetaEditor" />
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-3 mb-3">
+                    No painel <strong className="text-foreground">Navegador</strong> (esquerda), abra a pasta <span className="font-mono text-[10px] text-teal">Experts</span>, dê duplo clique no{" "}
+                    <span className="font-mono text-[10px]">TraderOSSync</span> e pressione <kbd className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">F7</kbd> (ou botão Compilar).
+                  </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step11-codigo-aberto.png" alt="Código do TraderOSSync aberto no MetaEditor" caption="Duplo clique no TraderOSSync e pressione F7" />
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-3 mb-3">
+                    Na aba <strong className="text-foreground">Erros</strong> (embaixo) tem que aparecer <strong className="text-foreground">0 erro(s), 0 aviso(s)</strong>.
+                  </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step12-compilado-0-erros.png" alt="Compilação sem erros" caption="0 errors, 0 warnings = compilado com sucesso ✅" />
+                </TutorialStep>
+
+                <TutorialStep n={6} title="Libere a URL (WebRequest)" icon={<AlertTriangle className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    <strong className="text-foreground">É o passo que mais dá erro se esquecer.</strong> Volte pro MetaTrader 5 (a janela dos gráficos). No menu: <span className="font-mono text-[10px]">Ferramentas → Opções</span>.
+                  </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step14-menu-ferramentas-opcoes.png" alt="Menu Ferramentas com Opções" caption="Ferramentas → Opções" />
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-3 mb-3">
+                    Vá na aba <span className="font-mono text-[10px] text-teal">Expert Advisors</span> (esse nome fica em inglês mesmo). Marque <strong className="text-foreground">&ldquo;Permitir algotrading&rdquo;</strong> e{" "}
+                    <strong className="text-foreground">&ldquo;Relacione no quadro abaixo as URL… WebRequest&rdquo;</strong>. No quadro, clique em <span className="font-mono text-[10px]">+ adicionar nova URL</span> e cole:
+                  </p>
+                  <div className="p-3 bg-[#0a0f1a] rounded-lg border border-border mb-3">
+                    <code className="text-[11px] font-mono text-teal break-all">https://trader-os-ashy.vercel.app</code>
+                  </div>
+                  <TutorialImage src="/tutorial/mt5/mt5-step17-webrequest-configurado.png" alt="WebRequest configurado com a URL do TraderOS" caption="As 2 caixas marcadas e a URL listada. Clique OK." />
+                </TutorialStep>
+
+                <TutorialStep n={7} title="Anexe o EA no gráfico e cole a key" icon={<Upload className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    No painel <strong className="text-foreground">Navegador</strong>, abra <span className="font-mono text-[10px]">Consultor expert</span> e{" "}
+                    <strong className="text-foreground">arraste o TraderOSSync</strong> pra cima de <strong className="text-foreground">qualquer gráfico</strong>.
+                  </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step18-navegador-traderossync.png" alt="TraderOSSync no Navegador" caption="Arraste o TraderOSSync pra qualquer gráfico" />
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-3 mb-3">
+                    Na janela que abrir, marque <strong className="text-foreground">Permitir algotrading</strong>, vá na aba{" "}
+                    <span className="font-mono text-[10px] text-teal">Parâmetros de entrada</span> e, no campo <span className="font-mono text-[10px]">API Key</span>, cole a sua chave (<span className="font-mono text-[10px]">traderos_…</span>). Deixe a URL como está. Clique <strong className="text-foreground">OK</strong>.
+                  </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step20-parametros-entrada.png" alt="Aba Parâmetros de entrada do EA" caption="Cole a API Key no campo API Key e dê OK" />
+                </TutorialStep>
+
+                <TutorialStep n={8} title="Ligue o Algotrading e confirme" icon={<CheckCircle2 className="w-4 h-4" />}>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                    No topo do MT5, clique no botão <strong className="text-foreground">Algotrading</strong> pra ligar (fica <strong className="text-foreground">verde ▶️</strong>). Sem isso o EA não roda.
+                  </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step23-algotrading-ligado.png" alt="Botão Algotrading ligado (verde)" caption="Algotrading verde no topo = ligado" />
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-3 mb-3">
+                    Pra confirmar, abra a aba <strong className="text-foreground">Experts</strong> (embaixo, ao lado de Diário). Tem que aparecer{" "}
+                    <span className="font-mono text-[10px] text-profit">[TraderOS] EA conectado</span>. Pronto — cada trade fechado (de qualquer par) cai sozinho no seu TraderOS! 🎉
+                  </p>
+                  <TutorialImage src="/tutorial/mt5/mt5-step22-ea-conectado-experts.png" alt="Aba Experts mostrando EA conectado" caption="'[TraderOS] EA conectado' = sincronização ativa ✅" />
+                </TutorialStep>
+
                 <div className="px-5 py-4 space-y-2">
                   <p className="text-xs font-semibold text-foreground mb-3">Dúvidas frequentes</p>
+                  <Faq q="Preciso anexar o EA em cada par que opero?">
+                    Não! O EA captura toda posição fechada da conta inteira — EURUSD, ouro, índice, qualquer símbolo. Basta deixá-lo em UM gráfico só.
+                  </Faq>
                   <Faq q="Preciso deixar o gráfico aberto?">
-                    Sim — o EA roda anexado a um gráfico. Pode ser qualquer símbolo, com o Auto-Trading ligado. Deixe o MT5 aberto.
+                    Sim — o EA roda anexado a um gráfico, com o Algotrading ligado. Deixe o MT5 aberto (pode minimizar).
                   </Faq>
                   <Faq q="Funciona com conta demo?">
                     Sim. Trades de conta demo entram marcados como TEST, pra não misturar com as métricas da conta real.
@@ -605,7 +675,7 @@ export function IntegrationSection({ initialKeys }: Props) {
                     Os dois. O EA captura cada posição fechada, então funciona igual nos dois modos.
                   </Faq>
                   <Faq q="O EA dá ordem ou copia trade?">
-                    Não. Ele só LÊ e envia seus trades já fechados pro TraderOS. Não abre nem fecha nada.
+                    Não. Ele só LÊ e envia seus trades já fechados pro TraderOS. Não abre nem fecha nada na sua conta.
                   </Faq>
                   <Faq q="Trades antigos duplicam?">
                     Não. Cada posição tem um ID único; se já foi enviada, o TraderOS ignora.
