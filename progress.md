@@ -1,6 +1,7 @@
 # TraderOS — Progresso
 
-## Última atualização: 18/06/2026 — Web Push (alertas no celular) + alertas in-app + fixes 15-18/06
+## Última atualização: 20/06/2026 — Carteira (saldos multi-corretora) + MT5/BMS real + login Google consertado. Ver historico/2026-06-20.md
+## (18/06: Web Push + alertas in-app)
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
