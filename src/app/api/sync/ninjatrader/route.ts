@@ -5,6 +5,7 @@ import { giveXp, updateJournalStreak, updateProfitableDaysStreak, checkAndAwardA
 import { XP_REWARDS } from "@/lib/xp"
 import { hashApiKey } from "@/lib/apikey"
 import { createTradeAlert } from "@/lib/trade-alert"
+import { ensureAccount } from "@/lib/account"
 
 const syncSchema = z.object({
   instrument: z.string().min(1).max(20),
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest) {
   const tradeDate = new Date(d.exitTime)
   const session = detectSession(d.exitTime)
   const accountLabel = detectAccountLabel(d.accountName)
+  const accountId = await ensureAccount(userId, "NINJATRADER", accountLabel)
 
   const trade = await (prisma.trade as never as {
     create: (args: object) => Promise<{ id: string }>
@@ -126,6 +128,8 @@ export async function POST(req: NextRequest) {
       result,
       sessionType: session,
       accountLabel,
+      source: "NINJATRADER",
+      accountId,
       externalId: d.externalId,
     },
   })

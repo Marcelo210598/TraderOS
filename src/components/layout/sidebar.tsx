@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   BookOpen,
   TrendingUp,
+  Wallet,
   Calendar,
   BarChart3,
   BarChart2,
@@ -41,6 +42,7 @@ const navGroups: NavGroup[] = [
     label: "Principal",
     items: [
       { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+      { href: "/carteira", icon: Wallet, label: "Carteira" },
       { href: "/journal", icon: BookOpen, label: "Journal" },
       { href: "/progress", icon: TrendingUp, label: "Progress" },
     ],

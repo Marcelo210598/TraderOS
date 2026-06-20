@@ -5,6 +5,7 @@ import { giveXp, updateJournalStreak, updateProfitableDaysStreak, checkAndAwardA
 import { XP_REWARDS } from "@/lib/xp"
 import { hashApiKey } from "@/lib/apikey"
 import { createTradeAlert } from "@/lib/trade-alert"
+import { ensureAccount } from "@/lib/account"
 
 // Sync de trades do MetaTrader 5 (EA TraderOSSync.mq5).
 // Diferenças vs NinjaTrader: volume em LOTES (decimal), símbolos forex/CFD,
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
   const session = detectSession(d.exitTime)
   // Conta demo → "TEST" (não suja métricas reais), conta real → "MT5"
   const accountLabel = d.accountType === "DEMO" ? "TEST" : "MT5"
+  const accountId = await ensureAccount(userId, "MT5", accountLabel)
 
   const trade = await (prisma.trade as never as {
     create: (args: object) => Promise<{ id: string }>
@@ -115,6 +117,8 @@ export async function POST(req: NextRequest) {
       result,
       sessionType: session,
       accountLabel,
+      source: "MT5",
+      accountId,
       externalId: d.externalId,
     },
   })

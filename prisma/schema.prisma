@@ -35,9 +35,10 @@ model User {
   streaks       Streak[]
   subscription  Subscription?
   notifications Notification[]
-  apiKeys       UserApiKey[]
-  challenges    Challenge[]
-  pushSubs      PushSubscription[]
+  apiKeys         UserApiKey[]
+  challenges      Challenge[]
+  pushSubs        PushSubscription[]
+  tradingAccounts TradingAccount[]
 
   @@map("users")
 }
@@ -97,6 +98,8 @@ model Trade {
   result      TradeResult
   sessionType  SessionType @default(AM)
   accountLabel String      @default("PA")
+  source       String      @default("MANUAL") // MT5 | NINJATRADER | MANUAL — corretora de origem
+  accountId    String?     // conta (Account) à qual este trade pertence
   setupId      String?
   notes        String?
   aiAnalysis   String?
@@ -109,12 +112,56 @@ model Trade {
 
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   setup       Setup?            @relation(fields: [setupId], references: [id])
+  account     TradingAccount?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
   tags        TradeTag[]
   screenshots TradeScreenshot[]
 
   @@index([userId, date])
+  @@index([accountId])
   @@unique([userId, externalId])
   @@map("trades")
+}
+
+// Conta/corretora do usuário (MT5, NinjaTrader/Apex, manual). Base da Carteira.
+model TradingAccount {
+  id             String   @id @default(cuid())
+  userId         String
+  source         String   @default("MANUAL")  // MT5 | NINJATRADER | MANUAL
+  label          String                       // accountLabel original (MT5, PA50K, TEST...)
+  name           String                       // nome editável pelo usuário (default = label)
+  currency       String   @default("USD")
+  initialBalance Decimal  @db.Decimal(14, 2) @default(0)  // saldo inicial informado (opcional)
+  balance        Decimal? @db.Decimal(14, 2)  // saldo real do broker (Fase 2, via sync)
+  equity         Decimal? @db.Decimal(14, 2)  // patrimônio (Fase 2)
+  balanceSyncAt  DateTime?                     // quando o saldo real foi atualizado
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades Trade[]
+
+  @@unique([userId, source, label])
+  @@index([userId])
+  @@map("trading_accounts")
+}
+
+// Movimentações de saldo que NÃO são trade (depósito, saque, ajuste) — Fase 2. Forma o extrato completo.
+model BalanceTransaction {
+  id         String   @id @default(cuid())
+  userId     String
+  accountId  String
+  type       String   // DEPOSIT | WITHDRAWAL | ADJUSTMENT
+  amount     Decimal  @db.Decimal(14, 2) // positivo = entra, negativo = sai
+  date       DateTime
+  externalId String?  // id da transação no broker (dedup)
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([accountId])
+  @@unique([userId, externalId])
+  @@map("balance_transactions")
 }
 
 model TradeTag {

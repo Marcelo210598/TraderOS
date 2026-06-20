@@ -5,6 +5,7 @@ import { z } from "zod"
 import { Prisma } from "@prisma/client"
 import { giveXp, updateJournalStreak, updateProfitableDaysStreak, checkAndAwardAchievements } from "@/lib/gamification"
 import { XP_REWARDS } from "@/lib/xp"
+import { ensureAccount } from "@/lib/account"
 
 const createTradeSchema = z.object({
   date: z.string(),
@@ -110,6 +111,9 @@ export async function POST(req: NextRequest) {
 
   const { tags, screenshots, ...data } = parsed.data
 
+  // Liga o trade manual a uma conta (source MANUAL) — base da Carteira
+  const accountId = await ensureAccount(session.user.id, "MANUAL", data.accountLabel)
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const trade = await (prisma.trade as any).create({
     data: {
@@ -121,6 +125,8 @@ export async function POST(req: NextRequest) {
       pnlPoints: data.pnlPoints,
       commission: data.commission,
       userId: session.user.id,
+      source: "MANUAL",
+      accountId,
       tags: {
         create: tags.map((name) => ({ name })),
       },
