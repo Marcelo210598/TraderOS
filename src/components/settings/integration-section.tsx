@@ -677,6 +677,9 @@ export function IntegrationSection({ initialKeys }: Props) {
                   <Faq q="O EA dá ordem ou copia trade?">
                     Não. Ele só LÊ e envia seus trades já fechados pro TraderOS. Não abre nem fecha nada na sua conta.
                   </Faq>
+                  <Faq q="O saldo da conta aparece na Carteira?">
+                    Sim. O EA envia o saldo real do broker (e depósitos/saques) automaticamente — a Carteira mostra o saldo de cada conta sem você informar nada. Se você instalou uma versão antiga do EA, baixe e recompile a atual pra ativar o saldo.
+                  </Faq>
                   <Faq q="Trades antigos duplicam?">
                     Não. Cada posição tem um ID único; se já foi enviada, o TraderOS ignora.
                   </Faq>

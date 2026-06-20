@@ -7,6 +7,7 @@ const patchSchema = z.object({
   name: z.string().min(1).max(60).optional(),
   initialBalance: z.number().min(0).max(100_000_000).optional(),
   currency: z.enum(["USD", "BRL", "EUR"]).optional(),
+  isArchived: z.boolean().optional(),
 })
 
 // Edita uma conta da Carteira (nome, saldo inicial, moeda) — só do próprio usuário.

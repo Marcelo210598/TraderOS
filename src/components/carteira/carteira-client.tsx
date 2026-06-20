@@ -4,7 +4,7 @@ import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Wallet, TrendingUp, TrendingDown, ArrowRight, Pencil, Check, X, Loader2 } from "lucide-react"
+import { Wallet, TrendingUp, TrendingDown, ArrowRight, ArrowUpRight, ArrowDownLeft, Pencil, Check, X, Loader2, Archive, RotateCcw } from "lucide-react"
 
 interface Account {
   id: string
@@ -25,15 +25,20 @@ interface Account {
 interface Pt { t: number; v: number }
 interface Series { id: string; name: string; color: string; points: Pt[] }
 interface HistItem {
+  kind: "TRADE" | "DEPOSIT" | "WITHDRAWAL" | "ADJUSTMENT"
   id: string; date: string; instrument: string; direction: string
-  pnl: number; result: string; accountId: string | null; accountName: string; accountColor: string
+  amount: number; accountId: string | null; accountName: string; accountColor: string
 }
+
+const TXN_LABEL: Record<string, string> = { DEPOSIT: "Depósito", WITHDRAWAL: "Saque", ADJUSTMENT: "Ajuste" }
+interface ArchivedAccount { id: string; name: string; source: string; tradeCount: number }
 interface Props {
   consolidated: { totalBalance: number; totalPnl: number; monthPnl: number; monthPct: number; accountsCount: number; tradesCount: number }
   accounts: Account[]
   consolidatedSeries: Pt[]
   accountSeries: Series[]
   history: HistItem[]
+  archived: ArchivedAccount[]
 }
 
 const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -48,7 +53,7 @@ function money(n: number, currency = "USD") {
   return `${n < 0 ? "−" : ""}${sym}${s}`
 }
 
-export function CarteiraClient({ consolidated, accounts, consolidatedSeries, accountSeries, history }: Props) {
+export function CarteiraClient({ consolidated, accounts, consolidatedSeries, accountSeries, history, archived }: Props) {
   const [view, setView] = useState<"consolidated" | "accounts">("consolidated")
   const [filter, setFilter] = useState<string>("all")
 
@@ -137,21 +142,29 @@ export function CarteiraClient({ consolidated, accounts, consolidatedSeries, acc
         ) : (
           <div className="divide-y divide-border">
             {filteredHistory.map((h) => {
-              const up = h.pnl >= 0
+              const up = h.amount >= 0
+              const isTrade = h.kind === "TRADE"
               return (
                 <div key={h.id} className="flex items-center gap-3 py-2.5">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: h.accountColor }} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground truncate">
-                      <span className="font-medium">{h.instrument}</span>{" "}
-                      <span className={cn("text-[10px] font-bold px-1 py-0.5 rounded", h.direction === "LONG" ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss")}>{h.direction}</span>
-                    </p>
+                    {isTrade ? (
+                      <p className="text-sm text-foreground truncate">
+                        <span className="font-medium">{h.instrument}</span>{" "}
+                        <span className={cn("text-[10px] font-bold px-1 py-0.5 rounded", h.direction === "LONG" ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss")}>{h.direction}</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-foreground truncate flex items-center gap-1.5">
+                        {h.kind === "WITHDRAWAL" ? <ArrowUpRight className="w-3.5 h-3.5 text-loss" /> : <ArrowDownLeft className="w-3.5 h-3.5 text-profit" />}
+                        <span className="font-medium">{TXN_LABEL[h.kind]}</span>
+                      </p>
+                    )}
                     <p className="text-[11px] text-muted-foreground">
                       {h.accountName} · {new Date(h.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                   <p className={cn("text-sm font-bold font-mono", up ? "text-profit" : "text-loss")}>
-                    {up ? "+" : ""}{money(h.pnl)}
+                    {up ? "+" : ""}{money(h.amount)}
                   </p>
                 </div>
               )
@@ -162,7 +175,57 @@ export function CarteiraClient({ consolidated, accounts, consolidatedSeries, acc
           Ver journal completo <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </section>
+
+      {/* ── Contas arquivadas ── */}
+      {archived.length > 0 && <ArchivedSection archived={archived} />}
     </div>
+  )
+}
+
+function ArchivedSection({ archived }: { archived: ArchivedAccount[] }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  async function restore(id: string) {
+    setBusy(id)
+    try {
+      const res = await fetch(`/api/accounts/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived: false }),
+      })
+      if (res.ok) router.refresh()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section className="bg-card/50 border border-border rounded-xl p-4">
+      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <Archive className="w-3.5 h-3.5" />
+        Contas arquivadas ({archived.length})
+        <span className="ml-auto text-[10px]">{open ? "ocultar" : "ver"}</span>
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2">
+          {archived.map((a) => {
+            const badge = SOURCE_BADGE[a.source] ?? SOURCE_BADGE.MANUAL
+            return (
+              <div key={a.id} className="flex items-center gap-2 text-xs">
+                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded font-mono", badge.cls)}>{badge.label}</span>
+                <span className="text-foreground/70 flex-1 truncate">{a.name}</span>
+                <span className="text-muted-foreground">{a.tradeCount} trades</span>
+                <button onClick={() => restore(a.id)} disabled={busy === a.id}
+                  className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border border-border text-teal hover:bg-teal/10 transition-colors disabled:opacity-50">
+                  {busy === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />} Restaurar
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -190,6 +253,19 @@ function AccountCard({ a }: { a: Account }) {
     }
   }
 
+  async function archive() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/accounts/${a.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived: true }),
+      })
+      if (res.ok) router.refresh()
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (editing) {
     return (
       <div className="bg-card border border-teal/30 rounded-xl p-4 space-y-3">
@@ -208,15 +284,21 @@ function AccountCard({ a }: { a: Account }) {
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2">
-          <button onClick={() => { setEditing(false); setName(a.name); setInitial(String(a.initialBalance || "")) }}
-            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors">
-            <X className="w-3.5 h-3.5" /> Cancelar
+        <div className="flex items-center justify-between gap-2">
+          <button onClick={archive} disabled={saving} title="Arquivar conta (esconde sem apagar)"
+            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-loss hover:border-loss/30 transition-colors disabled:opacity-50">
+            <Archive className="w-3.5 h-3.5" /> Arquivar
           </button>
-          <button onClick={save} disabled={saving}
-            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-teal text-teal-foreground hover:bg-teal/90 transition-colors disabled:opacity-50">
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Salvar
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => { setEditing(false); setName(a.name); setInitial(String(a.initialBalance || "")) }}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors">
+              <X className="w-3.5 h-3.5" /> Cancelar
+            </button>
+            <button onClick={save} disabled={saving}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-teal text-teal-foreground hover:bg-teal/90 transition-colors disabled:opacity-50">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Salvar
+            </button>
+          </div>
         </div>
       </div>
     )

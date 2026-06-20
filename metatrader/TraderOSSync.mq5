@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                              TraderOSSync.mq5     |
-//|   Sincroniza trades do MetaTrader 5 com o TraderOS               |
+//|   Sincroniza trades, SALDO e depósitos/saques do MT5 com TraderOS|
 //|   https://trader-os-ashy.vercel.app                              |
 //+------------------------------------------------------------------+
 //
@@ -13,30 +13,35 @@
 //  5. Arraste o EA "TraderOSSync" para QUALQUER gráfico, cole a API Key nos
 //     parâmetros e habilite o Auto-Trading (botão verde no topo).
 //
-//  Funciona em conta NETTING e HEDGING. Captura cada posição FECHADA e envia
-//  pro TraderOS. O servidor deduplica pelo position_id, então não duplica.
+//  v2.00: além dos trades, envia o SALDO REAL da conta (a cada trade e a cada
+//  N minutos) e captura DEPÓSITOS/SAQUES — a Carteira do TraderOS fica completa.
+//  Funciona em conta NETTING e HEDGING. O servidor deduplica, não duplica.
 //
 //+------------------------------------------------------------------+
 #property copyright "TraderOS"
 #property link      "https://trader-os-ashy.vercel.app"
-#property version   "1.00"
+#property version   "2.00"
 #property strict
 
 //--- Parâmetros (preenchidos pelo usuário ao anexar o EA)
 input string ApiKey    = "";                                   // API Key (Configurações > Integrações)
 input string ServerUrl = "https://trader-os-ashy.vercel.app";  // URL do TraderOS (não mude)
+input bool   EnviarSaldo = true;                               // Enviar saldo real da conta (Carteira)
+input int    IntervaloSaldoSegundos = 600;                     // De quanto em quanto envia o saldo (seg)
 input bool   EnviarHistoricoAoIniciar = false;                 // Enviar trades fechados hoje ao iniciar
 input int    MaxTentativas = 4;                                // Tentativas de reenvio se falhar
 
 //--- Estado
-string g_endpoint;
+string g_epTrade, g_epSaldo, g_epTx;
 
 //+------------------------------------------------------------------+
 //| Inicialização                                                    |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   g_endpoint = ServerUrl + "/api/sync/mt5";
+   g_epTrade = ServerUrl + "/api/sync/mt5";
+   g_epSaldo = ServerUrl + "/api/sync/mt5/balance";
+   g_epTx    = ServerUrl + "/api/sync/mt5/transaction";
 
    if(StringLen(ApiKey) < 10)
    {
@@ -45,16 +50,34 @@ int OnInit()
       return(INIT_FAILED);
    }
 
-   Print("[TraderOS] EA conectado. Endpoint: ", g_endpoint);
-   Comment("TraderOS: sincronizando trades desta conta ✅");
+   Print("[TraderOS] EA conectado. Endpoint: ", g_epTrade);
+   Comment("TraderOS: sincronizando trades e saldo desta conta ✅");
 
+   if(EnviarSaldo)
+   {
+      EnviarSaldoConta();
+      int seg = IntervaloSaldoSegundos < 60 ? 60 : IntervaloSaldoSegundos;
+      EventSetTimer(seg);
+   }
    if(EnviarHistoricoAoIniciar)
       EnviarFechadosHoje();
 
    return(INIT_SUCCEEDED);
 }
 
-void OnDeinit(const int reason) { Comment(""); }
+void OnDeinit(const int reason)
+{
+   EventKillTimer();
+   Comment("");
+}
+
+//+------------------------------------------------------------------+
+//| Timer — envia o saldo periodicamente                             |
+//+------------------------------------------------------------------+
+void OnTimer()
+{
+   if(EnviarSaldo) EnviarSaldoConta();
+}
 
 //+------------------------------------------------------------------+
 //| Evento de transação — dispara quando um deal é adicionado        |
@@ -63,19 +86,68 @@ void OnTradeTransaction(const MqlTradeTransaction& trans,
                         const MqlTradeRequest& request,
                         const MqlTradeResult& result)
 {
-   // Só nos interessa quando um DEAL é adicionado ao histórico
    if(trans.type != TRADE_TRANSACTION_DEAL_ADD) return;
 
    ulong dealTicket = trans.deal;
    if(dealTicket == 0) return;
-
    if(!HistoryDealSelect(dealTicket)) return;
 
-   // Só deals de SAÍDA (fecham posição) ou IN/OUT (reversão) viram trade no journal
+   long dealType = HistoryDealGetInteger(dealTicket, DEAL_TYPE);
+
+   // Depósito / saque / ajuste de saldo
+   if(dealType == DEAL_TYPE_BALANCE || dealType == DEAL_TYPE_CREDIT ||
+      dealType == DEAL_TYPE_CORRECTION || dealType == DEAL_TYPE_BONUS)
+   {
+      EnviarTransacaoSaldo(dealTicket, dealType);
+      if(EnviarSaldo) EnviarSaldoConta();
+      return;
+   }
+
+   // Trade (posição fechada): só deals de SAÍDA / IN-OUT
    long entry = HistoryDealGetInteger(dealTicket, DEAL_ENTRY);
    if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_INOUT) return;
 
    EnviarTradePorDealDeSaida(dealTicket);
+   if(EnviarSaldo) EnviarSaldoConta();  // atualiza o saldo logo após o trade
+}
+
+//+------------------------------------------------------------------+
+//| Tipo de conta (REAL / DEMO)                                      |
+//+------------------------------------------------------------------+
+string TipoConta()
+{
+   return (AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO) ? "DEMO" : "REAL";
+}
+
+//+------------------------------------------------------------------+
+//| Envia o saldo/equity real da conta                               |
+//+------------------------------------------------------------------+
+void EnviarSaldoConta()
+{
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+   string moeda   = AccountInfoString(ACCOUNT_CURRENCY);
+   if(StringLen(moeda) == 0) moeda = "USD";
+
+   string body = StringFormat("balance=%s&equity=%s&currency=%s&accountType=%s",
+                              DoubleToString(balance, 2), DoubleToString(equity, 2), moeda, TipoConta());
+   Post(g_epSaldo, body, false);  // saldo: silencioso, sem retry agressivo
+}
+
+//+------------------------------------------------------------------+
+//| Envia um depósito/saque/ajuste                                   |
+//+------------------------------------------------------------------+
+void EnviarTransacaoSaldo(ulong deal, long dealType)
+{
+   double amount = HistoryDealGetDouble(deal, DEAL_PROFIT);  // +entra / -sai
+   datetime t    = (datetime)HistoryDealGetInteger(deal, DEAL_TIME);
+   string tipo   = (dealType == DEAL_TYPE_BALANCE)
+                     ? (amount >= 0 ? "DEPOSIT" : "WITHDRAWAL")
+                     : "ADJUSTMENT";
+
+   string body = StringFormat("type=%s&amount=%s&date=%s&accountType=%s&externalId=MT5TX_%I64u",
+                              tipo, DoubleToString(amount, 2), TimeToIso(t), TipoConta(), deal);
+   Post(g_epTx, body, true);
 }
 
 //+------------------------------------------------------------------+
@@ -92,7 +164,6 @@ void EnviarTradePorDealDeSaida(ulong outDeal)
    double swap       = HistoryDealGetDouble(outDeal, DEAL_SWAP);
    datetime exitTime = (datetime)HistoryDealGetInteger(outDeal, DEAL_TIME);
 
-   // Busca o deal de ENTRADA da mesma posição → preço de entrada + direção
    double entryPrice = 0.0;
    datetime entryTime = exitTime;
    string direction = "LONG";
@@ -101,98 +172,70 @@ void EnviarTradePorDealDeSaida(ulong outDeal)
       int total = HistoryDealsTotal();
       for(int i = 0; i < total; i++)
       {
-         ulong d = HistoryDealGetTicket(i);
-         if(HistoryDealGetInteger(d, DEAL_ENTRY) == DEAL_ENTRY_IN)
+         ulong dd = HistoryDealGetTicket(i);
+         if(HistoryDealGetInteger(dd, DEAL_ENTRY) == DEAL_ENTRY_IN)
          {
-            entryPrice = HistoryDealGetDouble(d, DEAL_PRICE);
-            entryTime  = (datetime)HistoryDealGetInteger(d, DEAL_TIME);
-            // Posição comprada = deal de entrada do tipo BUY
-            long dt = HistoryDealGetInteger(d, DEAL_TYPE);
+            entryPrice = HistoryDealGetDouble(dd, DEAL_PRICE);
+            entryTime  = (datetime)HistoryDealGetInteger(dd, DEAL_TIME);
+            long dt = HistoryDealGetInteger(dd, DEAL_TYPE);
             direction = (dt == DEAL_TYPE_BUY) ? "LONG" : "SHORT";
             break;
          }
       }
    }
-   if(entryPrice <= 0.0) entryPrice = exitPrice; // fallback defensivo
+   if(entryPrice <= 0.0) entryPrice = exitPrice;
 
-   // Variação em pontos do símbolo (sinal conforme direção)
    double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
    if(point <= 0.0) point = 0.00001;
    double dirSign = (direction == "LONG") ? 1.0 : -1.0;
    double pnlPoints = ((exitPrice - entryPrice) * dirSign) / point;
 
-   string accountType = (AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO) ? "DEMO" : "REAL";
-
-   // Monta o corpo form-encoded
    string body = StringFormat(
       "symbol=%s&direction=%s&entryPrice=%s&exitPrice=%s&volume=%s&pnl=%s&pnlPoints=%s&commission=%s&swap=%s&entryTime=%s&exitTime=%s&accountType=%s&externalId=MT5_%I64u",
-      symbol,
-      direction,
-      DoubleToString(entryPrice, _Digits),
-      DoubleToString(exitPrice, _Digits),
-      DoubleToString(volume, 2),
-      DoubleToString(profit, 2),
-      DoubleToString(pnlPoints, 1),
-      DoubleToString(commission, 2),
-      DoubleToString(swap, 2),
-      TimeToIso(entryTime),
-      TimeToIso(exitTime),
-      accountType,
-      positionId
-   );
+      symbol, direction,
+      DoubleToString(entryPrice, _Digits), DoubleToString(exitPrice, _Digits),
+      DoubleToString(volume, 2), DoubleToString(profit, 2), DoubleToString(pnlPoints, 1),
+      DoubleToString(commission, 2), DoubleToString(swap, 2),
+      TimeToIso(entryTime), TimeToIso(exitTime), TipoConta(), positionId);
 
-   PostComRetry(body, symbol, profit);
+   Post(g_epTrade, body, true);
+   Print(StringFormat("[TraderOS] %s PnL=%.2f enviado", symbol, profit));
 }
 
 //+------------------------------------------------------------------+
-//| POST com retry (WebRequest é síncrono)                           |
+//| POST genérico (WebRequest síncrono) com retry opcional           |
 //+------------------------------------------------------------------+
-void PostComRetry(string body, string symbol, double profit)
+void Post(string endpoint, string body, bool comRetry)
 {
-   char   post[];
-   char   resultData[];
-   string resultHeaders;
+   char post[]; char resp[]; string respHeaders;
    string headers = "Content-Type: application/x-www-form-urlencoded\r\nx-api-key: " + ApiKey + "\r\n";
-
    StringToCharArray(body, post, 0, StringLen(body));
-   // remove o '\0' final que StringToCharArray adiciona
    int len = ArraySize(post);
    if(len > 0 && post[len-1] == 0) ArrayResize(post, len-1);
 
-   for(int tentativa = 1; tentativa <= MaxTentativas; tentativa++)
+   int maxT = comRetry ? MaxTentativas : 1;
+   for(int tentativa = 1; tentativa <= maxT; tentativa++)
    {
       ResetLastError();
-      int status = WebRequest("POST", g_endpoint, headers, 15000, post, resultData, resultHeaders);
+      int status = WebRequest("POST", endpoint, headers, 15000, post, resp, respHeaders);
 
-      if(status == 201 || status == 200)
-      {
-         Print(StringFormat("[TraderOS] ✅ %s PnL=%.2f enviado (HTTP %d)", symbol, profit, status));
-         return;
-      }
+      if(status == 201 || status == 200) return;
       if(status == -1)
       {
          int err = GetLastError();
-         if(err == 4060 || err == 4014) // URL não permitida
+         if(err == 4060 || err == 4014)
          {
-            Print("[TraderOS] ❌ URL não autorizada. Tools > Options > Expert Advisors > Allow WebRequest e adicione: ", ServerUrl);
-            return; // não adianta retry
+            Print("[TraderOS] ❌ URL não autorizada. Tools > Options > Expert Advisors > Allow WebRequest: ", ServerUrl);
+            return;
          }
-         Print(StringFormat("[TraderOS] ⚠️ falha de rede (err %d), tentativa %d/%d", err, tentativa, MaxTentativas));
       }
       else if(status >= 400 && status < 500 && status != 429)
       {
-         // Erro do cliente (key inválida, payload ruim) — não retenta
-         Print(StringFormat("[TraderOS] ❌ rejeitado (HTTP %d): %s", status, CharArrayToString(resultData)));
+         Print(StringFormat("[TraderOS] ❌ rejeitado (HTTP %d): %s", status, CharArrayToString(resp)));
          return;
       }
-      else
-      {
-         Print(StringFormat("[TraderOS] ⚠️ HTTP %d, tentativa %d/%d", status, tentativa, MaxTentativas));
-      }
-
-      Sleep(1000 * tentativa); // backoff
+      if(comRetry && tentativa < maxT) Sleep(1000 * tentativa);
    }
-   Print("[TraderOS] ❌ desistiu após ", MaxTentativas, " tentativas: ", symbol);
 }
 
 //+------------------------------------------------------------------+
@@ -202,25 +245,22 @@ void EnviarFechadosHoje()
 {
    datetime hoje = (datetime)(TimeCurrent() - (TimeCurrent() % 86400));
    if(!HistorySelect(hoje, TimeCurrent())) return;
-
    int total = HistoryDealsTotal();
    for(int i = 0; i < total; i++)
    {
-      ulong d = HistoryDealGetTicket(i);
-      long entry = HistoryDealGetInteger(d, DEAL_ENTRY);
+      ulong dd = HistoryDealGetTicket(i);
+      long entry = HistoryDealGetInteger(dd, DEAL_ENTRY);
       if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_INOUT)
-         EnviarTradePorDealDeSaida(d);
+         EnviarTradePorDealDeSaida(dd);
    }
 }
 
 //+------------------------------------------------------------------+
-//| Converte datetime para ISO 8601 UTC (ex: 2026-06-18T14:05:00Z)   |
+//| datetime -> ISO 8601 UTC                                         |
 //+------------------------------------------------------------------+
 string TimeToIso(datetime t)
 {
-   MqlDateTime st;
-   TimeToStruct(t, st);
-   return StringFormat("%04d-%02d-%02dT%02d:%02d:%02dZ",
-                       st.year, st.mon, st.day, st.hour, st.min, st.sec);
+   MqlDateTime st; TimeToStruct(t, st);
+   return StringFormat("%04d-%02d-%02dT%02d:%02d:%02dZ", st.year, st.mon, st.day, st.hour, st.min, st.sec);
 }
 //+------------------------------------------------------------------+
