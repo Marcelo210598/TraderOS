@@ -1,7 +1,8 @@
 # TraderOS — Progresso
 
-## Última atualização: 20/06/2026 — Carteira (saldos multi-corretora) + MT5/BMS real + login Google consertado. Ver historico/2026-06-20.md
-## (18/06: Web Push + alertas in-app)
+## Última atualização: 25/06/2026 — Painel Admin de acesso (liberar/bloquear comunidade) + push de novo cadastro + planos/custos definidos (Asaas). Ver historico/2026-06-25.md
+## (20/06: Carteira multi-corretora + MT5/BMS real + login Google; 18/06: Web Push + alertas in-app)
+## 🚧 PRÓXIMO: implementar pagamento via Asaas (checkout 3 planos + webhook + paywall). To-do completo em historico/2026-06-25.md
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
