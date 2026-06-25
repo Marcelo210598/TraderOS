@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { hash } from "bcryptjs"
 import { z } from "zod"
 import { sendWelcomeEmail } from "@/lib/email"
+import { notifyAdminsNewSignup } from "@/lib/admin"
 
 const schema = z.object({
   name: z.string().min(2).max(80),
@@ -32,6 +33,9 @@ export async function POST(req: NextRequest) {
 
   // Email de boas-vindas — não bloqueia o cadastro se falhar
   sendWelcomeEmail(email, name).catch(() => null)
+
+  // Avisa admins por push (não bloqueia o cadastro)
+  notifyAdminsNewSignup({ email, name }).catch(() => null)
 
   return NextResponse.json({ ok: true }, { status: 201 })
 }

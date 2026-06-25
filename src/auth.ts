@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
+import { notifyAdminsNewSignup } from "@/lib/admin"
 import { compare } from "bcryptjs"
 import { z } from "zod"
 
@@ -123,6 +124,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.level = token.level as number
       }
       return session
+    },
+  },
+  events: {
+    // Dispara quando o adapter cria um usuário novo (cadastro via Google).
+    // O cadastro por email/senha é avisado direto na rota /api/auth/register.
+    async createUser({ user }) {
+      await notifyAdminsNewSignup({ email: user.email, name: user.name }).catch(() => null)
     },
   },
 })

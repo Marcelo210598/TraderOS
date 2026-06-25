@@ -1,6 +1,37 @@
 import { prisma } from "@/lib/prisma"
+import { sendPushToUser } from "@/lib/push"
 
 export type Plan = "FREE" | "TRADER" | "PRO"
+
+// Avisa TODOS os admins por push quando alguém novo se cadastra.
+// Nunca lança — é chamada de dentro de fluxos de cadastro (não pode quebrá-los).
+export async function notifyAdminsNewSignup(user: {
+  email?: string | null
+  name?: string | null
+}): Promise<void> {
+  try {
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    })
+    if (admins.length === 0) return
+
+    const nome = user.name?.trim() || "Novo usuário"
+    const email = user.email ?? "sem email"
+
+    await Promise.all(
+      admins.map((a) =>
+        sendPushToUser(a.id, {
+          title: "🎯 Novo cadastro no TraderOS",
+          body: `${nome} · ${email} — toque para liberar acesso`,
+          url: "/admin",
+        })
+      )
+    )
+  } catch (err) {
+    console.error("[notifyAdminsNewSignup]", err)
+  }
+}
 
 export interface AdminUserDTO {
   id: string
