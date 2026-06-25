@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { auth } from "@/auth"
-import { prisma } from "@/lib/prisma"
+import { fetchAdminUsers } from "@/lib/admin"
 import { Header } from "@/components/layout/header"
 import { AdminClient } from "@/components/admin/admin-client"
 
@@ -15,26 +15,7 @@ export default async function AdminPage() {
   if (session.user.role !== "ADMIN") redirect("/dashboard")
 
   // Lista inicial: usuários mais recentes (a busca refina via API).
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      image: true,
-      plan: true,
-      role: true,
-      createdAt: true,
-      _count: { select: { trades: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  })
-
-  // Datas viram string p/ passar do server pro client component.
-  const initialUsers = users.map((u) => ({
-    ...u,
-    createdAt: u.createdAt.toISOString(),
-  }))
+  const initialUsers = await fetchAdminUsers("")
 
   return (
     <div className="flex flex-col flex-1 overflow-auto">

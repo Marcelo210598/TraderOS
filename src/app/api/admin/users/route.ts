@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { fetchAdminUsers } from "@/lib/admin"
 import { z } from "zod"
 
 // Garante que só ADMIN acessa. Retorna a sessão se ok, senão um NextResponse de erro.
@@ -20,33 +21,8 @@ export async function GET(req: NextRequest) {
   const { error } = await requireAdmin()
   if (error) return error
 
-  const q = req.nextUrl.searchParams.get("q")?.trim() ?? ""
-
-  const where = q
-    ? {
-        OR: [
-          { email: { contains: q, mode: "insensitive" as const } },
-          { name: { contains: q, mode: "insensitive" as const } },
-        ],
-      }
-    : {}
-
-  const users = await prisma.user.findMany({
-    where,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      image: true,
-      plan: true,
-      role: true,
-      createdAt: true,
-      _count: { select: { trades: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  })
-
+  const q = req.nextUrl.searchParams.get("q") ?? ""
+  const users = await fetchAdminUsers(q)
   return NextResponse.json({ users })
 }
 

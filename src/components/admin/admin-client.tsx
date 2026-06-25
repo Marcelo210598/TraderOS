@@ -1,21 +1,22 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Search, Loader2, Check, ShieldCheck, Ban, User as UserIcon } from "lucide-react"
+import { format, formatDistanceToNow } from "date-fns"
+import { ptBR } from "date-fns/locale"
+import {
+  Search,
+  Loader2,
+  Check,
+  ShieldCheck,
+  Ban,
+  User as UserIcon,
+  CalendarDays,
+  Activity,
+  Clock,
+  KeyRound,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
-
-type Plan = "FREE" | "TRADER" | "PRO"
-
-interface AdminUser {
-  id: string
-  name: string | null
-  email: string
-  image: string | null
-  plan: Plan
-  role: string
-  createdAt: string
-  _count: { trades: number }
-}
+import type { AdminUserDTO, Plan } from "@/lib/admin"
 
 const PLAN_META: Record<Plan, { label: string; className: string }> = {
   FREE: { label: "Free", className: "bg-muted text-muted-foreground border-border" },
@@ -27,10 +28,10 @@ export function AdminClient({
   initialUsers,
   currentUserId,
 }: {
-  initialUsers: AdminUser[]
+  initialUsers: AdminUserDTO[]
   currentUserId: string
 }) {
-  const [users, setUsers] = useState<AdminUser[]>(initialUsers)
+  const [users, setUsers] = useState<AdminUserDTO[]>(initialUsers)
   const [query, setQuery] = useState("")
   const [searching, setSearching] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -53,7 +54,7 @@ export function AdminClient({
     return () => clearTimeout(t)
   }, [query])
 
-  async function setPlan(user: AdminUser, plan: Plan) {
+  async function setPlan(user: AdminUserDTO, plan: Plan) {
     if (user.plan === plan || savingId) return
     setSavingId(user.id)
     setFeedback(null)
@@ -104,7 +105,7 @@ export function AdminClient({
       </p>
 
       {/* Lista */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {users.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-10">
             Nenhum usuário encontrado.
@@ -114,24 +115,26 @@ export function AdminClient({
         {users.map((u) => {
           const isSelf = u.id === currentUserId
           const meta = PLAN_META[u.plan]
+          const cadastro = format(new Date(u.createdAt), "dd/MM/yyyy", { locale: ptBR })
+          const atividade = u.lastTradeAt
+            ? formatDistanceToNow(new Date(u.lastTradeAt), { addSuffix: true, locale: ptBR })
+            : "sem trades"
+
           return (
-            <div
-              key={u.id}
-              className="bg-card border border-border rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-            >
+            <div key={u.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
               {/* Identidade */}
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
                   {u.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={u.image} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <UserIcon className="w-4 h-4 text-muted-foreground" />
+                    <UserIcon className="w-5 h-5 text-muted-foreground" />
                   )}
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground truncate">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-foreground break-words">
                       {u.name || "Sem nome"}
                     </p>
                     <span
@@ -148,31 +151,55 @@ export function AdminClient({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                    {u._count.trades} trades
-                  </p>
+                  <p className="text-xs text-muted-foreground break-all">{u.email}</p>
                 </div>
               </div>
 
-              {/* Ações */}
-              <div className="flex items-center gap-2 shrink-0">
+              {/* Infos detalhadas */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground border-t border-border/60 pt-3">
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                  Cadastro: <span className="text-foreground/80 font-medium">{cadastro}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-foreground/80 font-medium">{u.tradesCount}</span> trades
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  Ativo: <span className="text-foreground/80 font-medium">{atividade}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 shrink-0" />
+                  {u.loginMethods.length ? u.loginMethods.join(" + ") : "—"}
+                </span>
+              </div>
+
+              {/* Feedback */}
+              {feedback?.id === u.id && (
+                <p className={cn("text-[11px]", feedback.ok ? "text-profit" : "text-loss")}>
+                  {feedback.msg}
+                </p>
+              )}
+
+              {/* Ações — cheias no mobile, compactas no desktop */}
+              <div className="flex gap-2 pt-1">
                 <button
                   onClick={() => setPlan(u, "PRO")}
                   disabled={savingId === u.id || u.plan === "PRO"}
                   className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-default",
+                    "flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-default",
                     u.plan === "PRO"
                       ? "bg-primary/10 text-primary cursor-default"
                       : "bg-teal text-white hover:bg-teal/90"
                   )}
                 >
                   {savingId === u.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : u.plan === "PRO" ? (
-                    <Check className="w-3.5 h-3.5" />
+                    <Check className="w-4 h-4" />
                   ) : (
-                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <ShieldCheck className="w-4 h-4" />
                   )}
                   {u.plan === "PRO" ? "Liberado" : "Liberar Pro"}
                 </button>
@@ -181,24 +208,12 @@ export function AdminClient({
                   onClick={() => setPlan(u, "FREE")}
                   disabled={savingId === u.id || u.plan === "FREE" || isSelf}
                   title={isSelf ? "Você não pode bloquear a si mesmo" : "Bloquear (volta pra Free)"}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-loss hover:border-loss/40 transition-colors disabled:opacity-40 disabled:cursor-default disabled:hover:text-muted-foreground disabled:hover:border-border"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-loss hover:border-loss/40 transition-colors disabled:opacity-40 disabled:cursor-default disabled:hover:text-muted-foreground disabled:hover:border-border"
                 >
-                  <Ban className="w-3.5 h-3.5" />
+                  <Ban className="w-4 h-4" />
                   Bloquear
                 </button>
               </div>
-
-              {/* Feedback inline */}
-              {feedback?.id === u.id && (
-                <p
-                  className={cn(
-                    "text-[11px] sm:basis-full sm:text-right",
-                    feedback.ok ? "text-profit" : "text-loss"
-                  )}
-                >
-                  {feedback.msg}
-                </p>
-              )}
             </div>
           )
         })}
