@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Zap,
   X,
+  ShieldCheck,
   LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -68,13 +69,14 @@ const navGroups: NavGroup[] = [
 
 interface SidebarProps {
   userPlan?: string
+  userRole?: string
   userName?: string
   userImage?: string
   userXp?: number
   userLevel?: number
 }
 
-export function Sidebar({ userPlan = "FREE", userLevel = 1, userXp = 0 }: SidebarProps) {
+export function Sidebar({ userPlan = "FREE", userRole = "USER", userLevel = 1, userXp = 0 }: SidebarProps) {
   const pathname = usePathname()
   const { mobileOpen, closeMobile } = useSidebar()
   const xpToNextLevel = userLevel * 500
@@ -196,6 +198,17 @@ export function Sidebar({ userPlan = "FREE", userLevel = 1, userXp = 0 }: Sideba
               />
             </div>
           </div>
+
+          {userRole === "ADMIN" && (
+            <Link
+              href="/admin"
+              onClick={closeMobile}
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-secondary/90 hover:text-secondary hover:bg-sidebar-accent/50 transition-all"
+            >
+              <ShieldCheck className="w-4 h-4 text-secondary" />
+              <span>Admin</span>
+            </Link>
+          )}
 
           <Link
             href="/configuracoes"

@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex h-screen overflow-hidden">
         <Sidebar
           userPlan={session.user.plan as string}
+          userRole={session.user.role as string}
           userName={session.user.name ?? undefined}
           userImage={session.user.image ?? undefined}
           userXp={(session.user as { xp?: number }).xp ?? 0}
