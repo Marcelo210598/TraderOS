@@ -214,13 +214,13 @@ export default async function DashboardPage() {
         {/* Check-in rápido */}
         <Link
           href="/checkin"
-          className="group relative overflow-hidden bg-gradient-to-r from-teal/10 to-primary/10 border border-teal/30 rounded-xl px-5 py-4 flex items-center justify-between gap-4 hover:border-teal/50 hover:from-teal/15 hover:to-primary/15 transition-all"
+          className="group relative overflow-hidden bg-gradient-to-r from-teal/10 to-primary/10 border border-teal/30 rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-teal/50 hover:from-teal/15 hover:to-primary/15 transition-all"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-teal/20 flex items-center justify-center shrink-0 group-hover:bg-teal/30 transition-colors">
               <Brain className="w-5 h-5 text-teal" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <p className="text-sm font-semibold text-foreground">Check-in emocional</p>
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/15 border border-primary/25 text-[10px] font-medium text-primary">
@@ -233,7 +233,7 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center px-4 py-2 rounded-lg bg-teal text-white text-xs font-semibold hover:bg-teal/90 transition-colors shrink-0 shadow-sm">
+          <span className="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2 rounded-lg bg-teal text-white text-xs font-semibold hover:bg-teal/90 transition-colors shrink-0 shadow-sm">
             Fazer check-in
           </span>
         </Link>

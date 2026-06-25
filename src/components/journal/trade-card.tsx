@@ -84,7 +84,7 @@ export function TradeCard({ trade, onDeleted }: TradeCardProps) {
             )}
           </div>
 
-          <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground font-mono">
+          <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground font-mono">
             <span>{format(new Date(trade.date), "dd/MM HH:mm", { locale: ptBR })}</span>
             <span>•</span>
             <span>E: {Number(trade.entryPrice).toFixed(2)}</span>
