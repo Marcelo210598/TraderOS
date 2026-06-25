@@ -163,7 +163,7 @@ export function AskClaudeChat() {
             onKeyDown={handleKeyDown}
             placeholder="Pergunte sobre seus trades..."
             rows={1}
-            className="flex-1 min-w-0 resize-none bg-card border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground placeholder:truncate focus:outline-none focus:ring-1 focus:ring-teal/50 min-h-[48px] max-h-32"
+            className="flex-1 min-w-0 resize-none bg-card border border-border rounded-xl px-4 py-3 text-sm leading-6 text-foreground placeholder:text-muted-foreground placeholder:overflow-hidden placeholder:text-ellipsis placeholder:whitespace-nowrap focus:outline-none focus:ring-1 focus:ring-teal/50 min-h-[52px] max-h-32"
             style={{ overflowY: "auto" }}
           />
           <button
