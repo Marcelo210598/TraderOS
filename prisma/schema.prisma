@@ -19,6 +19,9 @@ model User {
 
   plan      Plan      @default(FREE)
   role      Role      @default(USER)
+  // Origem do acesso: "PAID" (assinou via Asaas) ou "MANUAL" (liberado pelo admin / comunidade).
+  // Webhook NUNCA rebaixa quem é MANUAL. null = nunca teve plano pago nem liberação manual.
+  accessSource String? @map("access_source")
   xp        Int       @default(0)
   level     Int       @default(1)
   timezone  String    @default("America/Sao_Paulo")
@@ -337,6 +340,9 @@ model Subscription {
   stripeCustomerId     String?            @unique
   stripeSubscriptionId String?            @unique
   mercadoPagoId        String?            @unique
+  asaasCustomerId      String?            @unique
+  asaasSubscriptionId  String?            @unique
+  billingCycle         String?            // "MONTHLY" | "YEARLY"
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 

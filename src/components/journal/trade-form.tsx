@@ -8,6 +8,7 @@ import type { Setup, Trade } from "@/lib/types"
 import { ACCOUNT_OPTIONS } from "@/lib/accounts"
 import { ScreenshotUploader, type UploadedScreenshot } from "./screenshot-uploader"
 import { TagInput } from "./tag-input"
+import { openUpgradeModal } from "@/lib/upgrade"
 
 const INSTRUMENTS = ["NQ", "ES", "YM", "RTY", "CL", "GC", "SI", "ZB", "6E", "MNQ", "MES"]
 const SESSION_TYPES = [
@@ -130,6 +131,13 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
 
     if (!res.ok) {
       const data = await res.json()
+      // Limite de plano atingido → abre modal de upgrade
+      if (res.status === 403) {
+        openUpgradeModal({
+          reason: data.error?.toString(),
+          suggestedPlan: "TRADER",
+        })
+      }
       setError(data.error?.toString() ?? "Erro ao salvar trade")
       setLoading(false)
       return

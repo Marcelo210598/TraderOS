@@ -1,8 +1,8 @@
 # TraderOS — Progresso
 
-## Última atualização: 25/06/2026 — Painel Admin de acesso (liberar/bloquear comunidade) + push de novo cadastro + planos/custos definidos (Asaas). Ver historico/2026-06-25.md
-## (20/06: Carteira multi-corretora + MT5/BMS real + login Google; 18/06: Web Push + alertas in-app)
-## 🚧 PRÓXIMO: implementar pagamento via Asaas (checkout 3 planos + webhook + paywall). To-do completo em historico/2026-06-25.md
+## Última atualização: 28/06/2026 — 💳 PAGAMENTO ASAAS IMPLEMENTADO (checkout 3 planos + webhook + paywall). Falta só DEPLOY + configurar webhook no painel Asaas. Ver historico/2026-06-28.md
+## (25/06: Painel Admin de acesso + push de novo cadastro + planos/custos definidos; 20/06: Carteira multi-corretora; 18/06: Web Push)
+## 🚧 PRÓXIMO: deploy Vercel + setar env vars Asaas + configurar webhook (URL+token) no painel sandbox + teste de pagamento real ponta a ponta
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
@@ -83,6 +83,18 @@
   - Componente `PushNotifications` em **Configurações**: botão "Ativar notificações", botão de teste, detecção de iPhone (mostra passo a passo de instalar o PWA — Apple só permite push no app instalado na tela inicial, iOS 16.4+).
   - Trigger: trade do bot chega no sync → cria notificação in-app → dispara o push.
   - ⚠️ iPhone: SÓ funciona com o PWA instalado na tela de início. Android/desktop: navegador normal.
+
+### 💳 Pagamento Asaas — 28/06/2026 (CÓDIGO COMPLETO, falta deploy+config)
+- **Gateway:** Asaas via **Link de Pagamento recorrente** (`chargeType=RECURRENT`). A página hospedada do Asaas coleta CPF/forma de pagamento — não guardamos PII. 1 link por usuário/checkout.
+- **Fonte única `src/lib/plans.ts`:** preços (Starter R$19,90 / Pro R$97/mês ou R$1.000/ano), labels (enum `TRADER` = "Starter" na UI), limites por plano (trades, setups, Vega, contas, integrações).
+- **Cliente `src/lib/asaas.ts`:** sandbox/prod por `ASAAS_ENV`, `createRecurrentPaymentLink`, `deletePaymentLink`, `cancelSubscription`. URL sandbox: `https://api-sandbox.asaas.com/v3`.
+- **Checkout `POST /api/asaas/checkout`:** auth → cria link recorrente com `externalReference="userId|PLAN|CYCLE"` → retorna `url` (front redireciona). Plano só sobe quando o webhook confirma.
+- **Webhook `POST /api/asaas/webhook`:** autentica via header `asaas-access-token` == `ASAAS_WEBHOOK_TOKEN`. `PAYMENT_RECEIVED/CONFIRMED` → sobe plano + `accessSource=PAID`. `PAYMENT_OVERDUE/DELETED/REFUNDED` → desce p/ FREE, **MAS nunca rebaixa `accessSource=MANUAL`** (comunidade liberada na mão). Idempotente (upsert). Sempre retorna 200. Adicionado a `PUBLIC_API_PREFIXES` no `proxy.ts` (público; checkout continua exigindo sessão).
+- **Schema:** `User.accessSource` (PAID/MANUAL/null) + `Subscription.asaasCustomerId/asaasSubscriptionId/billingCycle`. Aplicado via `db push` (colunas nullable, sem perda).
+- **Paywall:** modal global `src/components/upgrade-modal.tsx` (montado no layout), helper `openUpgradeModal()` (`src/lib/upgrade.ts`). Disparado no **403 de limite** ao criar trade (`trade-form.tsx`). Leva pra `/planos`.
+- **Página `/planos`:** preços novos + toggle mensal/anual no Pro + botões funcionais (chamam checkout e redirecionam). Server (`page.tsx`) + client (`planos-client.tsx`).
+- **Testes:** `scripts/test-asaas-webhook.mjs` — E2E (cria user → paga → confere PRO/PAID → atrasa → FREE → MANUAL não rebaixa → limpa). ✅ TODOS PASSARAM. Build de produção ✅. Fluxo Asaas (criar cliente/link) validado via curl no sandbox.
+- ⚠️ **FALTA PRA IR AO AR:** (1) deploy Vercel; (2) setar `ASAAS_ENV`/`ASAAS_API_KEY`/`ASAAS_WEBHOOK_TOKEN` na Vercel; (3) painel Asaas → Webhooks → URL `https://DOMINIO/api/asaas/webhook` + token igual ao env; (4) teste de pagamento sandbox real. Depois: trocar `ASAAS_ENV=production` + chave de produção (exige conta real + CNPJ/CPF + dados bancários).
 
 ## 🚧 Em progresso
 - **Integração NinjaTrader (AddOn):** código reescrito em `integration-section.tsx`, aguardando teste de compilação no NT8 real

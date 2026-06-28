@@ -4,7 +4,8 @@ import { NextResponse } from "next/server"
 const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/", "/share"]
 const AUTH_ROUTES = ["/login", "/cadastro"]
 // Rotas de API que não precisam de sessão (têm auth própria ou são públicas)
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/sync", "/api/uploadthing"]
+// /api/asaas/webhook é público (autentica via token do Asaas); o checkout exige sessão.
+const PUBLIC_API_PREFIXES = ["/api/auth", "/api/sync", "/api/uploadthing", "/api/asaas/webhook"]
 
 export default auth((req) => {
   const { nextUrl, auth: session } = req
