@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { Sidebar } from "@/components/layout/sidebar"
 import { SidebarProvider } from "@/components/layout/sidebar-context"
 import { BottomNav } from "@/components/layout/bottom-nav"
+import { UpgradeModal } from "@/components/upgrade-modal"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -27,6 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
       </div>
       <BottomNav />
+      <UpgradeModal />
     </SidebarProvider>
   )
 }
