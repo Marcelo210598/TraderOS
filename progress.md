@@ -1,8 +1,9 @@
 # TraderOS — Progresso
 
-## Última atualização: 28/06/2026 — 💳 PAGAMENTO ASAAS IMPLEMENTADO (checkout 3 planos + webhook + paywall). Falta só DEPLOY + configurar webhook no painel Asaas. Ver historico/2026-06-28.md
-## (25/06: Painel Admin de acesso + push de novo cadastro + planos/custos definidos; 20/06: Carteira multi-corretora; 18/06: Web Push)
-## 🚧 PRÓXIMO: deploy Vercel + setar env vars Asaas + configurar webhook (URL+token) no painel sandbox + teste de pagamento real ponta a ponta
+## Última atualização: 28/06/2026 (fim de tarde) — 🟢 PAGAMENTO ASAAS EM MODO REAL (PRODUÇÃO). Conta PF aprovada, ASAAS_ENV=production + chave prod (escapada \$) + webhook prod criado + deploy. Smoke test OK (checkout gera link real www.asaas.com). Sem pagamento real ainda (1º será de cliente). Ver historico/2026-06-28.md
+## 🚨 GOTCHA: API key começa com `$` → Next expande e zera → escapar `\$` no .env E na Vercel. Token webhook ≥32 chars.
+## ⚠️ PENDÊNCIAS: (1) Pix não aparece no checkout → cadastrar chave Pix no painel Asaas; (2) personalizar nome fantasia "TraderOS"+logo (hoje mostra nome/CPF por ser PF); (3) migrar p/ PJ quando tiver CNPJ
+## (28/06 manhã: pagamento Asaas implementado + testado sandbox; 25/06: Painel Admin + push cadastro + planos/custos; 20/06: Carteira multi-corretora; 18/06: Web Push)
 
 ## 📌 Visão Geral
 - **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
