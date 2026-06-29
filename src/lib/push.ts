@@ -24,7 +24,7 @@ function configure() {
   if (!publicKey || !privateKey) {
     throw new Error("VAPID keys ausentes")
   }
-  webpush.setVapidDetails("mailto:difoggijuniormarcelo@gmail.com", publicKey, privateKey)
+  webpush.setVapidDetails("mailto:traderos.oficial@gmail.com", publicKey, privateKey)
   configured = true
 }
 
