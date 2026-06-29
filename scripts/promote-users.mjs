@@ -1,4 +1,7 @@
-// Promove usuários para um plano (PRO por padrão) buscando por email.
+// Promove/ISENTA usuários para um plano (PRO por padrão) buscando por email.
+// Marca accessSource = MANUAL → o webhook do Asaas NUNCA rebaixa esse usuário
+// (isenção de pagamento blindada). É a forma de liberar quem você quiser de graça.
+//
 // Uso:
 //   node scripts/promote-users.mjs aluno1@email.com aluno2@email.com
 //   node scripts/promote-users.mjs --plan=TRADER aluno@email.com
@@ -67,7 +70,7 @@ async function main() {
     for (const email of emails) {
       const user = await prisma.user.findUnique({
         where: { email },
-        select: { id: true, email: true, name: true, plan: true },
+        select: { id: true, email: true, name: true, plan: true, accessSource: true },
       })
 
       if (!user) {
@@ -76,23 +79,24 @@ async function main() {
         continue
       }
 
-      if (user.plan === plan) {
-        console.log(`  ✅ ${email} → já estava em ${plan} (nada a fazer)`)
+      // Já isento de verdade = plano certo E blindado contra o webhook (MANUAL).
+      if (user.plan === plan && user.accessSource === "MANUAL") {
+        console.log(`  ✅ ${email} → já em ${plan} + MANUAL (isento, nada a fazer)`)
         jaEstavam.push(email)
         continue
       }
 
       if (dry) {
-        console.log(`  🔸 ${email} → ${user.plan} ➜ ${plan} (dry-run, não gravado)`)
+        console.log(`  🔸 ${email} → ${user.plan}/${user.accessSource ?? "—"} ➜ ${plan}/MANUAL (dry-run, não gravado)`)
         promovidos.push(email)
         continue
       }
 
       await prisma.user.update({
         where: { id: user.id },
-        data: { plan },
+        data: { plan, accessSource: "MANUAL" },
       })
-      console.log(`  ⬆️  ${email} → ${user.plan} ➜ ${plan}  [${user.name || "sem nome"}]`)
+      console.log(`  ⬆️  ${email} → ${user.plan}/${user.accessSource ?? "—"} ➜ ${plan}/MANUAL  [${user.name || "sem nome"}]`)
       promovidos.push(email)
     }
   } finally {
