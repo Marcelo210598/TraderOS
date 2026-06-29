@@ -36,8 +36,8 @@ export default async function PlanosPage() {
           <div className="mt-10 text-center space-y-2">
             <p className="text-xs text-muted-foreground">
               Dúvidas? Fale com a gente:{" "}
-              <a href="mailto:suporte@traderos.app" className="text-teal hover:underline">
-                suporte@traderos.app
+              <a href="mailto:traderos.oficial@gmail.com" className="text-teal hover:underline">
+                traderos.oficial@gmail.com
               </a>
             </p>
             <p className="text-[10px] text-muted-foreground">
