@@ -359,6 +359,15 @@ export default async function Home() {
           <div className="flex items-center gap-6 text-xs text-muted-foreground">
             <Link href="/login" className="hover:text-foreground transition-colors">Entrar</Link>
             <Link href="/cadastro" className="hover:text-foreground transition-colors">Criar conta</Link>
+            <a href="mailto:traderos.oficial@gmail.com" className="hover:text-foreground transition-colors">Contato</a>
+            <a
+              href="https://instagram.com/traderos.oficial"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-teal hover:underline"
+            >
+              📲 Siga @traderos.oficial
+            </a>
           </div>
         </div>
       </footer>

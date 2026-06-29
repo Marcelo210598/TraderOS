@@ -40,6 +40,17 @@ export default async function PlanosPage() {
                 traderos.oficial@gmail.com
               </a>
             </p>
+            <p className="text-xs text-muted-foreground">
+              📲 Acompanhe novidades e dicas no Instagram:{" "}
+              <a
+                href="https://instagram.com/traderos.oficial"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-teal hover:underline"
+              >
+                @traderos.oficial
+              </a>
+            </p>
             <p className="text-[10px] text-muted-foreground">
               Pagamentos processados com segurança pela Asaas. Cancele quando quiser.
             </p>
