@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { giveXp, checkAndAwardAchievements } from "@/lib/gamification"
 import { XP_REWARDS } from "@/lib/xp"
+import { checkPlanLimit } from "@/lib/plan-guard"
+import type { PlanKey } from "@/lib/plans"
 
 const setupSchema = z.object({
   name: z.string().min(1).max(80),
@@ -60,12 +62,12 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
-  if (session.user.plan === "FREE") {
-    return NextResponse.json(
-      { error: "A Biblioteca de Setups requer plano Trader ou Pro." },
-      { status: 403 }
-    )
-  }
+  // Limite de setups ativos por plano (Free 0 · Starter 5 · Pro ∞)
+  const setupCount = await prisma.setup.count({
+    where: { userId: session.user.id, isActive: true },
+  })
+  const blocked = checkPlanLimit(session.user.plan as PlanKey, "setups", setupCount)
+  if (blocked) return blocked
 
   const body = await req.json()
   const parsed = setupSchema.safeParse(body)

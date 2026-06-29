@@ -1,6 +1,7 @@
 # TraderOS — Progresso
 
-## Última atualização: 28/06/2026 (fim de tarde) — 🟢 PAGAMENTO ASAAS EM MODO REAL (PRODUÇÃO). Conta PF aprovada, ASAAS_ENV=production + chave prod (escapada \$) + webhook prod criado + deploy. Smoke test OK (checkout gera link real www.asaas.com). Sem pagamento real ainda (1º será de cliente). Ver historico/2026-06-28.md
+## Última atualização: 29/06/2026 — 🔒 PAYWALL PLUGADO EM TODOS OS GATES. Helper único `src/lib/plan-guard.ts` lê limites do `plans.ts` e devolve 403 padrão (`upgrade:true`+`suggestedPlan`) que o front usa pra abrir o modal. Gates: trades (corrigido BUG do Starter travar em 10 → agora 10/25/∞), setups (0/5/∞), integrações (0/1/∞), Vega check-in (buraco do backend FECHADO, agora Starter+), Vega chat (Pro-only, resposta padrão). Validado: tsc 0 erros + next build OK + teste 15/15 da matriz de limites. Contas (1/1/∞) ficou de fora de propósito (criação implícita compartilhada com sync dos bots). Ver historico/2026-06-29.md
+## (28/06: Asaas modo real produção — conta PF, ASAAS_ENV=production, webhook prod, smoke test OK. Ver historico/2026-06-28.md)
 ## 🚨 GOTCHA: API key começa com `$` → Next expande e zera → escapar `\$` no .env E na Vercel. Token webhook ≥32 chars.
 ## ⚠️ PENDÊNCIAS: (1) Pix não aparece no checkout → cadastrar chave Pix no painel Asaas; (2) personalizar nome fantasia "TraderOS"+logo (hoje mostra nome/CPF por ser PF); (3) migrar p/ PJ quando tiver CNPJ
 ## (28/06 manhã: pagamento Asaas implementado + testado sandbox; 25/06: Painel Admin + push cadastro + planos/custos; 20/06: Carteira multi-corretora; 18/06: Web Push)

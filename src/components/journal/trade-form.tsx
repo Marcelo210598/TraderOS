@@ -135,7 +135,7 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
       if (res.status === 403) {
         openUpgradeModal({
           reason: data.error?.toString(),
-          suggestedPlan: "TRADER",
+          suggestedPlan: data.suggestedPlan ?? "PRO",
         })
       }
       setError(data.error?.toString() ?? "Erro ao salvar trade")

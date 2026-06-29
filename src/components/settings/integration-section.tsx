@@ -4,6 +4,7 @@ import { useState } from "react"
 import Image from "next/image"
 import { Copy, Check, Trash2, Plus, ChevronDown, ChevronUp, Download, Clock, Terminal, FolderOpen, Zap, TrendingUp, Settings, FileText, Upload, AlertTriangle, CheckCircle2, ZoomIn } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { openUpgradeModal } from "@/lib/upgrade"
 
 interface ApiKey {
   id: string
@@ -41,7 +42,15 @@ export function IntegrationSection({ initialKeys }: Props) {
     try {
       const res = await fetch("/api/integrations/apikeys", { method: "POST" })
       const data = await res.json()
-      if (!res.ok) { alert(data.error); return }
+      if (!res.ok) {
+        // Limite de plano atingido → abre modal de upgrade
+        if (res.status === 403) {
+          openUpgradeModal({ reason: data.error?.toString(), suggestedPlan: data.suggestedPlan ?? "PRO" })
+        } else {
+          alert(data.error)
+        }
+        return
+      }
       // rawKey disponível apenas aqui — nunca mais será retornada pela API
       if (data.rawKey) setNewRawKey(data.rawKey)
       setKeys((prev) => [{ ...data, rawKey: undefined }, ...prev])

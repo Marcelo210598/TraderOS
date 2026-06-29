@@ -3,6 +3,8 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import crypto from "crypto"
 import { generateRawApiKey, hashApiKey, apiKeyPrefix } from "@/lib/apikey"
+import { checkPlanLimit } from "@/lib/plan-guard"
+import type { PlanKey } from "@/lib/plans"
 
 export async function GET() {
   const session = await auth()
@@ -23,11 +25,11 @@ export async function POST() {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
+  // Limite de integrações (API Keys) por plano (Free 0 · Starter 1 · Pro ∞)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const count = await (prisma as any).userApiKey.count({ where: { userId: session.user.id } })
-  if (count >= 3) {
-    return NextResponse.json({ error: "Limite de 3 API Keys atingido" }, { status: 400 })
-  }
+  const blocked = checkPlanLimit(session.user.plan as PlanKey, "integrations", count)
+  if (blocked) return blocked
 
   const rawKey = generateRawApiKey()
   const keyHash = hashApiKey(rawKey)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
+import { upgradeResponse } from "@/lib/plan-guard"
 
 const BASE_SYSTEM = `Você é Vega, analista sênior de trading integrado ao TraderOS. Você tem acesso aos dados reais de performance do trader e os usa para dar análises precisas e personalizadas.
 
@@ -265,7 +266,7 @@ Use esses dados ao responder. Seja específico e referencie os números reais. T
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-  if (session.user.plan !== "PRO") return NextResponse.json({ error: "Plano PRO necessário" }, { status: 403 })
+  if (session.user.plan !== "PRO") return upgradeResponse("O chat com a Vega é exclusivo do plano Pro.", "PRO")
 
   const { messages } = await req.json()
   if (!messages || !Array.isArray(messages) || messages.length === 0) {

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
 import { Send, Loader2, User, Database } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { openUpgradeModal } from "@/lib/upgrade"
 
 interface Message {
   role: "user" | "assistant"
@@ -50,6 +51,12 @@ export function AskClaudeChat() {
         body: JSON.stringify({ messages: next }),
       })
       const data = await res.json()
+      // Limite de plano atingido → abre modal de upgrade
+      if (res.status === 403) {
+        openUpgradeModal({ reason: data.error?.toString(), suggestedPlan: data.suggestedPlan ?? "PRO" })
+        setMessages(next)
+        return
+      }
       const reply = data.reply ?? data.error ?? "Erro ao processar sua pergunta. Tente novamente."
       setMessages([...next, { role: "assistant", content: reply }])
     } catch {
