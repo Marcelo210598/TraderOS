@@ -6,6 +6,8 @@ import { Prisma } from "@prisma/client"
 import { giveXp, updateJournalStreak, updateProfitableDaysStreak, checkAndAwardAchievements } from "@/lib/gamification"
 import { XP_REWARDS } from "@/lib/xp"
 import { ensureAccount } from "@/lib/account"
+import { checkPlanLimit } from "@/lib/plan-guard"
+import type { PlanKey } from "@/lib/plans"
 
 const createTradeSchema = z.object({
   date: z.string(),
@@ -87,21 +89,15 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
-  // Limite do plano Free: 10 trades/mês
-  if (session.user.plan === "FREE") {
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
-    const count = await prisma.trade.count({
-      where: { userId: session.user.id, createdAt: { gte: startOfMonth } },
-    })
-    if (count >= 10) {
-      return NextResponse.json(
-        { error: "Limite de 10 trades/mês atingido no plano Free. Faça upgrade para continuar." },
-        { status: 403 }
-      )
-    }
-  }
+  // Limite de trades/mês por plano (Free 10 · Starter 25 · Pro ∞)
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  startOfMonth.setHours(0, 0, 0, 0)
+  const monthlyTrades = await prisma.trade.count({
+    where: { userId: session.user.id, createdAt: { gte: startOfMonth } },
+  })
+  const blocked = checkPlanLimit(session.user.plan as PlanKey, "tradesPerMonth", monthlyTrades)
+  if (blocked) return blocked
 
   const body = await req.json()
   const parsed = createTradeSchema.safeParse(body)

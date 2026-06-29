@@ -3,6 +3,8 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
 import { z } from "zod"
+import { checkPlanLimit } from "@/lib/plan-guard"
+import type { PlanKey } from "@/lib/plans"
 
 const schema = z.object({
   type: z.enum(["PRE", "POST"]),
@@ -19,6 +21,11 @@ const BEHAVIORAL_TAGS = ["revenge", "fomo", "overtrading", "impulsivo", "medo", 
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+
+  // Vega no check-in disponível a partir do Starter (limite 0 = FREE bloqueado).
+  // Defense-in-depth: a UI já esconde do FREE, mas a API precisa travar também.
+  const blocked = checkPlanLimit(session.user.plan as PlanKey, "vegaPerMonth", 0)
+  if (blocked) return blocked
 
   const body = await req.json()
   const parsed = schema.safeParse(body)

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Loader2, X } from "lucide-react"
 import type { Setup } from "@/lib/types"
+import { openUpgradeModal } from "@/lib/upgrade"
 
 interface SetupModalProps {
   open: boolean
@@ -55,6 +56,16 @@ export function SetupModal({ open, initial, onClose, onSaved }: SetupModalProps)
 
     if (!res.ok) {
       const d = await res.json()
+      // Limite de plano atingido → abre modal de upgrade
+      if (res.status === 403) {
+        openUpgradeModal({
+          reason: d.error?.toString(),
+          suggestedPlan: d.suggestedPlan ?? "PRO",
+        })
+        onClose()
+        setLoading(false)
+        return
+      }
       setError(d.error?.toString() ?? "Erro ao salvar setup")
       setLoading(false)
       return
