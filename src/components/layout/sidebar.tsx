@@ -106,9 +106,11 @@ export function Sidebar({ userPlan = "FREE", userRole = "USER", userLevel = 1, u
         )}
       >
         {/* Logo + fechar mobile */}
-        <div className="flex items-center gap-2 px-3 h-14 border-b border-sidebar-border shrink-0">
-          <Image src="/icon-32.png" alt="MeuTrade" width={28} height={28} className="shrink-0" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">MeuTrade</span>
+        <div className="flex items-center gap-2.5 px-4 h-16 border-b border-sidebar-border shrink-0">
+          <Image src="/icon-32.png" alt="MeuTrade" width={32} height={32} className="shrink-0 rounded-md" />
+          <span className="text-lg font-bold tracking-tight text-foreground">
+            Meu<span className="text-teal">Trade</span>
+          </span>
           <Badge
             variant="outline"
             className={cn(

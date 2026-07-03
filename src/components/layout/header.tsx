@@ -44,7 +44,7 @@ export function Header({
       .toUpperCase() ?? "T"
 
   return (
-    <header className="h-14 border-b border-border bg-background/80 backdrop-blur-sm flex items-center px-4 gap-3 sticky top-0 z-20">
+    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-sm flex items-center px-5 gap-3 sticky top-0 z-20">
       {/* Hamburguer — só mobile */}
       <button
         onClick={toggleMobile}
@@ -55,7 +55,7 @@ export function Header({
       </button>
 
       <div className="flex-1 min-w-0">
-        <h1 className="text-sm font-semibold text-foreground truncate">{title}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-foreground truncate leading-tight">{title}</h1>
         {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
       </div>
 
