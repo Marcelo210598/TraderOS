@@ -34,7 +34,7 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <span className="text-xl font-bold tracking-tight">
-              <span className="text-teal">Trader</span>OS
+              Meu<span className="text-teal">Trade</span>
             </span>
             <span className="hidden sm:inline-block text-[10px] font-mono bg-teal/10 text-teal border border-teal/20 px-1.5 py-0.5 rounded">
               BETA
@@ -352,7 +352,7 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="font-bold text-sm">
-              <span className="text-teal">Trader</span>OS
+              Meu<span className="text-teal">Trade</span>
             </span>
             <span className="text-xs text-muted-foreground">© 2026</span>
           </div>
