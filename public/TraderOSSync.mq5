@@ -17,10 +17,15 @@
 //  N minutos) e captura DEPÓSITOS/SAQUES — a Carteira do TraderOS fica completa.
 //  Funciona em conta NETTING e HEDGING. O servidor deduplica, não duplica.
 //
+//  v2.10: CATCH-UP automático — a cada ciclo do timer o EA reenvia os trades
+//  fechados recentes que ainda não subiram (evento perdido, VM reiniciada,
+//  EA anexado depois do trade). O servidor deduplica por externalId, então
+//  nada duplica. Torna o sync confiável pra copytrade 24/7.
+//
 //+------------------------------------------------------------------+
 #property copyright "TraderOS"
 #property link      "https://trader-os-ashy.vercel.app"
-#property version   "2.00"
+#property version   "2.10"
 #property strict
 
 //--- Parâmetros (preenchidos pelo usuário ao anexar o EA)
@@ -28,11 +33,29 @@ input string ApiKey    = "";                                   // API Key (Confi
 input string ServerUrl = "https://trader-os-ashy.vercel.app";  // URL do TraderOS (não mude)
 input bool   EnviarSaldo = true;                               // Enviar saldo real da conta (Carteira)
 input int    IntervaloSaldoSegundos = 600;                     // De quanto em quanto envia o saldo (seg)
-input bool   EnviarHistoricoAoIniciar = false;                 // Enviar trades fechados hoje ao iniciar
+input bool   EnviarHistoricoAoIniciar = true;                  // Enviar trades fechados hoje ao iniciar
+input bool   CatchUpAtivo = true;                              // Reenviar trades recentes que faltaram (recomendado)
+input int    HorasCatchUp = 26;                                // Janela do catch-up em horas (cobre 1 dia + margem)
 input int    MaxTentativas = 4;                                // Tentativas de reenvio se falhar
 
 //--- Estado
 string g_epTrade, g_epSaldo, g_epTx;
+ulong  g_enviados[];   // positionIds já enviados nesta sessão (evita reenvio/spam)
+
+//--- Cache de enviados (evita reenviar o mesmo trade dentro da sessão)
+bool JaEnviado(ulong posId)
+{
+   for(int i = ArraySize(g_enviados) - 1; i >= 0; i--)
+      if(g_enviados[i] == posId) return true;
+   return false;
+}
+void MarcarEnviado(ulong posId)
+{
+   if(JaEnviado(posId)) return;
+   int n = ArraySize(g_enviados);
+   ArrayResize(g_enviados, n + 1);
+   g_enviados[n] = posId;
+}
 
 //+------------------------------------------------------------------+
 //| Inicialização                                                    |
@@ -53,9 +76,9 @@ int OnInit()
    Print("[TraderOS] EA conectado. Endpoint: ", g_epTrade);
    Comment("TraderOS: sincronizando trades e saldo desta conta ✅");
 
-   if(EnviarSaldo)
+   if(EnviarSaldo) EnviarSaldoConta();
+   if(EnviarSaldo || CatchUpAtivo)   // o timer aciona saldo E/OU catch-up de trades
    {
-      EnviarSaldoConta();
       int seg = IntervaloSaldoSegundos < 60 ? 60 : IntervaloSaldoSegundos;
       EventSetTimer(seg);
    }
@@ -77,6 +100,28 @@ void OnDeinit(const int reason)
 void OnTimer()
 {
    if(EnviarSaldo) EnviarSaldoConta();
+   if(CatchUpAtivo) CatchUpTrades();   // reenvia trades recentes que faltaram (dedup no servidor)
+}
+
+//+------------------------------------------------------------------+
+//| Catch-up — varre trades fechados recentes e envia os que faltam  |
+//| Roda no timer. O servidor deduplica por externalId, não duplica. |
+//+------------------------------------------------------------------+
+void CatchUpTrades()
+{
+   datetime desde = TimeCurrent() - (datetime)HorasCatchUp * 3600;
+   if(!HistorySelect(desde, TimeCurrent())) return;
+   int total = HistoryDealsTotal();
+   for(int i = 0; i < total; i++)
+   {
+      ulong dd = HistoryDealGetTicket(i);
+      if(dd == 0) continue;
+      long entry = HistoryDealGetInteger(dd, DEAL_ENTRY);
+      if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_INOUT) continue;
+      ulong posId = (ulong)HistoryDealGetInteger(dd, DEAL_POSITION_ID);
+      if(JaEnviado(posId)) continue;
+      EnviarTradePorDealDeSaida(dd);
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -156,6 +201,7 @@ void EnviarTransacaoSaldo(ulong deal, long dealType)
 void EnviarTradePorDealDeSaida(ulong outDeal)
 {
    long   positionId = HistoryDealGetInteger(outDeal, DEAL_POSITION_ID);
+   if(JaEnviado((ulong)positionId)) return;   // já subiu nesta sessão (evita duplicar evento + catch-up)
    string symbol     = HistoryDealGetString(outDeal, DEAL_SYMBOL);
    double volume     = HistoryDealGetDouble(outDeal, DEAL_VOLUME);
    double exitPrice  = HistoryDealGetDouble(outDeal, DEAL_PRICE);
@@ -198,14 +244,15 @@ void EnviarTradePorDealDeSaida(ulong outDeal)
       DoubleToString(commission, 2), DoubleToString(swap, 2),
       TimeToIso(entryTime), TimeToIso(exitTime), TipoConta(), positionId);
 
-   Post(g_epTrade, body, true);
-   Print(StringFormat("[TraderOS] %s PnL=%.2f enviado", symbol, profit));
+   bool ok = Post(g_epTrade, body, true);
+   if(ok) MarcarEnviado((ulong)positionId);   // só marca se subiu (senão o catch-up tenta de novo)
+   Print(StringFormat("[TraderOS] %s PnL=%.2f %s", symbol, profit, ok ? "enviado" : "FALHOU (catch-up tentará de novo)"));
 }
 
 //+------------------------------------------------------------------+
 //| POST genérico (WebRequest síncrono) com retry opcional           |
 //+------------------------------------------------------------------+
-void Post(string endpoint, string body, bool comRetry)
+bool Post(string endpoint, string body, bool comRetry)
 {
    char post[]; char resp[]; string respHeaders;
    string headers = "Content-Type: application/x-www-form-urlencoded\r\nx-api-key: " + ApiKey + "\r\n";
@@ -219,23 +266,24 @@ void Post(string endpoint, string body, bool comRetry)
       ResetLastError();
       int status = WebRequest("POST", endpoint, headers, 15000, post, resp, respHeaders);
 
-      if(status == 201 || status == 200) return;
+      if(status == 201 || status == 200) return true;   // sucesso (inclui dedup 200)
       if(status == -1)
       {
          int err = GetLastError();
          if(err == 4060 || err == 4014)
          {
             Print("[TraderOS] ❌ URL não autorizada. Tools > Options > Expert Advisors > Allow WebRequest: ", ServerUrl);
-            return;
+            return false;
          }
       }
       else if(status >= 400 && status < 500 && status != 429)
       {
          Print(StringFormat("[TraderOS] ❌ rejeitado (HTTP %d): %s", status, CharArrayToString(resp)));
-         return;
+         return false;   // erro definitivo (schema/auth) — não adianta repetir
       }
       if(comRetry && tentativa < maxT) Sleep(1000 * tentativa);
    }
+   return false;
 }
 
 //+------------------------------------------------------------------+
