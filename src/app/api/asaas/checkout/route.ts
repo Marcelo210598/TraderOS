@@ -45,10 +45,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const link = await createRecurrentPaymentLink({
-      name: `TraderOS ${planLabel} (${cycleLabel})`,
+      name: `MeuTrade ${planLabel} (${cycleLabel})`,
       value,
       cycle,
-      description: `Assinatura TraderOS ${planLabel}`,
+      description: `Assinatura MeuTrade ${planLabel}`,
       // Codifica userId|plano|ciclo — propaga pras cobranças e o webhook decodifica.
       externalReference: `${userId}|${plan}|${cycle}`,
     })

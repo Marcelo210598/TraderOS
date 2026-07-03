@@ -15,7 +15,7 @@ using NinjaTrader.Cbi;
 using NinjaTrader.NinjaScript;
 #endregion
 
-// === TraderOS Sync (AddOn) ===
+// === MeuTrade Sync (AddOn) ===
 // Roda automaticamente quando o NinjaTrader abre. Nao precisa de grafico.
 // Lê a API Key do arquivo: Documentos\\NinjaTrader 8\\traderos_config.txt
 namespace NinjaTrader.NinjaScript.AddOns
@@ -44,8 +44,8 @@ namespace NinjaTrader.NinjaScript.AddOns
         {
             if (State == State.SetDefaults)
             {
-                Name        = "TraderOS Sync";
-                Description = "Sincroniza automaticamente seus trades com o TraderOS.";
+                Name        = "MeuTrade Sync";
+                Description = "Sincroniza automaticamente seus trades com o MeuTrade.";
             }
             else if (State == State.Configure)
             {
@@ -62,19 +62,19 @@ namespace NinjaTrader.NinjaScript.AddOns
                 if (File.Exists(configPath))
                 {
                     _apiKey = File.ReadAllText(configPath).Trim();
-                    Print("[TraderOS] Config carregada. Pronto para sincronizar.");
+                    Print("[MeuTrade] Config carregada. Pronto para sincronizar.");
                 }
                 else
                 {
-                    Print("[TraderOS] AVISO: traderos_config.txt nao encontrado em " + configPath);
-                    Print("[TraderOS] Baixe em: https://trader-os-ashy.vercel.app/configuracoes");
+                    Print("[MeuTrade] AVISO: traderos_config.txt nao encontrado em " + configPath);
+                    Print("[MeuTrade] Baixe em: https://trader-os-ashy.vercel.app/configuracoes");
                 }
             }
             else if (State == State.Active)
             {
                 foreach (Account a in Account.All)
                     a.ExecutionUpdate += OnExecution;
-                Print("[TraderOS] Ativo. Monitorando " + Account.All.Count + " conta(s). Aguardando execucoes.");
+                Print("[MeuTrade] Ativo. Monitorando " + Account.All.Count + " conta(s). Aguardando execucoes.");
             }
             else if (State == State.Terminated)
             {
@@ -150,7 +150,7 @@ namespace NinjaTrader.NinjaScript.AddOns
                     }
                 }
             }
-            catch (Exception err) { Print("[TraderOS] Erro OnExecution: " + err.Message); }
+            catch (Exception err) { Print("[MeuTrade] Erro OnExecution: " + err.Message); }
         }
 
         private void ReportTrade(Execution ex, Pos p, double avgExit)
@@ -163,7 +163,7 @@ namespace NinjaTrader.NinjaScript.AddOns
             string      inst   = ex.Instrument.MasterInstrument != null ? ex.Instrument.MasterInstrument.Name : ex.Instrument.FullName;
             CultureInfo ic     = CultureInfo.InvariantCulture;
 
-            Print("[TraderOS] Trade: " + inst + " " + (isLong ? "LONG" : "SHORT") + " x" + qty + " PnL=$" + pnl + " — enviando...");
+            Print("[MeuTrade] Trade: " + inst + " " + (isLong ? "LONG" : "SHORT") + " x" + qty + " PnL=$" + pnl + " — enviando...");
 
             string urlCopy   = _serverUrl + "/api/sync/ninjatrader";
             string keyCopy   = _apiKey;
@@ -203,11 +203,11 @@ namespace NinjaTrader.NinjaScript.AddOns
                     req.Content = new FormUrlEncodedContent(form);
 
                     var resp = await cli.SendAsync(req).ConfigureAwait(false);
-                    Print("[TraderOS] HTTP " + (int)resp.StatusCode + (resp.IsSuccessStatusCode ? " OK" : " Erro"));
+                    Print("[MeuTrade] HTTP " + (int)resp.StatusCode + (resp.IsSuccessStatusCode ? " OK" : " Erro"));
                 }
                 catch (Exception err)
                 {
-                    Print("[TraderOS] Erro ao enviar: " + err.Message);
+                    Print("[MeuTrade] Erro ao enviar: " + err.Message);
                 }
             });
         }

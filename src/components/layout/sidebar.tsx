@@ -107,8 +107,8 @@ export function Sidebar({ userPlan = "FREE", userRole = "USER", userLevel = 1, u
       >
         {/* Logo + fechar mobile */}
         <div className="flex items-center gap-2 px-3 h-14 border-b border-sidebar-border shrink-0">
-          <Image src="/icon-32.png" alt="TraderOS" width={28} height={28} className="shrink-0" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">TraderOS</span>
+          <Image src="/icon-32.png" alt="MeuTrade" width={28} height={28} className="shrink-0" />
+          <span className="text-sm font-semibold tracking-tight text-foreground">MeuTrade</span>
           <Badge
             variant="outline"
             className={cn(

@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "TraderOS",
-    template: "%s | TraderOS",
+    default: "MeuTrade",
+    template: "%s | MeuTrade",
   },
   description:
     "O app do trader brasileiro. Journal, análise e evolução — pra futuros, forex e o que você operar.",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TraderOS",
+    title: "MeuTrade",
   },
   icons: {
     icon: [

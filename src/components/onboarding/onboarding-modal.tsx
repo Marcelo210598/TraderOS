@@ -10,7 +10,7 @@ const STORAGE_KEY = "traderos_onboarding_v1"
 const STEPS = [
   {
     emoji: "🎯",
-    title: "Bem-vindo ao TraderOS",
+    title: "Bem-vindo ao MeuTrade",
     subtitle: "Seu diário de trading inteligente",
     body: "O app do trader brasileiro — não importa se você opera futuros, forex ou ações. Aqui você controla tudo, do trade à evolução mental.",
     cta: "Vamos começar",

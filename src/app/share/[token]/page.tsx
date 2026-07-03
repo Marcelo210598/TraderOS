@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = rows[0]
   const pnl = Number(t.pnl)
   return {
-    title: `${t.instrument} ${t.direction} ${pnl >= 0 ? "+" : ""}$${Math.abs(pnl).toFixed(0)} | TraderOS`,
-    description: `Trade em ${format(new Date(t.date), "dd/MM/yyyy", { locale: ptBR })} via TraderOS`,
+    title: `${t.instrument} ${t.direction} ${pnl >= 0 ? "+" : ""}$${Math.abs(pnl).toFixed(0)} | MeuTrade`,
+    description: `Trade em ${format(new Date(t.date), "dd/MM/yyyy", { locale: ptBR })} via MeuTrade`,
   }
 }
 
@@ -71,7 +71,7 @@ export default async function SharePage({ params }: Props) {
       {/* Top bar */}
       <div className="border-b border-border bg-card/50 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-foreground">TraderOS</span>
+          <span className="text-sm font-semibold text-foreground">MeuTrade</span>
           <span className="text-muted-foreground/40">·</span>
           <span className="text-xs text-muted-foreground">trade compartilhado</span>
         </div>
@@ -176,7 +176,7 @@ export default async function SharePage({ params }: Props) {
         {/* CTA */}
         <div className="bg-card border border-teal/20 rounded-xl p-4 text-center space-y-2">
           <p className="text-sm font-semibold text-foreground">Quer análises assim dos seus trades?</p>
-          <p className="text-xs text-muted-foreground">TraderOS — journal inteligente para traders de futuros americanos</p>
+          <p className="text-xs text-muted-foreground">MeuTrade — journal inteligente para traders de futuros americanos</p>
           <a
             href="/"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal text-teal-foreground text-sm font-medium hover:bg-teal/90 transition-colors"

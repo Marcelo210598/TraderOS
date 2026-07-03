@@ -14,7 +14,7 @@ export default function LoginPage() {
         <div className="flex justify-center mb-4">
           <Image
             src="/logo.png"
-            alt="TraderOS"
+            alt="MeuTrade"
             width={180}
             height={180}
             priority

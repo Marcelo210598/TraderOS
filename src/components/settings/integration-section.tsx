@@ -277,11 +277,11 @@ export function IntegrationSection({ initialKeys }: Props) {
                 </div>
 
                 {/* Passo 1 */}
-                <TutorialStep n={1} title="Acesse Configurações no TraderOS" icon={<Settings className="w-4 h-4" />}>
+                <TutorialStep n={1} title="Acesse Configurações no MeuTrade" icon={<Settings className="w-4 h-4" />}>
                   <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                     No menu lateral esquerdo, clique em <strong className="text-foreground">Configurações</strong> (no rodapé) e role até a seção <strong className="text-foreground">Integrações → NinjaTrader 8</strong>.
                   </p>
-                  <TutorialImage src="/tutorial/step1-dashboard.png" alt="Dashboard do TraderOS" caption="O botão Configurações fica no canto inferior esquerdo" />
+                  <TutorialImage src="/tutorial/step1-dashboard.png" alt="Dashboard do MeuTrade" caption="O botão Configurações fica no canto inferior esquerdo" />
                 </TutorialStep>
 
                 {/* Passo 2 */}
@@ -392,19 +392,19 @@ export function IntegrationSection({ initialKeys }: Props) {
                     Deve aparecer:
                   </p>
                   <div className="p-4 bg-[#0a0f1a] rounded-xl border border-border font-mono text-[11px] space-y-1 mb-3">
-                    <p className="text-green-400">[TraderOS] Config carregada. Pronto para sincronizar.</p>
-                    <p className="text-green-400">[TraderOS] Ativo. Monitorando 4 conta(s). Aguardando execucoes.</p>
+                    <p className="text-green-400">[MeuTrade] Config carregada. Pronto para sincronizar.</p>
+                    <p className="text-green-400">[MeuTrade] Ativo. Monitorando 4 conta(s). Aguardando execucoes.</p>
                   </div>
-                  <TutorialImage src="/tutorial/step23-saida-ativo.png" alt="Saída NinjaScript com TraderOS ativo" caption="Se aparecer 'Ativo. Monitorando', a integração está pronta" />
+                  <TutorialImage src="/tutorial/step23-saida-ativo.png" alt="Saída NinjaScript com MeuTrade ativo" caption="Se aparecer 'Ativo. Monitorando', a integração está pronta" />
                 </TutorialStep>
 
                 {/* Passo 10 */}
                 <TutorialStep n={10} title="Pronto! Trades sincronizados automaticamente" icon={<TrendingUp className="w-4 h-4" />}>
                   <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                    A partir de agora, cada trade fechado no NinjaTrader aparece <strong className="text-foreground">automaticamente</strong> no Journal do TraderOS em poucos segundos. Sem copiar dados, sem importar CSV — tudo em tempo real.
+                    A partir de agora, cada trade fechado no NinjaTrader aparece <strong className="text-foreground">automaticamente</strong> no Journal do MeuTrade em poucos segundos. Sem copiar dados, sem importar CSV — tudo em tempo real.
                   </p>
                   <TutorialImage src="/tutorial/step24-trade-ninjatrader.png" alt="Trade executado no NinjaTrader" caption="Você opera normalmente no NinjaTrader…" />
-                  <TutorialImage src="/tutorial/step25-trade-traderos-journal.png" alt="Trade no Journal do TraderOS" caption="…e o trade aparece sozinho no Journal do TraderOS" />
+                  <TutorialImage src="/tutorial/step25-trade-traderos-journal.png" alt="Trade no Journal do MeuTrade" caption="…e o trade aparece sozinho no Journal do MeuTrade" />
                   <div className="mt-3 p-3 bg-profit/5 border border-profit/20 rounded-lg">
                     <p className="text-xs font-semibold text-foreground mb-0.5">Configura uma vez, funciona para sempre.</p>
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
@@ -423,7 +423,7 @@ export function IntegrationSection({ initialKeys }: Props) {
                     Sim! A Apex usa o NinjaTrader. O AddOn captura trades de todas as contas conectadas (Eval e PA).
                   </Faq>
                   <Faq q="Trades antigos vão duplicar?">
-                    Não. Cada trade tem um ID único. Se já foi enviado, o TraderOS ignora automaticamente.
+                    Não. Cada trade tem um ID único. Se já foi enviado, o MeuTrade ignora automaticamente.
                   </Faq>
                   <Faq q="O aviso de 'versão incompatível' é problema?">
                     Não. É só um aviso do NinjaTrader sobre a versão de exportação. Clique OK e siga normalmente — a integração funciona perfeitamente.
@@ -641,7 +641,7 @@ export function IntegrationSection({ initialKeys }: Props) {
                   <div className="p-3 bg-[#0a0f1a] rounded-lg border border-border mb-3">
                     <code className="text-[11px] font-mono text-teal break-all">https://trader-os-ashy.vercel.app</code>
                   </div>
-                  <TutorialImage src="/tutorial/mt5/mt5-step17-webrequest-configurado.png" alt="WebRequest configurado com a URL do TraderOS" caption="As 2 caixas marcadas e a URL listada. Clique OK." />
+                  <TutorialImage src="/tutorial/mt5/mt5-step17-webrequest-configurado.png" alt="WebRequest configurado com a URL do MeuTrade" caption="As 2 caixas marcadas e a URL listada. Clique OK." />
                 </TutorialStep>
 
                 <TutorialStep n={7} title="Anexe o EA no gráfico e cole a key" icon={<Upload className="w-4 h-4" />}>
@@ -664,9 +664,9 @@ export function IntegrationSection({ initialKeys }: Props) {
                   <TutorialImage src="/tutorial/mt5/mt5-step23-algotrading-ligado.png" alt="Botão Algotrading ligado (verde)" caption="Algotrading verde no topo = ligado" />
                   <p className="text-xs text-muted-foreground leading-relaxed mt-3 mb-3">
                     Pra confirmar, abra a aba <strong className="text-foreground">Experts</strong> (embaixo, ao lado de Diário). Tem que aparecer{" "}
-                    <span className="font-mono text-[10px] text-profit">[TraderOS] EA conectado</span>. Pronto — cada trade fechado (de qualquer par) cai sozinho no seu TraderOS! 🎉
+                    <span className="font-mono text-[10px] text-profit">[MeuTrade] EA conectado</span>. Pronto — cada trade fechado (de qualquer par) cai sozinho no seu MeuTrade! 🎉
                   </p>
-                  <TutorialImage src="/tutorial/mt5/mt5-step22-ea-conectado-experts.png" alt="Aba Experts mostrando EA conectado" caption="'[TraderOS] EA conectado' = sincronização ativa ✅" />
+                  <TutorialImage src="/tutorial/mt5/mt5-step22-ea-conectado-experts.png" alt="Aba Experts mostrando EA conectado" caption="'[MeuTrade] EA conectado' = sincronização ativa ✅" />
                 </TutorialStep>
 
                 <div className="px-5 py-4 space-y-2">
@@ -684,13 +684,13 @@ export function IntegrationSection({ initialKeys }: Props) {
                     Os dois. O EA captura cada posição fechada, então funciona igual nos dois modos.
                   </Faq>
                   <Faq q="O EA dá ordem ou copia trade?">
-                    Não. Ele só LÊ e envia seus trades já fechados pro TraderOS. Não abre nem fecha nada na sua conta.
+                    Não. Ele só LÊ e envia seus trades já fechados pro MeuTrade. Não abre nem fecha nada na sua conta.
                   </Faq>
                   <Faq q="O saldo da conta aparece na Carteira?">
                     Sim. O EA envia o saldo real do broker (e depósitos/saques) automaticamente — a Carteira mostra o saldo de cada conta sem você informar nada. Se você instalou uma versão antiga do EA, baixe e recompile a atual pra ativar o saldo.
                   </Faq>
                   <Faq q="Trades antigos duplicam?">
-                    Não. Cada posição tem um ID único; se já foi enviada, o TraderOS ignora.
+                    Não. Cada posição tem um ID único; se já foi enviada, o MeuTrade ignora.
                   </Faq>
                 </div>
               </div>

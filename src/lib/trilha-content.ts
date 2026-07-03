@@ -1,4 +1,4 @@
-// Conteúdo da Trilha de Aprendizado do TraderOS.
+// Conteúdo da Trilha de Aprendizado do MeuTrade.
 // Texto escrito para traders BR iniciantes/intermediários que operam futuros
 // americanos (NQ/ES) via prop firms (Apex). Editável livremente.
 //
@@ -99,7 +99,7 @@ export const TRILHA: TrilhaModule[] = [
             "**ES**: 1 ponto = US$ 50 → 10 pontos = US$ 500.",
             "**MES**: 1 ponto = US$ 5 → 10 pontos = US$ 50.",
           ] },
-          { type: "tip", text: "No TraderOS, o PnL de cada trade já é calculado automaticamente pelo ativo que você seleciona. Mas saber a conta de cabeça te dá controle em tempo real." },
+          { type: "tip", text: "No MeuTrade, o PnL de cada trade já é calculado automaticamente pelo ativo que você seleciona. Mas saber a conta de cabeça te dá controle em tempo real." },
           { type: "key", text: "Sempre saiba quanto vale o ponto do que você opera. NQ = US$20/pt, MNQ = US$2/pt. Sem isso, você está operando no escuro." },
         ],
       },
@@ -150,7 +150,7 @@ export const TRILHA: TrilhaModule[] = [
             "**Overnight (madrugada)**: baixa liquidez, movimentos traiçoeiros. Evite como iniciante.",
           ] },
           { type: "warn", text: "Muitos iniciantes quebram operando de madrugada por 'falta de paciência' de esperar a abertura. Disciplina de horário é parte da estratégia." },
-          { type: "tip", text: "O TraderOS classifica cada trade por sessão (AM/PM/Overnight). Depois, no Analytics, você descobre em qual horário você realmente ganha dinheiro — e em qual você só perde." },
+          { type: "tip", text: "O MeuTrade classifica cada trade por sessão (AM/PM/Overnight). Depois, no Analytics, você descobre em qual horário você realmente ganha dinheiro — e em qual você só perde." },
           { type: "key", text: "A abertura de NY é onde mora a oportunidade. Meio do dia e madrugada são armadilhas de baixa liquidez. Horário é estratégia." },
         ],
       },
@@ -238,7 +238,7 @@ export const TRILHA: TrilhaModule[] = [
           ] },
           { type: "p", text: "Quanto mais fundo o buraco, mais desproporcional é a escalada de volta. Por isso proteger o capital vale mais do que perseguir lucro." },
           { type: "warn", text: "Em prop firms como a Apex, o drawdown não é só matemático — é uma **regra rígida**. Atingiu o limite, a conta morre. Vamos detalhar isso no Módulo 5." },
-          { type: "tip", text: "O **Guardian** do TraderOS calcula seu trailing drawdown em tempo real e te dá um semáforo de risco. É a sua rede de proteção contra o erro que quebra a conta." },
+          { type: "tip", text: "O **Guardian** do MeuTrade calcula seu trailing drawdown em tempo real e te dá um semáforo de risco. É a sua rede de proteção contra o erro que quebra a conta." },
           { type: "key", text: "Drawdown profundo exige recuperação desproporcional (-50% precisa de +100%). Proteger capital > perseguir lucro. Sempre." },
         ],
       },
@@ -360,7 +360,7 @@ export const TRILHA: TrilhaModule[] = [
             "**Final da tarde**: pode voltar a ter movimento direcional rumo ao fechamento.",
           ] },
           { type: "warn", text: "Operar o dia inteiro não te faz ganhar mais — te faz operar nos horários ruins e devolver o que ganhou nos bons. Menos é mais." },
-          { type: "tip", text: "Use o Analytics do TraderOS pra ver seu desempenho por sessão. Quase todo trader descobre que ganha numa janela específica e perde nas outras." },
+          { type: "tip", text: "Use o Analytics do MeuTrade pra ver seu desempenho por sessão. Quase todo trader descobre que ganha numa janela específica e perde nas outras." },
           { type: "key", text: "Concentre-se na abertura de NY e em janelas de alta probabilidade. Operar menos horas, mas as horas certas, melhora o resultado." },
         ],
       },
@@ -378,8 +378,8 @@ export const TRILHA: TrilhaModule[] = [
             "**Alvo**: onde você realiza, definindo o risco:retorno.",
           ] },
           { type: "p", text: "Exemplo de setup simples: em tendência de alta, espero o preço recuar até um suporte, ver um pavio de rejeição com volume, entro long, stop abaixo do fundo, alvo no topo anterior (R:R 1:2)." },
-          { type: "tip", text: "Cadastre seus setups na **Biblioteca de Setups** do TraderOS. Conforme você registra trades, a plataforma calcula o win rate e o profit factor de CADA setup — e você descobre qual realmente funciona pra você." },
-          { type: "key", text: "Setup = contexto + gatilho + stop + alvo, tudo objetivo. Simples, repetível, mensurável. Cadastre e meça os seus no TraderOS." },
+          { type: "tip", text: "Cadastre seus setups na **Biblioteca de Setups** do MeuTrade. Conforme você registra trades, a plataforma calcula o win rate e o profit factor de CADA setup — e você descobre qual realmente funciona pra você." },
+          { type: "key", text: "Setup = contexto + gatilho + stop + alvo, tudo objetivo. Simples, repetível, mensurável. Cadastre e meça os seus no MeuTrade." },
         ],
       },
     ],
@@ -444,13 +444,13 @@ export const TRILHA: TrilhaModule[] = [
             "Revisar: segui o plano? As entradas foram do setup ou impulsivas?",
             "Anotar 1 ponto a melhorar amanhã.",
           ] },
-          { type: "tip", text: "O TraderOS tem **Check-in (pré e pós sessão)** e **Planner** justamente pra estruturar essa rotina. Quem cumpre o ritual ganha consistência; quem improvisa vive na montanha-russa." },
+          { type: "tip", text: "O MeuTrade tem **Check-in (pré e pós sessão)** e **Planner** justamente pra estruturar essa rotina. Quem cumpre o ritual ganha consistência; quem improvisa vive na montanha-russa." },
           { type: "key", text: "Consistência = rotina chata e repetível. Plano antes, registro e revisão depois. O ritual é o que segura o resultado no longo prazo." },
         ],
       },
       {
         id: "4-4",
-        title: "Journaling: como o TraderOS te faz evoluir",
+        title: "Journaling: como o MeuTrade te faz evoluir",
         duration: "6 min de leitura",
         blocks: [
           { type: "p", text: "Você não melhora no que não mede. O diário de trades (journal) é a ferramenta mais subestimada do trader — e a que mais acelera a evolução." },
@@ -508,7 +508,7 @@ export const TRILHA: TrilhaModule[] = [
             "**Trailing drawdown**: o limite de perda que 'persegue' seu pico (próxima aula — é o que mais reprova).",
             "**Dias mínimos de operação**: você precisa operar um número mínimo de dias.",
           ] },
-          { type: "tip", text: "O **Guardian** do TraderOS já vem com as regras reais de cada tamanho de conta Apex (PA 25K a 250K). Você seleciona sua conta e ele monitora meta, drawdown e consistência por você." },
+          { type: "tip", text: "O **Guardian** do MeuTrade já vem com as regras reais de cada tamanho de conta Apex (PA 25K a 250K). Você seleciona sua conta e ele monitora meta, drawdown e consistência por você." },
           { type: "key", text: "Avaliação Apex = atingir a meta de lucro sem violar o trailing drawdown, cumprindo os dias mínimos. Não quebrar regras importa mais que correr." },
         ],
       },
@@ -579,7 +579,7 @@ export const TRILHA: TrilhaModule[] = [
         title: "Usando o Guardian na prática",
         duration: "6 min de leitura",
         blocks: [
-          { type: "p", text: "Toda a teoria deste módulo vira ação no **Guardian** do TraderOS. Ele transforma as regras abstratas da Apex em números claros, em tempo real." },
+          { type: "p", text: "Toda a teoria deste módulo vira ação no **Guardian** do MeuTrade. Ele transforma as regras abstratas da Apex em números claros, em tempo real." },
           { type: "h", text: "O que o Guardian faz por você" },
           { type: "list", items: [
             "Você seleciona o **tamanho da conta** (PA 25K a 250K) e ele carrega as regras reais.",

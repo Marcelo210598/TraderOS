@@ -47,7 +47,7 @@ export function LessonContent({ blocks }: { blocks: Block[] }) {
             )
           case "tip":
             return (
-              <Callout key={i} icon={Lightbulb} tone="teal" label="Dica TraderOS">
+              <Callout key={i} icon={Lightbulb} tone="teal" label="Dica MeuTrade">
                 {renderInline(block.text)}
               </Callout>
             )

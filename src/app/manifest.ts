@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "TraderOS",
-    short_name: "TraderOS",
+    name: "MeuTrade",
+    short_name: "MeuTrade",
     description: "O app do trader: journal, análise e evolução — futuros, forex e mais",
     start_url: "/dashboard",
     display: "standalone",

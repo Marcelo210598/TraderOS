@@ -9,7 +9,7 @@ export async function POST() {
     if (!session?.user?.id) return NextResponse.json({ error: "Não autenticado" }, { status: 401 })
 
     const { sent, devices } = await sendPushToUser(session.user.id, {
-      title: "🔔 TraderOS",
+      title: "🔔 MeuTrade",
       body: "Notificações ativas! Você vai receber os trades do bot aqui.",
       url: "/notificacoes",
     })
