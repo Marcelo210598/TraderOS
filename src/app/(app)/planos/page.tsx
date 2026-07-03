@@ -43,12 +43,12 @@ export default async function PlanosPage() {
             <p className="text-xs text-muted-foreground">
               📲 Acompanhe novidades e dicas no Instagram:{" "}
               <a
-                href="https://instagram.com/traderos.oficial"
+                href="https://instagram.com/meutrade.app.oficial"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-teal hover:underline"
               >
-                @traderos.oficial
+                @meutrade.app.oficial
               </a>
             </p>
             <p className="text-[10px] text-muted-foreground">

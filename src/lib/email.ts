@@ -2,12 +2,12 @@ import { Resend } from "resend"
 
 export async function sendWelcomeEmail(to: string, name: string) {
   const resend = new Resend(process.env.RESEND_API_KEY)
-  const FROM = process.env.RESEND_FROM_EMAIL ?? "TraderOS <noreply@traderos.app>"
+  const FROM = process.env.RESEND_FROM_EMAIL ?? "MeuTrade <noreply@meutrade.app>"
   const firstName = name.split(" ")[0]
   await resend.emails.send({
     from: FROM as string,
     to,
-    subject: "Bem-vindo ao TraderOS 🚀",
+    subject: "Bem-vindo ao MeuTrade 🚀",
     html: `
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -20,7 +20,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
         <tr>
           <td style="background:linear-gradient(135deg,#00C2A820,#818CF810);padding:32px 40px;border-bottom:1px solid #1E293B;">
             <p style="margin:0;font-size:22px;font-weight:700;color:#F1F5F9;letter-spacing:-0.5px;">
-              ⚡ <span style="color:#00C2A8;">Trader</span>OS
+              ⚡ <span style="color:#00C2A8;">Meu</span>Trade
             </p>
             <p style="margin:8px 0 0;font-size:13px;color:#64748B;">Sistema operacional para traders</p>
           </td>
@@ -60,7 +60,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
             <table cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 <td align="center">
-                  <a href="${process.env.AUTH_URL ?? "https://traderos.app"}/dashboard"
+                  <a href="${process.env.AUTH_URL ?? "https://meutrade.app"}/dashboard"
                      style="display:inline-block;padding:14px 32px;background:#00C2A8;color:#080C14;font-size:15px;font-weight:700;text-decoration:none;border-radius:10px;letter-spacing:-0.2px;">
                     Acessar meu painel →
                   </a>
@@ -73,7 +73,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
         <tr>
           <td style="padding:24px 40px;border-top:1px solid #1E293B;">
             <p style="margin:0;font-size:12px;color:#475569;line-height:1.5;">
-              Você recebeu este email porque criou uma conta no TraderOS.<br>
+              Você recebeu este email porque criou uma conta no MeuTrade.<br>
               Se não foi você, ignore este email.
             </p>
           </td>

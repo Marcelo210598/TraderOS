@@ -118,7 +118,7 @@ export default async function Home() {
               </div>
               <div className="flex-1 flex justify-center">
                 <div className="px-4 py-1 rounded bg-muted/30 text-xs text-muted-foreground font-mono">
-                  traderos.app/dashboard
+                  meutrade.app/dashboard
                 </div>
               </div>
             </div>
@@ -199,7 +199,7 @@ export default async function Home() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-              Por que TraderOS?
+              Por que MeuTrade?
             </h2>
             <p className="text-muted-foreground text-lg">
               Compare com outras ferramentas de journal no mercado.
@@ -211,7 +211,7 @@ export default async function Home() {
             <div className="grid grid-cols-3 border-b border-border">
               <div className="p-5 text-sm font-medium text-muted-foreground">Funcionalidade</div>
               <div className="p-5 text-center border-l border-border">
-                <p className="text-sm font-bold text-foreground">TraderOS</p>
+                <p className="text-sm font-bold text-foreground">MeuTrade</p>
                 <p className="text-xs text-teal font-medium">a partir de grátis</p>
               </div>
               <div className="p-5 text-center border-l border-border">
@@ -331,7 +331,7 @@ export default async function Home() {
             Pronto para operar com mais consistência?
           </h2>
           <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-            Junte-se a traders que usam o TraderOS para rastrear performance,
+            Junte-se a traders que usam o MeuTrade para rastrear performance,
             controlar emoções e evoluir de verdade — opere o que você quiser.
           </p>
           <Link
@@ -361,12 +361,12 @@ export default async function Home() {
             <Link href="/cadastro" className="hover:text-foreground transition-colors">Criar conta</Link>
             <a href="mailto:traderos.oficial@gmail.com" className="hover:text-foreground transition-colors">Contato</a>
             <a
-              href="https://instagram.com/traderos.oficial"
+              href="https://instagram.com/meutrade.app.oficial"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-teal hover:underline"
             >
-              📲 Siga @traderos.oficial
+              📲 Siga @meutrade.app.oficial
             </a>
           </div>
         </div>

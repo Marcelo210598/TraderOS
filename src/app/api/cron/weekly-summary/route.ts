@@ -51,7 +51,7 @@ async function generateSummaryForUser(
 
   const weekStr = `${lastSaturday.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} a ${lastFriday.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`
 
-  const prompt = `Você é Vega, analista de trading do TraderOS. Gere um resumo semanal de trading em português brasileiro para ${userName ?? "o trader"}.
+  const prompt = `Você é Vega, analista de trading do MeuTrade. Gere um resumo semanal de trading em português brasileiro para ${userName ?? "o trader"}.
 
 Dados da semana (${weekStr}):
 - Total de trades: ${trades.length}

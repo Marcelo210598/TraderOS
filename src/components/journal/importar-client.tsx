@@ -13,7 +13,7 @@ import { ACCOUNT_OPTIONS } from "@/lib/accounts"
 type Platform = "traderos" | "ninjatrader" | "tradovate"
 
 const PLATFORMS: { key: Platform; label: string; desc: string }[] = [
-  { key: "traderos",    label: "Template TraderOS",    desc: "Formato nativo — baixe o template abaixo" },
+  { key: "traderos",    label: "Template MeuTrade",    desc: "Formato nativo — baixe o template abaixo" },
   { key: "ninjatrader", label: "NinjaTrader",           desc: "Trade Performance export (.csv)" },
   { key: "tradovate",   label: "Tradovate",             desc: "Closed Positions export (.csv)" },
 ]
@@ -35,7 +35,7 @@ interface ParsedRow {
   error?: string
 }
 
-// ── Template CSV (TraderOS) ────────────────────────────────────────────────
+// ── Template CSV (MeuTrade) ────────────────────────────────────────────────
 
 const TEMPLATE_CSV = [
   "date,instrument,direction,entry_price,exit_price,quantity,pnl,commission,session,notes",
@@ -104,9 +104,9 @@ function detectPlatform(headers: string[]): Platform {
   return "traderos"
 }
 
-// ── Parser: TraderOS template ──────────────────────────────────────────────
+// ── Parser: MeuTrade template ──────────────────────────────────────────────
 
-function parseTraderOS(headers: string[], lines: string[], sep: string): ParsedRow[] {
+function parseMeuTrade(headers: string[], lines: string[], sep: string): ParsedRow[] {
   return lines.map((line, idx) => {
     const cols = splitLine(line, sep)
     const get = (name: string) => (cols[headers.indexOf(name)] ?? "").trim()
@@ -262,7 +262,7 @@ function parseCSV(text: string, forcePlatform?: Platform): { rows: ParsedRow[]; 
   } else if (detected === "tradovate") {
     rows = parseTradovate(headers, dataLines, sep)
   } else {
-    rows = parseTraderOS(headers, dataLines, sep)
+    rows = parseMeuTrade(headers, dataLines, sep)
   }
 
   return { rows, detected }
@@ -305,7 +305,7 @@ export function ImportarClient() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = "traderos-import-template.csv"
+    a.download = "meutrade-import-template.csv"
     a.click()
     URL.revokeObjectURL(url)
   }

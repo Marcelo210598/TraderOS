@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
 import { upgradeResponse } from "@/lib/plan-guard"
 
-const BASE_SYSTEM = `Você é Vega, analista sênior de trading integrado ao TraderOS. Você tem acesso aos dados reais de performance do trader e os usa para dar análises precisas e personalizadas.
+const BASE_SYSTEM = `Você é Vega, analista sênior de trading integrado ao MeuTrade. Você tem acesso aos dados reais de performance do trader e os usa para dar análises precisas e personalizadas.
 
 Você ajuda traders de futuros americanos (NQ, ES, YM, RTY) a:
 - Analisar padrões nos seus próprios dados (win rate, horários, setups, drawdown, eficiência de saída)
@@ -60,7 +60,7 @@ async function buildTraderContext(userId: string): Promise<{ context: string; tr
 
   if (trades.length === 0) {
     return {
-      context: "\n\n## Contexto do trader\nO trader ainda não registrou trades no TraderOS. Oriente-o a começar pelo Journal.",
+      context: "\n\n## Contexto do trader\nO trader ainda não registrou trades no MeuTrade. Oriente-o a começar pelo Journal.",
       tradeCount: 0,
     }
   }

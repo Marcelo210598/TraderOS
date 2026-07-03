@@ -74,7 +74,7 @@ export default async function JournalPrintPage({ searchParams }: Props) {
         {/* Cabeçalho */}
         <div className="flex items-start justify-between mb-5 pb-4 border-b-2 border-gray-900">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">TraderOS</h1>
+            <h1 className="text-xl font-bold tracking-tight">MeuTrade</h1>
             <p className="text-gray-500 text-xs mt-0.5">Exportação do Journal de Trades</p>
           </div>
           <div className="text-right text-xs text-gray-500">
@@ -176,7 +176,7 @@ export default async function JournalPrintPage({ searchParams }: Props) {
 
         {/* Rodapé */}
         <div className="mt-5 pt-3 border-t border-gray-200 flex items-center justify-between text-[9px] text-gray-400">
-          <p>TraderOS — trader-os-ashy.vercel.app</p>
+          <p>MeuTrade — trader-os-ashy.vercel.app</p>
           <p>{user.name} · {format(now, "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
         </div>
       </div>

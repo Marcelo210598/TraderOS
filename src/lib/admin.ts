@@ -22,7 +22,7 @@ export async function notifyAdminsNewSignup(user: {
     await Promise.all(
       admins.map((a) =>
         sendPushToUser(a.id, {
-          title: "🎯 Novo cadastro no TraderOS",
+          title: "🎯 Novo cadastro no MeuTrade",
           body: `${nome} · ${email} — toque para liberar acesso`,
           url: "/admin",
         })

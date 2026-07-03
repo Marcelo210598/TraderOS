@@ -207,7 +207,7 @@ Dê 2-3 insights diretos sobre a sessão. Se detectou tags comportamentais (reve
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 512,
-      system: "Você é Vega, analista de trading do TraderOS. Responda em português brasileiro. Seja direto e humano — mentor experiente. Vá direto ao ponto, sem introduções genéricas, sem textão motivacional.",
+      system: "Você é Vega, analista de trading do MeuTrade. Responda em português brasileiro. Seja direto e humano — mentor experiente. Vá direto ao ponto, sem introduções genéricas, sem textão motivacional.",
       messages: [{ role: "user", content: prompt }],
     })
 

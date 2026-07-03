@@ -9,7 +9,7 @@ export default function CadastroPage() {
     <div className="flex flex-col gap-8">
       <div className="text-center">
         <div className="flex justify-center mb-4">
-          <Image src="/logo.png" alt="TraderOS" width={180} height={180} priority />
+          <Image src="/logo.png" alt="MeuTrade" width={180} height={180} priority />
         </div>
         <h1 className="text-2xl font-bold text-foreground">Criar conta gratuita</h1>
         <p className="text-sm text-muted-foreground mt-1">

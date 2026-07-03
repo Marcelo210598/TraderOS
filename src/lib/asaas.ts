@@ -37,7 +37,7 @@ async function asaasFetch<T>(
     headers: {
       "Content-Type": "application/json",
       access_token: API_KEY,
-      "User-Agent": "TraderOS",
+      "User-Agent": "MeuTrade",
       ...(rest.headers ?? {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,

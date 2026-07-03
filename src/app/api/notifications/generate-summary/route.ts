@@ -58,7 +58,7 @@ export async function POST() {
     max_tokens: 800,
     messages: [{
       role: "user",
-      content: `Você é Vega, analista de trading do TraderOS. Gere um resumo semanal de trading em português brasileiro para ${userName ?? "o trader"}.
+      content: `Você é Vega, analista de trading do MeuTrade. Gere um resumo semanal de trading em português brasileiro para ${userName ?? "o trader"}.
 
 Dados da semana (${weekStr}):
 - Total de trades: ${trades.length}

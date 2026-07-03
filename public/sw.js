@@ -1,5 +1,5 @@
-// v2: adiciona handlers de Web Push (alerta de trade do bot/NinjaTrader)
-const CACHE = "traderos-v2";
+// v3: rebrand MeuTrade + cache bust (Web Push do bot/NinjaTrader)
+const CACHE = "meutrade-v1";
 const PRECACHE = ["/", "/dashboard", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -27,14 +27,14 @@ self.addEventListener("push", (e) => {
   } catch {
     try { data = { body: e.data.text() }; } catch { data = {}; }
   }
-  const title = data.title || "TraderOS";
+  const title = data.title || "MeuTrade";
   e.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "Você tem uma nova notificação",
       icon: "/icon-192.png",
       badge: "/icon-192.png",
       vibrate: [200, 100, 200],
-      tag: data.url || "traderos-notif",
+      tag: data.url || "meutrade-notif",
       renotify: true,
       data: { url: data.url || "/notificacoes" },
       requireInteraction: false,

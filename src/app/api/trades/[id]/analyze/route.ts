@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk"
 
 const client = new Anthropic()
 
-const VEGA_SYSTEM = `Você é Vega, analista sênior de trading do TraderOS. Você analisa trades de futuros americanos (NQ, ES, YM, RTY) com profundidade e precisão cirúrgica.
+const VEGA_SYSTEM = `Você é Vega, analista sênior de trading do MeuTrade. Você analisa trades de futuros americanos (NQ, ES, YM, RTY) com profundidade e precisão cirúrgica.
 
 Diretrizes:
 - Seja direto, específico e acionável — sem enrolação
