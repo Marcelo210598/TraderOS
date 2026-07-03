@@ -20,7 +20,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
         <tr>
           <td style="background:linear-gradient(135deg,#00C2A820,#818CF810);padding:32px 40px;border-bottom:1px solid #1E293B;">
             <p style="margin:0;font-size:22px;font-weight:700;color:#F1F5F9;letter-spacing:-0.5px;">
-              ⚡ <span style="color:#00C2A8;">Meu</span>Trade
+              ⚡ Meu<span style="color:#00C2A8;">Trade</span>
             </p>
             <p style="margin:8px 0 0;font-size:13px;color:#64748B;">Sistema operacional para traders</p>
           </td>
