@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { SidebarProvider } from "@/components/layout/sidebar-context"
 import { BottomNav } from "@/components/layout/bottom-nav"
 import { UpgradeModal } from "@/components/upgrade-modal"
+import { touchLastSeen } from "@/lib/presence"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -11,6 +12,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session?.user) {
     redirect("/login")
   }
+
+  // Marca presença (throttled) — alimenta o painel de uso do Admin.
+  if (session.user.id) await touchLastSeen(session.user.id)
 
   return (
     <SidebarProvider>

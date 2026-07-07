@@ -25,6 +25,7 @@ model User {
   xp        Int       @default(0)
   level     Int       @default(1)
   timezone  String    @default("America/Sao_Paulo")
+  lastSeenAt DateTime? // ultima atividade (atualizado throttled no layout) — base de "online/ativos"
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
