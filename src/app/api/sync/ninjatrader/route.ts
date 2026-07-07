@@ -122,6 +122,28 @@ export async function POST(req: NextRequest) {
   const instrument = normalizeInstrument(d.instrument)
   const tradeDate = new Date(d.exitTime)
   const session = detectSession(d.exitTime)
+
+  // Anti-duplicata "espelho": numa reconexao o NinjaTrader pode reprocessar as execucoes
+  // do dia e reconstruir o MESMO trade INVERTIDO (precos trocados, direcao oposta, mesmo
+  // |pnl|) com um externalId novo — o dedup por externalId nao pega. Rejeita o espelho.
+  // O swap EXATO de entrada<->saida + direcao oposta praticamente nunca ocorre de verdade.
+  const windowMs = 12 * 60 * 60 * 1000
+  const mirror = await prisma.trade.findFirst({
+    where: {
+      userId,
+      source: "NINJATRADER",
+      instrument,
+      direction: d.direction === "LONG" ? "SHORT" : "LONG",
+      quantity: d.quantity,
+      entryPrice: d.exitPrice,
+      exitPrice: d.entryPrice,
+      date: { gte: new Date(tradeDate.getTime() - windowMs), lte: new Date(tradeDate.getTime() + windowMs) },
+    } as never,
+  })
+  if (mirror) {
+    return NextResponse.json({ ok: true, skipped: true, mirror: true, id: (mirror as { id: string }).id })
+  }
+
   const accountLabel = detectAccountLabel(d.accountName)
   const accountId = await ensureAccount(userId, "NINJATRADER", accountLabel, d.accountName)
 
