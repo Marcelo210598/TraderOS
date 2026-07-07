@@ -4,6 +4,7 @@ import { hash } from "bcryptjs"
 import { z } from "zod"
 import { sendWelcomeEmail } from "@/lib/email"
 import { notifyAdminsNewSignup } from "@/lib/admin"
+import { sendCapiEvent } from "@/lib/fbcapi"
 
 const schema = z.object({
   name: z.string().min(2).max(80),
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
 
   // Avisa admins por push (não bloqueia o cadastro)
   notifyAdminsNewSignup({ email, name }).catch(() => null)
+
+  // Retargeting: cadastro por email/senha também conta como Lead
+  sendCapiEvent({ eventName: "Lead", email }).catch(() => null)
 
   return NextResponse.json({ ok: true }, { status: 201 })
 }

@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import { notifyAdminsNewSignup } from "@/lib/admin"
+import { sendCapiEvent } from "@/lib/fbcapi"
 import { compare } from "bcryptjs"
 import { z } from "zod"
 
@@ -131,6 +132,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // O cadastro por email/senha é avisado direto na rota /api/auth/register.
     async createUser({ user }) {
       await notifyAdminsNewSignup({ email: user.email, name: user.name }).catch(() => null)
+      // Retargeting: mede quanto do tráfego IG/FB vira cadastro (Lead).
+      await sendCapiEvent({ eventName: "Lead", email: user.email }).catch(() => null)
     },
   },
 })
