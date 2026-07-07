@@ -101,6 +101,7 @@ model Trade {
   result      TradeResult
   sessionType  SessionType @default(AM)
   accountLabel String      @default("PA")
+  accountName  String?     // nome bruto da conta na corretora (ex: "APEX-245678-01") — base da deteccao de tipo
   source       String      @default("MANUAL") // MT5 | NINJATRADER | MANUAL — corretora de origem
   accountId    String?     // conta (Account) à qual este trade pertence
   setupId      String?
@@ -130,8 +131,9 @@ model TradingAccount {
   id             String   @id @default(cuid())
   userId         String
   source         String   @default("MANUAL")  // MT5 | NINJATRADER | MANUAL
-  label          String                       // accountLabel original (MT5, PA50K, TEST...)
-  name           String                       // nome editável pelo usuário (default = label)
+  label          String                       // TIPO da conta: TEST | EVAL | PA | PA50K...
+  brokerName     String?                      // nome/numero REAL da conta na corretora (ex: "APEX-245678-01") — identidade p/ separar contas
+  name           String                       // nome editável pelo usuário (default = brokerName ou label)
   currency       String   @default("USD")
   initialBalance Decimal  @db.Decimal(14, 2) @default(0)  // saldo inicial informado (opcional)
   balance        Decimal? @db.Decimal(14, 2)  // saldo real do broker (Fase 2, via sync)
@@ -144,8 +146,11 @@ model TradingAccount {
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   trades Trade[]
 
-  @@unique([userId, source, label])
+  // Separa contas pela identidade real (brokerName). Contas legadas/manuais (brokerName null)
+  // coexistem: no Postgres NULLs nao colidem em unique — o dedup delas eh feito no ensureAccount.
+  @@unique([userId, source, brokerName])
   @@index([userId])
+  @@index([userId, source, label])
   @@map("trading_accounts")
 }
 

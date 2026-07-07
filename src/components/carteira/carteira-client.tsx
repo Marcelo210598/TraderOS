@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { getAccountOption } from "@/lib/accounts"
 import { Wallet, TrendingUp, TrendingDown, ArrowRight, ArrowUpRight, ArrowDownLeft, Pencil, Check, X, Loader2, Archive, RotateCcw } from "lucide-react"
 
 interface Account {
@@ -311,6 +312,9 @@ function AccountCard({ a }: { a: Account }) {
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold text-foreground truncate">{a.name}</p>
           <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded font-mono", badge.cls)}>{badge.label}</span>
+          {(() => { const t = getAccountOption(a.label); return (
+            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border font-mono shrink-0", t.bg, t.border, t.color)}>{t.label}</span>
+          )})()}
           <button onClick={() => setEditing(true)} title="Editar conta"
             className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
             <Pencil className="w-3 h-3" />

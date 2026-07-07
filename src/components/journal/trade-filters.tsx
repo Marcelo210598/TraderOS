@@ -14,6 +14,15 @@ const RESULTS = [
 
 const INSTRUMENTS = ["", "NQ", "ES", "MNQ", "MES", "YM", "RTY", "CL", "GC"]
 
+const CONTAS = [
+  { value: "reais", label: "Contas reais" },
+  { value: "EVAL", label: "🟡 Avaliação" },
+  { value: "PA", label: "🟢 Aprovada" },
+  { value: "TEST", label: "🧪 Teste" },
+  { value: "arquivadas", label: "🗄️ Arquivadas" },
+  { value: "all", label: "Todas" },
+]
+
 interface TradeFiltersProps {
   setups: Setup[]
   tags?: string[]
@@ -36,6 +45,7 @@ export function TradeFilters({ setups, tags = [] }: TradeFiltersProps) {
   )
 
   const current = {
+    conta: searchParams.get("conta") ?? "reais",
     result: searchParams.get("result") ?? "",
     instrument: searchParams.get("instrument") ?? "",
     setupId: searchParams.get("setupId") ?? "",
@@ -44,10 +54,23 @@ export function TradeFilters({ setups, tags = [] }: TradeFiltersProps) {
     to: searchParams.get("to") ?? "",
   }
 
-  const hasFilters = Object.values(current).some(Boolean)
+  const { conta, ...otherFilters } = current
+  const hasFilters = Object.values(otherFilters).some(Boolean) || conta !== "reais"
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* Conta */}
+      <select
+        value={current.conta}
+        onChange={(e) => updateFilter("conta", e.target.value === "reais" ? "" : e.target.value)}
+        className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        title="Filtrar por conta"
+      >
+        {CONTAS.map((c) => (
+          <option key={c.value} value={c.value}>{c.label}</option>
+        ))}
+      </select>
+
       {/* Resultado */}
       <div className="flex rounded-lg border border-border overflow-hidden bg-card">
         {RESULTS.map((r) => (

@@ -10,6 +10,7 @@ import { StreakWidget } from "@/components/dashboard/streak-widget"
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from "lucide-react"
 import { DrawdownAlertBanner } from "@/components/dashboard/drawdown-alert-banner"
+import { excludeTestTrades } from "@/lib/account"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -29,19 +30,19 @@ export default async function DashboardPage() {
 
   const [weeklyTrades, recentTradesRaw, streaks, allTrades] = await Promise.all([
     prisma.trade.findMany({
-      where: { userId: user!.id, date: { gte: sevenDaysAgo } },
+      where: { userId: user!.id, date: { gte: sevenDaysAgo }, ...excludeTestTrades },
       select: { date: true, pnl: true, result: true },
       orderBy: { date: "asc" },
     }),
     prisma.trade.findMany({
-      where: { userId: user!.id },
+      where: { userId: user!.id, ...excludeTestTrades },
       include: { setup: { select: { name: true } } },
       orderBy: { date: "desc" },
       take: 5,
     }),
     prisma.streak.findMany({ where: { userId: user!.id } }),
     prisma.trade.findMany({
-      where: { userId: user!.id },
+      where: { userId: user!.id, ...excludeTestTrades },
       select: { date: true, pnl: true, accountLabel: true },
       orderBy: { date: "asc" },
     }),

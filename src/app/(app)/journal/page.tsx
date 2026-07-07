@@ -8,6 +8,19 @@ import { TradeList } from "@/components/journal/trade-list"
 import Link from "next/link"
 import { Plus, BookOpen, Upload, Tag, FileDown } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
+import { excludeTestTrades } from "@/lib/account"
+
+// Traduz o filtro de conta (?conta=) em clausula Prisma. Default "reais" = sem teste/arquivadas.
+function accountFilter(conta: string): Record<string, unknown> {
+  switch (conta) {
+    case "TEST": return { accountLabel: "TEST" }
+    case "EVAL": return { accountLabel: "EVAL" }
+    case "PA": return { accountLabel: { startsWith: "PA" } }
+    case "arquivadas": return { account: { is: { isArchived: true } } }
+    case "all": return {}
+    default: return excludeTestTrades // "reais"
+  }
+}
 
 export const metadata: Metadata = { title: "Journal" }
 
@@ -22,8 +35,10 @@ export default async function JournalPage({ searchParams }: Props) {
 
   const page = Math.max(1, Number(sp.page ?? 1))
   const limit = 20
+  const conta = sp.conta ?? "reais"
   const where = {
     userId: user.id,
+    ...accountFilter(conta),
     ...(sp.result && { result: sp.result as "WIN" | "LOSS" | "BREAKEVEN" }),
     ...(sp.instrument && { instrument: sp.instrument }),
     ...(sp.setupId && { setupId: sp.setupId }),
@@ -98,7 +113,7 @@ export default async function JournalPage({ searchParams }: Props) {
   const startOfMonth = new Date()
   startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0)
   const monthlyTrades = await prisma.trade.findMany({
-    where: { userId: user.id, date: { gte: startOfMonth } },
+    where: { userId: user.id, date: { gte: startOfMonth }, ...accountFilter(conta) },
     select: { result: true, pnl: true },
   })
   const monthlyPnl = monthlyTrades.reduce((acc, t) => acc + Number(t.pnl), 0)
