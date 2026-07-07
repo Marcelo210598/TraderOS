@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Check, Zap, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { PlanKey } from "@/lib/plans"
+import { trackPixel } from "@/lib/fbpixel"
 
 type Cycle = "MONTHLY" | "YEARLY"
 
@@ -87,10 +88,17 @@ export function PlanosGrid({ currentPlan }: { currentPlan: PlanKey }) {
   const [loading, setLoading] = useState<PlanKey | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Retargeting: público "viu os planos" (interessado em assinar).
+  useEffect(() => {
+    trackPixel("ViewContent", { content_name: "planos" })
+  }, [])
+
   async function checkout(plan: PlanKey) {
     if (plan === "FREE") return
     setError(null)
     setLoading(plan)
+    // Retargeting: público "quis assinar" (quente) — mesmo que não conclua o pagamento.
+    trackPixel("InitiateCheckout", { content_name: plan, currency: "BRL" })
     try {
       const planCycle: Cycle = plan === "PRO" ? cycle : "MONTHLY"
       const res = await fetch("/api/asaas/checkout", {

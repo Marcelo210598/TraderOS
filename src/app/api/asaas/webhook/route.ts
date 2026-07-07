@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import type { PlanKey } from "@/lib/plans"
+import { sendCapiEvent } from "@/lib/fbcapi"
 
 // ─── Webhook do Asaas ─────────────────────────────────────────────────────────
 // Configurar no painel Asaas (Integrações → Webhooks):
@@ -96,6 +97,20 @@ export async function POST(req: NextRequest) {
         }),
       ])
       console.log(`[asaas/webhook] ${event} → ${ref.userId} subiu p/ ${ref.plan}`)
+
+      // Retargeting: venda REAL confirmada (Purchase) via Conversions API.
+      // event_id = payment.id dedup com qualquer disparo do browser.
+      const buyer = await prisma.user.findUnique({
+        where: { id: ref.userId },
+        select: { email: true },
+      })
+      sendCapiEvent({
+        eventName: "Purchase",
+        email: buyer?.email,
+        value: payment.value,
+        currency: "BRL",
+        eventId: payment.id,
+      }).catch(() => null)
     } else if (DOWNGRADE_EVENTS.has(event) && ref) {
       const user = await prisma.user.findUnique({
         where: { id: ref.userId },
