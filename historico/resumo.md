@@ -14,7 +14,9 @@ Ajuda o trader a manter diário de operações, acompanhar progresso com gamific
 - **Calendário** ✅ — grid mensal com P&L por dia (verde = lucrativo, vermelho = negativo)
 - **Vega IA** ✅ — chat contextual com dados reais dos últimos 90 dias do trader (plano PRO); sabe win rate, setups, sessões, P&L
 - **Notificações** ✅ — sino no header com badge; resumo semanal gerado pelo Claude toda sábado 9h BRT (plano TRADER/PRO)
-- **Contas/Labels** ✅ — marcar trades como TEST, PA25K–PA250K; bulk reassign em /journal/contas
+- **Contas/Labels** ✅ — separação AUTOMÁTICA por tipo (Teste/Avaliação/Aprovada) pelo nome da corretora + por conta real (brokerName); filtro por conta no journal; badge de tipo na Carteira; bulk reassign em /journal/contas
+- **Painel de Uso (Admin)** ✅ — /admin/uso: users totais, online/ativos (lastSeenAt), planos, engajamento
+- **Retargeting Meta** ✅ — Pixel MeuTrade (1705413327409397) + eventos (PageView/ViewContent/InitiateCheckout/Lead/Purchase) + Conversions API. Falta: criar conta de anúncios no business MeuTrade + públicos (esperar pixel encher ~3-5 dias)
 - **Planos** ✅ — página de pricing (visual pronta, sem gateway ainda)
 - **Cadastro/Login** ✅ — email+senha ou Google OAuth
 - **Configurações** ✅ — perfil (atualizar nome), troca de senha, info do plano
