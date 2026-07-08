@@ -13,6 +13,7 @@ import {
   Activity,
   Target,
 } from "lucide-react"
+import { PLAN_LABEL, PLAN_PRICES, PLAN_LIMITS, formatBRL } from "@/lib/plans"
 
 export default async function Home() {
   const session = await auth()
@@ -458,13 +459,13 @@ const PLANS = [
     ],
   },
   {
-    name: "Trader",
-    price: "R$97",
+    name: PLAN_LABEL.TRADER,
+    price: formatBRL(PLAN_PRICES.TRADER.MONTHLY),
     desc: "Para quem opera ativamente",
     highlight: true,
-    cta: "Assinar Trader",
+    cta: `Assinar ${PLAN_LABEL.TRADER}`,
     features: [
-      "Trades ilimitados",
+      `Até ${PLAN_LIMITS.TRADER.tradesPerMonth} trades/mês`,
       "Vega IA no check-in e chat",
       "Biblioteca de setups ilimitada",
       "Analytics avançado",
@@ -475,13 +476,13 @@ const PLANS = [
     ],
   },
   {
-    name: "Pro",
-    price: "R$197",
+    name: PLAN_LABEL.PRO,
+    price: formatBRL(PLAN_PRICES.PRO.MONTHLY),
     desc: "Para quem leva trading a sério",
     highlight: false,
-    cta: "Assinar Pro",
+    cta: `Assinar ${PLAN_LABEL.PRO}`,
     features: [
-      "Tudo do Trader",
+      `Tudo do ${PLAN_LABEL.TRADER}`,
       "Análise por trade com Claude Sonnet",
       "Simulador 'E se?' avançado",
       "Gráfico de execução detalhado",
