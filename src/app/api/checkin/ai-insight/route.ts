@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import { z } from "zod"
 import { checkPlanLimit } from "@/lib/plan-guard"
 import type { PlanKey } from "@/lib/plans"
+import { enforce } from "@/lib/rate-limit"
 
 const schema = z.object({
   type: z.enum(["PRE", "POST"]),
@@ -21,6 +22,10 @@ const BEHAVIORAL_TAGS = ["revenge", "fomo", "overtrading", "impulsivo", "medo", 
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+
+  // Teto de custo de tokens: no máx 10 insights de check-in por minuto por usuário.
+  const limited = enforce(`ai-insight:${session.user.id}`, 10, 60)
+  if (limited) return limited
 
   // Vega no check-in disponível a partir do Starter (limite 0 = FREE bloqueado).
   // Defense-in-depth: a UI já esconde do FREE, mas a API precisa travar também.

@@ -2,10 +2,15 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
+import { enforce } from "@/lib/rate-limit"
 
 export async function POST() {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+
+  // Teto de custo de tokens: no máx 5 gerações de resumo por minuto por usuário.
+  const limited = enforce(`gen-summary:${session.user.id}`, 5, 60)
+  if (limited) return limited
 
   const userId = session.user.id
   const userName = session.user.name ?? null

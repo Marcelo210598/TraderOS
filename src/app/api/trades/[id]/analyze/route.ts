@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
+import { enforce } from "@/lib/rate-limit"
 
 const client = new Anthropic()
 
@@ -18,6 +19,10 @@ Diretrizes:
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+
+  // Teto de custo de tokens: no máx 15 análises de trade por minuto por usuário.
+  const limited = enforce(`analyze:${session.user.id}`, 15, 60)
+  if (limited) return limited
   if (session.user.plan !== "PRO") {
     return NextResponse.json({ error: "Recurso exclusivo do plano Pro" }, { status: 403 })
   }

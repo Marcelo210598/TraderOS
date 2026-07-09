@@ -168,22 +168,26 @@ async function ensureAchievement(ach: (typeof ACHIEVEMENTS_CONFIG)[number]) {
 
 // Checa e concede conquistas não ganhas ainda. Retorna as novas.
 export async function checkAndAwardAchievements(userId: string): Promise<string[]> {
-  const [trades, setupCount, earnedRaw] = await Promise.all([
+  // Barato primeiro: se o usuário já ganhou TODAS as conquistas, não há nada a
+  // recalcular — evita puxar o histórico inteiro de trades a cada trade novo
+  // (essa função roda a cada POST do sync do bot, ~14x/dia).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const earnedRaw = await (prisma.userAchievement as any).findMany({
+    where: { userId },
+    select: { achievementId: true },
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const earnedIds = new Set<string>(earnedRaw.map((a: any) => a.achievementId as string))
+  if (earnedIds.size >= ACHIEVEMENTS_CONFIG.length) return []
+
+  const [trades, setupCount] = await Promise.all([
     prisma.trade.findMany({
       where: { userId },
       select: { result: true, pnl: true, date: true },
       orderBy: { date: "desc" },
     }),
     prisma.setup.count({ where: { userId, isActive: true } }),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (prisma.userAchievement as any).findMany({
-      where: { userId },
-      select: { achievementId: true },
-    }),
   ])
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const earnedIds = new Set<string>(earnedRaw.map((a: any) => a.achievementId as string))
   const totalTrades = trades.length
   const wins = trades.filter((t) => t.result === "WIN").length
   const winRate = totalTrades > 0 ? Math.round((wins / totalTrades) * 100) : 0

@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
+import { timingSafeEqual } from "crypto"
 import { prisma } from "@/lib/prisma"
 import type { PlanKey } from "@/lib/plans"
 import { sendCapiEvent } from "@/lib/fbcapi"
 import { sendGa4Event } from "@/lib/ga4"
+
+// Compara dois tokens em tempo constante (evita timing attack pra descobrir o token).
+function safeTokenMatch(a: string, b: string): boolean {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
 
 // ─── Webhook do Asaas ─────────────────────────────────────────────────────────
 // Configurar no painel Asaas (Integrações → Webhooks):
@@ -50,7 +59,8 @@ const DOWNGRADE_EVENTS = new Set([
 export async function POST(req: NextRequest) {
   // 1) Autenticação do webhook
   const token = req.headers.get("asaas-access-token")
-  if (!process.env.ASAAS_WEBHOOK_TOKEN || token !== process.env.ASAAS_WEBHOOK_TOKEN) {
+  const expected = process.env.ASAAS_WEBHOOK_TOKEN
+  if (!expected || !token || !safeTokenMatch(token, expected)) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
   }
 

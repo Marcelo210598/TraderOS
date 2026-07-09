@@ -6,6 +6,7 @@ import { sendWelcomeEmail } from "@/lib/email"
 import { notifyAdminsNewSignup } from "@/lib/admin"
 import { sendCapiEvent } from "@/lib/fbcapi"
 import { sendGa4Event } from "@/lib/ga4"
+import { enforce, clientIp } from "@/lib/rate-limit"
 
 const schema = z.object({
   name: z.string().min(2).max(80),
@@ -15,6 +16,10 @@ const schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  // Anti brute-force/enumeração: no máx 8 cadastros por IP a cada 10 min.
+  const limited = enforce(`register:${clientIp(req)}`, 8, 600)
+  if (limited) return limited
+
   const body = await req.json().catch(() => null)
   const parsed = schema.safeParse(body)
   if (!parsed.success) {

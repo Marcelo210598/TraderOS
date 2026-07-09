@@ -19,9 +19,21 @@ export default async function AnalyticsPage() {
   const session = await auth()
   const user = session!.user
 
+  // select estreito: só as colunas usadas nas métricas/gráficos — evita puxar
+  // notes/aiAnalysis (textos longos) de todo o histórico.
   const trades = await prisma.trade.findMany({
     where: { userId: user.id },
-    include: { setup: { select: { id: true, name: true } } },
+    select: {
+      date: true,
+      instrument: true,
+      pnl: true,
+      pnlPoints: true,
+      result: true,
+      sessionType: true,
+      mfe: true,
+      mae: true,
+      setup: { select: { id: true, name: true } },
+    },
     orderBy: { date: "asc" },
   })
 
