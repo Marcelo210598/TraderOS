@@ -1,0 +1,25 @@
+# MeuTrade
+
+> O app do trader brasileiro. Journal de trades com IA, feito para quem opera futuros (NinjaTrader 8, MetaTrader 5) — incluindo traders em avaliação de conta em prop firms como a Apex.
+
+MeuTrade é um SaaS brasileiro de diário de trades (trading journal) com as seguintes funcionalidades principais:
+
+- Sincronização automática de operações via NinjaTrader 8 e MetaTrader 5 (EA próprio)
+- Vega, um assistente de IA que analisa os trades e o check-in emocional do usuário e aponta padrões de erro
+- Check-in emocional antes de operar, correlacionado com o desempenho (P&L)
+- Biblioteca de setups de trade
+- Gráfico de execução (MFE/MAE) por trade
+- Gamificação: XP, conquistas, streaks, desafios personalizados
+- Analytics avançado: métricas por setup, por dia da semana, drawdown, exportação em PDF
+- Guardian: calculadora de regras para contas de avaliação da Apex (prop firm)
+
+## Planos
+
+- Free: grátis, até 10 trades/mês
+- Starter: R$19,90/mês, 25 trades/mês
+- Pro: R$97/mês (ou R$1.000/ano), trades ilimitados
+
+## Site
+
+- Site: https://meutrade.app
+- Cadastro: https://meutrade.app/cadastro

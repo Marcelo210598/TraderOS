@@ -15,12 +15,34 @@ import {
 } from "lucide-react"
 import { PLAN_LABEL, PLAN_PRICES, PLAN_LIMITS, formatBRL } from "@/lib/plans"
 
+// Dados estruturados (schema.org) — ajuda buscadores e IAs (ChatGPT, Perplexity...)
+// a entender o que é o MeuTrade, sem depender só do texto da página.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "MeuTrade",
+  applicationCategory: "FinanceApplication",
+  operatingSystem: "Web",
+  description:
+    "Journal de trades com IA para traders de futuros (NinjaTrader, MetaTrader 5). Sincronização automática, análise por IA, check-in emocional e analytics de performance.",
+  url: "https://meutrade.app",
+  offers: [
+    { "@type": "Offer", name: "Free", price: "0", priceCurrency: "BRL" },
+    { "@type": "Offer", name: PLAN_LABEL.TRADER, price: String(PLAN_PRICES.TRADER.MONTHLY), priceCurrency: "BRL" },
+    { "@type": "Offer", name: PLAN_LABEL.PRO, price: String(PLAN_PRICES.PRO.MONTHLY), priceCurrency: "BRL" },
+  ],
+}
+
 export default async function Home() {
   const session = await auth()
   if (session?.user) redirect("/dashboard")
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+      />
       {/* Radial glow de fundo */}
       <div
         className="fixed inset-0 pointer-events-none"
