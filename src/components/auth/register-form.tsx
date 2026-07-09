@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Loader2, Globe } from "lucide-react"
+import { trackGoogleAdsLead } from "@/lib/gtag"
 
 export function RegisterForm() {
   const router = useRouter()
@@ -42,6 +43,11 @@ export function RegisterForm() {
       setLoading(false)
       return
     }
+
+    // Retargeting: cadastro confirmado (só cobre o fluxo email/senha — o Google OAuth
+    // conta como Lead no GA4/Meta via servidor, mas não tem um clique client-side pra
+    // disparar a conversão do Google Ads).
+    trackGoogleAdsLead()
 
     const result = await signIn("credentials", {
       email,
