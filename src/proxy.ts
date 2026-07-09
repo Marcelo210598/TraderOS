@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 
-const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/", "/share"]
+const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/", "/share", "/opengraph-image", "/twitter-image"]
 const AUTH_ROUTES = ["/login", "/cadastro"]
 // Rotas de API que não precisam de sessão (têm auth própria ou são públicas)
 // /api/asaas/webhook é público (autentica via token do Asaas); o checkout exige sessão.
@@ -11,6 +11,9 @@ export default auth((req) => {
   const { nextUrl, auth: session } = req
   const isLoggedIn = !!session?.user
 
+  // opengraph-image/twitter-image do Next.js viram rotas sem extensão (ex: /opengraph-image),
+  // então o matcher abaixo não os exclui como faz com robots.txt/sitemap.xml — precisam
+  // estar na allowlist explicitamente, senão o crawler do WhatsApp/FB é redirecionado pro /login.
   const isPublicRoute = PUBLIC_ROUTES.some(
     (route) => nextUrl.pathname === route || nextUrl.pathname.startsWith("/blog") || nextUrl.pathname.startsWith("/share")
   )
