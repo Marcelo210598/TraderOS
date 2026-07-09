@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
 import { upgradeResponse } from "@/lib/plan-guard"
+import { enforce } from "@/lib/rate-limit"
 
 const BASE_SYSTEM = `Você é Vega, analista sênior de trading integrado ao MeuTrade. Você tem acesso aos dados reais de performance do trader e os usa para dar análises precisas e personalizadas.
 
@@ -266,6 +267,10 @@ Use esses dados ao responder. Seja específico e referencie os números reais. T
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+
+  // Teto de custo de tokens: no máx 20 mensagens à IA por minuto por usuário.
+  const limited = enforce(`ask-claude:${session.user.id}`, 20, 60)
+  if (limited) return limited
   if (session.user.plan !== "PRO") return upgradeResponse("O chat com a Vega é exclusivo do plano Pro.", "PRO")
 
   const { messages } = await req.json()
