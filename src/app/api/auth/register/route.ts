@@ -5,6 +5,7 @@ import { z } from "zod"
 import { sendWelcomeEmail } from "@/lib/email"
 import { notifyAdminsNewSignup } from "@/lib/admin"
 import { sendCapiEvent } from "@/lib/fbcapi"
+import { sendGa4Event } from "@/lib/ga4"
 
 const schema = z.object({
   name: z.string().min(2).max(80),
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   const hashed = await hash(password, 12)
-  await prisma.user.create({
+  const created = await prisma.user.create({
     data: { name, email, password: hashed },
   })
 
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
 
   // Retargeting: cadastro por email/senha também conta como Lead
   sendCapiEvent({ eventName: "Lead", email }).catch(() => null)
+  sendGa4Event({ eventName: "generate_lead", userKey: created.id }).catch(() => null)
 
   return NextResponse.json({ ok: true }, { status: 201 })
 }

@@ -5,6 +5,7 @@ import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import { notifyAdminsNewSignup } from "@/lib/admin"
 import { sendCapiEvent } from "@/lib/fbcapi"
+import { sendGa4Event } from "@/lib/ga4"
 import { compare } from "bcryptjs"
 import { z } from "zod"
 
@@ -134,6 +135,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       await notifyAdminsNewSignup({ email: user.email, name: user.name }).catch(() => null)
       // Retargeting: mede quanto do tráfego IG/FB vira cadastro (Lead).
       await sendCapiEvent({ eventName: "Lead", email: user.email }).catch(() => null)
+      await sendGa4Event({ eventName: "generate_lead", userKey: user.id ?? user.email ?? "" }).catch(() => null)
     },
   },
 })

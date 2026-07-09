@@ -5,6 +5,7 @@ import { Check, Zap, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { PlanKey } from "@/lib/plans"
 import { trackPixel } from "@/lib/fbpixel"
+import { trackGtagEvent, trackGoogleAdsCheckout } from "@/lib/gtag"
 
 type Cycle = "MONTHLY" | "YEARLY"
 
@@ -91,6 +92,7 @@ export function PlanosGrid({ currentPlan }: { currentPlan: PlanKey }) {
   // Retargeting: público "viu os planos" (interessado em assinar).
   useEffect(() => {
     trackPixel("ViewContent", { content_name: "planos" })
+    trackGtagEvent("view_content", { content_name: "planos" })
   }, [])
 
   async function checkout(plan: PlanKey) {
@@ -99,6 +101,9 @@ export function PlanosGrid({ currentPlan }: { currentPlan: PlanKey }) {
     setLoading(plan)
     // Retargeting: público "quis assinar" (quente) — mesmo que não conclua o pagamento.
     trackPixel("InitiateCheckout", { content_name: plan, currency: "BRL" })
+    trackGtagEvent("begin_checkout", { content_name: plan, currency: "BRL" })
+    const card = CARDS.find((c) => c.key === plan)
+    trackGoogleAdsCheckout(card?.monthly ?? undefined)
     try {
       const planCycle: Cycle = plan === "PRO" ? cycle : "MONTHLY"
       const res = await fetch("/api/asaas/checkout", {

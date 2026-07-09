@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import type { PlanKey } from "@/lib/plans"
 import { sendCapiEvent } from "@/lib/fbcapi"
+import { sendGa4Event } from "@/lib/ga4"
 
 // ─── Webhook do Asaas ─────────────────────────────────────────────────────────
 // Configurar no painel Asaas (Integrações → Webhooks):
@@ -110,6 +111,13 @@ export async function POST(req: NextRequest) {
         value: payment.value,
         currency: "BRL",
         eventId: payment.id,
+      }).catch(() => null)
+      sendGa4Event({
+        eventName: "purchase",
+        userKey: ref.userId,
+        value: payment.value,
+        currency: "BRL",
+        transactionId: payment.id,
       }).catch(() => null)
     } else if (DOWNGRADE_EVENTS.has(event) && ref) {
       const user = await prisma.user.findUnique({
