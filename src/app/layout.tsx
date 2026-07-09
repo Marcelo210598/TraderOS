@@ -16,15 +16,35 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 })
 
+const SITE_URL = "https://meutrade.app"
+const SITE_DESCRIPTION =
+  "O app do trader brasileiro. Journal, análise e evolução — pra futuros, forex e o que você operar."
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "MeuTrade",
     template: "%s | MeuTrade",
   },
-  description:
-    "O app do trader brasileiro. Journal, análise e evolução — pra futuros, forex e o que você operar.",
+  description: SITE_DESCRIPTION,
   keywords: ["trading", "trader", "journal", "forex", "futures", "MetaTrader 5", "NinjaTrader", "análise"],
   manifest: "/manifest.json",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    url: SITE_URL,
+    siteName: "MeuTrade",
+    title: "MeuTrade — O app do trader brasileiro",
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MeuTrade — O app do trader brasileiro",
+    description: SITE_DESCRIPTION,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
