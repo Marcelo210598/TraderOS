@@ -19,6 +19,11 @@ interface Props {
   initialKeys: ApiKey[]
 }
 
+// Flag pra ligar/desligar o MT5 sem apagar o tutorial.
+// Desativado enquanto o sync de trades do MT5 não chega no app.
+// Pra religar: trocar pra true (a aba, o tutorial e o backend voltam intactos).
+const MT5_ENABLED = false
+
 // Plataformas disponíveis
 const PLATFORMS = [
   { id: "ninjatrader", label: "NinjaTrader 8", short: "NT", active: true, description: "Sincronização automática de trades" },
@@ -26,6 +31,9 @@ const PLATFORMS = [
   { id: "rithmic",     label: "Rithmic",        short: "R",  active: false, description: "Em breve — Q3 2026" },
   { id: "tradestation",label: "TradeStation",   short: "TS", active: false, description: "Em breve — Q4 2026" },
 ]
+
+// Lista efetivamente exibida no seletor (esconde o MT5 quando a flag está off)
+const VISIBLE_PLATFORMS = PLATFORMS.filter((p) => p.id !== "mt5" || MT5_ENABLED)
 
 export function IntegrationSection({ initialKeys }: Props) {
   const [platform, setPlatform]     = useState("ninjatrader")
@@ -119,7 +127,7 @@ export function IntegrationSection({ initialKeys }: Props) {
 
       {/* Seletor de plataformas */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {PLATFORMS.map((p) => (
+        {VISIBLE_PLATFORMS.map((p) => (
           <button
             key={p.id}
             onClick={() => setPlatform(p.id)}
