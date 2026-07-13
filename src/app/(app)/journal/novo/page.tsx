@@ -16,6 +16,16 @@ export default async function NovoTradePage() {
     orderBy: { name: "asc" },
   })
 
+  // Contas reais já detectadas (NT8/manual, sem MT5 e sem arquivadas) — o trade
+  // manual escolhe UMA delas, em vez de criar conta paralela.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const accountsRaw = await (prisma as any).tradingAccount.findMany({
+    where: { userId: user.id, isArchived: false, source: { not: "MT5" } },
+    select: { id: true, name: true, label: true, source: true },
+    orderBy: { createdAt: "asc" },
+  })
+  const accounts = accountsRaw as { id: string; name: string; label: string; source: string }[]
+
   const setupsFormatted = setups.map((s) => ({
     ...s,
     description: s.description ?? null,
@@ -36,7 +46,7 @@ export default async function NovoTradePage() {
       />
       <div className="flex-1 p-6 max-w-2xl mx-auto w-full">
         <div className="bg-card border border-border rounded-xl p-6">
-          <TradeForm setups={setupsFormatted} />
+          <TradeForm setups={setupsFormatted} accounts={accounts} />
         </div>
       </div>
     </div>

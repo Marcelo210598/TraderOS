@@ -19,6 +19,7 @@ const syncSchema = z.object({
   entryTime: z.string(),
   exitTime: z.string(),
   accountName: z.string().optional(),
+  connectionName: z.string().optional(),
   externalId: z.string().min(1).max(100),
 })
 
@@ -40,20 +41,24 @@ function normalizeInstrument(raw: string): string {
   return raw.split(" ")[0].toUpperCase()
 }
 
-// Detecta o TIPO de conta pelo nome que a corretora (Apex/Rithmic) manda.
+// Detecta o TIPO de conta pelo nome + conexao que a corretora (Apex/Rithmic) manda.
 // O que importa é EM QUAL conta o trade rodou — bot ou manual é irrelevante:
-//   Sim101 / Demo / Playback  -> "TEST" (simulacao: NAO conta nas metricas reais)
-//   APEX-######-##            -> "EVAL" (conta de avaliacao / aprovacao, paga)
-//   PAAPEX-######-## / PA50K   -> "PA"   (Performance Account / funded, saque real)
+//   Sim101 / Demo / Playback / conexao "Simulated"  -> "TEST" (simulacao)
+//   APEX-######-##                                   -> "EVAL" (avaliacao / aprovacao, paga)
+//   PAAPEX-######-## / PA50K                         -> "PA"   (Performance Account / funded)
 // Quando o trader eh aprovado, a Apex renomeia a conta com prefixo "PA" -> vira PA sozinho.
-function detectAccountLabel(accountName?: string): string {
-  if (!accountName) return "EVAL" // sem nome: assume avaliacao (fase mais comum)
-  const name = accountName.toUpperCase().trim()
+// A conexao entra como sinal extra: separa simulacao com mais confianca (o campo Mode
+// do NinjaTrader é ambíguo, entao a doc oficial recomenda olhar nome/conexao).
+function detectAccountLabel(accountName?: string, connectionName?: string): string {
+  const name = (accountName ?? "").toUpperCase().trim()
+  const conn = (connectionName ?? "").toUpperCase().trim()
 
-  // Simulacao / demo -> TESTE (nao suja metricas reais)
-  if (name.includes("SIM") || name.includes("DEMO") || name.includes("PLAYBACK") || name.includes("TEST")) {
-    return "TEST"
-  }
+  // Simulacao / demo / playback -> TESTE (nao suja metricas reais).
+  // Detecta tanto pelo nome da conta quanto pela conexao (ex: "Simulated Data Feed").
+  const simSignals = ["SIM", "DEMO", "PLAYBACK", "TEST", "SIMULATED"]
+  if (simSignals.some((s) => name.includes(s) || conn.includes(s))) return "TEST"
+
+  if (!name) return "EVAL" // sem nome de conta: assume avaliacao (fase mais comum)
 
   // Funded (Performance Account): prefixo "PA" -> "PAAPEX-...", "PA-...", "PA50K"
   if (name.startsWith("PA")) {
@@ -144,7 +149,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, skipped: true, mirror: true, id: (mirror as { id: string }).id })
   }
 
-  const accountLabel = detectAccountLabel(d.accountName)
+  const accountLabel = detectAccountLabel(d.accountName, d.connectionName)
   const accountId = await ensureAccount(userId, "NINJATRADER", accountLabel, d.accountName)
 
   const trade = await (prisma.trade as never as {
