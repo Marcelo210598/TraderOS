@@ -56,7 +56,7 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
     mae: initial?.mae?.toString() ?? "",
     result: initial?.result ?? "WIN",
     sessionType: initial?.sessionType ?? "AM",
-    accountLabel: initial?.accountLabel ?? "PA",
+    accountLabel: initial?.accountLabel ?? "EVAL",
     setupId: initial?.setupId ?? "",
     notes: initial?.notes ?? "",
     emotional: "5",

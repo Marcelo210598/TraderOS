@@ -21,7 +21,7 @@ const createTradeSchema = z.object({
   commission: z.number().min(0).default(0),
   result: z.enum(["WIN", "LOSS", "BREAKEVEN"]),
   sessionType: z.enum(["AM", "PM", "OVERNIGHT"]).default("AM"),
-  accountLabel: z.string().default("PA"),
+  accountLabel: z.string().default("EVAL"),
   setupId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   mfe: z.number().optional().nullable(),

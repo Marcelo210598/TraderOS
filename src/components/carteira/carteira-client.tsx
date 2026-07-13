@@ -4,7 +4,7 @@ import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { getAccountOption } from "@/lib/accounts"
+import { getAccountOption, ACCOUNT_OPTIONS } from "@/lib/accounts"
 import { Wallet, TrendingUp, TrendingDown, ArrowRight, ArrowUpRight, ArrowDownLeft, Pencil, Check, X, Loader2, Archive, RotateCcw, SlidersHorizontal } from "lucide-react"
 
 interface Group {
@@ -49,6 +49,16 @@ const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
   MT5: { label: "MT5", cls: "bg-blue-500/15 text-blue-400" },
   NINJATRADER: { label: "NT8", cls: "bg-amber-500/15 text-amber-400" },
   MANUAL: { label: "Manual", cls: "bg-muted text-muted-foreground" },
+}
+
+// Os 3 tipos base pro seletor de conta (Teste / Avaliação / Aprovada)
+const TYPE_CHOICES = ACCOUNT_OPTIONS.filter((o) => ["TEST", "EVAL", "PA"].includes(o.value))
+
+// Normaliza qualquer label (PA25K, PA50K...) num dos 3 tipos base
+function baseType(label: string): string {
+  if (label === "TEST") return "TEST"
+  if (label?.toUpperCase().startsWith("PA")) return "PA"
+  return "EVAL"
 }
 
 function money(n: number, currency = "USD") {
@@ -241,6 +251,7 @@ function AccountManageCard({ a }: { a: ManageAccount }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(a.name)
   const [initial, setInitial] = useState(String(a.initialBalance || ""))
+  const [label, setLabel] = useState(baseType(a.label))
   const [saving, setSaving] = useState(false)
   const badge = SOURCE_BADGE[a.source] ?? SOURCE_BADGE.MANUAL
   const type = getAccountOption(a.label)
@@ -251,7 +262,7 @@ function AccountManageCard({ a }: { a: ManageAccount }) {
       const res = await fetch(`/api/accounts/${a.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() || a.label, initialBalance: Number(initial) || 0 }),
+        body: JSON.stringify({ name: name.trim() || a.label, initialBalance: Number(initial) || 0, label }),
       })
       if (res.ok) { setEditing(false); router.refresh() }
     } finally {
@@ -277,6 +288,21 @@ function AccountManageCard({ a }: { a: ManageAccount }) {
       <div className="bg-card border border-teal/30 rounded-xl p-4 space-y-3">
         <div className="flex-1 space-y-2">
           <div>
+            <label className="text-[10px] text-muted-foreground">Tipo da conta</label>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {TYPE_CHOICES.map((opt) => (
+                <button key={opt.value} type="button" onClick={() => setLabel(opt.value)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold border transition-all",
+                    label === opt.value ? cn(opt.bg, opt.border, opt.color) : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
+                  )}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground/70 mt-1">Muda o tipo desta conta e reclassifica os {a.tradeCount} trades dela.</p>
+          </div>
+          <div>
             <label className="text-[10px] text-muted-foreground">Nome da conta</label>
             <input value={name} onChange={(e) => setName(e.target.value)}
               className="w-full text-sm bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-teal/50" />
@@ -293,7 +319,7 @@ function AccountManageCard({ a }: { a: ManageAccount }) {
             <Archive className="w-3.5 h-3.5" /> Arquivar
           </button>
           <div className="flex items-center gap-2">
-            <button onClick={() => { setEditing(false); setName(a.name); setInitial(String(a.initialBalance || "")) }}
+            <button onClick={() => { setEditing(false); setName(a.name); setInitial(String(a.initialBalance || "")); setLabel(baseType(a.label)) }}
               className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors">
               <X className="w-3.5 h-3.5" /> Cancelar
             </button>

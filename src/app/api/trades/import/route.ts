@@ -14,7 +14,7 @@ const rowSchema = z.object({
   pnl: z.number(),
   commission: z.number().min(0).default(0),
   session: z.enum(["AM", "PM", "OVERNIGHT"]).default("AM"),
-  accountLabel: z.string().default("PA"),
+  accountLabel: z.string().default("EVAL"),
   notes: z.string().max(2000).optional(),
   mfe: z.number().optional().nullable(),
   mae: z.number().optional().nullable(),
