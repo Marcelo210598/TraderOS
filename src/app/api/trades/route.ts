@@ -21,6 +21,9 @@ const createTradeSchema = z.object({
   commission: z.number().min(0).default(0),
   result: z.enum(["WIN", "LOSS", "BREAKEVEN"]),
   sessionType: z.enum(["AM", "PM", "OVERNIGHT"]).default("AM"),
+  // Conta onde o trade foi feito. Preferencial: accountId (uma conta real já detectada).
+  // accountLabel só é usado quando não há accountId (cria/reusa conta manual do tipo).
+  accountId: z.string().optional(),
   accountLabel: z.string().default("EVAL"),
   setupId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -105,15 +108,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { tags, screenshots, ...data } = parsed.data
+  const { tags, screenshots, accountId: pickedAccountId, ...data } = parsed.data
 
-  // Liga o trade manual a uma conta (source MANUAL) — base da Carteira
-  const accountId = await ensureAccount(session.user.id, "MANUAL", data.accountLabel)
+  // Resolve a conta do trade. Ideal: uma conta real já detectada (accountId).
+  // Fallback (sem accountId): cria/reusa uma conta manual pelo tipo (accountLabel).
+  let accountId: string
+  let accountLabel = data.accountLabel
+  let accountName: string | null = null
+  if (pickedAccountId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const acc = await (prisma as any).tradingAccount.findFirst({
+      where: { id: pickedAccountId, userId: session.user.id },
+      select: { id: true, label: true, name: true },
+    })
+    if (!acc) return NextResponse.json({ error: "Conta inválida" }, { status: 400 })
+    accountId = acc.id
+    accountLabel = acc.label      // o trade herda o tipo da conta escolhida
+    accountName = acc.name
+  } else {
+    accountId = await ensureAccount(session.user.id, "MANUAL", accountLabel)
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const trade = await (prisma.trade as any).create({
     data: {
       ...data,
+      accountLabel,
+      accountName,
       date: new Date(data.date),
       entryPrice: data.entryPrice,
       exitPrice: data.exitPrice,

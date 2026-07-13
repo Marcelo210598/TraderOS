@@ -24,6 +24,15 @@ export default async function EditarTradePage({ params }: { params: Promise<{ id
     }),
   ])
 
+  // Contas reais já detectadas (NT8/manual) pra ligar o trade
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const accountsRaw = await (prisma as any).tradingAccount.findMany({
+    where: { userId: user.id, isArchived: false, source: { not: "MT5" } },
+    select: { id: true, name: true, label: true, source: true },
+    orderBy: { createdAt: "asc" },
+  })
+  const accounts = accountsRaw as { id: string; name: string; label: string; source: string }[]
+
   if (!trade) notFound()
 
   const tradeFormatted = {
@@ -64,7 +73,7 @@ export default async function EditarTradePage({ params }: { params: Promise<{ id
       />
       <div className="flex-1 p-6 max-w-2xl mx-auto w-full">
         <div className="bg-card border border-border rounded-xl p-6">
-          <TradeForm setups={setupsFormatted} initial={tradeFormatted} />
+          <TradeForm setups={setupsFormatted} initial={tradeFormatted} accounts={accounts} />
         </div>
       </div>
     </div>

@@ -172,6 +172,12 @@ namespace NinjaTrader.NinjaScript.AddOns
             string entryTime = new DateTime(p.EntryTicks).ToString("o", ic);
             string exitTime  = ex.Time.ToString("o", ic);
             string acctName  = ex.Account != null ? ex.Account.Name : "";
+            // Nome da conexao (Apex/Rithmic/Playback/Sim) — ajuda o app a classificar o tipo.
+            string connName  = "";
+            try {
+                if (ex.Account != null && ex.Account.Connection != null && ex.Account.Connection.Options != null)
+                    connName = ex.Account.Connection.Options.Name;
+            } catch { connName = ""; }
             double entryPx   = p.AvgEntry;
             double exitPx    = avgExit;
             double comm      = p.Commission;
@@ -195,6 +201,7 @@ namespace NinjaTrader.NinjaScript.AddOns
                         new KeyValuePair<string, string>("entryTime",   entryTime),
                         new KeyValuePair<string, string>("exitTime",    exitTime),
                         new KeyValuePair<string, string>("accountName", acctName),
+                        new KeyValuePair<string, string>("connectionName", connName),
                         new KeyValuePair<string, string>("externalId",  extId),
                     };
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Loader2, Calculator, TrendingUp, TrendingDown, ImagePlus } from "lucide-react"
 import type { Setup, Trade } from "@/lib/types"
-import { ACCOUNT_OPTIONS } from "@/lib/accounts"
+import { ACCOUNT_OPTIONS, getAccountOption } from "@/lib/accounts"
 import { ScreenshotUploader, type UploadedScreenshot } from "./screenshot-uploader"
 import { TagInput } from "./tag-input"
 import { openUpgradeModal } from "@/lib/upgrade"
@@ -21,13 +21,21 @@ const POINT_VALUES: Record<string, number> = {
   CL: 1000, GC: 100, SI: 5000, ZB: 1000, "6E": 125000,
 }
 
+interface AccountPick {
+  id: string
+  name: string
+  label: string
+  source: string
+}
+
 interface TradeFormProps {
   setups: Setup[]
   initial?: Partial<Trade>
+  accounts?: AccountPick[]
   onSuccess?: (trade: Trade) => void
 }
 
-export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
+export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFormProps) {
   const router = useRouter()
   const isEdit = !!initial?.id
   const [loading, setLoading] = useState(false)
@@ -61,6 +69,13 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
     notes: initial?.notes ?? "",
     emotional: "5",
   })
+
+  // Conta onde o trade foi feito. Se há contas detectadas, escolhe uma delas
+  // (a integração já sabe o tipo). Sem contas, cai no seletor de tipo (fallback).
+  const hasAccounts = accounts.length > 0
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const initialAccountId = (initial as any)?.accountId as string | undefined
+  const [accountId, setAccountId] = useState<string>(initialAccountId ?? accounts[0]?.id ?? "")
 
   // Calcular PnL automaticamente
   const pointValue = POINT_VALUES[form.instrument] ?? 20
@@ -111,7 +126,8 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
       commission: parseFloat(form.commission) || 0,
       result: form.result,
       sessionType: form.sessionType,
-      accountLabel: form.accountLabel,
+      // Conta escolhida (integração já sabe o tipo) ou fallback por tipo
+      ...(hasAccounts && accountId ? { accountId } : { accountLabel: form.accountLabel }),
       setupId: form.setupId || null,
       notes: form.notes || null,
       mfe: form.mfe ? parseFloat(form.mfe) : null,
@@ -153,23 +169,52 @@ export function TradeForm({ setups, initial, onSuccess }: TradeFormProps) {
       {/* Conta */}
       <div>
         <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-2">Conta</p>
-        <div className="flex flex-wrap gap-2">
-          {ACCOUNT_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => set("accountLabel", opt.value)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-all",
-                form.accountLabel === opt.value
-                  ? cn(opt.bg, opt.border, opt.color)
-                  : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        {hasAccounts ? (
+          <>
+            <div className="flex flex-wrap gap-2">
+              {accounts.map((acc) => {
+                const t = getAccountOption(acc.label)
+                const active = accountId === acc.id
+                return (
+                  <button
+                    key={acc.id}
+                    type="button"
+                    onClick={() => setAccountId(acc.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all",
+                      active ? "border-teal bg-teal/5 text-foreground" : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
+                    )}
+                  >
+                    {acc.name}
+                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border font-mono", t.bg, t.border, t.color)}>{t.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground/70 mt-1.5">Escolha a conta onde a operação foi feita — o tipo (Teste/Avaliação/Aprovada) vem da própria conta.</p>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              {ACCOUNT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => set("accountLabel", opt.value)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-all",
+                    form.accountLabel === opt.value
+                      ? cn(opt.bg, opt.border, opt.color)
+                      : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground/70 mt-1.5">Conecte o NinjaTrader pra classificar automático. Por enquanto, escolha o tipo.</p>
+          </>
+        )}
       </div>
 
       {/* Linha 1: Data + Sessão */}

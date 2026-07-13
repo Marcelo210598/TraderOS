@@ -15,6 +15,7 @@ const updateTradeSchema = z.object({
   commission: z.number().min(0).optional(),
   result: z.enum(["WIN", "LOSS", "BREAKEVEN"]).optional(),
   sessionType: z.enum(["AM", "PM", "OVERNIGHT"]).optional(),
+  accountId: z.string().optional(),
   accountLabel: z.string().optional(),
   setupId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -64,13 +65,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const parsed = updateTradeSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
-  const { tags, screenshots, ...data } = parsed.data
+  const { tags, screenshots, accountId: pickedAccountId, ...data } = parsed.data
+
+  // Se veio uma conta escolhida, liga o trade a ela e herda o tipo/nome dela.
+  let accountFields: { accountId?: string; accountLabel?: string; accountName?: string | null } = {}
+  if (pickedAccountId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const acc = await (prisma as any).tradingAccount.findFirst({
+      where: { id: pickedAccountId, userId: session.user.id },
+      select: { id: true, label: true, name: true },
+    })
+    if (!acc) return NextResponse.json({ error: "Conta inválida" }, { status: 400 })
+    accountFields = { accountId: acc.id, accountLabel: acc.label, accountName: acc.name }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updated = await (prisma.trade as any).update({
     where: { id },
     data: {
       ...data,
+      ...accountFields,
       ...(data.date && { date: new Date(data.date) }),
       ...(tags !== undefined && {
         tags: {
