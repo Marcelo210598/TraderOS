@@ -5,42 +5,45 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { getAccountOption } from "@/lib/accounts"
-import { Wallet, TrendingUp, TrendingDown, ArrowRight, ArrowUpRight, ArrowDownLeft, Pencil, Check, X, Loader2, Archive, RotateCcw } from "lucide-react"
+import { Wallet, TrendingUp, TrendingDown, ArrowRight, ArrowUpRight, ArrowDownLeft, Pencil, Check, X, Loader2, Archive, RotateCcw, SlidersHorizontal } from "lucide-react"
 
-interface Account {
+interface Group {
   id: string
   name: string
-  source: string
-  label: string
-  currency: string
   color: string
-  initialBalance: number
-  hasRealBalance: boolean
   balance: number
   totalPnl: number
   monthPnl: number
+  initialBalance: number
   tradeCount: number
   winRate: number
-  lastTradeAt: string | null
+  accountsCount: number
+  hasRealBalance: boolean
 }
 interface Pt { t: number; v: number }
 interface Series { id: string; name: string; color: string; points: Pt[] }
 interface HistItem {
   kind: "TRADE" | "DEPOSIT" | "WITHDRAWAL" | "ADJUSTMENT"
   id: string; date: string; instrument: string; direction: string
-  amount: number; accountId: string | null; accountName: string; accountColor: string
+  amount: number; group: string; accountName: string; accountColor: string
+}
+interface ManageAccount {
+  id: string; name: string; source: string; label: string; currency: string
+  initialBalance: number; hasRealBalance: boolean; balance: number; tradeCount: number
+}
+interface ArchivedAccount { id: string; name: string; source: string; tradeCount: number }
+
+interface Props {
+  consolidated: { totalBalance: number; totalPnl: number; monthPnl: number; monthPct: number; groupsCount: number; tradesCount: number }
+  groups: Group[]
+  consolidatedSeries: Pt[]
+  groupSeries: Series[]
+  history: HistItem[]
+  manageAccounts: ManageAccount[]
+  archived: ArchivedAccount[]
 }
 
 const TXN_LABEL: Record<string, string> = { DEPOSIT: "Depósito", WITHDRAWAL: "Saque", ADJUSTMENT: "Ajuste" }
-interface ArchivedAccount { id: string; name: string; source: string; tradeCount: number }
-interface Props {
-  consolidated: { totalBalance: number; totalPnl: number; monthPnl: number; monthPct: number; accountsCount: number; tradesCount: number }
-  accounts: Account[]
-  consolidatedSeries: Pt[]
-  accountSeries: Series[]
-  history: HistItem[]
-  archived: ArchivedAccount[]
-}
 
 const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
   MT5: { label: "MT5", cls: "bg-blue-500/15 text-blue-400" },
@@ -54,12 +57,12 @@ function money(n: number, currency = "USD") {
   return `${n < 0 ? "−" : ""}${sym}${s}`
 }
 
-export function CarteiraClient({ consolidated, accounts, consolidatedSeries, accountSeries, history, archived }: Props) {
+export function CarteiraClient({ consolidated, groups, consolidatedSeries, groupSeries, history, manageAccounts, archived }: Props) {
   const [view, setView] = useState<"consolidated" | "accounts">("consolidated")
   const [filter, setFilter] = useState<string>("all")
 
   const monthUp = consolidated.monthPnl >= 0
-  const filteredHistory = filter === "all" ? history : history.filter((h) => h.accountId === filter)
+  const filteredHistory = filter === "all" ? history : history.filter((h) => h.group === filter)
 
   return (
     <div className="space-y-6">
@@ -79,7 +82,7 @@ export function CarteiraClient({ consolidated, accounts, consolidatedSeries, acc
                 {monthUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                 {money(consolidated.monthPnl)} ({monthUp ? "+" : ""}{consolidated.monthPct.toFixed(1)}%) no mês
               </span>
-              <span className="text-muted-foreground">{consolidated.accountsCount} conta{consolidated.accountsCount !== 1 ? "s" : ""} · {consolidated.tradesCount} trades</span>
+              <span className="text-muted-foreground">{consolidated.groupsCount} tipo{consolidated.groupsCount !== 1 ? "s" : ""} · {consolidated.tradesCount} trades</span>
             </div>
           </div>
           {/* toggle de visão */}
@@ -90,19 +93,19 @@ export function CarteiraClient({ consolidated, accounts, consolidatedSeries, acc
             </button>
             <button onClick={() => setView("accounts")}
               className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", view === "accounts" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-              Por conta
+              Por tipo
             </button>
           </div>
         </div>
 
         <EquityCurve
-          series={view === "consolidated" ? [{ id: "c", name: "Consolidado", color: "#00C2A8", points: consolidatedSeries }] : accountSeries}
+          series={view === "consolidated" ? [{ id: "c", name: "Consolidado", color: "#00C2A8", points: consolidatedSeries }] : groupSeries}
           area={view === "consolidated"}
         />
 
         {view === "accounts" && (
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
-            {accountSeries.map((s) => (
+            {groupSeries.map((s) => (
               <span key={s.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
                 {s.name}
@@ -112,19 +115,19 @@ export function CarteiraClient({ consolidated, accounts, consolidatedSeries, acc
         )}
       </section>
 
-      {/* ── Saldos por conta + distribuição ── */}
+      {/* ── Saldos por tipo + distribuição ── */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Saldos por conta</h2>
-          {accounts.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-6 text-center">Nenhuma conta ainda. Conecte o MT5 ou o NinjaTrader e os trades aparecem aqui.</p>
-          ) : accounts.map((a) => <AccountCard key={a.id} a={a} />)}
+          <h2 className="text-sm font-semibold text-foreground">Saldos por tipo de conta</h2>
+          {groups.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-6 text-center">Nenhum trade ainda. Conecte o NinjaTrader e seus trades aparecem aqui, separados por tipo de conta.</p>
+          ) : groups.map((g) => <GroupCard key={g.id} g={g} />)}
         </div>
 
         {/* Distribuição (donut) */}
         <div className="bg-card border border-border rounded-xl p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Distribuição</h2>
-          <DonutDistribution accounts={accounts} />
+          <DonutDistribution groups={groups} />
         </div>
       </section>
 
@@ -134,8 +137,8 @@ export function CarteiraClient({ consolidated, accounts, consolidatedSeries, acc
           <h2 className="text-sm font-semibold text-foreground">Histórico de transações</h2>
           <select value={filter} onChange={(e) => setFilter(e.target.value)}
             className="text-xs bg-muted/40 border border-border rounded-lg px-3 py-1.5 text-foreground outline-none">
-            <option value="all">Todas as contas</option>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            <option value="all">Todos os tipos</option>
+            {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
         </div>
         {filteredHistory.length === 0 ? (
@@ -177,8 +180,144 @@ export function CarteiraClient({ consolidated, accounts, consolidatedSeries, acc
         </Link>
       </section>
 
+      {/* ── Gerenciar contas individuais (colapsado) ── */}
+      {manageAccounts.length > 0 && <ManageSection accounts={manageAccounts} />}
+
       {/* ── Contas arquivadas ── */}
       {archived.length > 0 && <ArchivedSection archived={archived} />}
+    </div>
+  )
+}
+
+// ── Card de TIPO de conta (Avaliação / Aprovada / Teste) ─────────────
+function GroupCard({ g }: { g: Group }) {
+  const up = g.totalPnl >= 0
+  const t = getAccountOption(g.id)
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+      <span className="w-1 h-10 rounded-full shrink-0" style={{ background: g.color }} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-foreground truncate">{g.name}</p>
+          <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border font-mono shrink-0", t.bg, t.border, t.color)}>{t.label}</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-0.5">
+          {g.accountsCount} conta{g.accountsCount !== 1 ? "s" : ""} · {g.tradeCount} trades · {g.winRate}% win
+          {!g.hasRealBalance && <span className="text-muted-foreground/60"> · saldo estimado</span>}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-sm font-bold font-mono text-foreground">{money(g.balance)}</p>
+        <p className={cn("text-[11px] font-medium font-mono", up ? "text-profit" : "text-loss")}>
+          {up ? "+" : ""}{money(g.totalPnl)}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Gerenciar contas: seção colapsada com edição inline ──────────────
+function ManageSection({ accounts }: { accounts: ManageAccount[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <section className="bg-card/50 border border-border rounded-xl p-4">
+      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <SlidersHorizontal className="w-3.5 h-3.5" />
+        Gerenciar contas ({accounts.length})
+        <span className="ml-auto text-[10px]">{open ? "ocultar" : "ver"}</span>
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] text-muted-foreground/70">Renomeie, ajuste o saldo inicial ou arquive uma conta. Isso não muda os cards por tipo acima.</p>
+          {accounts.map((a) => <AccountManageCard key={a.id} a={a} />)}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function AccountManageCard({ a }: { a: ManageAccount }) {
+  const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(a.name)
+  const [initial, setInitial] = useState(String(a.initialBalance || ""))
+  const [saving, setSaving] = useState(false)
+  const badge = SOURCE_BADGE[a.source] ?? SOURCE_BADGE.MANUAL
+  const type = getAccountOption(a.label)
+
+  async function save() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/accounts/${a.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() || a.label, initialBalance: Number(initial) || 0 }),
+      })
+      if (res.ok) { setEditing(false); router.refresh() }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function archive() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/accounts/${a.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived: true }),
+      })
+      if (res.ok) router.refresh()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="bg-card border border-teal/30 rounded-xl p-4 space-y-3">
+        <div className="flex-1 space-y-2">
+          <div>
+            <label className="text-[10px] text-muted-foreground">Nome da conta</label>
+            <input value={name} onChange={(e) => setName(e.target.value)}
+              className="w-full text-sm bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-teal/50" />
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground">Saldo inicial ({a.currency}) — opcional</label>
+            <input value={initial} onChange={(e) => setInitial(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="0"
+              className="w-full text-sm font-mono bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-teal/50" />
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <button onClick={archive} disabled={saving} title="Arquivar conta (esconde sem apagar)"
+            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-loss hover:border-loss/30 transition-colors disabled:opacity-50">
+            <Archive className="w-3.5 h-3.5" /> Arquivar
+          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => { setEditing(false); setName(a.name); setInitial(String(a.initialBalance || "")) }}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors">
+              <X className="w-3.5 h-3.5" /> Cancelar
+            </button>
+            <button onClick={save} disabled={saving}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-teal text-teal-foreground hover:bg-teal/90 transition-colors disabled:opacity-50">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="group flex items-center gap-2 text-xs bg-card border border-border rounded-lg px-3 py-2">
+      <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded font-mono shrink-0", badge.cls)}>{badge.label}</span>
+      <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border font-mono shrink-0", type.bg, type.border, type.color)}>{type.label}</span>
+      <span className="text-foreground/80 flex-1 truncate">{a.name}</span>
+      <span className="text-muted-foreground shrink-0">{a.tradeCount} trades</span>
+      <span className="text-foreground font-mono shrink-0">{money(a.balance, a.currency)}</span>
+      <button onClick={() => setEditing(true)} title="Editar conta"
+        className="opacity-60 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0">
+        <Pencil className="w-3 h-3" />
+      </button>
     </div>
   )
 }
@@ -230,111 +369,6 @@ function ArchivedSection({ archived }: { archived: ArchivedAccount[] }) {
   )
 }
 
-// ── Card de conta (com edição inline de nome e saldo inicial) ────────
-function AccountCard({ a }: { a: Account }) {
-  const router = useRouter()
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(a.name)
-  const [initial, setInitial] = useState(String(a.initialBalance || ""))
-  const [saving, setSaving] = useState(false)
-  const up = a.totalPnl >= 0
-  const badge = SOURCE_BADGE[a.source] ?? SOURCE_BADGE.MANUAL
-
-  async function save() {
-    setSaving(true)
-    try {
-      const res = await fetch(`/api/accounts/${a.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() || a.label, initialBalance: Number(initial) || 0 }),
-      })
-      if (res.ok) { setEditing(false); router.refresh() }
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function archive() {
-    setSaving(true)
-    try {
-      const res = await fetch(`/api/accounts/${a.id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isArchived: true }),
-      })
-      if (res.ok) router.refresh()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (editing) {
-    return (
-      <div className="bg-card border border-teal/30 rounded-xl p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="w-1 h-10 rounded-full shrink-0" style={{ background: a.color }} />
-          <div className="flex-1 space-y-2">
-            <div>
-              <label className="text-[10px] text-muted-foreground">Nome da conta</label>
-              <input value={name} onChange={(e) => setName(e.target.value)}
-                className="w-full text-sm bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-teal/50" />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground">Saldo inicial ({a.currency}) — opcional</label>
-              <input value={initial} onChange={(e) => setInitial(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="0"
-                className="w-full text-sm font-mono bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-teal/50" />
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <button onClick={archive} disabled={saving} title="Arquivar conta (esconde sem apagar)"
-            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-loss hover:border-loss/30 transition-colors disabled:opacity-50">
-            <Archive className="w-3.5 h-3.5" /> Arquivar
-          </button>
-          <div className="flex items-center gap-2">
-            <button onClick={() => { setEditing(false); setName(a.name); setInitial(String(a.initialBalance || "")) }}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors">
-              <X className="w-3.5 h-3.5" /> Cancelar
-            </button>
-            <button onClick={save} disabled={saving}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-teal text-teal-foreground hover:bg-teal/90 transition-colors disabled:opacity-50">
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Salvar
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="group bg-card border border-border rounded-xl p-4 flex items-center gap-4">
-      <span className="w-1 h-10 rounded-full shrink-0" style={{ background: a.color }} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-foreground truncate">{a.name}</p>
-          <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded font-mono", badge.cls)}>{badge.label}</span>
-          {(() => { const t = getAccountOption(a.label); return (
-            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border font-mono shrink-0", t.bg, t.border, t.color)}>{t.label}</span>
-          )})()}
-          <button onClick={() => setEditing(true)} title="Editar conta"
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
-            <Pencil className="w-3 h-3" />
-          </button>
-        </div>
-        <p className="text-[11px] text-muted-foreground mt-0.5">
-          {a.tradeCount} trades · {a.winRate}% win
-          {!a.hasRealBalance && <span className="text-muted-foreground/60"> · saldo estimado</span>}
-        </p>
-      </div>
-      <div className="text-right">
-        <p className="text-sm font-bold font-mono text-foreground">{money(a.balance, a.currency)}</p>
-        <p className={cn("text-[11px] font-medium font-mono", up ? "text-profit" : "text-loss")}>
-          {up ? "+" : ""}{money(a.totalPnl, a.currency)}
-        </p>
-      </div>
-    </div>
-  )
-}
-
 // ── Equity curve (linhas + área opcional) ────────────────────────────
 function EquityCurve({ series, area }: { series: Series[]; area: boolean }) {
   const W = 800, H = 220, PAD = 8
@@ -383,18 +417,18 @@ function EquityCurve({ series, area }: { series: Series[]; area: boolean }) {
   )
 }
 
-// ── Donut de distribuição por saldo ──────────────────────────────────
-function DonutDistribution({ accounts }: { accounts: Account[] }) {
-  const positives = accounts.filter((a) => a.balance > 0)
-  const total = positives.reduce((s, a) => s + a.balance, 0)
+// ── Donut de distribuição por TIPO (saldo positivo) ──────────────────
+function DonutDistribution({ groups }: { groups: Group[] }) {
+  const positives = groups.filter((g) => g.balance > 0)
+  const total = positives.reduce((s, g) => s + g.balance, 0)
   if (total <= 0) {
     return <p className="text-xs text-muted-foreground text-center py-8">Sem saldo positivo pra distribuir ainda.</p>
   }
   const R = 52, C = 60, STROKE = 16, circ = 2 * Math.PI * R
-  const fracs = positives.map((a) => a.balance / total)
-  const segs = positives.map((a, i) => {
+  const fracs = positives.map((g) => g.balance / total)
+  const segs = positives.map((g, i) => {
     const offsetFrac = fracs.slice(0, i).reduce((s, f) => s + f, 0)
-    return { color: a.color, dash: fracs[i] * circ, offset: offsetFrac * circ, pct: Math.round(fracs[i] * 100), name: a.name }
+    return { color: g.color, dash: fracs[i] * circ, offset: offsetFrac * circ, pct: Math.round(fracs[i] * 100), name: g.name }
   })
   return (
     <div className="flex flex-col items-center">
