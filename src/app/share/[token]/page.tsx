@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { TradeExecutionChart } from "@/components/journal/trade-execution-chart"
 import type { Metadata } from "next"
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = rows[0]
   const pnl = Number(t.pnl)
   return {
-    title: `${t.instrument} ${t.direction} ${pnl >= 0 ? "+" : ""}$${Math.abs(pnl).toFixed(0)} | MeuTrade`,
+    title: `${t.instrument} ${t.direction} ${signedUsd(pnl)} | MeuTrade`,
     description: `Trade em ${format(new Date(t.date), "dd/MM/yyyy", { locale: ptBR })} via MeuTrade`,
   }
 }
@@ -113,7 +113,7 @@ export default async function SharePage({ params }: Props) {
             </div>
             <div className="text-right">
               <p className={cn("text-2xl font-bold font-mono", isWin ? "text-profit" : isLoss ? "text-loss" : "text-muted-foreground")}>
-                {pnl >= 0 ? "+" : ""}${Math.abs(pnl).toFixed(2)}
+                {signedUsd(pnl, 2)}
               </p>
               <p className="text-xs text-muted-foreground font-mono">{pnlPoints >= 0 ? "+" : ""}{pnlPoints.toFixed(2)} pts</p>
             </div>

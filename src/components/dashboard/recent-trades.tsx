@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus, BookOpen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -112,8 +112,7 @@ export function RecentTrades({ trades }: RecentTradesProps) {
                     : "text-muted-foreground"
                 )}
               >
-                {trade.pnl > 0 ? "+" : ""}
-                {trade.pnl === 0 ? "$0" : `$${Math.abs(trade.pnl).toFixed(0)}`}
+                {signedUsd(trade.pnl)}
               </p>
               <p className="text-xs text-muted-foreground font-mono">
                 {trade.pnlPoints > 0 ? "+" : ""}

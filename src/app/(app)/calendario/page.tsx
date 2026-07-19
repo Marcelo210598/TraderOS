@@ -16,7 +16,7 @@ import {
   isSameMonth,
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Calendar, BarChart2, Trophy, Flame } from "lucide-react"
 
 export const metadata: Metadata = { title: "Calendário" }
@@ -93,10 +93,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
   const stats = [
     {
       label: "P&L do mês",
-      value:
-        totalPnl === 0
-          ? "$0"
-          : `${totalPnl > 0 ? "+" : ""}$${Math.abs(totalPnl).toFixed(0)}`,
+      value: signedUsd(totalPnl),
       color: totalPnl > 0 ? "text-profit" : totalPnl < 0 ? "text-loss" : "text-foreground",
       icon: BarChart2,
     },
@@ -240,7 +237,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
                             isWinDay ? "text-profit" : isLossDay ? "text-loss" : "text-muted-foreground"
                           )}
                         >
-                          {dayPnl > 0 ? "+" : ""}$
+                          {dayPnl > 0 ? "+" : dayPnl < 0 ? "-" : ""}$
                           {Math.abs(dayPnl) >= 1000
                             ? `${(Math.abs(dayPnl) / 1000).toFixed(1)}k`
                             : Math.abs(dayPnl).toFixed(0)}
@@ -296,8 +293,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
                       totalPnl / tradingDays >= 0 ? "text-profit" : "text-loss"
                     )}
                   >
-                    {(totalPnl / tradingDays) >= 0 ? "+" : ""}$
-                    {Math.abs(totalPnl / tradingDays).toFixed(0)}/dia
+                    {signedUsd(totalPnl / tradingDays)}/dia
                   </span>
                 </div>
               </div>

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import Link from "next/link"
 import { TrendingUp, TrendingDown, Minus, ArrowLeft, Pencil } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -94,7 +94,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
 
             <div className="text-right flex flex-col items-end gap-1">
               <p className={cn("text-3xl font-bold font-mono", isWin ? "text-profit" : isLoss ? "text-loss" : "text-muted-foreground")}>
-                {pnl >= 0 ? "+" : ""}${Math.abs(pnl).toFixed(2)}
+                {signedUsd(pnl, 2)}
               </p>
               <p className="text-sm text-muted-foreground font-mono">
                 {pnlPoints >= 0 ? "+" : ""}{pnlPoints.toFixed(2)} pts

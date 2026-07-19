@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus, Trash2, Pencil, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { Trade } from "@/lib/types"
@@ -106,7 +106,7 @@ export function TradeCard({ trade, onDeleted }: TradeCardProps) {
               "text-lg font-bold font-mono",
               isWin ? "text-profit" : isLoss ? "text-loss" : "text-muted-foreground"
             )}>
-              {Number(trade.pnl) >= 0 ? "+" : ""}${Math.abs(Number(trade.pnl)).toFixed(0)}
+              {signedUsd(Number(trade.pnl))}
             </p>
             <p className="text-xs text-muted-foreground font-mono">
               {Number(trade.pnlPoints) >= 0 ? "+" : ""}{Number(trade.pnlPoints).toFixed(2)} pts

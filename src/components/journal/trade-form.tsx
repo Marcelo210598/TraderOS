@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { Loader2, Calculator, TrendingUp, TrendingDown, ImagePlus } from "lucide-react"
 import type { Setup, Trade } from "@/lib/types"
 import { ACCOUNT_OPTIONS, getAccountOption } from "@/lib/accounts"
@@ -316,7 +316,7 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
           </div>
           <div className="text-right">
             <p className={cn("text-xl font-bold font-mono", pnlDollars > 0 ? "text-profit" : pnlDollars < 0 ? "text-loss" : "text-muted-foreground")}>
-              {pnlDollars >= 0 ? "+" : ""}${pnlDollars.toFixed(2)}
+              {signedUsd(pnlDollars, 2)}
             </p>
             <p className="text-xs text-muted-foreground font-mono">
               {pnlPoints >= 0 ? "+" : ""}{pnlPoints.toFixed(2)} pts × {qty} contrato{qty > 1 ? "s" : ""}

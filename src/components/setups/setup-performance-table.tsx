@@ -37,7 +37,7 @@ function pf(n: number) {
 }
 
 function money(n: number, showSign = true) {
-  const sign = showSign && n > 0 ? "+" : ""
+  const sign = n < 0 ? "-" : showSign && n > 0 ? "+" : ""
   return `${sign}$${Math.abs(n).toFixed(0)}`
 }
 

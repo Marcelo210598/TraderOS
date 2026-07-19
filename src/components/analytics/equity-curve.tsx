@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 
 interface Point {
   label: string
@@ -74,7 +74,7 @@ export function EquityCurve({ points }: EquityCurveProps) {
         </div>
         <div className="text-right">
           <p className={cn("text-lg font-bold font-mono", isPositive ? "text-profit" : "text-loss")}>
-            {finalPnl >= 0 ? "+" : ""}${Math.abs(finalPnl).toFixed(0)}
+            {signedUsd(finalPnl)}
           </p>
           <p className="text-xs text-muted-foreground">acumulado</p>
         </div>
