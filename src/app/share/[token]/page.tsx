@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
+import { formatDateBR, formatLongDateBR } from "@/lib/date"
 import { cn, signedUsd } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { TradeExecutionChart } from "@/components/journal/trade-execution-chart"
@@ -31,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const pnl = Number(t.pnl)
   return {
     title: `${t.instrument} ${t.direction} ${signedUsd(pnl)} | MeuTrade`,
-    description: `Trade em ${format(new Date(t.date), "dd/MM/yyyy", { locale: ptBR })} via MeuTrade`,
+    description: `Trade em ${formatDateBR(t.date)} via MeuTrade`,
   }
 }
 
@@ -107,7 +106,7 @@ export default async function SharePage({ params }: Props) {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {format(new Date(trade.date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  {formatLongDateBR(trade.date)}
                 </p>
               </div>
             </div>

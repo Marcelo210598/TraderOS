@@ -3,8 +3,7 @@ import { notFound } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
+import { formatLongDateBR, formatTimeBR } from "@/lib/date"
 import { cn, signedUsd } from "@/lib/utils"
 import Link from "next/link"
 import { TrendingUp, TrendingDown, Minus, ArrowLeft, Pencil } from "lucide-react"
@@ -87,7 +86,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {format(trade.date, "EEEE, dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                  {`${formatLongDateBR(trade.date)} às ${formatTimeBR(trade.date)}`}
                 </p>
               </div>
             </div>
