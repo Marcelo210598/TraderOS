@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
   // Teto de custo de tokens: no máx 15 análises de trade por minuto por usuário.
-  const limited = enforce(`analyze:${session.user.id}`, 15, 60)
+  const limited = await enforce(`analyze:${session.user.id}`, 15, 60)
   if (limited) return limited
   if (session.user.plan !== "PRO") {
     return NextResponse.json({ error: "Recurso exclusivo do plano Pro" }, { status: 403 })

@@ -17,7 +17,7 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   // Anti brute-force/enumeração: no máx 8 cadastros por IP a cada 10 min.
-  const limited = enforce(`register:${clientIp(req)}`, 8, 600)
+  const limited = await enforce(`register:${clientIp(req)}`, 8, 600)
   if (limited) return limited
 
   const body = await req.json().catch(() => null)

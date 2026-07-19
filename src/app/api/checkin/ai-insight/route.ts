@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
   // Teto de custo de tokens: no máx 10 insights de check-in por minuto por usuário.
-  const limited = enforce(`ai-insight:${session.user.id}`, 10, 60)
+  const limited = await enforce(`ai-insight:${session.user.id}`, 10, 60)
   if (limited) return limited
 
   // Vega no check-in disponível a partir do Starter (limite 0 = FREE bloqueado).

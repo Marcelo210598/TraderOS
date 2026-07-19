@@ -41,7 +41,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Rate limit anti brute-force: no máx 8 tentativas por email+IP a cada 5 min.
         // Retorna antes do bcrypt.compare — economiza CPU e trava ataque de senha.
         const ip = clientIp(request)
-        const rl = hit(`login:${parsed.data.email}:${ip}`, 8, 300)
+        const rl = await hit(`login:${parsed.data.email}:${ip}`, 8, 300)
         if (!rl.ok) return null
 
         const user = await prisma.user.findUnique({
