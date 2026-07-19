@@ -5,7 +5,8 @@ const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/", "/share", "/opengrap
 const AUTH_ROUTES = ["/login", "/cadastro"]
 // Rotas de API que não precisam de sessão (têm auth própria ou são públicas)
 // /api/asaas/webhook é público (autentica via token do Asaas); o checkout exige sessão.
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/sync", "/api/uploadthing", "/api/asaas/webhook"]
+// /api/csp-report recebe relatórios de violação do NAVEGADOR (sem sessão) — precisa ser público.
+const PUBLIC_API_PREFIXES = ["/api/auth", "/api/sync", "/api/uploadthing", "/api/asaas/webhook", "/api/csp-report"]
 
 export default auth((req) => {
   const { nextUrl, auth: session } = req
