@@ -11,6 +11,7 @@ import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from "lucide-react"
 import { DrawdownAlertBanner } from "@/components/dashboard/drawdown-alert-banner"
 import { excludeTestTrades } from "@/lib/account"
+import { signedUsd } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -131,10 +132,7 @@ export default async function DashboardPage() {
   const isNewUser = recentTradesRaw.length === 0
 
   // Display helpers
-  const pnlDisplay =
-    weekPnl === 0
-      ? "$0"
-      : `${weekPnl > 0 ? "+" : ""}$${Math.abs(weekPnl).toFixed(0)}`
+  const pnlDisplay = signedUsd(weekPnl)
   const pfDisplay =
     profitFactor === 0 ? "—" : profitFactor >= 99 ? "∞" : profitFactor.toFixed(2)
 

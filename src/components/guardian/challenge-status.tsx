@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { CheckCircle, AlertTriangle, XCircle, TrendingDown, Target, Calendar, BarChart2 } from "lucide-react"
 
 interface DayData {
@@ -127,7 +127,7 @@ export function ChallengeStatus({ account, days, totalPnl }: ChallengeStatusProp
           <div className="flex justify-between text-[10px] text-muted-foreground font-mono mt-1.5">
             <span>${account.balance.toLocaleString()}</span>
             <span className={cn("font-medium", totalPnl >= 0 ? "text-profit" : "text-loss")}>
-              {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(0)} registrado
+              {signedUsd(totalPnl)} registrado
             </span>
             <span>${(account.balance + account.target).toLocaleString()}</span>
           </div>

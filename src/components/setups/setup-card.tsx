@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { Trash2, Pencil, BarChart3, TrendingUp } from "lucide-react"
 import type { Setup } from "@/lib/types"
 
@@ -82,7 +82,7 @@ export function SetupCard({ setup, onEdit, onDeleted }: SetupCardProps) {
         <div>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">P&L Total</p>
           <p className={cn("text-base font-bold font-mono mt-0.5", stats.totalPnl > 0 ? "text-profit" : stats.totalPnl < 0 ? "text-loss" : "text-muted-foreground")}>
-            {stats.total > 0 ? `${stats.totalPnl >= 0 ? "+" : ""}$${Math.abs(stats.totalPnl).toFixed(0)}` : "—"}
+            {stats.total > 0 ? signedUsd(stats.totalPnl) : "—"}
           </p>
         </div>
       </div>

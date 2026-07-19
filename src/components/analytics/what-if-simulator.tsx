@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { Zap, TrendingUp, Minus } from "lucide-react"
 
 interface SimpleTrade {
@@ -138,7 +138,7 @@ export function WhatIfSimulator({ trades }: Props) {
                 "text-lg font-bold font-mono",
                 s.pnl >= 0 ? "text-profit" : "text-loss"
               )}>
-                {s.pnl >= 0 ? "+" : ""}${Math.abs(s.pnl).toFixed(0)}
+                {signedUsd(s.pnl)}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5">{s.wr}% win rate · {s.trades} trades</p>
             </button>
@@ -156,14 +156,14 @@ export function WhatIfSimulator({ trades }: Props) {
             <div>
               <p className="text-[10px] text-muted-foreground">P&L cenário</p>
               <p className={cn("text-xl font-bold font-mono", activeScenario.pnl >= 0 ? "text-profit" : "text-loss")}>
-                {activeScenario.pnl >= 0 ? "+" : ""}${Math.abs(activeScenario.pnl).toFixed(0)}
+                {signedUsd(activeScenario.pnl)}
               </p>
             </div>
             {active !== "atual" && (
               <div>
                 <p className="text-[10px] text-muted-foreground">vs atual</p>
                 <p className={cn("text-xl font-bold font-mono", diff >= 0 ? "text-profit" : "text-loss")}>
-                  {diff >= 0 ? "+" : ""}${Math.abs(diff).toFixed(0)}
+                  {signedUsd(diff)}
                 </p>
               </div>
             )}

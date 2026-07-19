@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { ACCOUNT_OPTIONS, getAccountOption } from "@/lib/accounts"
 import { CheckCircle, Loader2, Tag, AlertTriangle } from "lucide-react"
 
@@ -197,7 +197,7 @@ export function BulkLabelClient({ trades, totalCount }: Props) {
                 </span>
                 <span className="text-xs font-mono font-semibold text-foreground w-12 shrink-0">{t.instrument}</span>
                 <span className={cn("text-xs font-mono font-semibold flex-1", t.pnl >= 0 ? "text-profit" : "text-loss")}>
-                  {t.pnl >= 0 ? "+" : ""}${t.pnl.toFixed(0)}
+                  {signedUsd(t.pnl)}
                 </span>
                 <span className={cn("text-[10px] font-mono px-2 py-0.5 rounded border shrink-0", opt.bg, opt.border, opt.color)}>
                   {opt.label}

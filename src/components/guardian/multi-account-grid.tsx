@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import { CheckCircle, AlertTriangle, XCircle, TrendingDown, Calendar, BarChart2, Target } from "lucide-react"
 import { ACCOUNTS, simulate, type AccountKey, type DayData } from "@/lib/guardian"
 
@@ -100,7 +100,7 @@ function AccountCard({ entry }: { entry: AccountEntry }) {
         </div>
         <div className="flex justify-between text-[10px] text-muted-foreground font-mono mt-0.5">
           <span className={cn("font-medium", entry.totalPnl >= 0 ? "text-profit" : "text-loss")}>
-            {entry.totalPnl >= 0 ? "+" : ""}${entry.totalPnl.toFixed(0)}
+            {signedUsd(entry.totalPnl)}
           </span>
           <span>meta ${config.target.toLocaleString()}</span>
         </div>

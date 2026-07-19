@@ -9,6 +9,7 @@ import Link from "next/link"
 import { Plus, BookOpen, Upload, Tag, FileDown } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
 import { excludeTestTrades } from "@/lib/account"
+import { signedUsd } from "@/lib/utils"
 
 // Traduz o filtro de conta (?conta=) em clausula Prisma. Default "reais" = sem teste/arquivadas.
 function accountFilter(conta: string): Record<string, unknown> {
@@ -182,7 +183,7 @@ export default async function JournalPage({ searchParams }: Props) {
           {[
             { label: "Trades este mês", value: String(monthlyTrades.length), sub: user.plan === "FREE" ? `${monthlyTrades.length}/10 do plano Free` : undefined },
             { label: "Win rate", value: `${monthlyWinRate}%`, color: monthlyWinRate >= 50 ? "text-profit" : "text-loss" },
-            { label: "P&L do mês", value: `${monthlyPnl >= 0 ? "+" : ""}$${Math.abs(monthlyPnl).toFixed(0)}`, color: monthlyPnl >= 0 ? "text-profit" : "text-loss" },
+            { label: "P&L do mês", value: signedUsd(monthlyPnl), color: monthlyPnl >= 0 ? "text-profit" : "text-loss" },
           ].map((s) => (
             <div key={s.label} className="bg-card border border-border rounded-xl p-3">
               <p className="text-xs text-muted-foreground">{s.label}</p>

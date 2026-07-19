@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { PrintActions } from "./print-actions"
+import { signedUsd } from "@/lib/utils"
 
 interface Props {
   searchParams: Promise<Record<string, string>>
@@ -92,8 +93,8 @@ export default async function JournalPrintPage({ searchParams }: Props) {
           {[
             { label: "Total de trades", value: String(trades.length) },
             { label: "Win Rate", value: `${winRate}%`, color: winRate >= 50 ? "#16a34a" : "#dc2626" },
-            { label: "P&L Total", value: `${totalPnl >= 0 ? "+" : ""}$${Math.abs(totalPnl).toFixed(2)}`, color: totalPnl >= 0 ? "#16a34a" : "#dc2626" },
-            { label: "P&L Médio", value: `${avgPnl >= 0 ? "+" : ""}$${Math.abs(avgPnl).toFixed(2)}`, color: avgPnl >= 0 ? "#16a34a" : "#dc2626" },
+            { label: "P&L Total", value: signedUsd(totalPnl, 2), color: totalPnl >= 0 ? "#16a34a" : "#dc2626" },
+            { label: "P&L Médio", value: signedUsd(avgPnl, 2), color: avgPnl >= 0 ? "#16a34a" : "#dc2626" },
             { label: "Profit Factor", value: profitFactor >= 99 ? "∞" : profitFactor.toFixed(2), color: profitFactor >= 1.5 ? "#16a34a" : profitFactor >= 1 ? "#ca8a04" : "#dc2626" },
           ].map((s) => (
             <div key={s.label} className="border border-gray-200 rounded-lg p-3 text-center">
@@ -143,7 +144,7 @@ export default async function JournalPrintPage({ searchParams }: Props) {
                       {pts >= 0 ? "+" : ""}{pts.toFixed(2)}
                     </td>
                     <td className="border border-gray-200 px-2 py-1 font-mono font-semibold whitespace-nowrap" style={{ color: pnl >= 0 ? "#16a34a" : "#dc2626" }}>
-                      {pnl >= 0 ? "+" : ""}${Math.abs(pnl).toFixed(2)}
+                      {signedUsd(pnl, 2)}
                     </td>
                     <td className="border border-gray-200 px-2 py-1 font-semibold" style={{ color: isWin ? "#16a34a" : isLoss ? "#dc2626" : "#6b7280" }}>
                       {t.result}
@@ -164,7 +165,7 @@ export default async function JournalPrintPage({ searchParams }: Props) {
                   Total ({trades.length} trades · {wins}W / {losses}L)
                 </td>
                 <td className="border border-gray-200 px-2 py-1.5 font-mono font-bold" style={{ color: totalPnl >= 0 ? "#16a34a" : "#dc2626" }}>
-                  {totalPnl >= 0 ? "+" : ""}${Math.abs(totalPnl).toFixed(2)}
+                  {signedUsd(totalPnl, 2)}
                 </td>
                 <td colSpan={3} className="border border-gray-200 px-2 py-1.5 text-gray-500 text-[9px]">
                   Win Rate: {winRate}% · PF: {profitFactor >= 99 ? "∞" : profitFactor.toFixed(2)}

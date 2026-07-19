@@ -63,8 +63,7 @@ export const viewport: Viewport = {
   themeColor: "#00C2A8",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Zoom liberado de propósito: bloquear pinch-zoom viola WCAG 1.4.4 (acessibilidade).
 }
 
 export default function RootLayout({

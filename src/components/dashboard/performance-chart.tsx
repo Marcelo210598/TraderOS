@@ -1,5 +1,7 @@
 "use client"
 
+import { signedUsd } from "@/lib/utils"
+
 interface DayData {
   label: string
   pnl: number
@@ -49,7 +51,7 @@ export function PerformanceChart({ data }: PerformanceChartProps) {
               cumulativePnL >= 0 ? "text-profit" : "text-loss"
             }`}
           >
-            {cumulativePnL >= 0 ? "+" : ""}${cumulativePnL.toFixed(0)}
+            {signedUsd(cumulativePnL)}
           </p>
           <p className="text-xs text-muted-foreground">acumulado</p>
         </div>
@@ -79,7 +81,7 @@ export function PerformanceChart({ data }: PerformanceChartProps) {
                       isPositive ? "text-profit" : "text-loss"
                     }`}
                   >
-                    {isPositive ? "+" : ""}$
+                    {day.pnl > 0 ? "+" : day.pnl < 0 ? "-" : ""}$
                     {Math.abs(day.pnl) >= 1000
                       ? `${(Math.abs(day.pnl) / 1000).toFixed(1)}k`
                       : Math.abs(day.pnl).toFixed(0)}
@@ -105,7 +107,7 @@ export function PerformanceChart({ data }: PerformanceChartProps) {
                           isPositive ? "text-profit" : "text-loss"
                         }`}
                       >
-                        {isPositive ? "+" : ""}${day.pnl.toFixed(2)}
+                        {signedUsd(day.pnl, 2)}
                       </p>
                       <p className="text-muted-foreground text-[10px] mt-0.5">
                         {day.trades} trade{day.trades > 1 ? "s" : ""}

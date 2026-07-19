@@ -6,7 +6,7 @@ import { EquityCurve } from "@/components/analytics/equity-curve"
 import { DrawdownChart } from "@/components/analytics/drawdown-chart"
 import { WhatIfSimulator } from "@/components/analytics/what-if-simulator"
 import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 import Link from "next/link"
 import {
   TrendingUp, TrendingDown, Target, Activity,
@@ -235,10 +235,10 @@ export default async function AnalyticsPage() {
         {/* ── KPIs principais ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "P&L Total", value: `${totalPnl >= 0 ? "+" : ""}$${Math.abs(totalPnl).toFixed(0)}`, color: totalPnl >= 0 ? "text-profit" : "text-loss", icon: BarChart2 },
+            { label: "P&L Total", value: signedUsd(totalPnl), color: totalPnl >= 0 ? "text-profit" : "text-loss", icon: BarChart2 },
             { label: "Win Rate", value: `${winRate}%`, color: winRate >= 50 ? "text-profit" : "text-loss", icon: Target },
             { label: "Profit Factor", value: profitFactor >= 99 ? "∞" : profitFactor.toFixed(2), color: profitFactor >= 1.5 ? "text-profit" : profitFactor >= 1 ? "text-yellow-400" : "text-loss", icon: TrendingUp },
-            { label: "Expectância", value: `${expectancy >= 0 ? "+" : ""}$${Math.abs(expectancy).toFixed(0)}`, color: expectancy >= 0 ? "text-profit" : "text-loss", icon: Zap },
+            { label: "Expectância", value: signedUsd(expectancy), color: expectancy >= 0 ? "text-profit" : "text-loss", icon: Zap },
           ].map((s) => (
             <div key={s.label} className="bg-card border border-border rounded-xl p-4">
               <div className="flex items-center gap-1.5 mb-2">
@@ -482,7 +482,7 @@ export default async function AnalyticsPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className={cn("text-sm font-bold font-mono", s.pnl >= 0 ? "text-profit" : "text-loss")}>
-                      {s.pnl >= 0 ? "+" : ""}${Math.abs(s.pnl).toFixed(0)}
+                      {signedUsd(s.pnl)}
                     </p>
                   </div>
                 </div>
@@ -518,7 +518,7 @@ export default async function AnalyticsPage() {
                       <p className="text-[10px] text-muted-foreground mt-0.5">{s.total} trades</p>
                     </div>
                     <span className={cn("text-sm font-mono font-bold shrink-0", s.pnl >= 0 ? "text-profit" : "text-loss")}>
-                      {s.pnl >= 0 ? "+" : ""}${Math.abs(s.pnl).toFixed(0)}
+                      {signedUsd(s.pnl)}
                     </span>
                   </div>
                 ))}
@@ -543,7 +543,7 @@ export default async function AnalyticsPage() {
                         <span className={cn("text-xs font-mono", wr >= 50 ? "text-profit" : "text-loss")}>{wr}%</span>
                         <span className="text-xs text-muted-foreground">{s.total}t</span>
                         <span className={cn("text-sm font-mono font-bold", s.pnl >= 0 ? "text-profit" : "text-loss")}>
-                          {s.pnl >= 0 ? "+" : ""}${Math.abs(s.pnl).toFixed(0)}
+                          {signedUsd(s.pnl)}
                         </span>
                       </div>
                     </div>
@@ -597,7 +597,7 @@ export default async function AnalyticsPage() {
                   <p className="text-[10px] text-muted-foreground font-mono">{d.day}</p>
                   {d.total > 0 && (
                     <p className={cn("text-[9px] font-mono", d.pnl >= 0 ? "text-profit" : "text-loss")}>
-                      {d.pnl >= 0 ? "+" : ""}${Math.abs(d.pnl).toFixed(0)}
+                      {signedUsd(d.pnl)}
                     </p>
                   )}
                 </div>

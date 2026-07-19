@@ -7,6 +7,7 @@ import { AchievementsGrid } from "@/components/progress/achievements-grid"
 import { StreaksPanel } from "@/components/progress/streaks-panel"
 import { getLevelFromXp } from "@/lib/xp"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { signedUsd } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Progress" }
 
@@ -138,7 +139,7 @@ export default async function ProgressPage() {
                     label: "P&L total",
                     value: (() => {
                       const total = trades.reduce((a, t) => a + Number(t.pnl), 0)
-                      return `${total >= 0 ? "+" : ""}$${Math.abs(total).toFixed(0)}`
+                      return signedUsd(total)
                     })(),
                     color: trades.reduce((a, t) => a + Number(t.pnl), 0) >= 0 ? "text-profit" : "text-loss",
                   },

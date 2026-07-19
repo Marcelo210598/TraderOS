@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { TradeCard } from "./trade-card"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
+import { signedUsd } from "@/lib/utils"
 
 interface TradeListProps {
   initial: PaginatedTrades
@@ -84,7 +85,7 @@ export function TradeList({ initial }: TradeListProps) {
               const total = trades.reduce((acc, t) => acc + Number(t.pnl), 0)
               return (
                 <span className={total >= 0 ? "text-profit" : "text-loss"}>
-                  {total >= 0 ? "+" : ""}${total.toFixed(0)}
+                  {signedUsd(total)}
                 </span>
               )
             })()}

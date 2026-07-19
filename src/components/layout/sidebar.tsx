@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { getLevelFromXp } from "@/lib/xp"
 import { useSidebar } from "./sidebar-context"
 
 interface NavItem {
@@ -76,11 +77,11 @@ interface SidebarProps {
   userLevel?: number
 }
 
-export function Sidebar({ userPlan = "FREE", userRole = "USER", userLevel = 1, userXp = 0 }: SidebarProps) {
+export function Sidebar({ userPlan = "FREE", userRole = "USER", userXp = 0 }: SidebarProps) {
   const pathname = usePathname()
   const { mobileOpen, closeMobile } = useSidebar()
-  const xpToNextLevel = userLevel * 500
-  const xpProgress = Math.min((userXp / xpToNextLevel) * 100, 100)
+  // Deriva nível/progresso do XP total (o campo `level` do banco fica defasado).
+  const { level: userLevel, currentXp, xpNeeded: xpToNextLevel, progress: xpProgress } = getLevelFromXp(userXp)
 
   function isLocked(planRequired?: string): boolean {
     if (!planRequired) return false
@@ -186,7 +187,7 @@ export function Sidebar({ userPlan = "FREE", userRole = "USER", userLevel = 1, u
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground font-mono">Nível {userLevel}</span>
               <span className="text-teal font-mono font-medium">
-                {userXp}/{xpToNextLevel} XP
+                {currentXp}/{xpToNextLevel} XP
               </span>
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
