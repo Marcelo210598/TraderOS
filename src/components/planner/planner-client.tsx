@@ -186,12 +186,13 @@ export function PlannerClient({ plans: initialPlans, setups, todayStr }: Props) 
         {/* Max Loss + Target */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <label htmlFor="plan-max-loss" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <ShieldAlert className="w-3.5 h-3.5 text-loss" /> Max Loss
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono">$</span>
               <input
+                id="plan-max-loss"
                 type="number"
                 value={maxLoss}
                 onChange={(e) => setMaxLoss(Number(e.target.value))}
@@ -202,12 +203,13 @@ export function PlannerClient({ plans: initialPlans, setups, todayStr }: Props) 
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <label htmlFor="plan-profit-target" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Target className="w-3.5 h-3.5 text-profit" /> Profit Target
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono">$</span>
               <input
+                id="plan-profit-target"
                 type="number"
                 value={profitTarget}
                 onChange={(e) => setProfitTarget(Number(e.target.value))}
@@ -280,10 +282,11 @@ export function PlannerClient({ plans: initialPlans, setups, todayStr }: Props) 
 
         {/* Notes */}
         <div className="space-y-1.5">
-          <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <label htmlFor="plan-notes" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <FileText className="w-3.5 h-3.5" /> Notas pré-sessão
           </label>
           <textarea
+            id="plan-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Contexto do mercado, níveis importantes, regras para hoje..."

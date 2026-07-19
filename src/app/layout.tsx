@@ -4,6 +4,7 @@ import { PwaRegister } from "@/components/pwa-register"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { TrackingScripts } from "@/components/analytics/tracking-scripts"
+import { Toaster } from "@/components/ui/toast"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -79,6 +80,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-background text-foreground antialiased">
         <PwaRegister />
         {children}
+        <Toaster />
         <TrackingScripts />
         <Analytics />
         <SpeedInsights />

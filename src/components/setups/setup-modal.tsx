@@ -94,8 +94,9 @@ export function SetupModal({ open, initial, onClose, onSaved }: SetupModalProps)
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome *</label>
+            <label htmlFor="setup-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome *</label>
             <input
+              id="setup-name"
               type="text"
               placeholder="ICT Order Block, VWAP Bounce..."
               value={form.name}
@@ -107,8 +108,9 @@ export function SetupModal({ open, initial, onClose, onSaved }: SetupModalProps)
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Descrição</label>
+            <label htmlFor="setup-description" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Descrição</label>
             <input
+              id="setup-description"
               type="text"
               placeholder="Breve descrição do setup"
               value={form.description}
@@ -118,8 +120,9 @@ export function SetupModal({ open, initial, onClose, onSaved }: SetupModalProps)
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Regras de entrada</label>
+            <label htmlFor="setup-rules" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Regras de entrada</label>
             <textarea
+              id="setup-rules"
               rows={4}
               placeholder="1. Identificar OB no H1&#10;2. Aguardar retorno ao nível&#10;3. Confirmar FVG no M5..."
               value={form.rules}
@@ -129,8 +132,9 @@ export function SetupModal({ open, initial, onClose, onSaved }: SetupModalProps)
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags (separadas por vírgula)</label>
+            <label htmlFor="setup-tags" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags (separadas por vírgula)</label>
             <input
+              id="setup-tags"
               type="text"
               placeholder="ICT, M5, scalping, OB..."
               value={form.tags}

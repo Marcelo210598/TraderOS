@@ -188,10 +188,11 @@ export function ApexCalculator() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-medium">
+              <label htmlFor="apex-current-balance" className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-medium">
                 Saldo atual ($)
               </label>
               <input
+                id="apex-current-balance"
                 type="number"
                 value={currentBalance}
                 onChange={(e) => setCurrentBalance(e.target.value)}
@@ -200,10 +201,11 @@ export function ApexCalculator() {
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-medium">
+              <label htmlFor="apex-hwm" className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-medium">
                 High water mark ($)
               </label>
               <input
+                id="apex-hwm"
                 type="number"
                 value={highWaterMark}
                 onChange={(e) => setHighWaterMark(e.target.value)}
@@ -396,10 +398,11 @@ export function ApexCalculator() {
       {tab === "scaling" && (
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-medium">
+            <label htmlFor="apex-trader-profit" className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-medium">
               Lucro acumulado atual ($)
             </label>
             <input
+              id="apex-trader-profit"
               type="number"
               value={traderProfit}
               onChange={(e) => setTraderProfit(e.target.value)}

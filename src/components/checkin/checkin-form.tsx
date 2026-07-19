@@ -255,10 +255,11 @@ export function CheckInForm({ type, userPlan }: CheckInFormProps) {
 
       {/* Notas */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        <label htmlFor="checkin-notes" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Observações {type === "PRE" ? "(o que vai focar hoje?)" : "(como foi a sessão?)"}
         </label>
         <textarea
+          id="checkin-notes"
           rows={3}
           placeholder={type === "PRE" ? "Vou focar no setup X, meu max loss é $200..." : "Segui o plano, saí cedo no trade 2 por medo..."}
           value={notes}
