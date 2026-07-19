@@ -219,8 +219,9 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
 
       {/* Linha 1: Data + Sessão */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Data e Hora">
+        <Field label="Data e Hora" htmlFor="tf-date">
           <input
+            id="tf-date"
             type="datetime-local"
             value={form.date}
             onChange={(e) => set("date", e.target.value)}
@@ -228,8 +229,8 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
             className={inputCls}
           />
         </Field>
-        <Field label="Sessão">
-          <select value={form.sessionType} onChange={(e) => set("sessionType", e.target.value)} className={inputCls}>
+        <Field label="Sessão" htmlFor="tf-session">
+          <select id="tf-session" value={form.sessionType} onChange={(e) => set("sessionType", e.target.value)} className={inputCls}>
             {SESSION_TYPES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
@@ -239,8 +240,8 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
 
       {/* Linha 2: Ativo + Direção */}
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Ativo">
-          <select value={form.instrument} onChange={(e) => set("instrument", e.target.value)} className={inputCls}>
+        <Field label="Ativo" htmlFor="tf-instrument">
+          <select id="tf-instrument" value={form.instrument} onChange={(e) => set("instrument", e.target.value)} className={inputCls}>
             {INSTRUMENTS.map((i) => <option key={i} value={i}>{i}</option>)}
           </select>
         </Field>
@@ -270,8 +271,9 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
 
       {/* Linha 3: Entry + Exit + Quantidade */}
       <div className="grid grid-cols-3 gap-4">
-        <Field label="Entrada">
+        <Field label="Entrada" htmlFor="tf-entry">
           <input
+            id="tf-entry"
             type="number"
             step="0.25"
             placeholder="21000.00"
@@ -281,8 +283,9 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
             className={inputCls}
           />
         </Field>
-        <Field label="Saída">
+        <Field label="Saída" htmlFor="tf-exit">
           <input
+            id="tf-exit"
             type="number"
             step="0.25"
             placeholder="21050.00"
@@ -292,8 +295,9 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
             className={inputCls}
           />
         </Field>
-        <Field label="Contratos">
+        <Field label="Contratos" htmlFor="tf-quantity">
           <input
+            id="tf-quantity"
             type="number"
             min="1"
             value={form.quantity}
@@ -327,8 +331,9 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
 
       {/* MFE / MAE */}
       <div className="grid grid-cols-2 gap-4">
-        <Field label={<span title="Maximum Favorable Excursion — máximo que o preço foi a seu favor (em pontos)">MFE <span className="normal-case font-normal opacity-60">(pts) — opcional</span></span>}>
+        <Field label={<span title="Maximum Favorable Excursion — máximo que o preço foi a seu favor (em pontos)">MFE <span className="normal-case font-normal opacity-60">(pts) — opcional</span></span>} htmlFor="tf-mfe">
           <input
+            id="tf-mfe"
             type="number"
             step="0.25"
             min="0"
@@ -338,8 +343,9 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
             className={inputCls}
           />
         </Field>
-        <Field label={<span title="Maximum Adverse Excursion — máximo que o preço foi contra você (em pontos)">MAE <span className="normal-case font-normal opacity-60">(pts) — opcional</span></span>}>
+        <Field label={<span title="Maximum Adverse Excursion — máximo que o preço foi contra você (em pontos)">MAE <span className="normal-case font-normal opacity-60">(pts) — opcional</span></span>} htmlFor="tf-mae">
           <input
+            id="tf-mae"
             type="number"
             step="0.25"
             min="0"
@@ -353,8 +359,9 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
 
       {/* Linha 4: Comissão + Resultado + Setup */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Field label="Comissão ($)">
+        <Field label="Comissão ($)" htmlFor="tf-commission">
           <input
+            id="tf-commission"
             type="number"
             min="0"
             step="0.01"
@@ -364,15 +371,15 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
             className={inputCls}
           />
         </Field>
-        <Field label="Resultado">
-          <select value={form.result} onChange={(e) => set("result", e.target.value)} className={inputCls}>
+        <Field label="Resultado" htmlFor="tf-result">
+          <select id="tf-result" value={form.result} onChange={(e) => set("result", e.target.value)} className={inputCls}>
             <option value="WIN">✅ Win</option>
             <option value="LOSS">❌ Loss</option>
             <option value="BREAKEVEN">➖ Breakeven</option>
           </select>
         </Field>
-        <Field label="Setup usado">
-          <select value={form.setupId} onChange={(e) => set("setupId", e.target.value)} className={inputCls}>
+        <Field label="Setup usado" htmlFor="tf-setup">
+          <select id="tf-setup" value={form.setupId} onChange={(e) => set("setupId", e.target.value)} className={inputCls}>
             <option value="">Sem setup</option>
             {setups.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
@@ -392,8 +399,9 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
       </Field>
 
       {/* Notas */}
-      <Field label="Notas">
+      <Field label="Notas" htmlFor="tf-notes">
         <textarea
+          id="tf-notes"
           rows={4}
           placeholder="O que aconteceu neste trade? O que aprendeu?"
           value={form.notes}
@@ -435,10 +443,10 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
   )
 }
 
-function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
+function Field({ label, htmlFor, children }: { label: React.ReactNode; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</label>
+      <label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</label>
       {children}
     </div>
   )

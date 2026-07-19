@@ -5,6 +5,7 @@ import Image from "next/image"
 import { Copy, Check, Trash2, Plus, ChevronDown, ChevronUp, Download, Clock, Terminal, FolderOpen, Zap, TrendingUp, Settings, FileText, Upload, AlertTriangle, CheckCircle2, ZoomIn } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { openUpgradeModal } from "@/lib/upgrade"
+import { toast } from "@/components/ui/toast"
 
 interface ApiKey {
   id: string
@@ -55,7 +56,7 @@ export function IntegrationSection({ initialKeys }: Props) {
         if (res.status === 403) {
           openUpgradeModal({ reason: data.error?.toString(), suggestedPlan: data.suggestedPlan ?? "PRO" })
         } else {
-          alert(data.error)
+          toast.error(data.error ?? "Erro ao gerar a API Key.")
         }
         return
       }
@@ -63,6 +64,7 @@ export function IntegrationSection({ initialKeys }: Props) {
       if (data.rawKey) setNewRawKey(data.rawKey)
       setKeys((prev) => [{ ...data, rawKey: undefined }, ...prev])
       setTutorialOpen(true)
+      toast.success("API Key gerada! Copie agora — não será exibida novamente.")
     } finally { setLoading(false) }
   }
 
@@ -89,7 +91,7 @@ export function IntegrationSection({ initialKeys }: Props) {
     setDownloading(true)
     try {
       const res = await fetch("/api/integrations/ninjatrader-addon/download")
-      if (!res.ok) { alert("Erro ao gerar o arquivo. Tente novamente."); return }
+      if (!res.ok) { toast.error("Erro ao gerar o arquivo. Tente novamente."); return }
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement("a")
@@ -107,7 +109,7 @@ export function IntegrationSection({ initialKeys }: Props) {
     setDownloadingCfg(true)
     try {
       const res = await fetch("/api/integrations/ninjatrader-addon/config", { method: "POST" })
-      if (!res.ok) { alert("Erro ao gerar o arquivo. Tente novamente."); return }
+      if (!res.ok) { toast.error("Erro ao gerar o arquivo. Tente novamente."); return }
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
       const a    = document.createElement("a")

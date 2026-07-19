@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { updateProfile, updatePassword } from "@/app/actions/settings"
 import { cn } from "@/lib/utils"
+import { toast } from "@/components/ui/toast"
 
 interface SettingsFormsProps {
   userName: string | null
@@ -29,14 +30,18 @@ export function ProfileForm({ userName, userEmail }: Pick<SettingsFormsProps, "u
     const res = await updateProfile(new FormData(e.currentTarget))
     setLoading(false)
     if (res.error) setMsg({ type: "error", text: res.error })
-    else setMsg({ type: "success", text: "Nome atualizado com sucesso!" })
+    else {
+      setMsg({ type: "success", text: "Nome atualizado com sucesso!" })
+      toast.success("Nome atualizado com sucesso!")
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-xs text-muted-foreground mb-1.5">Nome</label>
+        <label htmlFor="profile-name" className="block text-xs text-muted-foreground mb-1.5">Nome</label>
         <input
+          id="profile-name"
           name="name"
           defaultValue={userName ?? ""}
           className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-teal transition-colors"
@@ -44,8 +49,9 @@ export function ProfileForm({ userName, userEmail }: Pick<SettingsFormsProps, "u
         />
       </div>
       <div>
-        <label className="block text-xs text-muted-foreground mb-1.5">Email</label>
+        <label htmlFor="profile-email" className="block text-xs text-muted-foreground mb-1.5">Email</label>
         <input
+          id="profile-email"
           value={userEmail ?? ""}
           disabled
           className="w-full bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-muted-foreground cursor-not-allowed"
@@ -87,6 +93,7 @@ export function PasswordForm({ hasPassword }: Pick<SettingsFormsProps, "hasPassw
       setMsg({ type: "error", text: res.error })
     } else {
       setMsg({ type: "success", text: "Senha alterada com sucesso!" })
+      toast.success("Senha alterada com sucesso!")
       form.reset()
     }
   }
@@ -94,8 +101,9 @@ export function PasswordForm({ hasPassword }: Pick<SettingsFormsProps, "hasPassw
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-xs text-muted-foreground mb-1.5">Senha atual</label>
+        <label htmlFor="current-password" className="block text-xs text-muted-foreground mb-1.5">Senha atual</label>
         <input
+          id="current-password"
           name="currentPassword"
           type="password"
           className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-teal transition-colors"
@@ -103,8 +111,9 @@ export function PasswordForm({ hasPassword }: Pick<SettingsFormsProps, "hasPassw
         />
       </div>
       <div>
-        <label className="block text-xs text-muted-foreground mb-1.5">Nova senha</label>
+        <label htmlFor="new-password" className="block text-xs text-muted-foreground mb-1.5">Nova senha</label>
         <input
+          id="new-password"
           name="newPassword"
           type="password"
           className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-teal transition-colors"

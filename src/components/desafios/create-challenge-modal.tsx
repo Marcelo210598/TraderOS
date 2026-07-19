@@ -76,8 +76,9 @@ export function CreateChallengeModal({ onClose }: Props) {
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
           {/* Nome */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome do desafio</label>
+            <label htmlFor="challenge-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome do desafio</label>
             <input
+              id="challenge-name"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Ex: Disciplina Total, Semana Sem Revenge..."
@@ -88,8 +89,9 @@ export function CreateChallengeModal({ onClose }: Props) {
 
           {/* Descrição */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Descrição <span className="normal-case">(opcional)</span></label>
+            <label htmlFor="challenge-description" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Descrição <span className="normal-case">(opcional)</span></label>
             <input
+              id="challenge-description"
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Meta ou motivação deste desafio..."

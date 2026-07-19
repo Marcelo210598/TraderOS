@@ -303,13 +303,13 @@ function AccountManageCard({ a }: { a: ManageAccount }) {
             <p className="text-[10px] text-muted-foreground/70 mt-1">Muda o tipo desta conta e reclassifica os {a.tradeCount} trades dela.</p>
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground">Nome da conta</label>
-            <input value={name} onChange={(e) => setName(e.target.value)}
+            <label htmlFor={`acc-name-${a.id}`} className="text-[10px] text-muted-foreground">Nome da conta</label>
+            <input id={`acc-name-${a.id}`} value={name} onChange={(e) => setName(e.target.value)}
               className="w-full text-sm bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-teal/50" />
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground">Saldo inicial ({a.currency}) — opcional</label>
-            <input value={initial} onChange={(e) => setInitial(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="0"
+            <label htmlFor={`acc-initial-${a.id}`} className="text-[10px] text-muted-foreground">Saldo inicial ({a.currency}) — opcional</label>
+            <input id={`acc-initial-${a.id}`} value={initial} onChange={(e) => setInitial(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="0"
               className="w-full text-sm font-mono bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-foreground outline-none focus:border-teal/50" />
           </div>
         </div>

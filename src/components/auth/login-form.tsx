@@ -65,10 +65,11 @@ export function LoginForm() {
       {/* Credenciais */}
       <form onSubmit={handleCredentials} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <label htmlFor="login-email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Email
           </label>
           <input
+            id="login-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -79,10 +80,11 @@ export function LoginForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <label htmlFor="login-password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Senha
           </label>
           <input
+            id="login-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

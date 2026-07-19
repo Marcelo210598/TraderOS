@@ -88,10 +88,11 @@ export function RegisterForm() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <label htmlFor="reg-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Nome completo
           </label>
           <input
+            id="reg-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -102,10 +103,11 @@ export function RegisterForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <label htmlFor="reg-email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Email
           </label>
           <input
+            id="reg-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -116,10 +118,11 @@ export function RegisterForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <label htmlFor="reg-password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Senha
           </label>
           <input
+            id="reg-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -130,10 +133,11 @@ export function RegisterForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <label htmlFor="reg-confirm" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Confirmar senha
           </label>
           <input
+            id="reg-confirm"
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
