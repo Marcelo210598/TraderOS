@@ -178,7 +178,14 @@ function NotificationCard({ notification }: { notification: Notification }) {
 }
 
 function renderInline(text: string): string {
-  return text
+  // Escapa HTML ANTES de aplicar o markdown — impede que conteúdo da notificação
+  // (resumos gerados por IA a partir de notas do usuário) injete tags vivas (XSS).
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+  return escaped
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/`(.+?)`/g, '<code class="bg-muted px-1 rounded text-xs font-mono">$1</code>')

@@ -7,6 +7,7 @@ import { notifyAdminsNewSignup } from "@/lib/admin"
 import { sendCapiEvent } from "@/lib/fbcapi"
 import { sendGa4Event } from "@/lib/ga4"
 import { compare } from "bcryptjs"
+import { hit, clientIp } from "@/lib/rate-limit"
 import { z } from "zod"
 
 const credentialsSchema = z.object({
@@ -33,9 +34,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Senha", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = credentialsSchema.safeParse(credentials)
         if (!parsed.success) return null
+
+        // Rate limit anti brute-force: no máx 8 tentativas por email+IP a cada 5 min.
+        // Retorna antes do bcrypt.compare — economiza CPU e trava ataque de senha.
+        const ip = clientIp(request)
+        const rl = hit(`login:${parsed.data.email}:${ip}`, 8, 300)
+        if (!rl.ok) return null
 
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email },

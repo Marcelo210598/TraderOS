@@ -8,7 +8,9 @@ import { generateRawApiKey, hashApiKey, apiKeyPrefix } from "@/lib/apikey"
 // Como o hash é irreversível, não dá pra re-exibir uma chave já criada — então cada
 // download gera uma chave nova, rotacionando a anterior. O sync valida pelo mesmo hash.
 
-export async function GET() {
+// POST (não GET): esta rota ALTERA estado (rotaciona a API key). Manter como POST
+// impede CSRF via navegação top-level (um GET forjado invalidaria a key da vítima).
+export async function POST() {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
