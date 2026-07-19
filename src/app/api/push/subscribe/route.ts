@@ -17,6 +17,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Dados inválidos" }, { status: 400 })
     }
 
+    // Anti-hijack: se o endpoint já pertence a OUTRO usuário, não reatribui.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = await (prisma as any).pushSubscription.findUnique({ where: { endpoint } })
+    if (existing && existing.userId !== session.user.id) {
+      return NextResponse.json({ error: "Endpoint já registrado" }, { status: 409 })
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (prisma as any).pushSubscription.upsert({
       where: { endpoint },

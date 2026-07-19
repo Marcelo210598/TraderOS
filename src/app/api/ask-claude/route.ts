@@ -4,6 +4,17 @@ import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
 import { upgradeResponse } from "@/lib/plan-guard"
 import { enforce } from "@/lib/rate-limit"
+import { z } from "zod"
+
+const messagesSchema = z
+  .array(
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().min(1).max(4000),
+    })
+  )
+  .min(1)
+  .max(20)
 
 const BASE_SYSTEM = `Você é Vega, analista sênior de trading integrado ao MeuTrade. Você tem acesso aos dados reais de performance do trader e os usa para dar análises precisas e personalizadas.
 
@@ -273,10 +284,12 @@ export async function POST(req: NextRequest) {
   if (limited) return limited
   if (session.user.plan !== "PRO") return upgradeResponse("O chat com a Vega é exclusivo do plano Pro.", "PRO")
 
-  const { messages } = await req.json()
-  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+  const body = await req.json().catch(() => null)
+  const parsed = messagesSchema.safeParse(body?.messages)
+  if (!parsed.success) {
     return NextResponse.json({ error: "Mensagem inválida" }, { status: 400 })
   }
+  const messages = parsed.data
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -289,8 +302,8 @@ export async function POST(req: NextRequest) {
         { type: "text" as const, text: BASE_SYSTEM, cache_control: { type: "ephemeral" as const } },
         { type: "text" as const, text: context },
       ],
-      messages: messages.map((m: { role: string; content: string }) => ({
-        role: m.role as "user" | "assistant",
+      messages: messages.map((m) => ({
+        role: m.role,
         content: m.content,
       })),
     })

@@ -106,7 +106,7 @@ export function IntegrationSection({ initialKeys }: Props) {
   async function downloadConfig() {
     setDownloadingCfg(true)
     try {
-      const res = await fetch("/api/integrations/ninjatrader-addon/config")
+      const res = await fetch("/api/integrations/ninjatrader-addon/config", { method: "POST" })
       if (!res.ok) { alert("Erro ao gerar o arquivo. Tente novamente."); return }
       const blob = await res.blob()
       const url  = URL.createObjectURL(blob)
