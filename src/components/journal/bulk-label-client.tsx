@@ -193,7 +193,7 @@ export function BulkLabelClient({ trades, totalCount }: Props) {
                   className="w-3.5 h-3.5 rounded accent-teal shrink-0"
                 />
                 <span className="text-xs font-mono text-muted-foreground w-24 shrink-0">
-                  {new Date(t.date).toLocaleDateString("pt-BR")}
+                  {new Date(t.date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                 </span>
                 <span className="text-xs font-mono font-semibold text-foreground w-12 shrink-0">{t.instrument}</span>
                 <span className={cn("text-xs font-mono font-semibold flex-1", t.pnl >= 0 ? "text-profit" : "text-loss")}>

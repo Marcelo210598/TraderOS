@@ -174,7 +174,7 @@ export function CarteiraClient({ consolidated, groups, consolidatedSeries, group
                       </p>
                     )}
                     <p className="text-[11px] text-muted-foreground">
-                      {h.accountName} · {new Date(h.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      {h.accountName} · {new Date(h.date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                   <p className={cn("text-sm font-bold font-mono", up ? "text-profit" : "text-loss")}>

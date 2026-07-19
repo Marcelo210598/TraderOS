@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { formatDateTimeShortYearBR } from "@/lib/date"
 import { PrintActions } from "./print-actions"
 import { signedUsd } from "@/lib/utils"
 
@@ -130,7 +131,7 @@ export default async function JournalPrintPage({ searchParams }: Props) {
                   <tr key={t.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                     <td className="border border-gray-200 px-2 py-1 text-gray-400 font-mono">{idx + 1}</td>
                     <td className="border border-gray-200 px-2 py-1 font-mono whitespace-nowrap">
-                      {format(new Date(t.date), "dd/MM/yy HH:mm")}
+                      {formatDateTimeShortYearBR(t.date)}
                     </td>
                     <td className="border border-gray-200 px-2 py-1 font-mono font-semibold">{t.instrument}</td>
                     <td className="border border-gray-200 px-2 py-1 font-mono" style={{ color: t.direction === "LONG" ? "#16a34a" : "#dc2626" }}>

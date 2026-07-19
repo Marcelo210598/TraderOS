@@ -26,7 +26,7 @@ interface Props {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })
+  return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit" })
 }
 
 function PlanHistoryCard({ plan, onToggleExecuted, onDelete }: {
@@ -173,7 +173,7 @@ export function PlannerClient({ plans: initialPlans, setups, todayStr }: Props) 
           <div>
             <h2 className="text-sm font-semibold text-foreground">Plano de hoje</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {new Date(todayStr + "T12:00:00Z").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+              {new Date(todayStr + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "long" })}
             </p>
           </div>
           {todayPlan?.executed && (

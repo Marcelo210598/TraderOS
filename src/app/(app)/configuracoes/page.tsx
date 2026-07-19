@@ -117,7 +117,7 @@ export default async function ConfiguracoesPage() {
             </div>
             <div className="mt-4 pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground">
-                Membro desde {new Date(user.createdAt).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                Membro desde {new Date(user.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "long", year: "numeric" })}
               </p>
             </div>
           </section>

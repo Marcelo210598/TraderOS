@@ -5,7 +5,7 @@ import { Header } from "@/components/layout/header"
 import { EquityCurve } from "@/components/analytics/equity-curve"
 import { DrawdownChart } from "@/components/analytics/drawdown-chart"
 import { WhatIfSimulator } from "@/components/analytics/what-if-simulator"
-import { format } from "date-fns"
+import { formatShortDateBR, formatDateBR } from "@/lib/date"
 import { cn, signedUsd } from "@/lib/utils"
 import Link from "next/link"
 import {
@@ -102,7 +102,7 @@ export default async function AnalyticsPage() {
   const equityPoints = trades.map((t) => {
     cumPnl += Number(t.pnl)
     return {
-      label: format(new Date(t.date), "dd/MM"),
+      label: formatShortDateBR(t.date),
       cumPnl: Math.round(cumPnl * 100) / 100,
     }
   })
@@ -437,7 +437,7 @@ export default async function AnalyticsPage() {
                   +${Number(bestTrade.pnl).toFixed(0)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {bestTrade.instrument} · {format(new Date(bestTrade.date), "dd/MM/yyyy")}
+                  {bestTrade.instrument} · {formatDateBR(bestTrade.date)}
                 </p>
               </div>
               <div className="bg-loss/5 border border-loss/20 rounded-lg p-2.5">
@@ -446,7 +446,7 @@ export default async function AnalyticsPage() {
                   ${Number(worstTrade.pnl).toFixed(0)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {worstTrade.instrument} · {format(new Date(worstTrade.date), "dd/MM/yyyy")}
+                  {worstTrade.instrument} · {formatDateBR(worstTrade.date)}
                 </p>
               </div>
             </div>

@@ -12,6 +12,7 @@ import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from 
 import { DrawdownAlertBanner } from "@/components/dashboard/drawdown-alert-banner"
 import { excludeTestTrades } from "@/lib/account"
 import { signedUsd } from "@/lib/utils"
+import { dayKeyBR, formatTimeBR, formatShortDateBR } from "@/lib/date"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -93,23 +94,19 @@ export default async function DashboardPage() {
     chartData.push({ label, pnl: v.pnl, trades: v.trades })
   }
 
-  // Trades recentes formatados
-  const todayStr = new Date().toISOString().slice(0, 10)
+  // Trades recentes formatados (tudo no fuso BR pra bater com o resto do app)
+  const todayStr = dayKeyBR(new Date())
   const yesterdayDate = new Date()
   yesterdayDate.setDate(yesterdayDate.getDate() - 1)
-  const yesterdayStr = yesterdayDate.toISOString().slice(0, 10)
+  const yesterdayStr = dayKeyBR(yesterdayDate)
 
   const recentTrades = recentTradesRaw.map((t) => {
-    const dateStr = t.date.toISOString().slice(0, 10)
-    const timeStr = t.date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    const dateStr = dayKeyBR(t.date)
+    const timeStr = formatTimeBR(t.date)
     let dateFormatted: string
     if (dateStr === todayStr) dateFormatted = `Hoje, ${timeStr}`
     else if (dateStr === yesterdayStr) dateFormatted = `Ontem, ${timeStr}`
-    else
-      dateFormatted = `${t.date.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-      })}, ${timeStr}`
+    else dateFormatted = `${formatShortDateBR(t.date)}, ${timeStr}`
 
     return {
       id: t.id,

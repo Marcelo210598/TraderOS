@@ -169,7 +169,7 @@ export function IntegrationSection({ initialKeys }: Props) {
                   <span className="w-2 h-2 rounded-full bg-profit animate-pulse" />
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    Último sync: {new Date(lastSync).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    Último sync: {new Date(lastSync).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </>
               ) : hasKeys ? (

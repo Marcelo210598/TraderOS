@@ -2,9 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
 import { cn, signedUsd } from "@/lib/utils"
+import { formatDateTimeBR } from "@/lib/date"
 import { TrendingUp, TrendingDown, Minus, Trash2, Pencil, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { Trade } from "@/lib/types"
@@ -85,7 +84,7 @@ export function TradeCard({ trade, onDeleted }: TradeCardProps) {
           </div>
 
           <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground font-mono">
-            <span>{format(new Date(trade.date), "dd/MM HH:mm", { locale: ptBR })}</span>
+            <span>{formatDateTimeBR(trade.date)}</span>
             <span>•</span>
             <span>E: {Number(trade.entryPrice).toFixed(2)}</span>
             <span>→</span>

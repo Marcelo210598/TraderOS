@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { format, formatDistanceToNow } from "date-fns"
+import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { formatDateBR } from "@/lib/date"
 import {
   Search,
   Loader2,
@@ -115,7 +116,7 @@ export function AdminClient({
         {users.map((u) => {
           const isSelf = u.id === currentUserId
           const meta = PLAN_META[u.plan]
-          const cadastro = format(new Date(u.createdAt), "dd/MM/yyyy", { locale: ptBR })
+          const cadastro = formatDateBR(u.createdAt)
           const atividade = u.lastTradeAt
             ? formatDistanceToNow(new Date(u.lastTradeAt), { addSuffix: true, locale: ptBR })
             : "sem trades"
