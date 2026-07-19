@@ -9,7 +9,7 @@ export async function POST() {
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
   // Teto de custo de tokens: no máx 5 gerações de resumo por minuto por usuário.
-  const limited = enforce(`gen-summary:${session.user.id}`, 5, 60)
+  const limited = await enforce(`gen-summary:${session.user.id}`, 5, 60)
   if (limited) return limited
 
   const userId = session.user.id

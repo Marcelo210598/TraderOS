@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
   // Teto de custo de tokens: no máx 20 mensagens à IA por minuto por usuário.
-  const limited = enforce(`ask-claude:${session.user.id}`, 20, 60)
+  const limited = await enforce(`ask-claude:${session.user.id}`, 20, 60)
   if (limited) return limited
   if (session.user.plan !== "PRO") return upgradeResponse("O chat com a Vega é exclusivo do plano Pro.", "PRO")
 
