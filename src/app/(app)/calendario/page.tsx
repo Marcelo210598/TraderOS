@@ -9,14 +9,13 @@ import {
   endOfMonth,
   eachDayOfInterval,
   getDay,
-  isSameDay,
-  isToday,
   addMonths,
   subMonths,
   isSameMonth,
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn, signedUsd } from "@/lib/utils"
+import { dayKeyBR } from "@/lib/date"
 import { TrendingUp, TrendingDown, Calendar, BarChart2, Trophy, Flame } from "lucide-react"
 
 export const metadata: Metadata = { title: "Calendário" }
@@ -58,8 +57,11 @@ export default async function CalendarioPage({ searchParams }: Props) {
   const weekDayStart = getDay(monthStart)
   const blanks = Array.from({ length: weekDayStart })
 
-  function dayTrades(day: Date) {
-    return trades.filter((t) => isSameDay(new Date(t.date), day))
+  // Agrupa por chave de dia NO FUSO BR — comparar via isSameDay usaria o fuso do
+  // processo (UTC na Vercel) e jogaria trade de fim de noite (ex: 22h BRT = 01h UTC
+  // do dia seguinte) no dia errado do calendário.
+  function dayTrades(dateKey: string) {
+    return trades.filter((t) => dayKeyBR(t.date) === dateKey)
   }
 
   // Stats do mês
@@ -72,7 +74,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
   // P&L por dia (agrupado)
   const dayMap = new Map<string, number>()
   for (const t of trades) {
-    const key = format(new Date(t.date), "yyyy-MM-dd")
+    const key = dayKeyBR(t.date)
     dayMap.set(key, (dayMap.get(key) ?? 0) + Number(t.pnl))
   }
   const dayPnls = Array.from(dayMap.values())
@@ -194,13 +196,13 @@ export default async function CalendarioPage({ searchParams }: Props) {
               {blanks.map((_, i) => <div key={`b-${i}`} />)}
 
               {days.map((day) => {
-                const dt = dayTrades(day)
+                const dateStr = format(day, "yyyy-MM-dd")
+                const dt = dayTrades(dateStr)
                 const dayPnl = dt.reduce((acc, t) => acc + Number(t.pnl), 0)
                 const hasTraded = dt.length > 0
                 const isWinDay = dayPnl > 0
                 const isLossDay = dayPnl < 0
-                const isTodayDay = isToday(day)
-                const dateStr = format(day, "yyyy-MM-dd")
+                const isTodayDay = dateStr === dayKeyBR(new Date())
 
                 const cell = (
                   <div

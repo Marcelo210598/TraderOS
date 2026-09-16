@@ -1,12 +1,13 @@
 import type { NextConfig } from "next";
 
-// CSP em modo REPORT-ONLY: não bloqueia nada, só reporta violações em /api/csp-report.
-// Passo de calibração antes de ligar de vez — inclui os domínios de terceiros que o app
-// usa (GA/gtag, Meta Pixel, Vercel Analytics/Speed Insights, UploadThing) + service worker.
-// Quando os relatórios estiverem limpos por alguns dias, trocar a chave do header para
-// "Content-Security-Policy" (enforce). 'unsafe-inline'/'unsafe-eval' cobrem os <Script>
-// inline (pixel/gtag) e a hidratação do Next; dá pra endurecer com nonce depois.
-const cspReportOnly = [
+// CSP em modo ENFORCE (16/09): validado sem violação nas páginas públicas (landing,
+// login, planos) via navegador real antes de ligar. Continua mandando violações pra
+// /api/csp-report — se aparecer algo bloqueado que não devia, é sinal de calibrar a
+// lista, não de voltar pro Report-Only. Inclui os domínios de terceiros que o app usa
+// (GA/gtag, Meta Pixel, Vercel Analytics/Speed Insights, UploadThing) + service worker.
+// 'unsafe-inline'/'unsafe-eval' cobrem os <Script> inline (pixel/gtag) e a hidratação
+// do Next; dá pra endurecer com nonce depois.
+const cspPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
@@ -30,7 +31,7 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  { key: "Content-Security-Policy-Report-Only", value: cspReportOnly },
+  { key: "Content-Security-Policy", value: cspPolicy },
 ];
 
 const nextConfig: NextConfig = {
