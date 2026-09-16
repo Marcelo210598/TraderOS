@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Loader2, Globe } from "lucide-react"
 import { trackGoogleAdsLead } from "@/lib/gtag"
@@ -163,7 +164,15 @@ export function RegisterForm() {
       </form>
 
       <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
-        Ao criar sua conta você concorda com os termos de uso e política de privacidade.
+        Ao criar sua conta você concorda com os{" "}
+        <Link href="/termos" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+          termos de uso
+        </Link>{" "}
+        e{" "}
+        <Link href="/privacidade" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+          política de privacidade
+        </Link>
+        .
       </p>
     </div>
   )

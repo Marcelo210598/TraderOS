@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 
-const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/", "/share", "/opengraph-image", "/twitter-image"]
+const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/", "/share", "/opengraph-image", "/twitter-image", "/termos", "/privacidade"]
 const AUTH_ROUTES = ["/login", "/cadastro"]
 // Rotas de API que não precisam de sessão (têm auth própria ou são públicas)
 // /api/asaas/webhook é público (autentica via token do Asaas); o checkout exige sessão.

@@ -382,6 +382,8 @@ export default async function Home() {
           <div className="flex items-center gap-6 text-xs text-muted-foreground">
             <Link href="/login" className="hover:text-foreground transition-colors">Entrar</Link>
             <Link href="/cadastro" className="hover:text-foreground transition-colors">Criar conta</Link>
+            <Link href="/termos" className="hover:text-foreground transition-colors">Termos</Link>
+            <Link href="/privacidade" className="hover:text-foreground transition-colors">Privacidade</Link>
             <a href="mailto:traderos.oficial@gmail.com" className="hover:text-foreground transition-colors">Contato</a>
             <a
               href="https://instagram.com/meutrade.app.oficial"
