@@ -100,7 +100,7 @@ export function AskClaudeChat() {
               <p className="text-sm text-muted-foreground mt-1">
                 {tradeCount && tradeCount > 0
                   ? `Analisei ${tradeCount} trades seus. Pergunte sobre sua performance, setups ou psicologia.`
-                  : "Analista de trading com IA. Pergunte sobre setups, métricas, Apex Funding ou psicologia."
+                  : "Analista de trading com IA. Pergunte sobre setups, métricas, regras de prop firm ou psicologia."
                 }
               </p>
             </div>

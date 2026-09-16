@@ -7,7 +7,7 @@ import { UPGRADE_EVENT, type UpgradeDetail } from "@/lib/upgrade"
 
 const PERKS = [
   "Trades ilimitados no journal",
-  "Guardian + Vega IA",
+  "Vega IA — 40 análises/mês",
   "Setups e integrações sem limite",
 ]
 

@@ -25,7 +25,6 @@ export interface PlanLimits {
   vegaPerMonth: number
   accounts: number
   integrations: number
-  guardian: boolean
 }
 
 export const PLAN_LIMITS: Record<PlanKey, PlanLimits> = {
@@ -35,7 +34,6 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimits> = {
     vegaPerMonth: 0,
     accounts: 1,
     integrations: 0,
-    guardian: false,
   },
   TRADER: {
     tradesPerMonth: 25,
@@ -43,7 +41,6 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimits> = {
     vegaPerMonth: 5,
     accounts: 1,
     integrations: 1,
-    guardian: true,
   },
   PRO: {
     tradesPerMonth: Infinity,
@@ -51,7 +48,6 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimits> = {
     vegaPerMonth: 40,
     accounts: Infinity,
     integrations: Infinity,
-    guardian: true,
   },
 }
 

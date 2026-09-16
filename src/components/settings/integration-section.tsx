@@ -418,7 +418,7 @@ export function IntegrationSection({ initialKeys }: Props) {
                   <div className="mt-3 p-3 bg-profit/5 border border-profit/20 rounded-lg">
                     <p className="text-xs font-semibold text-foreground mb-0.5">Configura uma vez, funciona para sempre.</p>
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      O AddOn liga sozinho toda vez que o NinjaTrader abre — sem precisar de gráfico aberto nem de nenhuma configuração adicional. Funciona com todas as contas Apex (Eval e PA).
+                      O AddOn liga sozinho toda vez que o NinjaTrader abre — sem precisar de gráfico aberto nem de nenhuma configuração adicional. Funciona com contas de avaliação e financiadas de qualquer mesa proprietária que use NinjaTrader.
                     </p>
                   </div>
                 </TutorialStep>
@@ -429,8 +429,8 @@ export function IntegrationSection({ initialKeys }: Props) {
                   <Faq q="Preciso deixar algum gráfico aberto?">
                     Não. O AddOn roda em segundo plano assim que o NinjaTrader abre. Pode fechar todos os gráficos.
                   </Faq>
-                  <Faq q="Funciona com conta Apex?">
-                    Sim! A Apex usa o NinjaTrader. O AddOn captura trades de todas as contas conectadas (Eval e PA).
+                  <Faq q="Funciona com a minha mesa proprietária?">
+                    Se a sua mesa usa NinjaTrader (Apex, Bulenox, Take Profit Trader e várias outras usam), sim. O AddOn captura trades de todas as contas conectadas, de avaliação ou financiadas.
                   </Faq>
                   <Faq q="Trades antigos vão duplicar?">
                     Não. Cada trade tem um ID único. Se já foi enviado, o MeuTrade ignora automaticamente.

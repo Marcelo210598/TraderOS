@@ -38,7 +38,7 @@ const CARDS: PlanCard[] = [
       "Progresso e conquistas básicas",
       "Dashboard com métricas",
     ],
-    locked: ["Guardian (calculadora Apex)", "Biblioteca de setups", "Vega IA"],
+    locked: ["Biblioteca de setups", "Vega IA"],
   },
   {
     key: "TRADER",
@@ -51,7 +51,6 @@ const CARDS: PlanCard[] = [
     ctaStyle: "bg-teal text-teal-foreground hover:bg-teal/90",
     features: [
       "25 trades/mês no journal",
-      "Guardian — calculadora Apex completa",
       "Até 5 setups na biblioteca",
       "Vega IA — 5 análises/mês",
       "1 conta + 1 integração (NT8/MT5)",

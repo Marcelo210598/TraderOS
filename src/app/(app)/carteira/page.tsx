@@ -19,7 +19,7 @@ interface RawTrade {
   source: string
 }
 
-// ── Taxonomia por TIPO de conta (a jornada Apex) ─────────────────────
+// ── Taxonomia por TIPO de conta (a jornada de avaliação de prop firm) ─
 // A Carteira agrupa tudo do journal nesses 3 baldes, na ordem da jornada.
 type Bucket = "EVAL" | "PA" | "TEST"
 const BUCKETS: { id: Bucket; name: string; color: string }[] = [

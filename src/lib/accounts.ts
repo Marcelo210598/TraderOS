@@ -1,4 +1,4 @@
-// Taxonomia dos TIPOS de conta (a jornada Apex): Teste -> Avaliacao -> Aprovada.
+// Taxonomia dos TIPOS de conta (jornada de prop firm): Teste -> Avaliacao -> Aprovada.
 // O `value` casa com o accountLabel gravado no trade (detectado automatico no sync).
 // Cores: Teste = neutro (nao conta), Avaliacao = ambar (em progresso), Aprovada = verde (funded).
 export const ACCOUNT_OPTIONS = [

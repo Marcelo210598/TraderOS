@@ -9,7 +9,6 @@ import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { StreakWidget } from "@/components/dashboard/streak-widget"
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from "lucide-react"
-import { DrawdownAlertBanner } from "@/components/dashboard/drawdown-alert-banner"
 import { excludeTestTrades } from "@/lib/account"
 import { signedUsd } from "@/lib/utils"
 import { dayKeyBR, formatTimeBR, formatShortDateBR } from "@/lib/date"
@@ -30,7 +29,7 @@ export default async function DashboardPage() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
   sevenDaysAgo.setHours(0, 0, 0, 0)
 
-  const [weeklyTrades, recentTradesRaw, streaks, allTrades] = await Promise.all([
+  const [weeklyTrades, recentTradesRaw, streaks] = await Promise.all([
     prisma.trade.findMany({
       where: { userId: user!.id, date: { gte: sevenDaysAgo }, ...excludeTestTrades },
       select: { date: true, pnl: true, result: true },
@@ -43,23 +42,7 @@ export default async function DashboardPage() {
       take: 5,
     }),
     prisma.streak.findMany({ where: { userId: user!.id } }),
-    prisma.trade.findMany({
-      where: { userId: user!.id, ...excludeTestTrades },
-      select: { date: true, pnl: true, accountLabel: true },
-      orderBy: { date: "asc" },
-    }),
   ])
-
-  // Agrupa trades por accountLabel → dias (para o alerta de drawdown automático)
-  const tradesByAccount: Record<string, { date: string; pnl: number }[]> = {}
-  for (const t of allTrades) {
-    const label = t.accountLabel
-    const dateStr = t.date.toISOString().slice(0, 10)
-    if (!tradesByAccount[label]) tradesByAccount[label] = []
-    const existing = tradesByAccount[label].find((d) => d.date === dateStr)
-    if (existing) existing.pnl += Number(t.pnl)
-    else tradesByAccount[label].push({ date: dateStr, pnl: Number(t.pnl) })
-  }
 
   // Métricas semanais
   const weekPnl = weeklyTrades.reduce((a, t) => a + Number(t.pnl), 0)
@@ -204,9 +187,6 @@ export default async function DashboardPage() {
           />
         </div>
 
-        {/* Alerta de drawdown Apex — automático via trades ou manual via Guardian */}
-        <DrawdownAlertBanner tradesByAccount={tradesByAccount} />
-
         {/* Check-in rápido */}
         <Link
           href="/checkin"
@@ -257,13 +237,9 @@ export default async function DashboardPage() {
               Dica do dia
             </p>
             <p className="text-sm text-foreground leading-relaxed">
-              A Apex exige que nenhum dia individual represente mais de{" "}
-              <span className="text-teal font-medium">50% do seu lucro total</span> para aprovação
-              (Consistency Rule). Monitore isso no{" "}
-              <Link href="/guardian" className="text-teal underline underline-offset-2">
-                Guardian
-              </Link>
-              .
+              Sua mesa proprietária provavelmente tem uma regra de consistência: nenhum dia
+              individual pode representar uma fatia grande demais do seu lucro total. Distribua
+              os ganhos ao longo do desafio em vez de depender de 1-2 dias excepcionais.
             </p>
           </div>
         </div>

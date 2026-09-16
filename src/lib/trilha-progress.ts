@@ -1,4 +1,4 @@
-// Progresso da Trilha salvo no localStorage (client-side, igual filosofia do Guardian).
+// Progresso da Trilha salvo no localStorage (client-side, instantâneo e sem chamada de banco).
 // Validação: não persiste entre dispositivos, mas é instantâneo e sem migration.
 // Pode ser migrado pra banco depois, se necessário.
 

@@ -5,8 +5,8 @@
 import { NextResponse } from "next/server"
 import { PLAN_LIMITS, type PlanKey, type PlanLimits } from "./plans"
 
-// Recursos contáveis (limite numérico). guardian é boolean → fora daqui.
-type CountableResource = keyof Omit<PlanLimits, "guardian">
+// Recursos contáveis (todos os campos de PlanLimits são limite numérico).
+type CountableResource = keyof PlanLimits
 
 // Mensagem padrão por recurso quando o limite estoura.
 const LIMIT_MESSAGES: Record<CountableResource, (limit: number) => string> = {

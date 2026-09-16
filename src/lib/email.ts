@@ -39,7 +39,6 @@ export async function sendWelcomeEmail(to: string, name: string) {
               ${[
                 ["📓", "Journal de Trades", "Registre cada operação com PnL automático e análise detalhada."],
                 ["🏆", "Sistema de Progresso", "Ganhe XP, suba de nível e desbloqueie conquistas a cada trade."],
-                ["🛡️", "Guardian Apex", "Calcule trailing drawdown, consistency rule e scaling plan em tempo real."],
                 ["🧠", "Check-in Emocional", "Avalie seu estado mental antes de operar para evitar revenge trades."],
               ].map(([icon, title, desc]) => `
               <tr>
