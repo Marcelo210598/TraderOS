@@ -94,6 +94,25 @@ export async function deletePaymentLink(id: string): Promise<void> {
   await asaasFetch(`/paymentLinks/${id}`, { method: "DELETE" })
 }
 
+// ─── Payments ──────────────────────────────────────────────────────────────────
+
+export interface AsaasPayment {
+  id: string
+  status: string
+  value: number
+  customer: string
+  subscription?: string | null
+  externalReference?: string | null
+}
+
+// Busca o pagamento direto na API — usado pelo webhook pra confirmar que um
+// evento reportado bate com o que o Asaas realmente registrou, em vez de
+// confiar cegamente no corpo da requisição (o token do webhook sozinho não
+// garante que o payment.id/valor/externalReference não foram forjados).
+export async function getPayment(id: string): Promise<AsaasPayment> {
+  return asaasFetch<AsaasPayment>(`/payments/${id}`)
+}
+
 // ─── Subscriptions (cancelamento via webhook/painel) ──────────────────────────
 
 export async function cancelSubscription(subscriptionId: string): Promise<void> {

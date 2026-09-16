@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import type { PlanKey } from "@/lib/plans"
 import { sendCapiEvent } from "@/lib/fbcapi"
 import { sendGa4Event } from "@/lib/ga4"
+import { getPayment } from "@/lib/asaas"
 
 // Compara dois tokens em tempo constante (evita timing attack pra descobrir o token).
 function safeTokenMatch(a: string, b: string): boolean {
@@ -49,6 +50,7 @@ function decodeRef(ref?: string | null): {
 }
 
 const UPGRADE_EVENTS = new Set(["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"])
+const CONFIRMED_STATUSES = new Set(["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"])
 const DOWNGRADE_EVENTS = new Set([
   "PAYMENT_OVERDUE",
   "PAYMENT_DELETED",
@@ -74,6 +76,20 @@ export async function POST(req: NextRequest) {
 
   try {
     if (UPGRADE_EVENTS.has(event) && ref && payment) {
+      // Nunca confia só no corpo do webhook (o token é a única barreira e pode
+      // vazar) — confirma o pagamento direto na API do Asaas antes de liberar.
+      const real = await getPayment(payment.id).catch(() => null)
+      if (
+        !real ||
+        !CONFIRMED_STATUSES.has(real.status) ||
+        real.externalReference !== payment.externalReference
+      ) {
+        console.error(
+          `[asaas/webhook] pagamento ${payment.id} não confere com a API do Asaas, ignorando`
+        )
+        return NextResponse.json({ received: true })
+      }
+
       const now = new Date()
       const periodEnd = new Date(now)
       if (ref.cycle === "YEARLY") periodEnd.setFullYear(periodEnd.getFullYear() + 1)
