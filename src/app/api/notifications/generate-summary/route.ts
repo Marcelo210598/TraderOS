@@ -99,7 +99,7 @@ Seja direto e analítico. Não use linguagem motivacional vazia. Máximo 400 pal
   const content = response.content[0].type === "text" ? response.content[0].text : ""
   if (!content) return NextResponse.json({ error: "Erro ao gerar resumo" }, { status: 500 })
 
-  const notification = await (prisma as any).notification.create({
+  const notification = await prisma.notification.create({
     data: {
       userId,
       type: "WEEKLY_SUMMARY",

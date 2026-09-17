@@ -26,7 +26,7 @@ export function AnimatedValue({ numericValue, animateFormat, className }: Props)
   const rafRef = useRef<number>(0)
 
   useEffect(() => {
-    if (numericValue === 0) { setCurrent(0); return }
+    if (numericValue === 0) return
     let startTime: number | null = null
     const duration = 700
     const animate = (now: number) => {
@@ -40,5 +40,9 @@ export function AnimatedValue({ numericValue, animateFormat, className }: Props)
     return () => cancelAnimationFrame(rafRef.current)
   }, [numericValue])
 
-  return <span className={className}>{applyFormat(current, animateFormat)}</span>
+  // numericValue === 0 não precisa animar — exibe direto, sem depender do
+  // setState síncrono do efeito (evita cascata de render desnecessária).
+  const displayValue = numericValue === 0 ? 0 : current
+
+  return <span className={className}>{applyFormat(displayValue, animateFormat)}</span>
 }

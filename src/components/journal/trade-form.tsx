@@ -98,8 +98,11 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
       .catch(() => {})
   }, [])
 
-  // Auto-detectar resultado
+  // Auto-detectar resultado a partir do PnL calculado — é só uma sugestão:
+  // o campo "Resultado" continua editável manualmente (select abaixo), então
+  // não dá pra derivar puro no render, precisa sincronizar via efeito.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (pnlDollars > 0) setForm((f) => ({ ...f, result: "WIN" }))
     else if (pnlDollars < 0) setForm((f) => ({ ...f, result: "LOSS" }))
     else if (entry && exit) setForm((f) => ({ ...f, result: "BREAKEVEN" }))

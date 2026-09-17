@@ -10,23 +10,16 @@ export default async function NotificacoesPage() {
   const session = await auth()
   const user = session!.user
 
-  const notifications = await ((prisma as any).notification as any).findMany({
+  const notifications = await prisma.notification.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     take: 30,
-  }) as {
-    id: string
-    type: string
-    title: string
-    content: string
-    read: boolean
-    createdAt: Date
-  }[]
+  })
 
   // Marca todas como lidas ao abrir a página
   const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id)
   if (unreadIds.length > 0) {
-    await ((prisma as any).notification as any).updateMany({
+    await prisma.notification.updateMany({
       where: { id: { in: unreadIds }, userId: user.id },
       data: { read: true },
     })

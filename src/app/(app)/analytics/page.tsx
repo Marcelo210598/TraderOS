@@ -98,24 +98,27 @@ export default async function AnalyticsPage() {
   const expectancy = (winRate / 100) * avgWinner - ((100 - winRate) / 100) * avgLoser
 
   // ── Equity curve ────────────────────────────────────────────────────────
-  let cumPnl = 0
-  const equityPoints = trades.map((t) => {
-    cumPnl += Number(t.pnl)
-    return {
+  const equityPoints = trades.reduce<{ label: string; cumPnl: number }[]>((acc, t) => {
+    const prevCumPnl = acc.length > 0 ? acc[acc.length - 1].cumPnl : 0
+    acc.push({
       label: formatShortDateBR(t.date),
-      cumPnl: Math.round(cumPnl * 100) / 100,
-    }
-  })
+      cumPnl: Math.round((prevCumPnl + Number(t.pnl)) * 100) / 100,
+    })
+    return acc
+  }, [])
 
   // ── Drawdown analysis ────────────────────────────────────────────────────
-  let peak = 0
-  let maxDrawdown = 0
-  const drawdownPoints = equityPoints.map((pt) => {
-    if (pt.cumPnl > peak) peak = pt.cumPnl
-    const dd = peak - pt.cumPnl
-    if (dd > maxDrawdown) maxDrawdown = dd
-    return { label: pt.label, dd: -dd, cumPnl: pt.cumPnl }
-  })
+  const drawdownAnalysis = equityPoints.reduce(
+    (acc, pt) => {
+      if (pt.cumPnl > acc.peak) acc.peak = pt.cumPnl
+      const dd = acc.peak - pt.cumPnl
+      if (dd > acc.maxDrawdown) acc.maxDrawdown = dd
+      acc.points.push({ label: pt.label, dd: -dd, cumPnl: pt.cumPnl })
+      return acc
+    },
+    { peak: 0, maxDrawdown: 0, points: [] as { label: string; dd: number; cumPnl: number }[] }
+  )
+  const { peak, maxDrawdown, points: drawdownPoints } = drawdownAnalysis
   const finalEquity = equityPoints[equityPoints.length - 1]?.cumPnl ?? 0
   const currentDrawdown = Math.max(0, peak - finalEquity)
 

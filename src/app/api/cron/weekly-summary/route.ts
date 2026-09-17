@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
       const result = await generateSummaryForUser(user.id, user.name, client)
       if (!result) { skipped++; continue }
 
-      await (prisma as any).notification.create({
+      await prisma.notification.create({
         data: {
           userId: user.id,
           type: "WEEKLY_SUMMARY",

@@ -17,6 +17,10 @@ export function SetupModal({ open, initial, onClose, onSaved }: SetupModalProps)
   const [error, setError] = useState("")
   const [form, setForm] = useState({ name: "", description: "", rules: "", tags: "" })
 
+  // Reseta form/erro toda vez que o modal abre (novo ou editando outro setup).
+  // O modal fica sempre montado (nunca desmonta entre aberturas), então uma
+  // key no componente pai não bastaria pra resetar em reaberturas do mesmo item.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (initial) {
       setForm({
@@ -30,6 +34,7 @@ export function SetupModal({ open, initial, onClose, onSaved }: SetupModalProps)
     }
     setError("")
   }, [initial, open])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open) return null
 

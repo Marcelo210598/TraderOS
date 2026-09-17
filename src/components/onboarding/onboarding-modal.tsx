@@ -51,9 +51,12 @@ export function OnboardingModal({ isNewUser }: { isNewUser: boolean }) {
   const [step, setStep] = useState(0)
   const [animating, setAnimating] = useState(false)
 
+  // localStorage não existe no SSR — só dá pra checar depois do mount no client.
+  // Renderizar `false` até lá evita hydration mismatch (padrão intencional).
   useEffect(() => {
     if (!isNewUser) return
     const done = localStorage.getItem(STORAGE_KEY)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!done) setVisible(true)
   }, [isNewUser])
 

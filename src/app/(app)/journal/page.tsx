@@ -210,9 +210,10 @@ export default async function JournalPage({ searchParams }: Props) {
           <TradeFilters setups={setupsFormatted} tags={userTags} />
         </Suspense>
 
-        {/* Lista */}
+        {/* Lista — key força remount ao trocar página/filtro, resincronizando
+            o estado interno sem precisar de um efeito pra isso. */}
         <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando trades...</div>}>
-          <TradeList initial={paginatedData} />
+          <TradeList key={JSON.stringify(sp)} initial={paginatedData} />
         </Suspense>
       </div>
     </div>

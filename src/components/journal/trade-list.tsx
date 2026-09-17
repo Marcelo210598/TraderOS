@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { TradeCard } from "./trade-card"
 import { ChevronLeft, ChevronRight } from "lucide-react"
@@ -15,11 +15,10 @@ export function TradeList({ initial }: TradeListProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  // O componente pai passa `key={JSON.stringify(searchParams)}`, então ao trocar
+  // de página/filtro o React remonta este componente do zero — `initial` chega
+  // sempre atualizado, sem precisar resincronizar via efeito.
   const [data, setData] = useState(initial)
-
-  // Resincroniza quando o servidor manda novos trades (troca de pagina/filtro).
-  // Sem isso, o useState fica preso no `initial` da 1a render -> paginacao travava na pagina 1.
-  useEffect(() => { setData(initial) }, [initial])
 
   function handleDeleted(id: string) {
     setData((prev) => ({

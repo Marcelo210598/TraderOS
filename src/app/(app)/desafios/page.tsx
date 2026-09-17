@@ -16,7 +16,7 @@ export default async function DesafiosPage() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
   const [rawChallenges, trades] = await Promise.all([
-    (prisma as any).challenge.findMany({
+    prisma.challenge.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
     }),
@@ -36,8 +36,8 @@ export default async function DesafiosPage() {
     tags: t.tags,
   }))
 
-  const challenges = rawChallenges.map((ch: any) => {
-    const rules = ch.rules as ChallengeRule[]
+  const challenges = rawChallenges.map((ch) => {
+    const rules = ch.rules as unknown as ChallengeRule[]
     const results = evaluateRules(rules, tradesToEval)
     const passed = results.filter(r => r.passed).length
     const passRate = results.length > 0 ? Math.round((passed / results.length) * 100) : 0

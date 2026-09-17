@@ -7,12 +7,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
   const { id } = await params
-  const existing = await (prisma as any).challenge.findFirst({
+  const existing = await prisma.challenge.findFirst({
     where: { id, userId: session.user.id },
   })
   if (!existing) return NextResponse.json({ error: "Não encontrado" }, { status: 404 })
 
-  await (prisma as any).challenge.delete({ where: { id } })
+  await prisma.challenge.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }
 
@@ -23,12 +23,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await req.json()
 
-  const existing = await (prisma as any).challenge.findFirst({
+  const existing = await prisma.challenge.findFirst({
     where: { id, userId: session.user.id },
   })
   if (!existing) return NextResponse.json({ error: "Não encontrado" }, { status: 404 })
 
-  const updated = await (prisma as any).challenge.update({
+  const updated = await prisma.challenge.update({
     where: { id },
     data: {
       isActive: body.isActive !== undefined ? body.isActive : existing.isActive,

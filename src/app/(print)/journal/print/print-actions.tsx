@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import Link from "next/link"
 import { Printer, ArrowLeft } from "lucide-react"
 
 export function PrintActions() {
@@ -11,13 +12,13 @@ export function PrintActions() {
 
   return (
     <div className="flex items-center gap-3 p-4 bg-white border-b border-gray-200 print:hidden">
-      <a
+      <Link
         href="/journal"
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Voltar ao Journal
-      </a>
+      </Link>
       <button
         onClick={() => window.print()}
         className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors"

@@ -114,6 +114,9 @@ export function PlanosGrid({ currentPlan }: { currentPlan: PlanKey }) {
       if (!res.ok || !data.url) {
         throw new Error(data.error ?? "Falha ao iniciar o checkout")
       }
+      // Redirect pra URL externa (checkout do Asaas) — não é rota interna do Next,
+      // então window.location é o único jeito correto de navegar até ela.
+      // eslint-disable-next-line react-hooks/immutability
       window.location.href = data.url
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro inesperado")

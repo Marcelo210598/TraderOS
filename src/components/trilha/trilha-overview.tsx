@@ -28,7 +28,10 @@ export function TrilhaOverview() {
   const [completed, setCompleted] = useState<Set<string>>(new Set())
   const [mounted, setMounted] = useState(false)
 
+  // getCompletedLessons lê localStorage — não existe no SSR, então só dá pra
+  // ler depois do mount no client. `mounted` evita hydration mismatch.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCompleted(getCompletedLessons())
     setMounted(true)
   }, [])

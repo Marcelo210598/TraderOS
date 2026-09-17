@@ -8,7 +8,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params
 
-  await (prisma as any).notification.updateMany({
+  await prisma.notification.updateMany({
     where: { id, userId: session.user.id },
     data: { read: true },
   })

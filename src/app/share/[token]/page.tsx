@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { formatDateBR, formatLongDateBR } from "@/lib/date"
 import { cn, signedUsd } from "@/lib/utils"
@@ -74,9 +75,9 @@ export default async function SharePage({ params }: Props) {
           <span className="text-muted-foreground/40">·</span>
           <span className="text-xs text-muted-foreground">trade compartilhado</span>
         </div>
-        <a href="/" className="text-xs text-teal hover:text-teal/80 transition-colors">
+        <Link href="/" className="text-xs text-teal hover:text-teal/80 transition-colors">
           Criar conta grátis →
-        </a>
+        </Link>
       </div>
 
       <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4 py-6">
@@ -176,12 +177,12 @@ export default async function SharePage({ params }: Props) {
         <div className="bg-card border border-teal/20 rounded-xl p-4 text-center space-y-2">
           <p className="text-sm font-semibold text-foreground">Quer análises assim dos seus trades?</p>
           <p className="text-xs text-muted-foreground">MeuTrade — journal inteligente para traders de futuros americanos</p>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal text-teal-foreground text-sm font-medium hover:bg-teal/90 transition-colors"
           >
             Começar grátis
-          </a>
+          </Link>
         </div>
       </div>
     </div>

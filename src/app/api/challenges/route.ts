@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
-import { ChallengeRule } from "@/lib/challenges"
 
 const createSchema = z.object({
   name: z.string().min(1).max(60),
@@ -18,7 +17,7 @@ export async function GET() {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
-  const challenges = await (prisma as any).challenge.findMany({
+  const challenges = await prisma.challenge.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
   })
@@ -36,12 +35,12 @@ export async function POST(req: NextRequest) {
 
   const { name, description, rules } = parsed.data
 
-  const challenge = await (prisma as any).challenge.create({
+  const challenge = await prisma.challenge.create({
     data: {
       userId: session.user.id,
       name,
       description: description ?? null,
-      rules: rules as ChallengeRule[],
+      rules,
     },
   })
 

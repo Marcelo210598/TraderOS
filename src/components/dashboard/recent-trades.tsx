@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { cn, signedUsd } from "@/lib/utils"
 import { TrendingUp, TrendingDown, Minus, BookOpen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -23,20 +24,20 @@ export function RecentTrades({ trades }: RecentTradesProps) {
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground">Trades Recentes</h2>
-          <a href="/journal" className="text-xs text-teal hover:underline font-medium">
+          <Link href="/journal" className="text-xs text-teal hover:underline font-medium">
             Ver todos
-          </a>
+          </Link>
         </div>
         <div className="py-12 flex flex-col items-center justify-center text-center gap-2">
           <BookOpen className="w-8 h-8 text-muted-foreground/30" />
           <p className="text-sm font-medium text-foreground">Nenhum trade registrado</p>
           <p className="text-xs text-muted-foreground">Registre seu primeiro trade no Journal.</p>
-          <a
+          <Link
             href="/journal/novo"
             className="mt-2 text-xs text-teal hover:underline font-medium"
           >
             + Novo trade
-          </a>
+          </Link>
         </div>
       </div>
     )
@@ -46,9 +47,9 @@ export function RecentTrades({ trades }: RecentTradesProps) {
     <div className="bg-card border border-border rounded-xl overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <h2 className="text-sm font-semibold text-foreground">Trades Recentes</h2>
-        <a href="/journal" className="text-xs text-teal hover:underline font-medium">
+        <Link href="/journal" className="text-xs text-teal hover:underline font-medium">
           Ver todos
-        </a>
+        </Link>
       </div>
 
       <div className="divide-y divide-border">

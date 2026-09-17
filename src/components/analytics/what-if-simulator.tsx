@@ -106,7 +106,7 @@ export function WhatIfSimulator({ trades }: Props) {
       <div className="px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-teal" />
-          <h2 className="text-sm font-semibold text-foreground">Simulador "E se..."</h2>
+          <h2 className="text-sm font-semibold text-foreground">Simulador &quot;E se...&quot;</h2>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           Compare cenários para entender onde está deixando dinheiro na mesa
