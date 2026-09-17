@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Tailwind v4 só escaneia src/ — o UploadButton do UploadThing (node_modules)
+   usa "sr-only" pra esconder o <input type="file"> nativo, mas essa classe
+   nunca era gerada, deixando o input visível e sobrepondo o texto do botão
+   custom (visível principalmente em telas estreitas). Força a geração dela. */
+@source inline("sr-only");
+
 @custom-variant dark (&:is(.dark *));
 
 /* ─── MeuTrade Design Tokens ──────────────────────────────────────────────── */
