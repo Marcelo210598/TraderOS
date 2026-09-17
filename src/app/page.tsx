@@ -12,6 +12,8 @@ import {
   TrendingUp,
   Activity,
   Target,
+  Calendar,
+  Wallet,
 } from "lucide-react"
 import { PLAN_LABEL, PLAN_PRICES, PLAN_LIMITS, formatBRL } from "@/lib/plans"
 
@@ -24,7 +26,7 @@ const JSON_LD = {
   applicationCategory: "FinanceApplication",
   operatingSystem: "Web",
   description:
-    "Journal de trades com IA para traders de futuros (NinjaTrader, MetaTrader 5). Sincronização automática, análise por IA, check-in emocional e analytics de performance.",
+    "Journal de trades com IA para traders de futuros. Gráfico de execução, análise por IA, check-in emocional e analytics de performance.",
   url: "https://meutrade.app",
   offers: [
     { "@type": "Offer", name: "Free", price: "0", priceCurrency: "BRL" },
@@ -102,9 +104,9 @@ export default async function Home() {
           </h1>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-10">
-            Journal inteligente com IA, sincronização automática da sua corretora,
-            análise emocional e gamificação. Tudo que você precisa para operar
-            com consistência e evoluir como trader.
+            Journal inteligente com IA, gráfico de execução, análise emocional
+            e gamificação. Tudo que você precisa para operar com consistência
+            e evoluir como trader.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -410,10 +412,9 @@ const FEATURES = [
     badge: "Claude Sonnet",
   },
   {
-    icon: <Zap className="w-5 h-5" />,
-    title: "Sincronização automática",
-    desc: "Conecte NinjaTrader ou MetaTrader 5 e seus trades caem no journal sozinhos, com alerta no celular a cada operação.",
-    badge: "NinjaTrader + MT5",
+    icon: <Calendar className="w-5 h-5" />,
+    title: "Calendário de Performance",
+    desc: "Veja seu P&L dia a dia num grid mensal. Identifique rapidamente padrões de consistência e os dias que mais pesaram no resultado.",
   },
   {
     icon: <BarChart3 className="w-5 h-5" />,
@@ -436,9 +437,9 @@ const FEATURES = [
     desc: "XP por trade registrado, conquistas, streaks e desafios personalizados com regras similares às das prop firms.",
   },
   {
-    icon: <Zap className="w-5 h-5" />,
-    title: "Sync com NinjaTrader 8",
-    desc: "Instale o AddOn uma vez e seus trades aparecem automaticamente no Journal. Sem copiar dados, sem importar CSV.",
+    icon: <Wallet className="w-5 h-5" />,
+    title: "Carteira Multi-conta",
+    desc: "Acompanhe saldo e evolução separados por tipo de conta — avaliação, aprovada ou teste — numa visão consolidada.",
   },
   {
     icon: <TrendingUp className="w-5 h-5" />,
@@ -461,7 +462,7 @@ const COMPARISON = [
   { feature: "Simulador 'E se?'", traderos: true, others: false },
   { feature: "Desafios personalizados", traderos: true, others: false },
   { feature: "Gamificação (XP, conquistas, streaks)", traderos: true, others: false },
-  { feature: "Sync automático (NinjaTrader + MT5)", traderos: true, others: "Parcial" },
+  { feature: "Calendário de performance", traderos: true, others: "Parcial" },
   { feature: "Screenshots no Journal", traderos: true, others: "Parcial" },
   { feature: "Export PDF", traderos: true, others: "Parcial" },
   { feature: "Plano gratuito", traderos: true, others: false },
@@ -477,7 +478,7 @@ const PLANS = [
     features: [
       "Até 10 trades por mês",
       "Journal com PnL automático",
-      "Sync com a corretora",
+      "Calendário de performance",
       "Check-in emocional básico",
       "Dashboard de métricas",
     ],
@@ -493,7 +494,7 @@ const PLANS = [
       "Vega IA no check-in e chat",
       "Biblioteca de setups ilimitada",
       "Analytics avançado",
-      "Sync NinjaTrader 8",
+      "Carteira multi-conta",
       "Screenshots no Journal",
       "Desafios personalizados",
       "Export PDF",

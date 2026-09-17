@@ -53,7 +53,7 @@ const CARDS: PlanCard[] = [
       "25 trades/mês no journal",
       "Até 5 setups na biblioteca",
       "Vega IA — 5 análises/mês",
-      "1 conta + 1 integração (NT8/MT5)",
+      "Exportar PDF do journal",
       "Streaks e conquistas completas",
     ],
     locked: ["Trades ilimitados", "Vega IA — 40/mês"],
