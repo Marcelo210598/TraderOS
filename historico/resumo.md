@@ -1,27 +1,29 @@
 # TraderOS — Resumo Geral
 
 ## O que é
-SaaS para traders brasileiros de futuros americanos via prop firms (Apex Trader Funding / NinjaTrader).
-Ajuda o trader a manter diário de operações, acompanhar progresso com gamificação, calcular regras da avaliação Apex e conversar com IA especializada.
+**MeuTrade** — SaaS para qualquer trader brasileiro (futuros, forex, ações — qualquer mesa proprietária, não só Apex). Ajuda o trader a manter diário de operações, entender seu padrão emocional/comportamental e conversar com IA especializada.
+> ⚠️ 17/09/2026: produto desvinculado de propósito da marca "Apex" — não é mais ferramenta de prop firm específica, é app do trader. Guardian (calculadora/trailing drawdown Apex) foi **removido** (ver historico/2026-09-17.md).
 
 ## Módulos
 - **Dashboard** ✅ — métricas da semana, gráfico de performance, trades recentes, streaks
 - **Journal** ✅ — diário de trades, filtros, paginação, PnL automático, screenshots, badge de conta (TEST/PA), importação CSV
-- **Check-in Emocional** ✅ — avaliação diária de estado mental (5 métricas, score de risco)
-- **Biblioteca de Setups** ✅ — catálogo de estratégias com stats (plano Trader+), toggle Cards/Tabela com profit factor, avg P&L, ordenação
+- **Check-in Emocional** ✅ — PRE correlaciona estado emocional × histórico de performance (60 dias); POST detecta tags comportamentais (revenge/FOMO/etc) nos trades do dia e cita o impacto em P&L
+- **Biblioteca de Setups** ✅ — catálogo de estratégias com stats (plano Starter+), toggle Cards/Tabela com profit factor, avg P&L, ordenação
 - **Progress** ✅ — XP, level up, 12 conquistas, 4 tipos de streak
-- **Guardian** ✅ — trailing drawdown EOD com dados reais do Journal, consistency rule, seletor de conta PA25K–PA250K
 - **Calendário** ✅ — grid mensal com P&L por dia (verde = lucrativo, vermelho = negativo)
+- **Analytics** ✅ — equity curve, drawdown, MFE/MAE agregado, gráfico de execução por trade (`journal/[id]`), Simulador "E se?" (cenário MFE + sem N piores losses)
 - **Vega IA** ✅ — chat contextual com dados reais dos últimos 90 dias do trader (plano PRO); sabe win rate, setups, sessões, P&L
 - **Notificações** ✅ — sino no header com badge; resumo semanal gerado pelo Claude toda sábado 9h BRT (plano TRADER/PRO)
 - **Contas/Labels** ✅ — separação AUTOMÁTICA por tipo (Teste/Avaliação/Aprovada) pelo nome da corretora + por conta real (brokerName); filtro por conta no journal; badge de tipo na Carteira; bulk reassign em /journal/contas
 - **Painel de Uso (Admin)** ✅ — /admin/uso: users totais, online/ativos (lastSeenAt), planos, engajamento
 - **Retargeting Meta** ✅ — Pixel MeuTrade (1705413327409397) + eventos (PageView/ViewContent/InitiateCheckout/Lead/Purchase) + Conversions API. Falta: criar conta de anúncios no business MeuTrade + públicos (esperar pixel encher ~3-5 dias)
-- **Planos** ✅ — página de pricing (visual pronta, sem gateway ainda)
+- **Planos** ✅ — Free / Starter R$19,90 / Pro R$97 (ou R$1.000/ano), checkout Asaas em produção
 - **Cadastro/Login** ✅ — email+senha ou Google OAuth
-- **Configurações** ✅ — perfil (atualizar nome), troca de senha, info do plano
-- **Trilha de Aprendizado** 🟡 — placeholder "em breve" com 5 módulos planejados
-- **Stripe/Pagamentos** ❌ — pendente (próxima grande feature)
+- **Configurações** ✅ — perfil (atualizar nome), troca de senha, info do plano, integrações
+- **Trilha de Aprendizado** ✅ — 5 módulos completos (módulo 5 generalizado pra "Mesas Proprietárias" em 17/09, sem citar Apex)
+- **Termos de Uso / Política de Privacidade** ✅ — `/termos` e `/privacidade`, LGPD-compliant (17/09/2026)
+- **Sync automático (NT8/MT5)** 🔴 PAUSADO DE PROPÓSITO em 17/09/2026 — flag reversível em `src/lib/integration-flags.ts`, reativa aos poucos com testes quando decidir
+- **Pagamentos** ✅ — Asaas (não Stripe), checkout recorrente em produção
 
 ## Stack
 - Next.js 16.2.6 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI)
@@ -35,9 +37,10 @@ Ajuda o trader a manter diário de operações, acompanhar progresso com gamific
 
 ## Deploy
 - **Repositório:** github.com/Marcelo210598/TraderOS
-- **URL produção:** https://trader-os-ashy.vercel.app
+- **URL produção:** https://meutrade.app
 - **Projeto Vercel:** trader-os (prj_iZJFGM2AFCg8rgAG3IiVRbqQ5mUl)
 - **Org Vercel:** team_eV0i1XLGL1ae6c4VBGyXSdoo
+- **Deploy:** SEMPRE `vercel deploy --prod` na raiz do projeto após push (nunca confiar no webhook do GitHub) — só confirma quando o CLI retorna `Aliased: https://meutrade.app`
 
 ## Conta de teste
 ```
@@ -136,3 +139,4 @@ Vega IA agora é o maior diferencial vs Trademetria (80k users, R$49,90/mês Pro
 | 2026-06-01 | Fix deploy: Vercel Analytics ativo — lockfile corrompido (version vazia em dep opcional) |
 | 2026-06-02 | Pesquisa NinjaTrader: diagnóstico dos 2 bugs (Indicator instável + IsEntry/IsExit falho). Reescrita completa como **AddOn** com round-trip, config por arquivo, log, FileSystemWatcher. Tutorial atualizado. Aguarda teste de compilação. |
 | 2026-06-04 | **Vega IA enriquecida** (análise de trade → Sonnet + histórico setup; checkin → 7 dias + streaks + tags comportamentais; chat → MFE/MAE/DOW/tags/notas). **4 features novas**: Gráfico de Execução (pts relativos), Simulador "E se" (MFE/piores losses), Desafios com regras operacionais (tabela Neon), Compartilhar trade (link público `/share/[token]`). |
+| 2026-09-16/17 | **Sessão grande de hardening + rebrand + QA pré-divulgação.** Webhook Asaas forjável corrigido (token rotacionado + validação cruzada com a API); Semgrep completo (CSP enforce, 34 lint errors zerados); checkout com domínio errado (paliativo); **Guardian/Apex removidos do produto inteiro** (código, UI, trilha, marketing); Termos/Privacidade criados; sync NT8/MT5 pausado via flag; landing/planos corrigidos pra não prometer sync pausado; **2 bugs reais achados testando ao vivo** antes de gravar vídeo de divulgação (eficiência do "E se?" dando -241%, upload de screenshot vazando input nativo em mobile por falta de `sr-only` no CSS do Tailwind v4) — ambos corrigidos e deployados. Detalhe completo em `historico/2026-09-17.md`. |

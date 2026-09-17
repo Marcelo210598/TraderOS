@@ -1,16 +1,17 @@
 # TraderOS — Progresso
 
-## Última atualização: 29/06/2026 — 🔒 PAYWALL PLUGADO EM TODOS OS GATES. Helper único `src/lib/plan-guard.ts` lê limites do `plans.ts` e devolve 403 padrão (`upgrade:true`+`suggestedPlan`) que o front usa pra abrir o modal. Gates: trades (corrigido BUG do Starter travar em 10 → agora 10/25/∞), setups (0/5/∞), integrações (0/1/∞), Vega check-in (buraco do backend FECHADO, agora Starter+), Vega chat (Pro-only, resposta padrão). Validado: tsc 0 erros + next build OK + teste 15/15 da matriz de limites. Contas (1/1/∞) ficou de fora de propósito (criação implícita compartilhada com sync dos bots). Ver historico/2026-06-29.md
+## Última atualização: 17/09/2026 — 🚀 MEUTRADE.APP NO AR, LIBERADO PRA DIVULGAÇÃO. Sessão de hardening + rebrand completo: (1) webhook Asaas forjável corrigido (token rotacionado + validação cruzada com a API do Asaas, histórico git limpo); (2) Semgrep completo — CSP enforce, 34 erros de lint zerados; (3) **Guardian/Apex removidos do produto inteiro** (código, UI, trilha educacional, marketing) — "app do trader, não da Apex", qualquer mesa proprietária pode usar; (4) Termos de Uso + Política de Privacidade criados (LGPD); (5) sync automático NT8/MT5 pausado de propósito via flag reversível (`src/lib/integration-flags.ts`) até a base do produto ficar "redonda"; (6) landing/planos corrigidos pra não prometer sync que está pausado; (7) **2 bugs reais achados testando ao vivo** (não só lendo código) antes de gravar vídeo de divulgação: simulador "E se?" calculava eficiência de saída errado (chegava a -241% com trades perdedores), e input de upload de screenshot vazava por cima do botão em mobile (Tailwind v4 não gerava a classe `sr-only` de uma lib externa). Ambos corrigidos, testados e deployados. Domínio agora é **meutrade.app** (não mais trader-os-ashy.vercel.app). Detalhe completo: `historico/2026-09-17.md`.
+## (29/06: PAYWALL PLUGADO EM TODOS OS GATES — ver linha original abaixo) Helper único `src/lib/plan-guard.ts` lê limites do `plans.ts` e devolve 403 padrão (`upgrade:true`+`suggestedPlan`) que o front usa pra abrir o modal. Gates: trades (corrigido BUG do Starter travar em 10 → agora 10/25/∞), setups (0/5/∞), integrações (0/1/∞), Vega check-in (buraco do backend FECHADO, agora Starter+), Vega chat (Pro-only, resposta padrão). Validado: tsc 0 erros + next build OK + teste 15/15 da matriz de limites. Contas (1/1/∞) ficou de fora de propósito (criação implícita compartilhada com sync dos bots). Ver historico/2026-06-29.md
 ## (28/06: Asaas modo real produção — conta PF, ASAAS_ENV=production, webhook prod, smoke test OK. Ver historico/2026-06-28.md)
 ## 🚨 GOTCHA: API key começa com `$` → Next expande e zera → escapar `\$` no .env E na Vercel. Token webhook ≥32 chars.
 ## ⚠️ PENDÊNCIAS: (1) Pix não aparece no checkout → cadastrar chave Pix no painel Asaas; (2) personalizar nome fantasia "TraderOS"+logo (hoje mostra nome/CPF por ser PF); (3) migrar p/ PJ quando tiver CNPJ
 ## (28/06 manhã: pagamento Asaas implementado + testado sandbox; 25/06: Painel Admin + push cadastro + planos/custos; 20/06: Carteira multi-corretora; 18/06: Web Push)
 
 ## 📌 Visão Geral
-- **Objetivo:** Plataforma SaaS para traders brasileiros de futuros americanos (prop firms / Apex)
+- **Objetivo:** MeuTrade — plataforma SaaS pro trader brasileiro de qualquer mercado/mesa proprietária (não mais específico de Apex)
 - **Stack:** Next.js 16 + TypeScript + Tailwind v4 + shadcn/ui + Prisma 7 + Neon PostgreSQL + NextAuth v5
-- **Status:** ~90% do MVP — núcleo funcional completo + estética Tier 1/2 + Analytics em produção
-- **URL Produção:** trader-os-ashy.vercel.app ✅
+- **Status:** NO AR, liberado pra divulgação pública (17/09/2026) — segurança, rebrand e QA validados de ponta a ponta
+- **URL Produção:** https://meutrade.app ✅
 
 ## ✅ Concluído
 
