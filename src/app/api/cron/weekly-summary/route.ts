@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
+import { sendPushToUser } from "@/lib/push"
 
 // Vercel Cron: sábados às 12:00 UTC (9:00 BRT)
 // Configurado em vercel.json
@@ -9,7 +10,7 @@ async function generateSummaryForUser(
   userId: string,
   userName: string | null,
   client: Anthropic
-): Promise<{ title: string; content: string } | null> {
+): Promise<{ title: string; content: string; pushBody: string } | null> {
   const now = new Date()
   const lastFriday = new Date(now)
   lastFriday.setDate(now.getDate() - 1) // ontem (sexta)
@@ -92,7 +93,8 @@ Seja direto e analítico. Não use linguagem motivacional vazia. Máximo 400 pal
   if (!content) return null
 
   const title = `Resumo da semana — ${weekStr}`
-  return { title, content }
+  const pushBody = `${winRate}% win rate · ${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(0)} · ${trades.length} trade${trades.length > 1 ? "s" : ""}`
+  return { title, content, pushBody }
 }
 
 export async function GET(req: NextRequest) {
@@ -126,6 +128,15 @@ export async function GET(req: NextRequest) {
           content: result.content,
         },
       })
+
+      // Sem isso, o resumo só existia dentro do app — quem não abria no fim de
+      // semana nunca via. Push nunca lança (ver sendPushToUser).
+      await sendPushToUser(user.id, {
+        title: `📊 ${result.title}`,
+        body: result.pushBody,
+        url: "/notificacoes",
+      })
+
       generated++
     } catch (err) {
       console.error(`[weekly-summary] erro para user ${user.id}:`, err)
