@@ -10,6 +10,8 @@ import { Plus, BookOpen, Upload, Tag, FileDown } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
 import { excludeTestTrades } from "@/lib/account"
 import { signedUsd } from "@/lib/utils"
+import { SectionTour } from "@/components/tour/section-tour"
+import { JOURNAL_TOUR_STEPS } from "@/lib/tour-content"
 
 // Traduz o filtro de conta (?conta=) em clausula Prisma. Default "reais" = sem teste/arquivadas.
 function accountFilter(conta: string): Record<string, unknown> {
@@ -123,6 +125,7 @@ export default async function JournalPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col flex-1 overflow-auto">
+      <SectionTour id="journal" steps={JOURNAL_TOUR_STEPS} />
       <Header
         title="Journal"
         subtitle="Diário de trades"
@@ -144,7 +147,7 @@ export default async function JournalPage({ searchParams }: Props) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div data-tour="journal-tools" className="flex items-center gap-2">
             <Link
               href="/journal/contas"
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-teal/40 transition-colors"
@@ -179,7 +182,7 @@ export default async function JournalPage({ searchParams }: Props) {
         </div>
 
         {/* Stats do mês */}
-        <div className="grid grid-cols-3 gap-3">
+        <div data-tour="journal-stats" className="grid grid-cols-3 gap-3">
           {[
             { label: "Trades este mês", value: String(monthlyTrades.length), sub: user.plan === "FREE" ? `${monthlyTrades.length}/10 do plano Free` : undefined },
             { label: "Win rate", value: `${monthlyWinRate}%`, color: monthlyWinRate >= 50 ? "text-profit" : "text-loss" },
@@ -206,15 +209,19 @@ export default async function JournalPage({ searchParams }: Props) {
         )}
 
         {/* Filtros */}
-        <Suspense>
-          <TradeFilters setups={setupsFormatted} tags={userTags} />
-        </Suspense>
+        <div data-tour="journal-filters">
+          <Suspense>
+            <TradeFilters setups={setupsFormatted} tags={userTags} />
+          </Suspense>
+        </div>
 
         {/* Lista — key força remount ao trocar página/filtro, resincronizando
             o estado interno sem precisar de um efeito pra isso. */}
-        <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando trades...</div>}>
-          <TradeList key={JSON.stringify(sp)} initial={paginatedData} />
-        </Suspense>
+        <div data-tour="journal-list">
+          <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando trades...</div>}>
+            <TradeList key={JSON.stringify(sp)} initial={paginatedData} />
+          </Suspense>
+        </div>
       </div>
     </div>
   )

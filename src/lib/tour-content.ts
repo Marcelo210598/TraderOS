@@ -77,3 +77,26 @@ export const CARTEIRA_TOUR_STEPS: TourStep[] = [
     body: "Todo trade, depósito e saque aparece aqui, filtrável por tipo de conta. Dá pra ver o journal completo de qualquer trade a partir daqui.",
   },
 ]
+
+export const JOURNAL_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="journal-stats"]',
+    title: "Métricas do mês",
+    body: "Trades registrados, win rate e P&L do mês corrente — sempre visível no topo do journal.",
+  },
+  {
+    target: '[data-tour="journal-tools"]',
+    title: "Ferramentas úteis",
+    body: "Importe trades em massa via CSV (NinjaTrader, Tradovate ou o template do MeuTrade), organize suas contas ou exporte um PDF do journal pra imprimir/enviar.",
+  },
+  {
+    target: '[data-tour="journal-filters"]',
+    title: "Filtre como quiser",
+    body: "Por resultado, instrumento, setup, tag ou período — combine quantos filtros precisar pra achar o que procura.",
+  },
+  {
+    target: '[data-tour="journal-list"]',
+    title: "Sua lista de trades",
+    body: "Clique em qualquer trade pra ver o detalhe completo: gráfico de execução, notas e análise da Vega.",
+  },
+]
