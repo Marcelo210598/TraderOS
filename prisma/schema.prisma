@@ -112,6 +112,7 @@ model Trade {
   mae          Decimal?    @db.Decimal(10, 2)
   externalId   String?
   shareToken   String?     @unique @map("share_token")
+  shareIncludeAnalysis Boolean @default(false) @map("share_include_analysis")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

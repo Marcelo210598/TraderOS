@@ -9,62 +9,35 @@ import type { Metadata } from "next"
 
 interface Props { params: Promise<{ token: string }> }
 
-interface RawTrade {
-  id: string; user_id: string; date: Date; instrument: string
-  direction: "LONG" | "SHORT"; entry_price: string; exit_price: string
-  quantity: number; pnl: string; pnl_points: string; commission: string
-  result: "WIN" | "LOSS" | "BREAKEVEN"; session_type: string
-  notes: string | null; ai_analysis: string | null
-  mfe: string | null; mae: string | null
-}
-
-interface RawTag { trade_id: string; name: string }
-interface RawSetup { id: string; name: string }
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { token } = await params
-  const rows = await prisma.$queryRaw<RawTrade[]>`
-    SELECT id, pnl, instrument, direction, date FROM trades WHERE share_token = ${token} LIMIT 1
-  `
-  if (rows.length === 0) return { title: "Trade não encontrado" }
-  const t = rows[0]
-  const pnl = Number(t.pnl)
+  const trade = await prisma.trade.findUnique({
+    where: { shareToken: token },
+    select: { pnl: true, instrument: true, direction: true, date: true },
+  })
+  if (!trade) return { title: "Trade não encontrado" }
+  const pnl = Number(trade.pnl)
   return {
-    title: `${t.instrument} ${t.direction} ${signedUsd(pnl)} | MeuTrade`,
-    description: `Trade em ${formatDateBR(t.date)} via MeuTrade`,
+    title: `${trade.instrument} ${trade.direction} ${signedUsd(pnl)} | MeuTrade`,
+    description: `Trade em ${formatDateBR(trade.date)} via MeuTrade`,
   }
 }
 
 export default async function SharePage({ params }: Props) {
   const { token } = await params
 
-  const rows = await prisma.$queryRaw<RawTrade[]>`
-    SELECT t.id, t.user_id, t.date, t.instrument, t.direction, t.entry_price, t.exit_price,
-           t.quantity, t.pnl, t.pnl_points, t.commission, t.result, t.session_type,
-           t.notes, t.ai_analysis, t.mfe, t.mae
-    FROM trades t WHERE t.share_token = ${token} LIMIT 1
-  `
-  if (rows.length === 0) notFound()
+  const trade = await prisma.trade.findUnique({
+    where: { shareToken: token },
+    include: { tags: true, setup: true },
+  })
+  if (!trade) notFound()
 
-  const trade = rows[0]
   const pnl = Number(trade.pnl)
-  const pnlPoints = Number(trade.pnl_points)
+  const pnlPoints = Number(trade.pnlPoints)
   const isWin = trade.result === "WIN"
   const isLoss = trade.result === "LOSS"
-
-  const [tagRows, setupRow] = await Promise.all([
-    prisma.$queryRaw<RawTag[]>`
-      SELECT trade_id, name FROM trade_tags WHERE trade_id = ${trade.id}
-    `,
-    prisma.$queryRaw<RawSetup[]>`
-      SELECT s.id, s.name FROM setups s
-      JOIN trades t ON t.setup_id = s.id
-      WHERE t.id = ${trade.id} LIMIT 1
-    `,
-  ])
-
-  const tags = tagRows
-  const setupName = setupRow[0]?.name ?? null
+  const tags = trade.tags
+  const setupName = trade.setup?.name ?? null
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -134,10 +107,10 @@ export default async function SharePage({ params }: Props) {
         {/* Dados técnicos */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[
-            { label: "Entrada", value: Number(trade.entry_price).toFixed(2) },
-            { label: "Saída", value: Number(trade.exit_price).toFixed(2) },
+            { label: "Entrada", value: Number(trade.entryPrice).toFixed(2) },
+            { label: "Saída", value: Number(trade.exitPrice).toFixed(2) },
             { label: "Contratos", value: String(trade.quantity) },
-            { label: "Sessão", value: trade.session_type },
+            { label: "Sessão", value: trade.sessionType },
           ].map(item => (
             <div key={item.label} className="bg-card border border-border rounded-xl p-3">
               <p className="text-xs text-muted-foreground">{item.label}</p>
@@ -148,8 +121,8 @@ export default async function SharePage({ params }: Props) {
 
         {/* Gráfico de execução */}
         <TradeExecutionChart
-          entryPrice={Number(trade.entry_price)}
-          exitPrice={Number(trade.exit_price)}
+          entryPrice={Number(trade.entryPrice)}
+          exitPrice={Number(trade.exitPrice)}
           direction={trade.direction}
           pnlPoints={pnlPoints}
           result={trade.result}
@@ -159,17 +132,19 @@ export default async function SharePage({ params }: Props) {
           date={new Date(trade.date)}
         />
 
-        {trade.notes && (
+        {/* Notas e análise da Vega são pessoais — só aparecem se o dono ativou
+            explicitamente "incluir" ao gerar/editar o link (default: escondido). */}
+        {trade.shareIncludeAnalysis && trade.notes && (
           <div className="bg-card border border-border rounded-xl p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Notas</p>
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{trade.notes}</p>
           </div>
         )}
 
-        {trade.ai_analysis && (
+        {trade.shareIncludeAnalysis && trade.aiAnalysis && (
           <div className="bg-indigo/5 border border-indigo/20 rounded-xl p-4 space-y-2">
             <p className="text-xs font-semibold text-indigo uppercase tracking-wider">Análise Vega IA</p>
-            <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{trade.ai_analysis}</p>
+            <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{trade.aiAnalysis}</p>
           </div>
         )}
 

@@ -100,8 +100,8 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
               </p>
               <ShareButton
                 tradeId={trade.id}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                initialToken={(trade as any).shareToken ?? null}
+                initialToken={trade.shareToken}
+                initialIncludeAnalysis={trade.shareIncludeAnalysis}
               />
             </div>
           </div>
