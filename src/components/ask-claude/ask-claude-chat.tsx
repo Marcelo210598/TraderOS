@@ -77,7 +77,7 @@ export function AskClaudeChat() {
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Context indicator */}
       {tradeCount !== null && (
-        <div className="border-b border-border px-6 py-2 flex items-center gap-2">
+        <div data-tour="vega-context" className="border-b border-border px-6 py-2 flex items-center gap-2">
           <Database className="w-3.5 h-3.5 text-teal shrink-0" />
           <p className="text-xs text-muted-foreground">
             {tradeCount > 0
@@ -91,7 +91,7 @@ export function AskClaudeChat() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-lg mx-auto">
+          <div data-tour="vega-intro" className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-lg mx-auto">
             <div className="w-24 h-24 rounded-2xl overflow-hidden ring-1 ring-teal/30">
               <Image src="/vega.png" alt="Vega" width={96} height={96} className="object-cover" priority />
             </div>
@@ -104,7 +104,7 @@ export function AskClaudeChat() {
                 }
               </p>
             </div>
-            <div className="grid grid-cols-1 gap-2 w-full">
+            <div data-tour="vega-suggestions" className="grid grid-cols-1 gap-2 w-full">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
@@ -162,7 +162,7 @@ export function AskClaudeChat() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-border p-4">
+      <div data-tour="vega-input" className="border-t border-border p-4">
         <div className="flex items-end gap-3 max-w-3xl mx-auto">
           <textarea
             value={input}
