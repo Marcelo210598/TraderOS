@@ -130,7 +130,7 @@ export function CarteiraClient({ consolidated, groups, consolidatedSeries, group
         <div className="lg:col-span-2 space-y-3">
           <h2 className="text-sm font-semibold text-foreground">Saldos por tipo de conta</h2>
           {groups.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-6 text-center">Nenhum trade ainda. Conecte o NinjaTrader e seus trades aparecem aqui, separados por tipo de conta.</p>
+            <p className="text-xs text-muted-foreground py-6 text-center">Nenhum trade ainda. Registre ou importe seus trades e eles aparecem aqui, separados por tipo de conta.</p>
           ) : groups.map((g) => <GroupCard key={g.id} g={g} />)}
         </div>
 

@@ -215,7 +215,7 @@ export function TradeForm({ setups, initial, accounts = [], onSuccess }: TradeFo
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground/70 mt-1.5">Conecte o NinjaTrader pra classificar automático. Por enquanto, escolha o tipo.</p>
+            <p className="text-[11px] text-muted-foreground/70 mt-1.5">Escolha o tipo de conta desse trade.</p>
           </>
         )}
       </div>

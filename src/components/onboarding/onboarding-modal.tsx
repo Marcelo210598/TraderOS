@@ -23,10 +23,10 @@ const STEPS = [
     cta: "Próximo",
   },
   {
-    emoji: "🔗",
-    title: "Conecte sua corretora",
-    subtitle: "Sincronização automática de trades",
-    body: "Ligue o NinjaTrader ou o MetaTrader 5 e seus trades caem no journal sozinhos — com alerta no celular a cada operação. Sem digitar nada.",
+    emoji: "📅",
+    title: "Calendário de Performance",
+    subtitle: "Veja seu P&L dia a dia",
+    body: "Um grid mensal mostra rapidamente seus dias de consistência e os dias que mais pesaram no resultado — sem precisar abrir planilha nenhuma.",
     cta: "Próximo",
   },
   {
