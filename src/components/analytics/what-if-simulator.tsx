@@ -52,9 +52,13 @@ export function WhatIfSimulator({ trades }: Props) {
   const totalSem3 = trades.length - worst3.length
   const wrSem3 = totalSem3 > 0 ? Math.round((winsSem3 / totalSem3) * 100) : wrAtual
 
-  // Eficiência média de saída atual
-  const avgEff = tradesWithMfe.length > 0
-    ? Math.round(tradesWithMfe.reduce((a, t) => a + (t.pnlPoints / t.mfe!), 0) / tradesWithMfe.length * 100)
+  // Eficiência média de saída atual — só faz sentido pra trades onde o preço
+  // andou a favor (pnlPoints > 0); um LOSS não "captura" nada do MFE, então
+  // não pode gerar eficiência negativa gigante (ex: -241%) puxando a média.
+  // Limitado a 100% pro caso de dado de entrada inconsistente (pnlPoints > mfe).
+  const tradesForEff = tradesWithMfe.filter(t => t.pnlPoints > 0)
+  const avgEff = tradesForEff.length > 0
+    ? Math.round(tradesForEff.reduce((a, t) => a + Math.min(t.pnlPoints / t.mfe!, 1), 0) / tradesForEff.length * 100)
     : null
 
   const hasMfeData = tradesWithMfe.length >= 3
