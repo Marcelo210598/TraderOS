@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import fs from "fs"
 import path from "path"
+import { NT8_ENABLED } from "@/lib/integration-flags"
 
 const CS_TEMPLATE = `#region Using declarations
 using System;
@@ -288,6 +289,13 @@ function makeZip(filename: string, content: Buffer): Buffer {
 }
 
 export async function GET() {
+  if (!NT8_ENABLED) {
+    return NextResponse.json(
+      { error: "Sincronização automática temporariamente pausada." },
+      { status: 503 }
+    )
+  }
+
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 

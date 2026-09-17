@@ -6,6 +6,7 @@ import { XP_REWARDS } from "@/lib/xp"
 import { hashApiKey } from "@/lib/apikey"
 import { createTradeAlert } from "@/lib/trade-alert"
 import { ensureAccount } from "@/lib/account"
+import { NT8_ENABLED } from "@/lib/integration-flags"
 
 const syncSchema = z.object({
   instrument: z.string().min(1).max(20),
@@ -74,6 +75,15 @@ function detectAccountLabel(accountName?: string, connectionName?: string): stri
 }
 
 export async function POST(req: NextRequest) {
+  // Sync automático pausado (ver src/lib/integration-flags.ts) — rejeita antes
+  // de qualquer processamento. AddOns antigos param de conseguir sincronizar.
+  if (!NT8_ENABLED) {
+    return NextResponse.json(
+      { error: "Sincronização automática temporariamente pausada." },
+      { status: 503 }
+    )
+  }
+
   // Auth via API Key no header — busca pelo hash SHA-256
   const apiKey = req.headers.get("x-api-key") ?? req.headers.get("X-API-Key")
   if (!apiKey) return NextResponse.json({ error: "API Key obrigatória" }, { status: 401 })

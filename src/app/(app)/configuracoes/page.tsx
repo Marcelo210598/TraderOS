@@ -85,15 +85,6 @@ export default async function ConfiguracoesPage() {
               <Link2 className="w-4 h-4 text-teal" />
               <h2 className="text-sm font-semibold text-foreground">Integrações</h2>
             </div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <span className="text-sm font-bold font-mono text-foreground">NT</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">NinjaTrader 8</p>
-                <p className="text-xs text-muted-foreground">Sync automático de trades</p>
-              </div>
-            </div>
             <IntegrationSection initialKeys={apiKeys} />
           </section>
 

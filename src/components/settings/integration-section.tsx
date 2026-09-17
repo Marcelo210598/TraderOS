@@ -6,6 +6,7 @@ import { Copy, Check, Trash2, Plus, ChevronDown, ChevronUp, Download, Clock, Ter
 import { cn } from "@/lib/utils"
 import { openUpgradeModal } from "@/lib/upgrade"
 import { toast } from "@/components/ui/toast"
+import { NT8_ENABLED, MT5_ENABLED } from "@/lib/integration-flags"
 
 interface ApiKey {
   id: string
@@ -20,11 +21,6 @@ interface Props {
   initialKeys: ApiKey[]
 }
 
-// Flag pra ligar/desligar o MT5 sem apagar o tutorial.
-// Desativado enquanto o sync de trades do MT5 não chega no app.
-// Pra religar: trocar pra true (a aba, o tutorial e o backend voltam intactos).
-const MT5_ENABLED = false
-
 // Plataformas disponíveis
 const PLATFORMS = [
   { id: "ninjatrader", label: "NinjaTrader 8", short: "NT", active: true, description: "Sincronização automática de trades" },
@@ -33,11 +29,13 @@ const PLATFORMS = [
   { id: "tradestation",label: "TradeStation",   short: "TS", active: false, description: "Em breve — Q4 2026" },
 ]
 
-// Lista efetivamente exibida no seletor (esconde o MT5 quando a flag está off)
-const VISIBLE_PLATFORMS = PLATFORMS.filter((p) => p.id !== "mt5" || MT5_ENABLED)
+// Lista efetivamente exibida no seletor (esconde plataformas com sync pausado)
+const VISIBLE_PLATFORMS = PLATFORMS.filter(
+  (p) => (p.id !== "mt5" || MT5_ENABLED) && (p.id !== "ninjatrader" || NT8_ENABLED)
+)
 
 export function IntegrationSection({ initialKeys }: Props) {
-  const [platform, setPlatform]     = useState("ninjatrader")
+  const [platform, setPlatform]     = useState(VISIBLE_PLATFORMS[0]?.id ?? "ninjatrader")
   const [keys, setKeys]             = useState<ApiKey[]>(initialKeys)
   const [newRawKey, setNewRawKey]   = useState<string | null>(null)
   const [loading, setLoading]             = useState(false)
@@ -123,6 +121,26 @@ export function IntegrationSection({ initialKeys }: Props) {
   const lastSync = keys.find((k) => k.lastUsed)?.lastUsed
   const hasKeys  = keys.length > 0
   const selected = PLATFORMS.find((p) => p.id === platform)!
+
+  // Nenhuma sync automática habilitada no momento — mostra um aviso dedicado
+  // em vez de cair no fallback genérico de "plataforma em breve".
+  if (!NT8_ENABLED && !MT5_ENABLED) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
+        <div className="w-14 h-14 rounded-2xl bg-muted/30 border border-border flex items-center justify-center">
+          <Clock className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Sincronização automática pausada</p>
+          <p className="text-xs text-muted-foreground mt-0.5 max-w-sm">
+            Estamos calibrando a base do produto antes de reabrir a sincronização automática
+            (NinjaTrader, MetaTrader 5 e outras). Por enquanto, registre seus trades manualmente
+            no Journal.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5">

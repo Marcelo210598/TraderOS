@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import crypto from "crypto"
 import { generateRawApiKey, hashApiKey, apiKeyPrefix } from "@/lib/apikey"
+import { NT8_ENABLED } from "@/lib/integration-flags"
 
 // A chave é armazenada APENAS como hash SHA-256 (ver @/lib/apikey e o schema).
 // Como o hash é irreversível, não dá pra re-exibir uma chave já criada — então cada
@@ -11,6 +12,13 @@ import { generateRawApiKey, hashApiKey, apiKeyPrefix } from "@/lib/apikey"
 // POST (não GET): esta rota ALTERA estado (rotaciona a API key). Manter como POST
 // impede CSRF via navegação top-level (um GET forjado invalidaria a key da vítima).
 export async function POST() {
+  if (!NT8_ENABLED) {
+    return NextResponse.json(
+      { error: "Sincronização automática temporariamente pausada." },
+      { status: 503 }
+    )
+  }
+
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
