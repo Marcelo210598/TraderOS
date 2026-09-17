@@ -197,4 +197,15 @@
   .glow-teal-sm {
     box-shadow: 0 0 8px oklch(0.72 0.134 179 / 0.20);
   }
+
+  /* Tour guiado (SectionTour) — o elemento "fura" o backdrop escurecido (z-40)
+     via z-index + position relative, sem precisar calcular recorte de máscara. */
+  .meutrade-tour-highlight {
+    position: relative;
+    z-index: 45;
+    border-radius: 0.75rem;
+    outline: 2px solid var(--teal);
+    outline-offset: 4px;
+    box-shadow: 0 0 0 4px oklch(0.72 0.134 179 / 0.15);
+  }
 }

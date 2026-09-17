@@ -8,6 +8,8 @@ import { RecentTrades } from "@/components/dashboard/recent-trades"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { StreakWidget } from "@/components/dashboard/streak-widget"
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
+import { SectionTour } from "@/components/tour/section-tour"
+import { DASHBOARD_TOUR_STEPS } from "@/lib/tour-content"
 import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from "lucide-react"
 import { excludeTestTrades } from "@/lib/account"
 import { signedUsd } from "@/lib/utils"
@@ -119,6 +121,9 @@ export default async function DashboardPage() {
   return (
     <>
     <OnboardingModal isNewUser={isNewUser} />
+    {/* Só depois do onboarding inicial (que já cobre o dashboard em texto) —
+        evita empilhar dois overlays de intro na primeiríssima visita. */}
+    {!isNewUser && <SectionTour id="dashboard" steps={DASHBOARD_TOUR_STEPS} />}
     <div className="flex flex-col flex-1 overflow-auto">
       <Header
         title="Dashboard"
@@ -143,6 +148,7 @@ export default async function DashboardPage() {
           </div>
           <Link
             href="/journal/novo"
+            data-tour="dashboard-cta"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
@@ -151,7 +157,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Métricas principais */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div data-tour="dashboard-metrics" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatsCard
             title="P&L 7 dias"
             value={pnlDisplay}
@@ -190,6 +196,7 @@ export default async function DashboardPage() {
         {/* Check-in rápido */}
         <Link
           href="/checkin"
+          data-tour="dashboard-checkin"
           className="group relative overflow-hidden bg-gradient-to-r from-teal/10 to-primary/10 border border-teal/30 rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-teal/50 hover:from-teal/15 hover:to-primary/15 transition-all"
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -215,7 +222,7 @@ export default async function DashboardPage() {
         </Link>
 
         {/* Gráfico + Streaks */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div data-tour="dashboard-chart" className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
             <PerformanceChart data={chartData} />
           </div>
@@ -225,7 +232,9 @@ export default async function DashboardPage() {
         </div>
 
         {/* Trades recentes */}
-        <RecentTrades trades={recentTrades} />
+        <div data-tour="dashboard-recent">
+          <RecentTrades trades={recentTrades} />
+        </div>
 
         {/* Dica do dia */}
         <div className="bg-card border border-border rounded-xl px-5 py-4 flex items-start gap-3">
