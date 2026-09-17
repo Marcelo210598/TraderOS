@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { Header } from "@/components/layout/header"
 import { CarteiraClient } from "@/components/carteira/carteira-client"
+import { SectionTour } from "@/components/tour/section-tour"
+import { CARTEIRA_TOUR_STEPS } from "@/lib/tour-content"
 
 export const metadata: Metadata = { title: "Carteira" }
 
@@ -228,6 +230,7 @@ export default async function CarteiraPage() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      <SectionTour id="carteira" steps={CARTEIRA_TOUR_STEPS} />
       <Header
         title="Carteira"
         subtitle="Saldos e evolução por tipo de conta"

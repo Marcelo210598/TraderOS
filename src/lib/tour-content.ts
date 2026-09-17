@@ -54,3 +54,26 @@ export const VEGA_TOUR_STEPS: TourStep[] = [
     body: "Digite em português, sobre qualquer coisa: um setup específico, sua psicologia, regras de prop firm. Enter envia, Shift+Enter quebra linha.",
   },
 ]
+
+export const CARTEIRA_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="carteira-saldo"]',
+    title: "Saldo consolidado",
+    body: "O saldo de todas as suas contas somado, com a curva de patrimônio acumulado — sua evolução real, não só o resultado dos trades.",
+  },
+  {
+    target: '[data-tour="carteira-toggle"]',
+    title: "Consolidado ou por tipo",
+    body: "Alterne entre ver tudo junto ou separado por tipo de conta (Avaliação, Aprovada, Teste) — útil pra comparar performance entre contas.",
+  },
+  {
+    target: '[data-tour="carteira-tipos"]',
+    title: "Separado automaticamente",
+    body: "O app detecta o tipo de cada conta pelo nome da corretora e agrupa sozinho — sem precisar organizar nada manualmente.",
+  },
+  {
+    target: '[data-tour="carteira-historico"]',
+    title: "Histórico de transações",
+    body: "Todo trade, depósito e saque aparece aqui, filtrável por tipo de conta. Dá pra ver o journal completo de qualquer trade a partir daqui.",
+  },
+]

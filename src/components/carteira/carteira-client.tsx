@@ -78,7 +78,7 @@ export function CarteiraClient({ consolidated, groups, consolidatedSeries, group
     <div className="space-y-6">
 
       {/* ── Card consolidado + equity curve ── */}
-      <section className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
+      <section data-tour="carteira-saldo" className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-teal/[0.04] to-transparent pointer-events-none" />
         <div className="relative flex items-start justify-between flex-wrap gap-4 mb-5">
           <div>
@@ -96,7 +96,7 @@ export function CarteiraClient({ consolidated, groups, consolidatedSeries, group
             </div>
           </div>
           {/* toggle de visão */}
-          <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5">
+          <div data-tour="carteira-toggle" className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5">
             <button onClick={() => setView("consolidated")}
               className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", view === "consolidated" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
               Consolidado
@@ -126,7 +126,7 @@ export function CarteiraClient({ consolidated, groups, consolidatedSeries, group
       </section>
 
       {/* ── Saldos por tipo + distribuição ── */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <section data-tour="carteira-tipos" className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-3">
           <h2 className="text-sm font-semibold text-foreground">Saldos por tipo de conta</h2>
           {groups.length === 0 ? (
@@ -142,7 +142,7 @@ export function CarteiraClient({ consolidated, groups, consolidatedSeries, group
       </section>
 
       {/* ── Histórico de transações ── */}
-      <section className="bg-card border border-border rounded-xl p-5">
+      <section data-tour="carteira-historico" className="bg-card border border-border rounded-xl p-5">
         <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
           <h2 className="text-sm font-semibold text-foreground">Histórico de transações</h2>
           <select value={filter} onChange={(e) => setFilter(e.target.value)}
