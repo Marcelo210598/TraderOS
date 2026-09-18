@@ -8,6 +8,8 @@ import { StreaksPanel } from "@/components/progress/streaks-panel"
 import { getLevelFromXp } from "@/lib/xp"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { signedUsd } from "@/lib/utils"
+import { SectionTour } from "@/components/tour/section-tour"
+import { PROGRESS_TOUR_STEPS } from "@/lib/tour-content"
 
 export const metadata: Metadata = { title: "Progress" }
 
@@ -68,6 +70,7 @@ export default async function ProgressPage() {
 
   return (
     <div className="flex flex-col flex-1 overflow-auto">
+      <SectionTour id="progress" steps={PROGRESS_TOUR_STEPS} />
       <Header
         title="Progress"
         subtitle="Sua evolução como trader"
@@ -79,19 +82,21 @@ export default async function ProgressPage() {
 
       <div className="flex-1 p-6 space-y-6">
         {/* XP Card */}
-        <XpCard
-          xp={xp}
-          level={level}
-          currentXp={currentXp}
-          xpNeeded={xpNeeded}
-          progress={progress}
-          totalTrades={totalTrades}
-          winRate={winRate}
-        />
+        <div data-tour="progress-xp">
+          <XpCard
+            xp={xp}
+            level={level}
+            currentXp={currentXp}
+            xpNeeded={xpNeeded}
+            progress={progress}
+            totalTrades={totalTrades}
+            winRate={winRate}
+          />
+        </div>
 
         {/* Tabs: Conquistas / Streaks */}
         <Tabs defaultValue="conquistas">
-          <TabsList className="bg-card border border-border">
+          <TabsList data-tour="progress-tabs" className="bg-card border border-border">
             <TabsTrigger value="conquistas" className="data-[selected]:bg-accent data-[selected]:text-teal">
               🏆 Conquistas ({earnedAchievements.length})
             </TabsTrigger>
@@ -103,7 +108,7 @@ export default async function ProgressPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="conquistas" className="mt-4">
+          <TabsContent value="conquistas" data-tour="progress-achievements" className="mt-4">
             <AchievementsGrid
               earned={earnedAchievements}
               tradeCount={totalTrades}

@@ -105,3 +105,21 @@ export const JOURNAL_TOUR_STEPS: TourStep[] = [
     body: "Clique em qualquer trade pra ver o detalhe completo: gráfico de execução, notas e análise da Vega.",
   },
 ]
+
+export const PROGRESS_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="progress-xp"]',
+    title: "Seu progresso",
+    body: "Você ganha XP a cada trade registrado, check-in feito e ação de consistência — não é só sobre lucro.",
+  },
+  {
+    target: '[data-tour="progress-tabs"]',
+    title: "Conquistas, streaks e histórico",
+    body: "Três abas: conquistas desbloqueadas, seus streaks ativos e um histórico geral de estatísticas.",
+  },
+  {
+    target: '[data-tour="progress-achievements"]',
+    title: "Suas conquistas",
+    body: "Cada conquista tem um critério real baseado nos seus dados — trades registrados, streaks, setups criados.",
+  },
+]
