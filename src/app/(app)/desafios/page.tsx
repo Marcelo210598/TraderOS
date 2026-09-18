@@ -8,6 +8,7 @@ import { differenceInDays } from "date-fns"
 import { SectionTour } from "@/components/tour/section-tour"
 import { DESAFIOS_TOUR_STEPS } from "@/lib/tour-content"
 import { hasSeenTour } from "@/lib/tours"
+import { excludeArchivedTrades } from "@/lib/account"
 
 export const metadata: Metadata = { title: "Desafios" }
 
@@ -24,7 +25,8 @@ export default async function DesafiosPage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.trade.findMany({
-      where: { userId: user.id, date: { gte: thirtyDaysAgo } },
+      // exclui só conta arquivada, mantém teste — mesma regra do resto do app.
+      where: { userId: user.id, date: { gte: thirtyDaysAgo }, ...excludeArchivedTrades },
       select: { id: true, date: true, pnl: true, result: true, sessionType: true, tags: { select: { name: true } } },
       orderBy: { date: "asc" },
     }),

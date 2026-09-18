@@ -11,6 +11,7 @@ import { signedUsd } from "@/lib/utils"
 import { SectionTour } from "@/components/tour/section-tour"
 import { hasSeenTour } from "@/lib/tours"
 import { PROGRESS_TOUR_STEPS } from "@/lib/tour-content"
+import { excludeArchivedTrades } from "@/lib/account"
 
 export const metadata: Metadata = { title: "Progress" }
 
@@ -21,7 +22,8 @@ export default async function ProgressPage() {
   const [dbUser, trades, userAchievements, streaks, setupCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: user.id }, select: { xp: true, level: true } }),
     prisma.trade.findMany({
-      where: { userId: user.id },
+      // exclui só conta arquivada, mantém teste — mesma regra do resto do app.
+      where: { userId: user.id, ...excludeArchivedTrades },
       select: { result: true, pnl: true, date: true },
       orderBy: { date: "desc" },
     }),

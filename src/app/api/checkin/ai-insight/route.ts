@@ -6,6 +6,7 @@ import { z } from "zod"
 import { checkPlanLimit } from "@/lib/plan-guard"
 import type { PlanKey } from "@/lib/plans"
 import { enforce } from "@/lib/rate-limit"
+import { excludeArchivedTrades } from "@/lib/account"
 
 const schema = z.object({
   type: z.enum(["PRE", "POST"]),
@@ -60,12 +61,12 @@ export async function POST(req: NextRequest) {
       take: 60,
     }),
     prisma.trade.findMany({
-      where: { userId: session.user.id, date: { gte: sixtyDaysAgo, lt: todayStart } },
+      where: { userId: session.user.id, date: { gte: sixtyDaysAgo, lt: todayStart }, ...excludeArchivedTrades },
       select: { date: true, pnl: true, result: true },
       orderBy: { date: "desc" },
     }),
     prisma.trade.findMany({
-      where: { userId: session.user.id, date: { gte: sevenDaysAgo, lt: todayStart } },
+      where: { userId: session.user.id, date: { gte: sevenDaysAgo, lt: todayStart }, ...excludeArchivedTrades },
       select: { date: true, pnl: true, result: true },
       orderBy: { date: "asc" },
     }),
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
   }> = []
   if (type === "POST") {
     todayTrades = await prisma.trade.findMany({
-      where: { userId: session.user.id, date: { gte: todayStart, lte: todayEnd } },
+      where: { userId: session.user.id, date: { gte: todayStart, lte: todayEnd }, ...excludeArchivedTrades },
       select: {
         pnl: true, result: true, instrument: true, sessionType: true,
         notes: true,

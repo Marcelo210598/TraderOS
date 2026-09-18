@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
 import { enforce } from "@/lib/rate-limit"
+import { excludeArchivedTrades } from "@/lib/account"
 
 export async function POST() {
   const session = await auth()
@@ -21,7 +22,7 @@ export async function POST() {
   sevenDaysAgo.setHours(0, 0, 0, 0)
 
   const trades = await prisma.trade.findMany({
-    where: { userId, date: { gte: sevenDaysAgo } },
+    where: { userId, date: { gte: sevenDaysAgo }, ...excludeArchivedTrades },
     select: {
       date: true,
       instrument: true,

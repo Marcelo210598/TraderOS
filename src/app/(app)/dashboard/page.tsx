@@ -9,7 +9,7 @@ import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { StreakWidget } from "@/components/dashboard/streak-widget"
 import { DashboardIntro } from "@/components/dashboard/dashboard-intro"
 import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from "lucide-react"
-import { excludeTestTrades } from "@/lib/account"
+import { excludeArchivedTrades } from "@/lib/account"
 import { signedUsd } from "@/lib/utils"
 import { dayKeyBR, formatTimeBR, formatShortDateBR } from "@/lib/date"
 import { hasSeenTour } from "@/lib/tours"
@@ -30,14 +30,18 @@ export default async function DashboardPage() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
   sevenDaysAgo.setHours(0, 0, 0, 0)
 
+  // excludeArchivedTrades (não excludeTestTrades) — o dashboard precisa
+  // refletir qualquer conta ATIVA, incluindo teste/simulação (igual Carteira e
+  // Journal), senão fica "vazio" pra quem só tem trades em conta de teste no
+  // momento (ex: fase de simulação antes da avaliação real).
   const [weeklyTrades, recentTradesRaw, streaks] = await Promise.all([
     prisma.trade.findMany({
-      where: { userId: user!.id, date: { gte: sevenDaysAgo }, ...excludeTestTrades },
+      where: { userId: user!.id, date: { gte: sevenDaysAgo }, ...excludeArchivedTrades },
       select: { date: true, pnl: true, result: true },
       orderBy: { date: "asc" },
     }),
     prisma.trade.findMany({
-      where: { userId: user!.id, ...excludeTestTrades },
+      where: { userId: user!.id, ...excludeArchivedTrades },
       include: { setup: { select: { name: true } } },
       orderBy: { date: "desc" },
       take: 5,

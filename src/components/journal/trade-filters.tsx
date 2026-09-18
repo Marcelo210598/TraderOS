@@ -15,12 +15,13 @@ const RESULTS = [
 const INSTRUMENTS = ["", "NQ", "ES", "MNQ", "MES", "YM", "RTY", "CL", "GC"]
 
 const CONTAS = [
-  { value: "reais", label: "Contas reais" },
+  { value: "ativas", label: "Todas as contas ativas" },
+  { value: "reais", label: "Só contas reais (sem teste)" },
   { value: "EVAL", label: "🟡 Avaliação" },
   { value: "PA", label: "🟢 Aprovada" },
   { value: "TEST", label: "🧪 Teste" },
   { value: "arquivadas", label: "🗄️ Arquivadas" },
-  { value: "all", label: "Todas" },
+  { value: "all", label: "Todas (inclusive arquivadas)" },
 ]
 
 interface TradeFiltersProps {
@@ -45,7 +46,7 @@ export function TradeFilters({ setups, tags = [] }: TradeFiltersProps) {
   )
 
   const current = {
-    conta: searchParams.get("conta") ?? "reais",
+    conta: searchParams.get("conta") ?? "ativas",
     result: searchParams.get("result") ?? "",
     instrument: searchParams.get("instrument") ?? "",
     setupId: searchParams.get("setupId") ?? "",
@@ -55,7 +56,7 @@ export function TradeFilters({ setups, tags = [] }: TradeFiltersProps) {
   }
 
   const { conta, ...otherFilters } = current
-  const hasFilters = Object.values(otherFilters).some(Boolean) || conta !== "reais"
+  const hasFilters = Object.values(otherFilters).some(Boolean) || conta !== "ativas"
 
   // input[type=date] dispara onChange a CADA digito do ano (ex: digitando "2026"
   // ele passa por "0002", "0020", "0202" antes do valor final) — se cada onChange
@@ -94,7 +95,7 @@ export function TradeFilters({ setups, tags = [] }: TradeFiltersProps) {
       {/* Conta */}
       <select
         value={current.conta}
-        onChange={(e) => updateFilter("conta", e.target.value === "reais" ? "" : e.target.value)}
+        onChange={(e) => updateFilter("conta", e.target.value === "ativas" ? "" : e.target.value)}
         className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         title="Filtrar por conta"
       >

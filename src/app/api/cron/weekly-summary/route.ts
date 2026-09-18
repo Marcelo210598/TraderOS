@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
 import { sendPushToUser } from "@/lib/push"
+import { excludeArchivedTrades } from "@/lib/account"
 
 // Vercel Cron: sábados às 12:00 UTC (9:00 BRT)
 // Configurado em vercel.json
@@ -21,7 +22,7 @@ async function generateSummaryForUser(
   lastSaturday.setHours(0, 0, 0, 0)
 
   const trades = await prisma.trade.findMany({
-    where: { userId, date: { gte: lastSaturday, lte: lastFriday } },
+    where: { userId, date: { gte: lastSaturday, lte: lastFriday }, ...excludeArchivedTrades },
     select: {
       date: true,
       instrument: true,

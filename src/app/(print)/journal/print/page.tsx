@@ -5,6 +5,7 @@ import { ptBR } from "date-fns/locale"
 import { formatDateTimeShortYearBR } from "@/lib/date"
 import { PrintActions } from "./print-actions"
 import { signedUsd } from "@/lib/utils"
+import { excludeArchivedTrades } from "@/lib/account"
 
 interface Props {
   searchParams: Promise<Record<string, string>>
@@ -17,6 +18,9 @@ export default async function JournalPrintPage({ searchParams }: Props) {
 
   const where = {
     userId: user.id,
+    // exclui conta arquivada (mantém teste) — sem isso o PDF podia trazer
+    // trade de avaliação antiga já arquivada, sem relação com o período atual.
+    ...excludeArchivedTrades,
     ...(sp.result && { result: sp.result as "WIN" | "LOSS" | "BREAKEVEN" }),
     ...(sp.instrument && { instrument: sp.instrument }),
     ...(sp.setupId && { setupId: sp.setupId }),

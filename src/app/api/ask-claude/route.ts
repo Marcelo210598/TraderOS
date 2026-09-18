@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
 import { upgradeResponse } from "@/lib/plan-guard"
 import { enforce } from "@/lib/rate-limit"
+import { excludeArchivedTrades } from "@/lib/account"
 import { z } from "zod"
 
 const messagesSchema = z
@@ -40,7 +41,9 @@ async function buildTraderContext(userId: string): Promise<{ context: string; tr
 
   const [trades, setups, streaks] = await Promise.all([
     prisma.trade.findMany({
-      where: { userId, date: { gte: ninetyDaysAgo } },
+      // exclui só conta arquivada — mantém teste, senão a Vega "não vê" nada
+      // de quem só está operando em conta de teste/simulação no momento.
+      where: { userId, date: { gte: ninetyDaysAgo }, ...excludeArchivedTrades },
       select: {
         date: true,
         instrument: true,

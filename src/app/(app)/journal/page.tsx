@@ -8,13 +8,17 @@ import { TradeList } from "@/components/journal/trade-list"
 import Link from "next/link"
 import { Plus, BookOpen, Upload, Tag, FileDown } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
-import { excludeTestTrades } from "@/lib/account"
+import { excludeTestTrades, excludeArchivedTrades } from "@/lib/account"
 import { signedUsd } from "@/lib/utils"
 import { SectionTour } from "@/components/tour/section-tour"
 import { JOURNAL_TOUR_STEPS } from "@/lib/tour-content"
 import { hasSeenTour } from "@/lib/tours"
 
-// Traduz o filtro de conta (?conta=) em clausula Prisma. Default "reais" = sem teste/arquivadas.
+// Traduz o filtro de conta (?conta=) em clausula Prisma.
+// Default (sem param) = "ativas": qualquer conta não-arquivada, incluindo
+// teste/simulação — senão o Journal "some" sozinho pra quem só tem trades em
+// conta de teste no momento. "reais" continua existindo como opção EXPLÍCITA
+// pra quando o trader quiser ver só contas reais (EVAL/PA), sem teste.
 function accountFilter(conta: string): Record<string, unknown> {
   switch (conta) {
     case "TEST": return { accountLabel: "TEST" }
@@ -22,7 +26,8 @@ function accountFilter(conta: string): Record<string, unknown> {
     case "PA": return { accountLabel: { startsWith: "PA" } }
     case "arquivadas": return { account: { is: { isArchived: true } } }
     case "all": return {}
-    default: return excludeTestTrades // "reais"
+    case "reais": return excludeTestTrades
+    default: return excludeArchivedTrades // "ativas" (default)
   }
 }
 
@@ -39,7 +44,7 @@ export default async function JournalPage({ searchParams }: Props) {
 
   const page = Math.max(1, Number(sp.page ?? 1))
   const limit = 20
-  const conta = sp.conta ?? "reais"
+  const conta = sp.conta ?? "ativas"
   const where = {
     userId: user.id,
     ...accountFilter(conta),

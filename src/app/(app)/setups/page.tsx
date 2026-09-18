@@ -9,6 +9,7 @@ import { Zap } from "lucide-react"
 import { SectionTour } from "@/components/tour/section-tour"
 import { SETUPS_TOUR_STEPS } from "@/lib/tour-content"
 import { hasSeenTour } from "@/lib/tours"
+import { excludeArchivedTrades } from "@/lib/account"
 
 export const metadata: Metadata = { title: "Setups" }
 
@@ -48,7 +49,9 @@ export default async function SetupsPage() {
   const setups = await prisma.setup.findMany({
     where: { userId: user.id, isActive: true },
     include: {
-      trades: { select: { result: true, pnl: true }, take: 1000 },
+      // exclui só trade de conta arquivada — mantém teste, senão a estatística
+      // por setup fica errada pra quem só operou em conta de teste até agora.
+      trades: { where: excludeArchivedTrades, select: { result: true, pnl: true }, take: 1000 },
     },
     orderBy: { createdAt: "desc" },
   })
