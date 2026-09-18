@@ -12,6 +12,8 @@ import {
   TrendingUp, TrendingDown, Target, Activity,
   Clock, BarChart2, Zap, Award, Flame, AlertTriangle,
 } from "lucide-react"
+import { SectionTour } from "@/components/tour/section-tour"
+import { ANALYTICS_TOUR_STEPS } from "@/lib/tour-content"
 
 export const metadata: Metadata = { title: "Analytics" }
 
@@ -225,6 +227,7 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="flex flex-col flex-1 overflow-auto">
+      <SectionTour id="analytics" steps={ANALYTICS_TOUR_STEPS} />
       <Header
         title="Analytics"
         userName={user.name}
@@ -236,7 +239,7 @@ export default async function AnalyticsPage() {
       <div className="flex-1 p-4 lg:p-6 space-y-5 max-w-5xl mx-auto w-full">
 
         {/* ── KPIs principais ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div data-tour="analytics-kpis" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "P&L Total", value: signedUsd(totalPnl), color: totalPnl >= 0 ? "text-profit" : "text-loss", icon: BarChart2 },
             { label: "Win Rate", value: `${winRate}%`, color: winRate >= 50 ? "text-profit" : "text-loss", icon: Target },
@@ -254,14 +257,18 @@ export default async function AnalyticsPage() {
         </div>
 
         {/* ── Equity Curve ── */}
-        <EquityCurve points={equityPoints} />
+        <div data-tour="analytics-equity">
+          <EquityCurve points={equityPoints} />
+        </div>
 
         {/* ── Drawdown Chart ── */}
-        <DrawdownChart
-          points={drawdownPoints}
-          maxDrawdown={maxDrawdown}
-          currentDrawdown={currentDrawdown}
-        />
+        <div data-tour="analytics-drawdown">
+          <DrawdownChart
+            points={drawdownPoints}
+            maxDrawdown={maxDrawdown}
+            currentDrawdown={currentDrawdown}
+          />
+        </div>
 
         {/* ── Drawdown & Streaks ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -558,15 +565,17 @@ export default async function AnalyticsPage() {
         </div>
 
         {/* ── Simulador "E se" ── */}
-        <WhatIfSimulator
-          trades={trades.map(t => ({
-            pnl: Number(t.pnl),
-            pnlPoints: Number(t.pnlPoints),
-            result: t.result,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            mfe: (t as any).mfe != null ? Number((t as any).mfe) : null,
-          }))}
-        />
+        <div data-tour="analytics-whatif">
+          <WhatIfSimulator
+            trades={trades.map(t => ({
+              pnl: Number(t.pnl),
+              pnlPoints: Number(t.pnlPoints),
+              result: t.result,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              mfe: (t as any).mfe != null ? Number((t as any).mfe) : null,
+            }))}
+          />
+        </div>
 
         {/* ── Dia da semana ── */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">

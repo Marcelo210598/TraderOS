@@ -123,3 +123,26 @@ export const PROGRESS_TOUR_STEPS: TourStep[] = [
     body: "Cada conquista tem um critério real baseado nos seus dados — trades registrados, streaks, setups criados.",
   },
 ]
+
+export const ANALYTICS_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="analytics-kpis"]',
+    title: "Seus números principais",
+    body: "P&L total, win rate, profit factor e expectância — os 4 números que resumem se sua operação é lucrativa de verdade.",
+  },
+  {
+    target: '[data-tour="analytics-equity"]',
+    title: "Curva de patrimônio",
+    body: "Sua evolução acumulada ao longo do tempo. O formato da curva conta mais sobre consistência do que o número final.",
+  },
+  {
+    target: '[data-tour="analytics-drawdown"]',
+    title: "Controle de risco",
+    body: "Drawdown máximo e atual, streaks de win/loss — essencial pra quem opera com regra de trailing drawdown de prop firm.",
+  },
+  {
+    target: '[data-tour="analytics-whatif"]',
+    title: "Simulador \"E se?\"",
+    body: "Compare seu resultado real com cenários alternativos: e se você tivesse saído no ponto máximo? E se removesse seus piores losses? (aparece a partir de 5 trades registrados)",
+  },
+]
