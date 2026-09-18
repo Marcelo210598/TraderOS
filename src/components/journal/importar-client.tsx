@@ -381,6 +381,17 @@ function parseCSV(text: string, forcePlatform?: Platform): { rows: ParsedRow[]; 
   return { rows, detected }
 }
 
+// O Journal filtra por padrao "Contas reais" (exclui TEST) — sem isso, importar
+// pra uma conta tipo Sim101/TEST faz o "Ver Journal" abrir uma lista vazia e
+// parecer que a importacao sumiu, quando na verdade so esta filtrada.
+function journalContaParaLinhas(labels: Set<string>): string {
+  if (labels.size !== 1) return "all"
+  const [only] = labels
+  if (only === "TEST" || only === "EVAL") return only
+  if (only.startsWith("PA")) return "PA"
+  return "reais"
+}
+
 // ── Componente principal ──────────────────────────────────────────────────
 
 export function ImportarClient() {
@@ -389,7 +400,7 @@ export function ImportarClient() {
   const [platform, setPlatform] = useState<Platform>("traderos")
   const [rows, setRows] = useState<ParsedRow[] | null>(null)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ imported: number; errors: number } | null>(null)
+  const [result, setResult] = useState<{ imported: number; errors: number; conta: string } | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
   const [importAccount, setImportAccount] = useState("PA")
   // Guarda o texto bruto do arquivo pra poder reprocessar sem novo upload
@@ -467,7 +478,14 @@ export function ImportarClient() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Erro ao importar")
-      setResult({ imported: data.imported, errors: data.errors ?? 0 })
+      const labelsUsed = new Set(
+        validRows.map((r) => (r.accountName ? detectAccountLabel(r.accountName) : importAccount))
+      )
+      setResult({
+        imported: data.imported,
+        errors: data.errors ?? 0,
+        conta: journalContaParaLinhas(labelsUsed),
+      })
       setRows(null)
       if (fileRef.current) fileRef.current.value = ""
     } catch (err) {
@@ -496,7 +514,7 @@ export function ImportarClient() {
             )}
           </div>
           <button
-            onClick={() => router.push("/journal")}
+            onClick={() => router.push(`/journal?conta=${result.conta}`)}
             className="ml-auto text-xs text-profit hover:underline shrink-0"
           >
             Ver Journal →
