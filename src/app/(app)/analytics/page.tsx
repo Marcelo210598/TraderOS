@@ -13,6 +13,7 @@ import {
   Clock, BarChart2, Zap, Award, Flame, AlertTriangle,
 } from "lucide-react"
 import { SectionTour } from "@/components/tour/section-tour"
+import { hasSeenTour } from "@/lib/tours"
 import { ANALYTICS_TOUR_STEPS } from "@/lib/tour-content"
 
 export const metadata: Metadata = { title: "Analytics" }
@@ -224,16 +225,18 @@ export default async function AnalyticsPage() {
     .map((d) => ({ day: DOW[d], ...(dowMap.get(d) ?? { total: 0, wins: 0, pnl: 0 }) }))
 
   const maxDowTotal = Math.max(...dowStats.map((d) => d.total), 1)
+  const analyticsTourSeen = await hasSeenTour(user.id, "analytics")
 
   return (
     <div className="flex flex-col flex-1 overflow-auto">
-      <SectionTour id="analytics" steps={ANALYTICS_TOUR_STEPS} />
+      <SectionTour id="analytics" steps={ANALYTICS_TOUR_STEPS} initialSeen={analyticsTourSeen} />
       <Header
         title="Analytics"
         userName={user.name}
         userEmail={user.email}
         userImage={user.image}
         userPlan={user.plan ?? "FREE"}
+        tourId="analytics"
       />
 
       <div className="flex-1 p-4 lg:p-6 space-y-5 max-w-5xl mx-auto w-full">

@@ -5,6 +5,9 @@ import { Header } from "@/components/layout/header"
 import { ChallengesClient } from "@/components/desafios/challenges-client"
 import { evaluateRules, ChallengeRule, TradeForEval } from "@/lib/challenges"
 import { differenceInDays } from "date-fns"
+import { SectionTour } from "@/components/tour/section-tour"
+import { DESAFIOS_TOUR_STEPS } from "@/lib/tour-content"
+import { hasSeenTour } from "@/lib/tours"
 
 export const metadata: Metadata = { title: "Desafios" }
 
@@ -56,14 +59,18 @@ export default async function DesafiosPage() {
     }
   })
 
+  const desafiosTourSeen = await hasSeenTour(user.id, "desafios")
+
   return (
     <div className="flex flex-col flex-1 overflow-auto">
+      <SectionTour id="desafios" steps={DESAFIOS_TOUR_STEPS} initialSeen={desafiosTourSeen} />
       <Header
         title="Desafios"
         userName={user.name}
         userEmail={user.email}
         userImage={user.image}
         userPlan={user.plan ?? "FREE"}
+        tourId="desafios"
       />
       <div className="flex-1 p-4 lg:p-6 max-w-2xl mx-auto w-full">
         <ChallengesClient challenges={challenges} />

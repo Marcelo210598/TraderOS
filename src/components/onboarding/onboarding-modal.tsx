@@ -1,11 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { X, ArrowRight, ArrowLeft } from "lucide-react"
-
-const STORAGE_KEY = "traderos_onboarding_v1"
 
 const STEPS = [
   {
@@ -45,24 +43,22 @@ const STEPS = [
   },
 ]
 
-export function OnboardingModal({ isNewUser }: { isNewUser: boolean }) {
+export function OnboardingModal({ isNewUser, initialSeen }: { isNewUser: boolean; initialSeen: boolean }) {
   const router = useRouter()
-  const [visible, setVisible] = useState(false)
+  // `initialSeen` vem do server (User.seenTours) — não é mais localStorage,
+  // então dá pra decidir a visibilidade direto no useState, sem efeito nem
+  // risco de hydration mismatch (servidor e cliente recebem a mesma prop).
+  const [visible, setVisible] = useState(isNewUser && !initialSeen)
   const [step, setStep] = useState(0)
   const [animating, setAnimating] = useState(false)
 
-  // localStorage não existe no SSR — só dá pra checar depois do mount no client.
-  // Renderizar `false` até lá evita hydration mismatch (padrão intencional).
-  useEffect(() => {
-    if (!isNewUser) return
-    const done = localStorage.getItem(STORAGE_KEY)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!done) setVisible(true)
-  }, [isNewUser])
-
   function dismiss() {
-    localStorage.setItem(STORAGE_KEY, "done")
     setVisible(false)
+    fetch("/api/tours/seen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "onboarding" }),
+    }).catch(() => {})
   }
 
   function goTo(next: number) {

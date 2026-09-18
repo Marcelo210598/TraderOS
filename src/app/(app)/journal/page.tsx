@@ -12,6 +12,7 @@ import { excludeTestTrades } from "@/lib/account"
 import { signedUsd } from "@/lib/utils"
 import { SectionTour } from "@/components/tour/section-tour"
 import { JOURNAL_TOUR_STEPS } from "@/lib/tour-content"
+import { hasSeenTour } from "@/lib/tours"
 
 // Traduz o filtro de conta (?conta=) em clausula Prisma. Default "reais" = sem teste/arquivadas.
 function accountFilter(conta: string): Record<string, unknown> {
@@ -122,10 +123,11 @@ export default async function JournalPage({ searchParams }: Props) {
   const monthlyPnl = monthlyTrades.reduce((acc, t) => acc + Number(t.pnl), 0)
   const monthlyWins = monthlyTrades.filter((t) => t.result === "WIN").length
   const monthlyWinRate = monthlyTrades.length > 0 ? Math.round((monthlyWins / monthlyTrades.length) * 100) : 0
+  const journalTourSeen = await hasSeenTour(user.id, "journal")
 
   return (
     <div className="flex flex-col flex-1 overflow-auto">
-      <SectionTour id="journal" steps={JOURNAL_TOUR_STEPS} />
+      <SectionTour id="journal" steps={JOURNAL_TOUR_STEPS} initialSeen={journalTourSeen} />
       <Header
         title="Journal"
         subtitle="Diário de trades"
@@ -133,6 +135,7 @@ export default async function JournalPage({ searchParams }: Props) {
         userEmail={user.email}
         userImage={user.image}
         userPlan={user.plan ?? "FREE"}
+        tourId="journal"
       />
 
       <div className="flex-1 p-6 space-y-5">

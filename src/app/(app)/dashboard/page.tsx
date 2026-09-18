@@ -12,6 +12,7 @@ import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from 
 import { excludeTestTrades } from "@/lib/account"
 import { signedUsd } from "@/lib/utils"
 import { dayKeyBR, formatTimeBR, formatShortDateBR } from "@/lib/date"
+import { hasSeenTour } from "@/lib/tours"
 
 export const metadata: Metadata = { title: "Dashboard" }
 
@@ -110,6 +111,9 @@ export default async function DashboardPage() {
   }))
 
   const isNewUser = recentTradesRaw.length === 0
+  const [onboardingSeen, dashboardTourSeen] = user
+    ? await Promise.all([hasSeenTour(user.id, "onboarding"), hasSeenTour(user.id, "dashboard")])
+    : [false, false]
 
   // Display helpers
   const pnlDisplay = signedUsd(weekPnl)
@@ -118,7 +122,7 @@ export default async function DashboardPage() {
 
   return (
     <>
-    <DashboardIntro isNewUser={isNewUser} />
+    <DashboardIntro isNewUser={isNewUser} onboardingSeen={onboardingSeen} dashboardTourSeen={dashboardTourSeen} />
     <div className="flex flex-col flex-1 overflow-auto">
       <Header
         title="Dashboard"
@@ -126,6 +130,7 @@ export default async function DashboardPage() {
         userEmail={user?.email}
         userImage={user?.image}
         userPlan={user?.plan ?? "FREE"}
+        tourId="dashboard"
       />
 
       <div className="flex-1 p-4 lg:p-8 space-y-5">

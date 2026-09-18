@@ -9,6 +9,7 @@ import { getLevelFromXp } from "@/lib/xp"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { signedUsd } from "@/lib/utils"
 import { SectionTour } from "@/components/tour/section-tour"
+import { hasSeenTour } from "@/lib/tours"
 import { PROGRESS_TOUR_STEPS } from "@/lib/tour-content"
 
 export const metadata: Metadata = { title: "Progress" }
@@ -68,9 +69,11 @@ export default async function ProgressPage() {
     best: s.best,
   }))
 
+  const progressTourSeen = await hasSeenTour(user.id, "progress")
+
   return (
     <div className="flex flex-col flex-1 overflow-auto">
-      <SectionTour id="progress" steps={PROGRESS_TOUR_STEPS} />
+      <SectionTour id="progress" steps={PROGRESS_TOUR_STEPS} initialSeen={progressTourSeen} />
       <Header
         title="Progress"
         subtitle="Sua evolução como trader"
@@ -78,6 +81,7 @@ export default async function ProgressPage() {
         userEmail={user.email}
         userImage={user.image}
         userPlan={user.plan ?? "FREE"}
+        tourId="progress"
       />
 
       <div className="flex-1 p-6 space-y-6">

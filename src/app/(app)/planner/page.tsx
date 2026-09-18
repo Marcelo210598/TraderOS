@@ -3,6 +3,9 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { PlannerClient } from "@/components/planner/planner-client"
+import { SectionTour } from "@/components/tour/section-tour"
+import { PLANNER_TOUR_STEPS } from "@/lib/tour-content"
+import { hasSeenTour } from "@/lib/tours"
 
 export const metadata: Metadata = { title: "Planner" }
 
@@ -34,8 +37,11 @@ export default async function PlannerPage() {
     updatedAt: p.updatedAt.toISOString(),
   }))
 
+  const plannerTourSeen = await hasSeenTour(user.id, "planner")
+
   return (
     <div className="flex flex-col flex-1 overflow-auto">
+      <SectionTour id="planner" steps={PLANNER_TOUR_STEPS} initialSeen={plannerTourSeen} />
       <Header
         title="Planner"
         subtitle="Planeje sua sessão antes de operar"
@@ -43,6 +49,7 @@ export default async function PlannerPage() {
         userEmail={user.email}
         userImage={user.image}
         userPlan={user.plan ?? "FREE"}
+        tourId="planner"
       />
       <div className="flex-1 p-6 max-w-2xl mx-auto w-full">
         <PlannerClient plans={serialized} setups={setups} todayStr={todayStr} />

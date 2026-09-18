@@ -26,6 +26,10 @@ model User {
   level     Int       @default(1)
   timezone  String    @default("America/Sao_Paulo")
   lastSeenAt DateTime? // ultima atividade (atualizado throttled no layout) — base de "online/ativos"
+  // Guia contextual (SectionTour) ja visto, por pagina (ex: "dashboard","carteira").
+  // Server-side pra nao repetir ao trocar de navegador/dispositivo — localStorage
+  // sozinho fazia o tour voltar toda vez que logava num browser diferente.
+  seenTours String[] @default([])
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 

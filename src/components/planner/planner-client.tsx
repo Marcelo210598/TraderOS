@@ -168,7 +168,7 @@ export function PlannerClient({ plans: initialPlans, setups, todayStr }: Props) 
   return (
     <div className="space-y-6">
       {/* Plano de hoje */}
-      <div className="bg-card border border-border rounded-xl p-5 space-y-5">
+      <div data-tour="planner-today" className="bg-card border border-border rounded-xl p-5 space-y-5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Plano de hoje</h2>
@@ -184,7 +184,7 @@ export function PlannerClient({ plans: initialPlans, setups, todayStr }: Props) 
         </div>
 
         {/* Max Loss + Target */}
-        <div className="grid grid-cols-2 gap-3">
+        <div data-tour="planner-risk" className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label htmlFor="plan-max-loss" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <ShieldAlert className="w-3.5 h-3.5 text-loss" /> Max Loss
@@ -235,7 +235,7 @@ export function PlannerClient({ plans: initialPlans, setups, todayStr }: Props) 
         </div>
 
         {/* Setups */}
-        <div className="space-y-2">
+        <div data-tour="planner-setups" className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground">Setups planejados</label>
           <div className="flex flex-wrap gap-1.5">
             {setups.map((s) => (
@@ -281,7 +281,7 @@ export function PlannerClient({ plans: initialPlans, setups, todayStr }: Props) 
         </div>
 
         {/* Notes */}
-        <div className="space-y-1.5">
+        <div data-tour="planner-notes" className="space-y-1.5">
           <label htmlFor="plan-notes" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <FileText className="w-3.5 h-3.5" /> Notas pré-sessão
           </label>

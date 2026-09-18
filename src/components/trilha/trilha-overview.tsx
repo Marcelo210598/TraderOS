@@ -43,7 +43,7 @@ export function TrilhaOverview() {
   return (
     <div className="space-y-5">
       {/* Progresso geral */}
-      <div className="rounded-xl border border-teal/20 bg-gradient-to-br from-teal/10 to-transparent p-5">
+      <div data-tour="trilha-progress" className="rounded-xl border border-teal/20 bg-gradient-to-br from-teal/10 to-transparent p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/15">
             <GraduationCap className="h-6 w-6 text-teal" />
@@ -67,7 +67,7 @@ export function TrilhaOverview() {
       </div>
 
       {/* Módulos */}
-      <div className="space-y-3">
+      <div data-tour="trilha-modules" className="space-y-3">
         {TRILHA.map((mod) => {
           const Icon = ICONS[mod.icon] ?? BookOpen
           const modDone = mod.lessons.filter((l) => completed.has(l.id)).length

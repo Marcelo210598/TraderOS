@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { Header } from "@/components/layout/header"
 import { CarteiraClient } from "@/components/carteira/carteira-client"
 import { SectionTour } from "@/components/tour/section-tour"
+import { hasSeenTour } from "@/lib/tours"
 import { CARTEIRA_TOUR_STEPS } from "@/lib/tour-content"
 
 export const metadata: Metadata = { title: "Carteira" }
@@ -228,9 +229,11 @@ export default async function CarteiraPage() {
     }
   })
 
+  const carteiraTourSeen = await hasSeenTour(userId, "carteira")
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <SectionTour id="carteira" steps={CARTEIRA_TOUR_STEPS} />
+      <SectionTour id="carteira" steps={CARTEIRA_TOUR_STEPS} initialSeen={carteiraTourSeen} />
       <Header
         title="Carteira"
         subtitle="Saldos e evolução por tipo de conta"
@@ -238,6 +241,7 @@ export default async function CarteiraPage() {
         userEmail={session.user.email}
         userImage={session.user.image}
         userPlan={(session.user as { plan?: string }).plan ?? "FREE"}
+        tourId="carteira"
       />
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-5xl mx-auto">

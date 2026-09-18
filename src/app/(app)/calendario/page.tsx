@@ -17,6 +17,9 @@ import { ptBR } from "date-fns/locale"
 import { cn, signedUsd } from "@/lib/utils"
 import { dayKeyBR } from "@/lib/date"
 import { TrendingUp, TrendingDown, Calendar, BarChart2, Trophy, Flame } from "lucide-react"
+import { SectionTour } from "@/components/tour/section-tour"
+import { CALENDARIO_TOUR_STEPS } from "@/lib/tour-content"
+import { hasSeenTour } from "@/lib/tours"
 
 export const metadata: Metadata = { title: "Calendário" }
 
@@ -131,19 +134,23 @@ export default async function CalendarioPage({ searchParams }: Props) {
     },
   ]
 
+  const calendarioTourSeen = await hasSeenTour(user.id, "calendario")
+
   return (
     <div className="flex flex-col flex-1 overflow-auto">
+      <SectionTour id="calendario" steps={CALENDARIO_TOUR_STEPS} initialSeen={calendarioTourSeen} />
       <Header
         title="Calendário"
         userName={user.name}
         userEmail={user.email}
         userImage={user.image}
         userPlan={user.plan ?? "FREE"}
+        tourId="calendario"
       />
 
       <div className="flex-1 p-4 lg:p-6 max-w-4xl mx-auto w-full space-y-5">
         {/* Stats */}
-        <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+        <div data-tour="calendario-stats" className="grid grid-cols-3 lg:grid-cols-6 gap-3">
           {stats.map((s) => (
             <div key={s.label} className="bg-card border border-border rounded-xl p-3">
               <div className="flex items-center gap-1.5 mb-1">
@@ -156,7 +163,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
         </div>
 
         {/* Calendário */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div data-tour="calendario-grid" className="bg-card border border-border rounded-xl overflow-hidden">
           {/* Navegação */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <CalendarNav
@@ -270,7 +277,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
 
         {/* Resumo dos dias (só se tiver dados) */}
         {tradingDays > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div data-tour="calendario-summary" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-card border border-border rounded-xl p-4">
               <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wider">Média por dia</p>
               <div className="space-y-2">

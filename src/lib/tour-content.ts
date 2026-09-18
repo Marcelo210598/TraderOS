@@ -124,6 +124,96 @@ export const PROGRESS_TOUR_STEPS: TourStep[] = [
   },
 ]
 
+export const SETUPS_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="setups-header"]',
+    title: "Sua biblioteca de setups",
+    body: "Cadastre cada estratégia que você opera — o app calcula win rate, profit factor e P&L automaticamente por setup, a partir dos trades que você já marcou com ele.",
+  },
+  {
+    target: '[data-tour="setups-new"]',
+    title: "Crie um novo setup",
+    body: "Dá nome, descrição e regras da estratégia. Depois, ao registrar um trade, você marca qual setup foi usado.",
+  },
+  {
+    target: '[data-tour="setups-list"]',
+    title: "Compare a performance",
+    body: "Veja em cards ou numa tabela comparativa — descubra qual das suas estratégias realmente dá lucro de verdade.",
+  },
+]
+
+export const PLANNER_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="planner-today"]',
+    title: "Plano de hoje",
+    body: "Antes de operar, defina o plano do dia — isso evita decisão emocional no meio do pregão.",
+  },
+  {
+    target: '[data-tour="planner-risk"]',
+    title: "Risco e alvo do dia",
+    body: "Defina seu max loss e profit target antes de abrir a primeira posição. O R:R é calculado automaticamente.",
+  },
+  {
+    target: '[data-tour="planner-setups"]',
+    title: "Setups planejados",
+    body: "Marque quais estratégias você pretende operar hoje — dá pra comparar depois com o que você realmente fez.",
+  },
+  {
+    target: '[data-tour="planner-notes"]',
+    title: "Notas pré-sessão",
+    body: "Contexto do mercado, níveis importantes, regras específicas pra hoje — tudo registrado antes de operar, não depois.",
+  },
+]
+
+export const CALENDARIO_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="calendario-stats"]',
+    title: "Resumo do mês",
+    body: "P&L, win rate, dias operados, melhor e pior dia — a visão macro do seu mês inteiro.",
+  },
+  {
+    target: '[data-tour="calendario-grid"]',
+    title: "Seu mês, dia a dia",
+    body: "Verde é dia lucrativo, vermelho é negativo. Clique em qualquer dia com trade pra ver o journal filtrado só daquele dia.",
+  },
+  {
+    target: '[data-tour="calendario-summary"]',
+    title: "Médias e distribuição",
+    body: "Quanto você ganha num dia bom vs. perde num dia ruim, e quantos dias de cada tipo — a base pra saber se sua expectância é positiva.",
+  },
+]
+
+export const DESAFIOS_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="desafios-new"]',
+    title: "Crie um desafio",
+    body: "Desafios são regras operacionais — o app avalia seus trades automaticamente e mostra se você está cumprindo ou não.",
+  },
+  {
+    target: '[data-tour="desafios-templates"]',
+    title: "Comece com um template",
+    body: "Disciplina, controle de volume, consistência — esses templates já vêm com regras prontas, é só usar.",
+  },
+  {
+    target: '[data-tour="desafios-list"]',
+    title: "Acompanhe o cumprimento",
+    body: "Cada regra mostra se está passando, com quantas violações — clique em ✕ pra apagar um desafio que não faz mais sentido.",
+  },
+]
+
+export const TRILHA_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="trilha-progress"]',
+    title: "Sua trilha de aprendizado",
+    body: "Módulos do básico ao avançado, no seu ritmo — do fundamento até psicologia e gestão de risco.",
+  },
+  {
+    target: '[data-tour="trilha-modules"]',
+    title: "Escolha um módulo",
+    body: "Clique em qualquer módulo pra começar as aulas — seu progresso fica salvo automaticamente.",
+  },
+]
+
 export const ANALYTICS_TOUR_STEPS: TourStep[] = [
   {
     target: '[data-tour="analytics-kpis"]',

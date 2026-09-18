@@ -10,26 +10,43 @@ export interface TourStep {
 }
 
 interface Props {
-  id: string // chave única da seção (ex: "dashboard") — vira a chave do localStorage
+  id: string // chave única da seção (ex: "dashboard") — vira o item em User.seenTours
   steps: TourStep[]
+  // Vem do server component da página (User.seenTours.includes(id)) — evita repetir
+  // o tour ao logar num navegador/dispositivo novo (localStorage sozinho não
+  // acompanha a conta, só o browser, e foi exatamente isso que causou o tour
+  // voltando toda vez que o Marcelo logava em outro lugar).
+  initialSeen: boolean
 }
 
 const HIGHLIGHT_CLASS = "meutrade-tour-highlight"
 
-// Tour contextual por seção, uma vez por seção por navegador (mesmo padrão do
-// OnboardingModal — localStorage, sem tabela nova no banco). Reaproveitável:
-// cada página só declara sua lista de passos (seletor + texto).
-export function SectionTour({ id, steps }: Props) {
-  const storageKey = `meutrade_tour_${id}_v1`
-  const [visible, setVisible] = useState(false)
+// Evento global que o botão de replay (TourReplayButton) dispara pra reabrir
+// o tour sob demanda, sem mexer no "visto" persistido — replay não deve fazer
+// o tour aparecer sozinho de novo no próximo login.
+export const TOUR_REPLAY_EVENT = "meutrade:tour-replay"
+
+// Tour contextual por seção, uma vez por seção por conta (server-side via
+// User.seenTours). Reaproveitável: cada página só declara sua lista de passos
+// (seletor + texto) e se já foi visto.
+export function SectionTour({ id, steps, initialSeen }: Props) {
+  // `initialSeen` vem do server — decide direto no useState, sem efeito nem
+  // risco de hydration mismatch (servidor e cliente recebem a mesma prop).
+  const [visible, setVisible] = useState(!initialSeen && steps.length > 0)
   const [step, setStep] = useState(0)
 
-  // localStorage não existe no SSR — só checa depois do mount (evita hydration mismatch).
+  // Replay manual (botão "Tutorial" na página) — reabre do zero, mas nunca
+  // marca como visto de novo sozinho; só o `finish()` faz isso.
   useEffect(() => {
-    const done = localStorage.getItem(storageKey)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!done && steps.length > 0) setVisible(true)
-  }, [storageKey, steps.length])
+    function onReplay(e: Event) {
+      const detail = (e as CustomEvent<{ id: string }>).detail
+      if (detail?.id !== id) return
+      setStep(0)
+      setVisible(true)
+    }
+    window.addEventListener(TOUR_REPLAY_EVENT, onReplay)
+    return () => window.removeEventListener(TOUR_REPLAY_EVENT, onReplay)
+  }, [id])
 
   // Destaca o elemento do passo atual: rola até ele e aplica a classe de highlight.
   useEffect(() => {
@@ -44,8 +61,14 @@ export function SectionTour({ id, steps }: Props) {
   }, [visible, step, steps])
 
   function finish() {
-    localStorage.setItem(storageKey, "done")
     setVisible(false)
+    // Fire-and-forget — não bloqueia a UI nem trata falha: pior caso, o tour
+    // aparece de novo na próxima visita, não é destrutivo.
+    fetch("/api/tours/seen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => {})
   }
 
   function next() {

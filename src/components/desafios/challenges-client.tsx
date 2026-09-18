@@ -87,6 +87,7 @@ export function ChallengesClient({ challenges }: Props) {
           </p>
         </div>
         <button
+          data-tour="desafios-new"
           onClick={() => setShowModal(true)}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-teal text-teal-foreground text-xs font-medium hover:bg-teal/90 transition-colors shrink-0"
         >
@@ -98,7 +99,7 @@ export function ChallengesClient({ challenges }: Props) {
       {/* Lista */}
       {/* Templates de exemplo */}
       {challenges.length === 0 && (
-        <div className="space-y-3">
+        <div data-tour="desafios-templates" className="space-y-3">
           <div className="bg-card border border-border rounded-xl p-5 text-center space-y-1">
             <Trophy className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
             <p className="text-sm font-medium text-foreground">Comece com um template</p>
@@ -136,7 +137,7 @@ export function ChallengesClient({ challenges }: Props) {
       )}
 
       {challenges.length > 0 && (
-        <div className="space-y-3">
+        <div data-tour="desafios-list" className="space-y-3">
           {challenges.map(ch => (
             <div key={ch.id} className="bg-card border border-border rounded-xl overflow-hidden">
               {/* Card header */}

@@ -6,6 +6,9 @@ import { Header } from "@/components/layout/header"
 import { SetupsClient } from "@/components/setups/setups-client"
 import Link from "next/link"
 import { Zap } from "lucide-react"
+import { SectionTour } from "@/components/tour/section-tour"
+import { SETUPS_TOUR_STEPS } from "@/lib/tour-content"
+import { hasSeenTour } from "@/lib/tours"
 
 export const metadata: Metadata = { title: "Setups" }
 
@@ -79,8 +82,11 @@ export default async function SetupsPage() {
     }
   })
 
+  const setupsTourSeen = await hasSeenTour(user.id, "setups")
+
   return (
     <div className="flex flex-col flex-1 overflow-auto">
+      <SectionTour id="setups" steps={SETUPS_TOUR_STEPS} initialSeen={setupsTourSeen} />
       <Header
         title="Setups"
         subtitle="Sua biblioteca de estratégias"
@@ -88,6 +94,7 @@ export default async function SetupsPage() {
         userEmail={user.email}
         userImage={user.image}
         userPlan={user.plan ?? "FREE"}
+        tourId="setups"
       />
       <div className="flex-1 p-6">
         <SetupsClient initialSetups={setupsFormatted} />

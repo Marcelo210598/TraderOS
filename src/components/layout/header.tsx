@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "./sidebar-context"
+import { TourReplayButton } from "@/components/tour/tour-replay-button"
 
 interface HeaderProps {
   title: string
@@ -23,6 +24,10 @@ interface HeaderProps {
   userEmail?: string | null
   userImage?: string | null
   userPlan?: string
+  // Quando a página tem um SectionTour, passa o mesmo `id` aqui pra ganhar de
+  // graça o botão "Tutorial" que reabre o guia sob demanda — sem precisar
+  // editar cada página uma por uma.
+  tourId?: string
 }
 
 export function Header({
@@ -32,6 +37,7 @@ export function Header({
   userEmail,
   userImage,
   userPlan = "FREE",
+  tourId,
 }: HeaderProps) {
   const { toggleMobile } = useSidebar()
 
@@ -60,6 +66,7 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        {tourId && <TourReplayButton id={tourId} />}
         <NotificationBell />
 
         <DropdownMenu>
