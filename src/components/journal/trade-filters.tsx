@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { cn } from "@/lib/utils"
 import type { Setup } from "@/lib/types"
 
@@ -56,6 +56,38 @@ export function TradeFilters({ setups, tags = [] }: TradeFiltersProps) {
 
   const { conta, ...otherFilters } = current
   const hasFilters = Object.values(otherFilters).some(Boolean) || conta !== "reais"
+
+  // input[type=date] dispara onChange a CADA digito do ano (ex: digitando "2026"
+  // ele passa por "0002", "0020", "0202" antes do valor final) — se cada onChange
+  // navegasse na hora (updateFilter faz router.push, que re-renderiza a pagina
+  // inteira), o campo perdia o foco no meio da digitacao e travava num ano tipo
+  // "0006". Por isso o valor so vai pra URL/filtro no blur, nunca a cada tecla.
+  const [fromDraft, setFromDraft] = useState(current.from)
+  const [toDraft, setToDraft] = useState(current.to)
+  // Sincroniza o rascunho com a URL quando ela muda por fora (ex: "Limpar filtros"),
+  // sem useEffect — setState direto no corpo do render e o padrao recomendado
+  // pelo React pra "ajustar estado quando uma prop muda".
+  const [prevFrom, setPrevFrom] = useState(current.from)
+  if (current.from !== prevFrom) {
+    setPrevFrom(current.from)
+    setFromDraft(current.from)
+  }
+  const [prevTo, setPrevTo] = useState(current.to)
+  if (current.to !== prevTo) {
+    setPrevTo(current.to)
+    setToDraft(current.to)
+  }
+
+  function isPlausibleDate(value: string): boolean {
+    if (!value) return true
+    const year = Number(value.slice(0, 4))
+    return value.length === 10 && year >= 1970 && year <= 2100
+  }
+
+  function commitDate(key: "from" | "to", value: string, revert: () => void) {
+    if (!isPlausibleDate(value)) { revert(); return }
+    if (value !== current[key]) updateFilter(key, value)
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -129,18 +161,35 @@ export function TradeFilters({ setups, tags = [] }: TradeFiltersProps) {
         </select>
       )}
 
-      {/* Data de/até */}
+      {/* Data de/até — so aplica o filtro (e navega) no blur ou Enter, nunca a
+          cada tecla, senao a navegacao no meio da digitacao trunca o ano. */}
       <input
         type="date"
-        value={current.from}
-        onChange={(e) => updateFilter("from", e.target.value)}
+        value={fromDraft}
+        onChange={(e) => {
+          setFromDraft(e.target.value)
+          // Data completa e plausivel (colar, ou selecionar no calendario nativo)
+          // aplica na hora — so a digitacao tecla-a-tecla espera o blur.
+          if (isPlausibleDate(e.target.value) && (e.target.value === "" || e.target.value.length === 10)) {
+            commitDate("from", e.target.value, () => {})
+          }
+        }}
+        onBlur={(e) => commitDate("from", e.target.value, () => setFromDraft(current.from))}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }}
         className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         title="De"
       />
       <input
         type="date"
-        value={current.to}
-        onChange={(e) => updateFilter("to", e.target.value)}
+        value={toDraft}
+        onChange={(e) => {
+          setToDraft(e.target.value)
+          if (isPlausibleDate(e.target.value) && (e.target.value === "" || e.target.value.length === 10)) {
+            commitDate("to", e.target.value, () => {})
+          }
+        }}
+        onBlur={(e) => commitDate("to", e.target.value, () => setToDraft(current.to))}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }}
         className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         title="Até"
       />
