@@ -7,9 +7,7 @@ import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentTrades } from "@/components/dashboard/recent-trades"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { StreakWidget } from "@/components/dashboard/streak-widget"
-import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
-import { SectionTour } from "@/components/tour/section-tour"
-import { DASHBOARD_TOUR_STEPS } from "@/lib/tour-content"
+import { DashboardIntro } from "@/components/dashboard/dashboard-intro"
 import { DollarSign, TrendingUp, Target, Activity, Plus, Sparkles, Brain } from "lucide-react"
 import { excludeTestTrades } from "@/lib/account"
 import { signedUsd } from "@/lib/utils"
@@ -120,10 +118,7 @@ export default async function DashboardPage() {
 
   return (
     <>
-    <OnboardingModal isNewUser={isNewUser} />
-    {/* Só depois do onboarding inicial (que já cobre o dashboard em texto) —
-        evita empilhar dois overlays de intro na primeiríssima visita. */}
-    {!isNewUser && <SectionTour id="dashboard" steps={DASHBOARD_TOUR_STEPS} />}
+    <DashboardIntro isNewUser={isNewUser} />
     <div className="flex flex-col flex-1 overflow-auto">
       <Header
         title="Dashboard"
@@ -135,7 +130,7 @@ export default async function DashboardPage() {
 
       <div className="flex-1 p-4 lg:p-8 space-y-5">
         {/* Saudação + CTA */}
-        <div className="flex items-center justify-between gap-3">
+        <div data-tour="dashboard-welcome" className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-lg sm:text-2xl font-bold text-foreground truncate">
               {greeting}, {firstName} 👋

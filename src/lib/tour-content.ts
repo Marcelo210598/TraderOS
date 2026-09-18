@@ -6,6 +6,11 @@ import type { TourStep } from "@/components/tour/section-tour"
 
 export const DASHBOARD_TOUR_STEPS: TourStep[] = [
   {
+    target: '[data-tour="dashboard-welcome"]',
+    title: "Bem-vindo ao MeuTrade! 👋",
+    body: "Que bom ter você aqui. Antes de mais nada, deixa eu te mostrar rapidinho onde estão as principais coisas — leva menos de 1 minuto.",
+  },
+  {
     target: '[data-tour="dashboard-metrics"]',
     title: "Suas métricas da semana",
     body: "P&L, win rate, trades e profit factor dos últimos 7 dias — o resumo rápido de como você está operando.",
