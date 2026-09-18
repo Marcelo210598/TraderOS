@@ -110,7 +110,6 @@ export default async function DashboardPage() {
     best: s.best,
   }))
 
-  const isNewUser = recentTradesRaw.length === 0
   const [onboardingSeen, dashboardTourSeen] = user
     ? await Promise.all([hasSeenTour(user.id, "onboarding"), hasSeenTour(user.id, "dashboard")])
     : [false, false]
@@ -122,7 +121,7 @@ export default async function DashboardPage() {
 
   return (
     <>
-    <DashboardIntro isNewUser={isNewUser} onboardingSeen={onboardingSeen} dashboardTourSeen={dashboardTourSeen} />
+    <DashboardIntro onboardingSeen={onboardingSeen} dashboardTourSeen={dashboardTourSeen} />
     <div className="flex flex-col flex-1 overflow-auto">
       <Header
         title="Dashboard"

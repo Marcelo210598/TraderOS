@@ -43,12 +43,15 @@ const STEPS = [
   },
 ]
 
-export function OnboardingModal({ isNewUser, initialSeen }: { isNewUser: boolean; initialSeen: boolean }) {
+export function OnboardingModal({ initialSeen }: { initialSeen: boolean }) {
   const router = useRouter()
-  // `initialSeen` vem do server (User.seenTours) — não é mais localStorage,
-  // então dá pra decidir a visibilidade direto no useState, sem efeito nem
-  // risco de hydration mismatch (servidor e cliente recebem a mesma prop).
-  const [visible, setVisible] = useState(isNewUser && !initialSeen)
+  // So depende de "ja visto" (server-side) — NUNCA de quantidade de trades.
+  // Antes usava isNewUser (0 trades "reais", excluindo TEST) junto, e isso
+  // reabria o onboarding pra qualquer usuario antigo cujos trades reais
+  // zerassem (ex: arquivar/apagar contas de teste) — mesmo tendo usado o
+  // app por meses. Onboarding e estritamente "primeira vez logando" ou
+  // "nunca fechou", ponto.
+  const [visible, setVisible] = useState(!initialSeen)
   const [step, setStep] = useState(0)
   const [animating, setAnimating] = useState(false)
 
