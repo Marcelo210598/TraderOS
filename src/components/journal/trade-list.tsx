@@ -3,9 +3,9 @@
 import { useState } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { TradeCard } from "./trade-card"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, ListChecks, Trash2, X, Loader2 } from "lucide-react"
 import type { PaginatedTrades } from "@/lib/types"
-import { signedUsd } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
 
 interface TradeListProps {
   initial: PaginatedTrades
@@ -19,6 +19,9 @@ export function TradeList({ initial }: TradeListProps) {
   // de página/filtro o React remonta este componente do zero — `initial` chega
   // sempre atualizado, sem precisar resincronizar via efeito.
   const [data, setData] = useState(initial)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   function handleDeleted(id: string) {
     setData((prev) => ({
@@ -32,6 +35,50 @@ export function TradeList({ initial }: TradeListProps) {
     const params = new URLSearchParams(searchParams.toString())
     params.set("page", String(page))
     router.push(`${pathname}?${params.toString()}`)
+  }
+
+  function toggleSelectMode() {
+    setSelectMode((prev) => !prev)
+    setSelected(new Set())
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAllOnPage() {
+    setSelected((prev) =>
+      prev.size === data.trades.length ? new Set() : new Set(data.trades.map((t) => t.id))
+    )
+  }
+
+  async function handleBulkDelete() {
+    if (selected.size === 0 || bulkDeleting) return
+    if (!confirm(`Apagar ${selected.size} trade${selected.size !== 1 ? "s" : ""} selecionado${selected.size !== 1 ? "s" : ""}? Essa ação não pode ser desfeita.`)) return
+    setBulkDeleting(true)
+    try {
+      const res = await fetch("/api/trades/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tradeIds: Array.from(selected) }),
+      })
+      if (res.ok) {
+        setData((prev) => ({
+          ...prev,
+          trades: prev.trades.filter((t) => !selected.has(t.id)),
+          pagination: { ...prev.pagination, total: prev.pagination.total - selected.size },
+        }))
+        setSelected(new Set())
+        setSelectMode(false)
+      }
+    } finally {
+      setBulkDeleting(false)
+    }
   }
 
   const { trades, pagination } = data
@@ -67,35 +114,83 @@ export function TradeList({ initial }: TradeListProps) {
   return (
     <div className="space-y-4">
       {/* Summary bar */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex items-center justify-between text-xs text-muted-foreground gap-3 flex-wrap">
         <span>
           {pagination.total} trade{pagination.total !== 1 ? "s" : ""}
           {pagination.pages > 1 && ` — página ${pagination.page} de ${pagination.pages}`}
         </span>
-        <div className="flex gap-3">
-          <span className="text-profit">
-            {trades.filter((t) => t.result === "WIN").length} wins
-          </span>
-          <span className="text-loss">
-            {trades.filter((t) => t.result === "LOSS").length} losses
-          </span>
-          <span className="font-mono font-medium">
-            {(() => {
-              const total = trades.reduce((acc, t) => acc + Number(t.pnl), 0)
-              return (
-                <span className={total >= 0 ? "text-profit" : "text-loss"}>
-                  {signedUsd(total)}
-                </span>
-              )
-            })()}
-          </span>
+        <div className="flex items-center gap-3">
+          {!selectMode && (
+            <>
+              <span className="text-profit">
+                {trades.filter((t) => t.result === "WIN").length} wins
+              </span>
+              <span className="text-loss">
+                {trades.filter((t) => t.result === "LOSS").length} losses
+              </span>
+              <span className="font-mono font-medium">
+                {(() => {
+                  const total = trades.reduce((acc, t) => acc + Number(t.pnl), 0)
+                  return (
+                    <span className={total >= 0 ? "text-profit" : "text-loss"}>
+                      {signedUsd(total)}
+                    </span>
+                  )
+                })()}
+              </span>
+            </>
+          )}
+          <button
+            onClick={toggleSelectMode}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            {selectMode ? <X className="w-3.5 h-3.5" /> : <ListChecks className="w-3.5 h-3.5" />}
+            {selectMode ? "Cancelar" : "Selecionar"}
+          </button>
         </div>
       </div>
+
+      {/* Barra de acao em lote */}
+      {selectMode && (
+        <div className="flex items-center justify-between gap-3 bg-card border border-border rounded-xl px-4 py-2.5 flex-wrap">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selected.size === trades.length && trades.length > 0}
+              onChange={toggleSelectAllOnPage}
+              className="w-3.5 h-3.5 rounded accent-teal"
+            />
+            {selected.size > 0
+              ? `${selected.size} selecionado${selected.size !== 1 ? "s" : ""}`
+              : `Selecionar todos nesta página (${trades.length})`}
+          </label>
+          <button
+            onClick={handleBulkDelete}
+            disabled={selected.size === 0 || bulkDeleting}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors",
+              selected.size > 0 && !bulkDeleting
+                ? "bg-loss/10 text-loss hover:bg-loss/20"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
+            )}
+          >
+            {bulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            Apagar selecionados
+          </button>
+        </div>
+      )}
 
       {/* Lista */}
       <div className="space-y-2">
         {trades.map((trade) => (
-          <TradeCard key={trade.id} trade={trade} onDeleted={handleDeleted} />
+          <TradeCard
+            key={trade.id}
+            trade={trade}
+            onDeleted={handleDeleted}
+            selectMode={selectMode}
+            selected={selected.has(trade.id)}
+            onToggleSelect={toggleSelect}
+          />
         ))}
       </div>
 

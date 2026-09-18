@@ -12,9 +12,12 @@ import { getAccountOption } from "@/lib/accounts"
 interface TradeCardProps {
   trade: Trade
   onDeleted?: (id: string) => void
+  selectMode?: boolean
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
 }
 
-export function TradeCard({ trade, onDeleted }: TradeCardProps) {
+export function TradeCard({ trade, onDeleted, selectMode, selected, onToggleSelect }: TradeCardProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
 
@@ -33,13 +36,25 @@ export function TradeCard({ trade, onDeleted }: TradeCardProps) {
 
   return (
     <div
-      onClick={() => router.push(`/journal/${trade.id}`)}
+      onClick={() => selectMode ? onToggleSelect?.(trade.id) : router.push(`/journal/${trade.id}`)}
       className={cn(
         "group bg-card border rounded-xl p-4 cursor-pointer transition-all hover:border-border/80 hover:shadow-lg",
-        isWin ? "border-profit/20 hover:border-profit/40" : isLoss ? "border-loss/20 hover:border-loss/40" : "border-border"
+        isWin ? "border-profit/20 hover:border-profit/40" : isLoss ? "border-loss/20 hover:border-loss/40" : "border-border",
+        selectMode && selected && "border-teal/50 bg-teal/5"
       )}
     >
       <div className="flex items-start gap-3">
+        {/* Checkbox de selecao */}
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={() => onToggleSelect?.(trade.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-4 h-4 mt-1.5 rounded accent-teal shrink-0"
+          />
+        )}
+
         {/* Ícone resultado */}
         <div className={cn(
           "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
@@ -112,23 +127,27 @@ export function TradeCard({ trade, onDeleted }: TradeCardProps) {
             </p>
           </div>
 
-          <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={(e) => { e.stopPropagation(); router.push(`/journal/${trade.id}/editar`) }}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-loss hover:bg-loss/10 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          {!selectMode && (
+            <>
+              <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => { e.stopPropagation(); router.push(`/journal/${trade.id}/editar`) }}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-loss hover:bg-loss/10 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
-          <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            </>
+          )}
         </div>
       </div>
     </div>
