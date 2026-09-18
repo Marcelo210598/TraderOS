@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { ensureAccount } from "@/lib/account"
+import { detectAccountLabel } from "@/lib/account-label"
 import { z } from "zod"
 
 const rowSchema = z.object({
@@ -14,7 +15,12 @@ const rowSchema = z.object({
   pnl: z.number(),
   commission: z.number().min(0).default(0),
   session: z.enum(["AM", "PM", "OVERNIGHT"]).default("AM"),
-  accountLabel: z.string().default("EVAL"),
+  accountLabel: z.string().optional(),
+  // Nome real da conta (ex: "Sim101") — quando presente, o rótulo é inferido
+  // no servidor via detectAccountLabel e a conta é resolvida por esse nome,
+  // não pelo accountLabel escolhido manualmente no formulário.
+  accountName: z.string().optional(),
+  source: z.string().max(30).optional(),
   notes: z.string().max(2000).optional(),
   mfe: z.number().optional().nullable(),
   mae: z.number().optional().nullable(),
@@ -49,15 +55,28 @@ export async function POST(req: NextRequest) {
   const userId = session.user.id
   let errors = 0
 
-  // Monta as linhas válidas em memória, resolvendo a conta (MANUAL) por label —
-  // sem isso o trade importado ficava com accountId nulo e sumia da Carteira.
+  // Monta as linhas válidas em memória, resolvendo a conta por label (fluxo manual,
+  // sem coluna de conta no CSV) ou por nome real de conta detectado por linha (grade
+  // PT-BR do NT8) — sem isso o trade importado ficava com accountId nulo e sumia
+  // da Carteira. Cache separado por chave real (accountName) e por label manual,
+  // pra não misturar contas reais distintas que por acaso caem no mesmo label.
   const accountCache = new Map<string, string>()
-  async function resolveAccount(label: string): Promise<string> {
-    const cached = accountCache.get(label)
+  async function resolveAccountByLabel(label: string): Promise<string> {
+    const key = `label:${label}`
+    const cached = accountCache.get(key)
     if (cached) return cached
     const id = await ensureAccount(userId, "MANUAL", label)
-    accountCache.set(label, id)
+    accountCache.set(key, id)
     return id
+  }
+  async function resolveAccountByName(accountName: string, source: string): Promise<{ id: string; label: string }> {
+    const key = `name:${accountName}`
+    const cached = accountCache.get(key)
+    const label = detectAccountLabel(accountName)
+    if (cached) return { id: cached, label }
+    const id = await ensureAccount(userId, source, label, accountName)
+    accountCache.set(key, id)
+    return { id, label }
   }
 
   const rows: Record<string, unknown>[] = []
@@ -73,8 +92,16 @@ export async function POST(req: NextRequest) {
     const result = row.pnl > 0 ? "WIN" : row.pnl < 0 ? "LOSS" : "BREAKEVEN"
 
     let accountId: string
+    let accountLabel: string
     try {
-      accountId = await resolveAccount(row.accountLabel)
+      if (row.accountName) {
+        const resolved = await resolveAccountByName(row.accountName, row.source ?? "NINJATRADER")
+        accountId = resolved.id
+        accountLabel = resolved.label
+      } else {
+        accountLabel = row.accountLabel ?? "EVAL"
+        accountId = await resolveAccountByLabel(accountLabel)
+      }
     } catch {
       errors++
       continue
@@ -94,7 +121,9 @@ export async function POST(req: NextRequest) {
       commission: row.commission,
       result,
       sessionType: row.session,
-      accountLabel: row.accountLabel,
+      accountLabel,
+      accountName: row.accountName ?? null,
+      source: row.source ?? "MANUAL",
       notes: row.notes ?? null,
       mfe: row.mfe ?? null,
       mae: row.mae ?? null,

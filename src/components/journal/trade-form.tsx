@@ -9,17 +9,13 @@ import { ACCOUNT_OPTIONS, getAccountOption } from "@/lib/accounts"
 import { ScreenshotUploader, type UploadedScreenshot } from "./screenshot-uploader"
 import { TagInput } from "./tag-input"
 import { openUpgradeModal } from "@/lib/upgrade"
+import { INSTRUMENTS, POINT_VALUES } from "@/lib/instruments"
 
-const INSTRUMENTS = ["NQ", "ES", "YM", "RTY", "CL", "GC", "SI", "ZB", "6E", "MNQ", "MES"]
 const SESSION_TYPES = [
   { value: "AM", label: "Manhã (AM)" },
   { value: "PM", label: "Tarde (PM)" },
   { value: "OVERNIGHT", label: "Overnight" },
 ]
-const POINT_VALUES: Record<string, number> = {
-  NQ: 20, MNQ: 2, ES: 50, MES: 5, YM: 5, RTY: 50,
-  CL: 1000, GC: 100, SI: 5000, ZB: 1000, "6E": 125000,
-}
 
 interface AccountPick {
   id: string

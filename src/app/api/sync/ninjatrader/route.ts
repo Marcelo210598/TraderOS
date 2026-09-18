@@ -6,6 +6,7 @@ import { XP_REWARDS } from "@/lib/xp"
 import { hashApiKey } from "@/lib/apikey"
 import { createTradeAlert } from "@/lib/trade-alert"
 import { ensureAccount } from "@/lib/account"
+import { detectAccountLabel } from "@/lib/account-label"
 import { NT8_ENABLED } from "@/lib/integration-flags"
 
 const syncSchema = z.object({
@@ -40,38 +41,6 @@ function detectSession(dateStr: string): "AM" | "PM" | "OVERNIGHT" {
 // Normaliza nome do instrumento (ex: "NQ 06-25" → "NQ", "MNQ 06-25" → "MNQ")
 function normalizeInstrument(raw: string): string {
   return raw.split(" ")[0].toUpperCase()
-}
-
-// Detecta o TIPO de conta pelo nome + conexao que a corretora (Apex/Rithmic) manda.
-// O que importa é EM QUAL conta o trade rodou — bot ou manual é irrelevante:
-//   Sim101 / Demo / Playback / conexao "Simulated"  -> "TEST" (simulacao)
-//   APEX-######-##                                   -> "EVAL" (avaliacao / aprovacao, paga)
-//   PAAPEX-######-## / PA50K                         -> "PA"   (Performance Account / funded)
-// Quando o trader eh aprovado, a Apex renomeia a conta com prefixo "PA" -> vira PA sozinho.
-// A conexao entra como sinal extra: separa simulacao com mais confianca (o campo Mode
-// do NinjaTrader é ambíguo, entao a doc oficial recomenda olhar nome/conexao).
-function detectAccountLabel(accountName?: string, connectionName?: string): string {
-  const name = (accountName ?? "").toUpperCase().trim()
-  const conn = (connectionName ?? "").toUpperCase().trim()
-
-  // Simulacao / demo / playback -> TESTE (nao suja metricas reais).
-  // Detecta tanto pelo nome da conta quanto pela conexao (ex: "Simulated Data Feed").
-  const simSignals = ["SIM", "DEMO", "PLAYBACK", "TEST", "SIMULATED"]
-  if (simSignals.some((s) => name.includes(s) || conn.includes(s))) return "TEST"
-
-  if (!name) return "EVAL" // sem nome de conta: assume avaliacao (fase mais comum)
-
-  // Funded (Performance Account): prefixo "PA" -> "PAAPEX-...", "PA-...", "PA50K"
-  if (name.startsWith("PA")) {
-    const size = name.match(/PA(\d+K)/i) // PA25K, PA50K, PA100K...
-    return size ? `PA${size[1]}` : "PA"
-  }
-
-  // Conta de avaliacao Apex: "APEX-######"
-  if (name.includes("EVAL") || name.includes("APEX")) return "EVAL"
-
-  // Fallback conservador: avaliacao (nunca marca como funded por engano)
-  return "EVAL"
 }
 
 export async function POST(req: NextRequest) {

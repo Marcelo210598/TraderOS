@@ -7,15 +7,18 @@ import {
 } from "lucide-react"
 import { cn, signedUsd } from "@/lib/utils"
 import { ACCOUNT_OPTIONS } from "@/lib/accounts"
+import { pointValueFor } from "@/lib/instruments"
+import { detectAccountLabel } from "@/lib/account-label"
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
-type Platform = "traderos" | "ninjatrader" | "tradovate"
+type Platform = "traderos" | "ninjatrader" | "ninjatrader_ptbr" | "tradovate"
 
 const PLATFORMS: { key: Platform; label: string; desc: string }[] = [
-  { key: "traderos",    label: "Template MeuTrade",    desc: "Formato nativo — baixe o template abaixo" },
-  { key: "ninjatrader", label: "NinjaTrader",           desc: "Trade Performance export (.csv)" },
-  { key: "tradovate",   label: "Tradovate",             desc: "Closed Positions export (.csv)" },
+  { key: "traderos",         label: "Template MeuTrade", desc: "Formato nativo — baixe o template abaixo" },
+  { key: "ninjatrader",      label: "NinjaTrader (EN)",  desc: "Trade Performance export (.csv)" },
+  { key: "ninjatrader_ptbr", label: "NinjaTrader (PT-BR)", desc: "Grade de negociações em português" },
+  { key: "tradovate",        label: "Tradovate",         desc: "Closed Positions export (.csv)" },
 ]
 
 interface ParsedRow {
@@ -32,6 +35,11 @@ interface ParsedRow {
   notes: string
   mfe?: number | null
   mae?: number | null
+  // Nome real da conta (ex: "Sim101", "PAAPEX-245678-01") — só vem preenchido em
+  // formatos que trazem isso por linha (grade PT-BR). Usado pra criar/achar a
+  // TradingAccount certa e detectar o tipo (TEST/EVAL/PA) automaticamente,
+  // em vez de aplicar o mesmo rótulo escolhido manualmente pro arquivo inteiro.
+  accountName?: string
   error?: string
 }
 
@@ -53,19 +61,53 @@ function splitLine(line: string, sep: string): string[] {
   let current = ""
   for (const ch of line) {
     if (ch === '"') { inQuotes = !inQuotes; continue }
-    if (ch === "," && !inQuotes) { result.push(current); current = ""; continue }
+    // Era hardcoded pra "," — ignorava o "sep" recebido (ex: ";" no export BR do
+    // NT8), então nunca quebrava a linha nos lugares certos quando o delimitador
+    // real não era vírgula, e as vírgulas decimais dentro dos campos viravam
+    // colunas fantasma.
+    if (ch === sep && !inQuotes) { result.push(current); current = ""; continue }
     current += ch
   }
   result.push(current)
   return result
 }
 
+// Conta ocorrências de cada separador candidato e usa o mais frequente — cobre
+// vírgula (padrão US), tab e ponto-e-vírgula (padrão de export BR do NT8, onde
+// a vírgula já é usada como separador decimal e não dá pra usar de novo).
 function detectSep(firstLine: string): string {
-  return firstLine.split("\t").length > firstLine.split(",").length ? "\t" : ","
+  const counts: [string, number][] = [
+    ["\t", firstLine.split("\t").length],
+    [";", firstLine.split(";").length],
+    [",", firstLine.split(",").length],
+  ]
+  counts.sort((a, b) => b[1] - a[1])
+  return counts[0][1] > 1 ? counts[0][0] : ","
 }
 
+// NFD + remoção de marcas de acento ANTES de cortar não-[a-z] — sem isso "preço"
+// virava "preo" e "saída" virava "sada" (a letra acentuada some, mas a consoante
+// seguinte fica grudada errado). Com NFD, "preço" -> "preco", "saída" -> "saida".
 function normalizeHeader(h: string): string {
-  return h.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z_]/g, "")
+  return h
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z_]/g, "")
+}
+
+// Números no formato BR: "$ 1.234,56" -> 1234.56. Remove símbolo de moeda e
+// espaços, remove pontos de milhar, troca a vírgula decimal por ponto.
+function parseBRNumber(raw: string): number {
+  const cleaned = raw.replace(/[$R]/g, "").trim().replace(/\./g, "").replace(",", ".")
+  return parseFloat(cleaned)
+}
+
+// "16/09/2026 10:42:02" (dd/MM/yyyy, formato BR) -> "2026-09-16". Não reaproveita
+// normalizeDate porque aquela função assume mm/dd/yyyy (padrão US/NinjaTrader EN)
+// pro mesmo formato com barra — dia e mês ficariam trocados silenciosamente.
+function parseBRDate(raw: string): string {
+  const m = raw.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (!m) return ""
+  return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`
 }
 
 function normalizeDate(raw: string): string {
@@ -99,6 +141,9 @@ function stripContractExpiry(symbol: string): string {
 
 function detectPlatform(headers: string[]): Platform {
   const h = headers.join(",")
+  // "pos_mercado" só existe na grade do NT8 em português — checa antes da
+  // variante EN pra não cair em "ninjatrader" por engano.
+  if (h.includes("pos_mercado") || h.includes("preco_entrada") || h.includes("hora_entrada")) return "ninjatrader_ptbr"
   if (h.includes("market_pos") || h.includes("entry_time") || h.includes("exit_time")) return "ninjatrader"
   if (h.includes("bs") || h.includes("open_price") || h.includes("close_price") || h.includes("contract")) return "tradovate"
   return "traderos"
@@ -195,6 +240,72 @@ function parseNinjaTrader(headers: string[], lines: string[], sep: string): Pars
   })
 }
 
+// ── Parser: NinjaTrader Grade de Negociações (PT-BR) ───────────────────────
+// Colunas: Núm. Neg.;Ativo;Conta;Estratégia;Pos mercado.;Qtd;Preço entrada;
+// Preço saída;Hora entrada;Hora saída;Entrada;Saída;Profit;Acu lucro líquido;
+// Corretagem;Taxa de Compensação;Taxa de Bolsa;Taxa de IP;Taxa NFA;MAE;MFE;ETD;Barras
+// Separador ";", decimal "," , valores em dólar tipo "$ 134,20", direção
+// "Comprada"/"Venda", datas dd/MM/yyyy, MAE/MFE em DÓLAR (não em pontos —
+// precisa dividir pelo valor do ponto do instrumento × quantidade).
+function parseNinjaTraderGridPtBr(headers: string[], lines: string[], sep: string): ParsedRow[] {
+  return lines.map((line, idx) => {
+    const cols = splitLine(line, sep)
+    const get = (name: string) => (cols[headers.indexOf(name)] ?? "").trim()
+    const rowNum = idx + 2
+    const errors: string[] = []
+
+    const entryTimeRaw = get("hora_entrada")
+    const ativo = get("ativo")
+    const instrument = ativo.split(" ")[0].toUpperCase()
+    const posRaw = get("pos_mercado").toLowerCase()
+    const direction = posRaw.includes("compra") ? "LONG" : posRaw.includes("venda") ? "SHORT" : ""
+    const quantity = parseInt(get("qtd") || "1", 10)
+    const entryPrice = parseBRNumber(get("preco_entrada"))
+    const exitPrice = parseBRNumber(get("preco_saida"))
+    const pnl = parseBRNumber(get("profit") || "0")
+    // Soma todas as taxas — corretagem sozinha subestimaria o custo real.
+    const commission = ["corretagem", "taxa_de_compensacao", "taxa_de_bolsa", "taxa_de_ip", "taxa_nfa"]
+      .reduce((sum, col) => {
+        const v = parseBRNumber(get(col) || "0")
+        return sum + (isNaN(v) ? 0 : v)
+      }, 0)
+    const accountName = get("conta")
+    const estrategia = get("estrategia")
+
+    // MAE/MFE vêm em dólar no export BR — converte pra pontos (mesma unidade
+    // que o resto do app usa) dividindo pelo valor do ponto × quantidade.
+    const pv = pointValueFor(instrument) * (quantity || 1)
+    const maeDollar = parseBRNumber(get("mae") || "0")
+    const mfeDollar = parseBRNumber(get("mfe") || "0")
+    const mae = isNaN(maeDollar) || pv === 0 ? null : maeDollar / pv
+    const mfe = isNaN(mfeDollar) || pv === 0 ? null : mfeDollar / pv
+
+    if (!entryTimeRaw) errors.push("hora de entrada ausente")
+    if (!instrument) errors.push("ativo ausente")
+    if (!["LONG", "SHORT"].includes(direction)) errors.push(`pos. mercado inválida: "${get("pos_mercado")}"`)
+    if (isNaN(entryPrice) || entryPrice <= 0) errors.push("preço de entrada inválido")
+    if (isNaN(exitPrice) || exitPrice <= 0) errors.push("preço de saída inválido")
+    if (isNaN(quantity) || quantity <= 0) errors.push("quantidade inválida")
+
+    return {
+      rowNum,
+      date: parseBRDate(entryTimeRaw),
+      instrument,
+      direction,
+      entryPrice: isNaN(entryPrice) ? 0 : entryPrice,
+      exitPrice: isNaN(exitPrice) ? 0 : exitPrice,
+      quantity: isNaN(quantity) ? 1 : quantity,
+      pnl: isNaN(pnl) ? 0 : pnl,
+      commission,
+      session: inferSession(entryTimeRaw),
+      notes: estrategia || "",
+      mfe, mae,
+      accountName: accountName || undefined,
+      error: errors.length > 0 ? errors.join("; ") : undefined,
+    }
+  })
+}
+
 // ── Parser: Tradovate Closed Positions ────────────────────────────────────
 // Colunas: Account, Contract, Open date, Open price, Qty, Close date, Close price, PL Points, PL $, Commission
 
@@ -259,6 +370,8 @@ function parseCSV(text: string, forcePlatform?: Platform): { rows: ParsedRow[]; 
   let rows: ParsedRow[]
   if (detected === "ninjatrader") {
     rows = parseNinjaTrader(headers, dataLines, sep)
+  } else if (detected === "ninjatrader_ptbr") {
+    rows = parseNinjaTraderGridPtBr(headers, dataLines, sep)
   } else if (detected === "tradovate") {
     rows = parseTradovate(headers, dataLines, sep)
   } else {
@@ -274,16 +387,23 @@ export function ImportarClient() {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [platform, setPlatform] = useState<Platform>("traderos")
-  const [detectedPlatform, setDetectedPlatform] = useState<Platform | null>(null)
   const [rows, setRows] = useState<ParsedRow[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ imported: number; errors: number } | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
   const [importAccount, setImportAccount] = useState("PA")
-
+  // Guarda o texto bruto do arquivo pra poder reprocessar sem novo upload
+  // quando o usuário clica manualmente numa plataforma diferente da detectada.
+  const [rawText, setRawText] = useState<string | null>(null)
 
   const validRows = rows?.filter((r) => !r.error) ?? []
   const errorRows = rows?.filter((r) => r.error) ?? []
+
+  // Contas detectadas por linha (só formatos que trazem "Conta" por trade, ex:
+  // grade PT-BR do NT8) — agrupa nome real -> rótulo TEST/EVAL/PA inferido.
+  const detectedAccounts = Array.from(
+    new Set(validRows.map((r) => r.accountName).filter((n): n is string => !!n))
+  ).map((name) => ({ name, label: detectAccountLabel(name) }))
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -291,13 +411,27 @@ export function ImportarClient() {
     const reader = new FileReader()
     reader.onload = (ev) => {
       const text = ev.target?.result as string
-      const { rows: parsed, detected } = parseCSV(text, platform)
+      setRawText(text)
+      // Sem forcePlatform aqui — deixa a auto-detecção real rodar, e sincroniza
+      // o botão de plataforma ativo com o que foi detectado (antes o forcePlatform
+      // sempre usava a aba já selecionada, tornando a detecção morta na prática).
+      const { rows: parsed, detected } = parseCSV(text)
       setRows(parsed)
-      setDetectedPlatform(detected)
+      setPlatform(detected)
       setResult(null)
       setApiError(null)
     }
     reader.readAsText(file)
+  }
+
+  function handlePlatformChange(key: Platform) {
+    setPlatform(key)
+    if (rawText) {
+      const { rows: parsed } = parseCSV(rawText, key)
+      setRows(parsed)
+    } else {
+      setRows(null)
+    }
   }
 
   function downloadTemplate() {
@@ -321,7 +455,11 @@ export function ImportarClient() {
         body: JSON.stringify({
           trades: validRows.map((r) => ({
             ...r,
-            accountLabel: importAccount,
+            // Linha com conta real detectada (grade PT-BR do NT8) usa ela pra
+            // resolver a TradingAccount no servidor; senão cai no seletor manual.
+            accountLabel: r.accountName ? undefined : importAccount,
+            accountName: r.accountName,
+            source: r.accountName ? "NINJATRADER" : undefined,
             mfe: r.mfe ?? null,
             mae: r.mae ?? null,
           })),
@@ -382,7 +520,7 @@ export function ImportarClient() {
             <button
               key={p.key}
               type="button"
-              onClick={() => { setPlatform(p.key); setRows(null); setDetectedPlatform(null) }}
+              onClick={() => handlePlatformChange(p.key)}
               className={cn(
                 "flex flex-col gap-0.5 px-4 py-3 rounded-xl border text-left transition-all",
                 platform === p.key
@@ -432,6 +570,16 @@ export function ImportarClient() {
             </p>
           </div>
         )}
+
+        {platform === "ninjatrader_ptbr" && (
+          <div className="bg-muted/40 rounded-lg p-3 space-y-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Colunas detectadas automaticamente</p>
+            <p className="text-xs font-mono text-foreground/80">Ativo · Conta · Pos mercado · Qtd · Preço entrada/saída · Hora entrada/saída · Profit · Corretagem/Taxas · MAE · MFE</p>
+            <p className="text-[10px] text-yellow-400/80 mt-2">
+              ⚠ No NinjaTrader: aba Contas/Ordens → clique com botão direito na grade → Exportar
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Conta dos trades */}
@@ -478,15 +626,27 @@ export function ImportarClient() {
         </label>
       </div>
 
-      {/* Auto-detect notice */}
-      {detectedPlatform && detectedPlatform !== platform && (
-        <div className="flex items-center gap-3 bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4">
-          <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0" />
-          <p className="text-xs text-yellow-400">
-            O arquivo parece ser do formato{" "}
-            <strong>{PLATFORMS.find((p) => p.key === detectedPlatform)?.label}</strong>.
-            Ative essa plataforma acima para melhor compatibilidade.
+      {/* Contas detectadas — só aparece em formatos com "Conta" por linha (grade PT-BR do NT8).
+          Cada trade dessas contas vai automaticamente pra sua própria TradingAccount,
+          ignorando o seletor manual "Conta dos trades" acima (que é o fallback pros
+          formatos sem essa coluna). */}
+      {detectedAccounts.length > 0 && (
+        <div className="bg-card border border-border rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-foreground mb-1">Contas detectadas no arquivo</h2>
+          <p className="text-xs text-muted-foreground mb-3">
+            Cada conta abaixo vai ser criada/atualizada separadamente — ideal pra separar Sim/teste da avaliação e da conta aprovada (PA)
           </p>
+          <div className="flex flex-wrap gap-2">
+            {detectedAccounts.map((acc) => (
+              <span
+                key={acc.name}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-border bg-muted/30"
+              >
+                <span className="font-mono text-foreground">{acc.name}</span>
+                <span className="font-mono font-semibold text-teal">→ {acc.label}</span>
+              </span>
+            ))}
+          </div>
         </div>
       )}
 
