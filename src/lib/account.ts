@@ -10,6 +10,14 @@ export const excludeTestTrades = {
   NOT: { account: { is: { isArchived: true } } },
 }
 
+// Exclui só conta arquivada — mantém TEST. Pra telas de analise (Analytics,
+// Calendario) que devem mostrar a performance de qualquer conta ATIVA,
+// incluindo teste/simulacao (igual Carteira e Journal já fazem), só escondendo
+// conta que o trader arquivou de propósito (avaliacao perdida, conta antiga etc).
+export const excludeArchivedTrades = {
+  NOT: { account: { is: { isArchived: true } } },
+}
+
 const SOURCE_LABEL: Record<string, string> = {
   MT5: "MetaTrader 5",
   NINJATRADER: "NinjaTrader",

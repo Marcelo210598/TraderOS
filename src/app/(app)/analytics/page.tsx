@@ -15,7 +15,7 @@ import {
 import { SectionTour } from "@/components/tour/section-tour"
 import { hasSeenTour } from "@/lib/tours"
 import { ANALYTICS_TOUR_STEPS } from "@/lib/tour-content"
-import { excludeTestTrades } from "@/lib/account"
+import { excludeArchivedTrades } from "@/lib/account"
 
 export const metadata: Metadata = { title: "Analytics" }
 
@@ -24,12 +24,12 @@ export default async function AnalyticsPage() {
   const user = session!.user
 
   // select estreito: só as colunas usadas nas métricas/gráficos — evita puxar
-  // notes/aiAnalysis (textos longos) de todo o histórico. excludeTestTrades
-  // (TEST + contas arquivadas de fora) — sem isso, equity/drawdown misturava
-  // trades de conta de teste e de avaliações antigas já arquivadas, inflando
-  // o gráfico com dado que não representa performance real nenhuma.
+  // notes/aiAnalysis (textos longos) de todo o histórico. excludeArchivedTrades
+  // fora do gráfico só conta arquivada (avaliação antiga que o trader guardou),
+  // mas MANTÉM teste/simulação — igual Carteira e Journal, que também mostram
+  // performance de conta teste, só separada/rotulada.
   const trades = await prisma.trade.findMany({
-    where: { userId: user.id, ...excludeTestTrades },
+    where: { userId: user.id, ...excludeArchivedTrades },
     select: {
       date: true,
       instrument: true,

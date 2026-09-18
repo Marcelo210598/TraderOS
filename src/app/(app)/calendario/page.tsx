@@ -20,7 +20,7 @@ import { TrendingUp, TrendingDown, Calendar, BarChart2, Trophy, Flame } from "lu
 import { SectionTour } from "@/components/tour/section-tour"
 import { CALENDARIO_TOUR_STEPS } from "@/lib/tour-content"
 import { hasSeenTour } from "@/lib/tours"
-import { excludeTestTrades } from "@/lib/account"
+import { excludeArchivedTrades } from "@/lib/account"
 
 export const metadata: Metadata = { title: "Calendário" }
 
@@ -47,14 +47,14 @@ export default async function CalendarioPage({ searchParams }: Props) {
   const nextMonthStr = format(addMonths(baseDate, 1), "yyyy-MM")
   const monthLabel = format(baseDate, "MMMM 'de' yyyy", { locale: ptBR })
 
-  // Fetch trades do mês — exclui TEST + contas arquivadas, igual Dashboard/
-  // Journal/Analytics, senão o calendário mistura performance de teste/conta
-  // antiga já arquivada com o resultado real.
+  // Fetch trades do mês — exclui só conta arquivada, mantém teste/simulação
+  // visível (igual Carteira e Journal), senão o calendário fica vazio pra
+  // quem só tem trades em conta de teste no momento.
   const trades = await prisma.trade.findMany({
     where: {
       userId: user.id,
       date: { gte: monthStart, lte: monthEnd },
-      ...excludeTestTrades,
+      ...excludeArchivedTrades,
     },
     select: { date: true, result: true, pnl: true },
     orderBy: { date: "asc" },
