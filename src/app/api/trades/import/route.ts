@@ -3,6 +3,8 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { ensureAccount } from "@/lib/account"
 import { detectAccountLabel } from "@/lib/account-label"
+import { giveXp, updateJournalStreak, updateProfitableDaysStreak, checkAndAwardAchievements } from "@/lib/gamification"
+import { XP_REWARDS } from "@/lib/xp"
 import { z } from "zod"
 
 const rowSchema = z.object({
@@ -140,6 +142,29 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: "Falha ao salvar os trades" }, { status: 500 })
     }
+  }
+
+  // XP + streaks + conquistas — faltava aqui (só existia no POST manual e no
+  // sync do NinjaTrader), então trade importado via CSV nunca contava pra
+  // streak de "dias lucrativos"/journal nem dava XP. Um giveXp só (total
+  // somado) em vez de um por trade, pra não fazer até 500 idas ao banco.
+  if (imported > 0) {
+    const winCount = rows.filter((r) => r.result === "WIN").length
+    const totalXp = imported * XP_REWARDS.TRADE_REGISTERED + winCount * XP_REWARDS.WIN_TRADE
+    if (totalXp > 0) await giveXp(userId, totalXp)
+
+    // Streak depende da ordem cronológica ("ontem" precisa já estar salvo
+    // antes de avaliar "hoje") — atualiza uma vez por dia único, em ordem.
+    const uniqueDates = Array.from(
+      new Set(rows.map((r) => (r.date as Date).toISOString().slice(0, 10)))
+    ).sort()
+    for (const dateStr of uniqueDates) {
+      const d = new Date(dateStr + "T12:00:00.000Z")
+      await updateJournalStreak(userId, d)
+      await updateProfitableDaysStreak(userId, d)
+    }
+
+    await checkAndAwardAchievements(userId)
   }
 
   return NextResponse.json({ imported, errors })
