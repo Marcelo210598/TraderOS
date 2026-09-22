@@ -1,10 +1,22 @@
 # TraderOS — Progresso
 
-## Última atualização: 17/09/2026 — 🚀 MEUTRADE.APP NO AR, LIBERADO PRA DIVULGAÇÃO. Sessão de hardening + rebrand completo: (1) webhook Asaas forjável corrigido (token rotacionado + validação cruzada com a API do Asaas, histórico git limpo); (2) Semgrep completo — CSP enforce, 34 erros de lint zerados; (3) **Guardian/Apex removidos do produto inteiro** (código, UI, trilha educacional, marketing) — "app do trader, não da Apex", qualquer mesa proprietária pode usar; (4) Termos de Uso + Política de Privacidade criados (LGPD); (5) sync automático NT8/MT5 pausado de propósito via flag reversível (`src/lib/integration-flags.ts`) até a base do produto ficar "redonda"; (6) landing/planos corrigidos pra não prometer sync que está pausado; (7) **2 bugs reais achados testando ao vivo** (não só lendo código) antes de gravar vídeo de divulgação: simulador "E se?" calculava eficiência de saída errado (chegava a -241% com trades perdedores), e input de upload de screenshot vazava por cima do botão em mobile (Tailwind v4 não gerava a classe `sr-only` de uma lib externa). Ambos corrigidos, testados e deployados. Domínio agora é **meutrade.app** (não mais trader-os-ashy.vercel.app). Detalhe completo: `historico/2026-09-17.md`.
+## Última atualização: 22/09/2026 — Checklist de pendências revisado. **Rate limiting na IA: ✅ já implementado** (`src/lib/rate-limit.ts` — Upstash Redis distribuído com fallback in-memory, nunca derruba a request se o Redis falhar) e cobre todos os pontos certos: login (8/5min), registro (8/10min), Vega chat `ask-claude` (20/min), análise de trade IA (15/min), check-in IA (10/min), resumo semanal (5/min; o cron em si é protegido por `CRON_SECRET`, não precisa de rate limit). Pode ser considerado feito. **Semgrep: ✅ já rodou** em 16/09 (baseline p/security-audit+secrets, TypeScript/React/Node/Next.js + Trail of Bits) — mas isso foi ANTES do código novo de 17-18/09 (tours guiados, import CSV, fixes de conta teste abaixo), que ainda não passou por scan. Recomendo rodar de novo quando der.
+### Documentado aqui o que faltou registrar de 17-18/09 (trabalho real, só não tinha entrado no progress.md/histórico):
+- **Tours guiados contextuais** em todas as páginas principais (Dashboard, Vega IA, Carteira, Journal, Progress, Analytics)
+- **Import de CSV do NinjaTrader em português** com detecção automática de multi-conta
+- **Seleção múltipla + delete em lote** no Journal
+- **Fix de conta teste vazando** em Analytics e Calendário (múltiplos commits de auditoria — toda leitura de trades agora exclui/inclui conta teste de forma consistente)
+- **Fix de import de CSV** não atualizava XP nem streaks (journal/dias lucrativos)
+- Fix de filtro de data do Journal (travava digitando, ano virava "0006")
+- Fix de onboarding reabrindo quando trades reais zeravam; fix de tour repetindo em navegador/dispositivo novo
+- OG image dinâmica no link de compartilhamento de trade
+- Lembrete de streak de check-in em risco (retenção)
+
+## 17/09/2026 — 🚀 MEUTRADE.APP NO AR, LIBERADO PRA DIVULGAÇÃO. Sessão de hardening + rebrand completo: (1) webhook Asaas forjável corrigido (token rotacionado + validação cruzada com a API do Asaas, histórico git limpo); (2) Semgrep completo — CSP enforce, 34 erros de lint zerados; (3) **Guardian/Apex removidos do produto inteiro** (código, UI, trilha educacional, marketing) — "app do trader, não da Apex", qualquer mesa proprietária pode usar; (4) Termos de Uso + Política de Privacidade criados (LGPD); (5) sync automático NT8/MT5 pausado de propósito via flag reversível (`src/lib/integration-flags.ts`) até a base do produto ficar "redonda"; (6) landing/planos corrigidos pra não prometer sync que está pausado; (7) **2 bugs reais achados testando ao vivo** (não só lendo código) antes de gravar vídeo de divulgação: simulador "E se?" calculava eficiência de saída errado (chegava a -241% com trades perdedores), e input de upload de screenshot vazava por cima do botão em mobile (Tailwind v4 não gerava a classe `sr-only` de uma lib externa). Ambos corrigidos, testados e deployados. Domínio agora é **meutrade.app** (não mais trader-os-ashy.vercel.app). Detalhe completo: `historico/2026-09-17.md`.
 ## (29/06: PAYWALL PLUGADO EM TODOS OS GATES — ver linha original abaixo) Helper único `src/lib/plan-guard.ts` lê limites do `plans.ts` e devolve 403 padrão (`upgrade:true`+`suggestedPlan`) que o front usa pra abrir o modal. Gates: trades (corrigido BUG do Starter travar em 10 → agora 10/25/∞), setups (0/5/∞), integrações (0/1/∞), Vega check-in (buraco do backend FECHADO, agora Starter+), Vega chat (Pro-only, resposta padrão). Validado: tsc 0 erros + next build OK + teste 15/15 da matriz de limites. Contas (1/1/∞) ficou de fora de propósito (criação implícita compartilhada com sync dos bots). Ver historico/2026-06-29.md
 ## (28/06: Asaas modo real produção — conta PF, ASAAS_ENV=production, webhook prod, smoke test OK. Ver historico/2026-06-28.md)
 ## 🚨 GOTCHA: API key começa com `$` → Next expande e zera → escapar `\$` no .env E na Vercel. Token webhook ≥32 chars.
-## ⚠️ PENDÊNCIAS: (1) Pix não aparece no checkout → cadastrar chave Pix no painel Asaas; (2) personalizar nome fantasia "TraderOS"+logo (hoje mostra nome/CPF por ser PF); (3) migrar p/ PJ quando tiver CNPJ
+## ⚠️ PENDÊNCIAS: (1) Pix não aparece no checkout → cadastrar chave Pix no painel Asaas; (2) personalizar nome fantasia "TraderOS"+logo (hoje mostra nome/CPF por ser PF). ~~(3) migrar p/ PJ quando tiver CNPJ~~ — resolvido (Marcelo confirmou em 22/09).
 ## (28/06 manhã: pagamento Asaas implementado + testado sandbox; 25/06: Painel Admin + push cadastro + planos/custos; 20/06: Carteira multi-corretora; 18/06: Web Push)
 
 ## 📌 Visão Geral
@@ -121,13 +133,18 @@
 
 ### Produto
 - [x] ~~**Alertas de trade no app**~~ ✅ feito em 18/06 (toast in-app em tempo real via polling do sino)
-- [ ] **Rate limiting na IA** — antes de abrir o app pro público geral (hoje OK: poucos alunos)
-- [ ] **UploadThing** — screenshots no Journal (UPLOADTHING_TOKEN pendente)
-- [ ] **Domínio traderos.app** (~15min, mais pra frente)
-- [ ] **Stripe** — planos Trader R$97 / Pro R$197, webhook para atualizar user.plan (~8-12h)
-- [ ] **NinjaTrader** — código reescrito como AddOn ✅, aguardando teste de compilação no NT8 → commit + deploy após validar
-- [ ] **UploadThing** — screenshots no Journal (UPLOADTHING_TOKEN pendente)
-- [ ] **Email de boas-vindas** — Resend após cadastro (RESEND_API_KEY pendente)
+- [x] ~~**Rate limiting na IA**~~ ✅ confirmado em 22/09 — `src/lib/rate-limit.ts` (Upstash + fallback), cobre login/registro/Vega chat/análise de trade/check-in IA/resumo semanal
+- [x] ~~**UploadThing**~~ ✅ token na Vercel, screenshots funcionando
+- [x] ~~**Domínio traderos.app**~~ — obsoleto, domínio oficial já é `meutrade.app`
+- [x] ~~**Vídeo de divulgação HeyGen**~~ ✅ resolvido (Marcelo confirmou em 22/09)
+- [x] ~~**CNPJ / subconta Asaas separada por app**~~ ✅ resolvido (Marcelo confirmou em 22/09)
+- [x] ~~**Reativar sync automático NT8**~~ — item fechado como **decisão consciente de continuar pausado**, não como reativação: Marcelo confirmou em 22/09 que ainda não é o momento (vai demorar um pouco pra voltar com essa feature). Código continua `NT8_ENABLED = false` em `src/lib/integration-flags.ts`, de propósito — nada a fazer aqui até ele decidir religar. Ver item "NinjaTrader (AddOn de sync)" abaixo pro que ainda falta quando chegar a hora.
+- [ ] **Rodar Semgrep de novo** — última varredura foi 16/09; o código de 17-18/09 (tours, import CSV, fixes de conta teste) ainda não foi escaneado
+- [ ] **Stripe** — planos Trader R$97 / Pro R$197, webhook para atualizar user.plan (~8-12h) — hoje o pagamento é via Asaas, então prioridade baixa
+- [ ] **NinjaTrader (AddOn de sync)** — código reescrito, aguardando teste de compilação no NT8 → commit + deploy após validar (independente do import de CSV manual, que já funciona)
+- [ ] **Email de boas-vindas** — Resend após cadastro (RESEND_API_KEY já está na Vercel — confirmar se o envio está de fato disparando)
+- [ ] **Pix no checkout Asaas** — cadastrar chave Pix no painel
+- [ ] **Nome fantasia + logo no Asaas** — hoje mostra nome/CPF (PF)
 
 ## ⚠️ Decisões técnicas importantes
 - **Prisma 7:** URL no `prisma.config.ts`, NÃO no `schema.prisma`
