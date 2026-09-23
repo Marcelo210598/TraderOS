@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils"
-import { ExternalLink } from "lucide-react"
 
 interface Props {
   entryPrice: number
@@ -9,22 +8,9 @@ interface Props {
   result: "WIN" | "LOSS" | "BREAKEVEN"
   mfe?: number | null
   mae?: number | null
-  instrument: string
-  date: Date
 }
 
-const TV_SYMBOL: Record<string, string> = {
-  NQ: "CME_MINI:NQ1!", ES: "CME_MINI:ES1!", YM: "CBOT_MINI:YM1!",
-  RTY: "CME_MINI:RTY1!", MNQ: "CME_MINI:MNQ1!", MES: "CME_MINI:MES1!",
-}
-
-function tvUrl(instrument: string, date: Date): string {
-  const sym = TV_SYMBOL[instrument] ?? instrument
-  const ts = Math.floor(date.getTime() / 1000)
-  return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(sym)}&interval=5&timestamp=${ts}`
-}
-
-export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoints, result, mfe, mae, instrument, date }: Props) {
+export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoints, result, mfe, mae }: Props) {
   const isLong = direction === "LONG"
   const isWin = result === "WIN"
   const isLoss = result === "LOSS"
@@ -50,12 +36,20 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
   const yPct = (delta: number) => ((displayMax - delta) / displayRange) * 100
   const yPctStr = (delta: number) => `${yPct(delta)}%`
 
-  // Zone (trade body)
-  const zoneTopDelta = Math.max(0, exitDelta)
-  const zoneBotDelta = Math.min(0, exitDelta)
-  const zoneTopY = yPct(zoneTopDelta)
-  const zoneBotY = yPct(zoneBotDelta)
-  const zoneH = Math.max(zoneBotY - zoneTopY, 2)
+  // Corpo da vela (entrada -> saída) — igual open/close de um candle real
+  const bodyTopDelta = Math.max(0, exitDelta)
+  const bodyBotDelta = Math.min(0, exitDelta)
+  const bodyTopY = yPct(bodyTopDelta)
+  const bodyBotY = yPct(bodyBotDelta)
+  const bodyH = Math.max(bodyBotY - bodyTopY, 3)
+
+  // Pavio (wick) — do ponto mais favorável (MFE) ao mais adverso (MAE) tocado
+  // durante o trade, igual high/low de um candle real. Sem MFE/MAE, o pavio
+  // encolhe pro próprio corpo (sem inventar dado que não existe).
+  const highDelta = Math.max(0, exitDelta, mfeDelta ?? -Infinity)
+  const lowDelta = Math.min(0, exitDelta, maeDelta ?? Infinity)
+  const wickTopY = yPct(highDelta)
+  const wickBotY = yPct(lowDelta)
 
   const zoneColor = isWin
     ? { bg: "bg-profit/20", border: "border-profit/50", glow: "shadow-[0_0_8px_rgba(0,200,100,0.2)]" }
@@ -71,40 +65,22 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">Gráfico de Execução</h3>
-          <span className={cn(
-            "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded",
-            isLong ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"
-          )}>
-            {direction}
-          </span>
-        </div>
-        <a
-          href={tvUrl(instrument, date)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-teal transition-colors"
-        >
-          <ExternalLink className="w-3 h-3" />
-          TradingView
-        </a>
+      <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground">Gráfico de Execução</h3>
+        <span className={cn(
+          "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded",
+          isLong ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"
+        )}>
+          {direction}
+        </span>
       </div>
 
       <div className="p-4">
         <div className="relative h-52 select-none">
 
-          {/* ── MAE shadow ── */}
+          {/* ── MAE ── */}
           {maeDelta != null && (
             <>
-              <div
-                className="absolute left-10 right-24 bg-loss/8"
-                style={{
-                  top: `${Math.min(yPct(0), yPct(maeDelta))}%`,
-                  height: `${Math.max(Math.abs(yPct(maeDelta) - yPct(0)), 1)}%`,
-                }}
-              />
               {/* MAE dashed line */}
               <div
                 className="absolute left-0 right-0 flex items-center"
@@ -122,16 +98,9 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
             </>
           )}
 
-          {/* ── MFE missed zone ── */}
+          {/* ── MFE ── */}
           {mfeDelta != null && (
             <>
-              <div
-                className="absolute left-10 right-24 bg-teal/6"
-                style={{
-                  top: `${Math.min(yPct(exitDelta), yPct(mfeDelta))}%`,
-                  height: `${Math.max(Math.abs(yPct(mfeDelta) - yPct(exitDelta)), 1)}%`,
-                }}
-              />
               {/* MFE dashed line */}
               <div
                 className="absolute left-0 right-0 flex items-center"
@@ -149,14 +118,19 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
             </>
           )}
 
-          {/* ── Trade BODY (filled zone) ── */}
+          {/* ── Vela: pavio (MFE↔MAE) + corpo (entrada↔saída) ── */}
           <div
-            className={cn(
-              "absolute left-10 right-24 border-l-2 rounded-sm",
-              zoneColor.bg, zoneColor.border, zoneColor.glow
-            )}
-            style={{ top: `${zoneTopY}%`, height: `${zoneH}%` }}
-          />
+            className="absolute left-10 right-24 flex justify-center pointer-events-none"
+            style={{ top: `${wickTopY}%`, height: `${Math.max(wickBotY - wickTopY, 1)}%` }}
+          >
+            <div className="w-px h-full bg-foreground/25" />
+          </div>
+          <div
+            className="absolute left-10 right-24 flex justify-center pointer-events-none"
+            style={{ top: `${bodyTopY}%`, height: `${bodyH}%` }}
+          >
+            <div className={cn("w-14 h-full rounded-[3px] border", zoneColor.bg, zoneColor.border, zoneColor.glow)} />
+          </div>
 
           {/* ── EXIT line ── */}
           <div

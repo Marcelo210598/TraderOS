@@ -199,8 +199,6 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
           mfe={(trade as any).mfe != null ? Number((trade as any).mfe) : null}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           mae={(trade as any).mae != null ? Number((trade as any).mae) : null}
-          instrument={trade.instrument}
-          date={trade.date}
         />
 
         {/* Análise IA (plano Pro) */}

@@ -1,5 +1,30 @@
 # TraderOS — Progresso
 
+## ✅ 23/09/2026 (noite) — Gráfico de Execução vira vela de verdade + link TradingView removido
+`src/components/journal/trade-execution-chart.tsx`: o "Gráfico de Execução" do
+detalhe do trade (`/journal/[id]`) era um retângulo colorido preenchendo quase
+toda a largura — Marcelo reportou como "vela larga e zoada". Redesenhado pra
+virar uma vela de verdade: corpo estreito (entrada↔saída, como open/close) +
+pavio fino (MFE↔MAE, como high/low de um candle real), centralizados, sem os
+blocos de fundo largos que causavam a poluição visual.
+
+Removido o botão/link "TradingView" do card: usava um parâmetro `timestamp` na
+URL que o site público do TradingView simplesmente ignora — não existe suporte
+deles pra abrir num candle histórico específico via link direto (confirmado
+testando ao vivo: abriu o gráfico atual do ativo, não o momento do trade).
+Decisão do Marcelo: tirar por enquanto, sem prometer algo que não funciona.
+Pra fazer de verdade no futuro, precisa da TradingView Charting Library (cadastro
++ aprovação deles) + uma fonte de dados históricos paga — fica como ideia pro
+futuro, não decidido ainda. `tsc --noEmit` limpo.
+
+**Achado à parte:** login no localhost dá erro 400 `redirect_uri_mismatch` do
+Google OAuth (o Client ID não tem `http://localhost:3000` nos redirect URIs
+autorizados). Não é bug do app nem perda de dado — os trades do Marcelo (24)
+seguem intactos no Neon, confirmado via query direta. Não corrigido ainda
+(baixa prioridade, só afeta teste local); pra resolver, precisa adicionar
+`http://localhost:3000/api/auth/callback/google` nos redirect URIs autorizados
+do OAuth Client no Google Cloud Console.
+
 ## ✅ 23/09/2026 (tarde) — Toggle por tipo também no Calendário
 Mesmo padrão do Analytics: seletor "Todos / Avaliação / Teste" no topo do
 `/calendario`, filtrando P&L do mês, win rate, dias operados, melhor/pior dia,

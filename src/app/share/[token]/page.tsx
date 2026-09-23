@@ -128,8 +128,6 @@ export default async function SharePage({ params }: Props) {
           result={trade.result}
           mfe={trade.mfe != null ? Number(trade.mfe) : null}
           mae={trade.mae != null ? Number(trade.mae) : null}
-          instrument={trade.instrument}
-          date={new Date(trade.date)}
         />
 
         {/* Notas e análise da Vega são pessoais — só aparecem se o dono ativou
