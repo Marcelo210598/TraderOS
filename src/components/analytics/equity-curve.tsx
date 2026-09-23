@@ -1,6 +1,7 @@
 "use client"
 
 import { cn, signedUsd } from "@/lib/utils"
+import { ScrubPlot, formatAxis, makeYPct, xPct } from "./scrub-plot"
 
 interface Point {
   label: string
@@ -31,39 +32,27 @@ export function EquityCurve({ points }: EquityCurveProps) {
   const values = points.map((p) => p.cumPnl)
   const minVal = Math.min(...values, 0)
   const maxVal = Math.max(...values, 0)
-  const range = maxVal - minVal || 1
+  const toY = makeYPct(minVal, maxVal)
+  const count = points.length
 
-  const W = 800
-  const H = 160
-  const PAD = 8
-
-  // Normaliza para SVG
-  function toY(v: number) {
-    return PAD + ((maxVal - v) / range) * (H - PAD * 2)
-  }
-
-  const step = (W - PAD * 2) / Math.max(points.length - 1, 1)
-
-  const pathD = points
-    .map((p, i) => {
-      const x = PAD + i * step
-      const y = toY(p.cumPnl)
-      return `${i === 0 ? "M" : "L"} ${x} ${y}`
-    })
-    .join(" ")
-
-  // Área preenchida
-  const firstX = PAD
-  const lastX = PAD + (points.length - 1) * step
+  const coords = points.map((p, i) => ({ x: xPct(i, count), y: toY(p.cumPnl) }))
+  const pathD = coords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x} ${c.y}`).join(" ")
   const zeroY = toY(0)
-  const areaD = `${pathD} L ${lastX} ${zeroY} L ${firstX} ${zeroY} Z`
+  const areaD = `${pathD} L ${coords[count - 1].x} ${zeroY} L ${coords[0].x} ${zeroY} Z`
 
-  const finalPnl = points[points.length - 1].cumPnl
+  const finalPnl = points[count - 1].cumPnl
   const isPositive = finalPnl >= 0
+  const color = isPositive ? "rgb(34 197 94)" : "rgb(239 68 68)"
+
+  // 5 marcas no eixo Y, do topo ao fundo
+  const ticks = Array.from({ length: 5 }, (_, i) => {
+    const v = maxVal - ((maxVal - minVal) / 4) * i
+    return { y: toY(v), label: formatAxis(v) }
+  })
 
   // Labels do eixo X (no máximo 7)
-  const labelStep = Math.max(1, Math.floor(points.length / 6))
-  const xLabels = points.filter((_, i) => i % labelStep === 0 || i === points.length - 1)
+  const labelStep = Math.max(1, Math.floor(count / 6))
+  const xLabels = points.filter((_, i) => i % labelStep === 0 || i === count - 1).map((p) => p.label)
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -81,53 +70,47 @@ export function EquityCurve({ points }: EquityCurveProps) {
       </div>
 
       <div className="px-5 py-4">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 160 }}>
+        <ScrubPlot
+          count={count}
+          yPcts={coords.map((c) => c.y)}
+          ticks={ticks}
+          xLabels={xLabels}
+          dotColor={color}
+          tooltip={(i) => {
+            const p = points[i]
+            const delta = i > 0 ? p.cumPnl - points[i - 1].cumPnl : p.cumPnl
+            return (
+              <div className="space-y-0.5">
+                <p className="text-muted-foreground">Trade #{i + 1} · {p.label}</p>
+                <p className={cn("font-mono font-bold text-sm", p.cumPnl >= 0 ? "text-profit" : "text-loss")}>
+                  {signedUsd(p.cumPnl)} <span className="text-[10px] font-normal text-muted-foreground">acumulado</span>
+                </p>
+                <p className={cn("font-mono", delta >= 0 ? "text-profit" : "text-loss")}>
+                  {signedUsd(delta)} <span className="text-[10px] text-muted-foreground">neste trade</span>
+                </p>
+              </div>
+            )
+          }}
+        >
           <defs>
             <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={isPositive ? "rgb(34 197 94)" : "rgb(239 68 68)"} stopOpacity="0.25" />
-              <stop offset="100%" stopColor={isPositive ? "rgb(34 197 94)" : "rgb(239 68 68)"} stopOpacity="0.02" />
+              <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+              <stop offset="100%" stopColor={color} stopOpacity="0.02" />
             </linearGradient>
           </defs>
-
-          {/* Linha zero */}
           {minVal < 0 && maxVal > 0 && (
             <line
-              x1={PAD} y1={zeroY} x2={W - PAD} y2={zeroY}
-              stroke="currentColor" strokeOpacity="0.15" strokeWidth="1" strokeDasharray="4 3"
-              className="text-muted-foreground"
+              x1="0" x2="100" y1={zeroY} y2={zeroY}
+              stroke="currentColor" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="4 3"
+              vectorEffect="non-scaling-stroke" className="text-muted-foreground"
             />
           )}
-
-          {/* Área */}
           <path d={areaD} fill="url(#equityGradient)" />
-
-          {/* Linha */}
           <path
-            d={pathD}
-            fill="none"
-            stroke={isPositive ? "rgb(34 197 94)" : "rgb(239 68 68)"}
-            strokeWidth="2"
-            strokeLinejoin="round"
-            strokeLinecap="round"
+            d={pathD} fill="none" stroke={color} strokeWidth="2"
+            strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"
           />
-
-          {/* Último ponto */}
-          <circle
-            cx={PAD + (points.length - 1) * step}
-            cy={toY(finalPnl)}
-            r="4"
-            fill={isPositive ? "rgb(34 197 94)" : "rgb(239 68 68)"}
-          />
-        </svg>
-
-        {/* Labels do eixo X */}
-        <div className="flex justify-between mt-1 px-1">
-          {xLabels.map((p, i) => (
-            <span key={i} className="text-[9px] text-muted-foreground font-mono">
-              {p.label}
-            </span>
-          ))}
-        </div>
+        </ScrubPlot>
       </div>
     </div>
   )

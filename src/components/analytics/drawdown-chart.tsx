@@ -1,6 +1,8 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn, signedUsd } from "@/lib/utils"
+import { ExplainButton } from "./explain-modal"
+import { ScrubPlot, makeYPct, xPct } from "./scrub-plot"
 
 interface DrawdownPoint {
   label: string
@@ -19,47 +21,32 @@ export function DrawdownChart({ points, maxDrawdown, currentDrawdown }: Drawdown
 
   if (points.length === 0) return null
 
-  const W = 800
-  const H = 140
-  const PAD = 8
-
   const minVal = Math.min(...points.map((p) => p.dd), -1)
-  const maxVal = 0
-  const range = maxVal - minVal || 1
+  const toY = makeYPct(minVal, 0)
+  const count = points.length
 
-  function toY(v: number) {
-    return PAD + ((maxVal - v) / range) * (H - PAD * 2)
-  }
-
-  const step = (W - PAD * 2) / Math.max(points.length - 1, 1)
-
-  const pathD = points
-    .map((p, i) => {
-      const x = PAD + i * step
-      const y = toY(p.dd)
-      return `${i === 0 ? "M" : "L"} ${x} ${y}`
-    })
-    .join(" ")
-
-  const firstX = PAD
-  const lastX = PAD + (points.length - 1) * step
+  const coords = points.map((p, i) => ({ x: xPct(i, count), y: toY(p.dd) }))
+  const pathD = coords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x} ${c.y}`).join(" ")
   const zeroY = toY(0)
-  const areaD = `${pathD} L ${lastX} ${zeroY} L ${firstX} ${zeroY} Z`
+  const areaD = `${pathD} L ${coords[count - 1].x} ${zeroY} L ${coords[0].x} ${zeroY} Z`
 
-  // Ponto de maior drawdown
-  const worstIdx = points.reduce((acc, p, i) => (p.dd < points[acc].dd ? i : acc), 0)
-  const worstX = PAD + worstIdx * step
-  const worstY = toY(points[worstIdx].dd)
+  const ticks = Array.from({ length: 4 }, (_, i) => {
+    const v = (minVal / 3) * i
+    return { y: toY(v), label: v === 0 ? "$0" : `-$${Math.abs(v).toFixed(0)}` }
+  })
 
-  // Labels do eixo X (até 7)
-  const labelStep = Math.max(1, Math.floor(points.length / 6))
-  const xLabels = points.filter((_, i) => i % labelStep === 0 || i === points.length - 1)
+  const labelStep = Math.max(1, Math.floor(count / 6))
+  const xLabels = points.filter((_, i) => i % labelStep === 0 || i === count - 1).map((p) => p.label)
+  const dotColor = currentDrawdown > 0 ? "rgb(234 179 8)" : "rgb(239 68 68)"
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
       <div className="flex items-start justify-between px-5 py-4 border-b border-border">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Drawdown</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-foreground">Drawdown</h2>
+            <ExplainButton topic="drawdown" label="o que é?" />
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             Distância do pico da equity — quanto você perdeu do melhor momento
           </p>
@@ -90,92 +77,42 @@ export function DrawdownChart({ points, maxDrawdown, currentDrawdown }: Drawdown
             </div>
           </div>
         ) : (
-          <>
-            <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 140 }}>
-              <defs>
-                <linearGradient id="ddGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgb(239 68 68)" stopOpacity="0.30" />
-                  <stop offset="100%" stopColor="rgb(239 68 68)" stopOpacity="0.04" />
-                </linearGradient>
-              </defs>
-
-              {/* Linha zero (topo) */}
-              <line
-                x1={PAD} y1={zeroY} x2={W - PAD} y2={zeroY}
-                stroke="currentColor" strokeOpacity="0.15" strokeWidth="1"
-                className="text-muted-foreground"
-              />
-
-              {/* Grades horizontais */}
-              {[0.25, 0.5, 0.75].map((ratio) => {
-                const yPos = PAD + ratio * (H - PAD * 2)
-                const val = maxVal - ratio * range
-                return (
-                  <g key={ratio}>
-                    <line
-                      x1={PAD} y1={yPos} x2={W - PAD} y2={yPos}
-                      stroke="currentColor" strokeOpacity="0.07" strokeWidth="1"
-                      className="text-muted-foreground"
-                    />
-                    <text
-                      x={PAD + 2} y={yPos - 3}
-                      fontSize="9" fill="currentColor" fillOpacity="0.35"
-                      className="text-muted-foreground font-mono"
-                    >
-                      {val >= 0 ? "" : `-$${Math.abs(val).toFixed(0)}`}
-                    </text>
-                  </g>
-                )
-              })}
-
-              {/* Área */}
-              <path d={areaD} fill="url(#ddGradient)" />
-
-              {/* Linha */}
-              <path
-                d={pathD}
-                fill="none"
-                stroke="rgb(239 68 68)"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-
-              {/* Ponto de pior drawdown */}
-              {hasDrawdown && (
-                <g>
-                  <circle cx={worstX} cy={worstY} r="4" fill="rgb(239 68 68)" />
-                  <text
-                    x={Math.min(worstX + 6, W - 60)}
-                    y={worstY - 6}
-                    fontSize="9"
-                    fill="rgb(239 68 68)"
-                    className="font-mono font-bold"
-                  >
-                    {`-$${Math.abs(points[worstIdx].dd).toFixed(0)}`}
-                  </text>
-                </g>
-              )}
-
-              {/* Ponto atual */}
-              {currentDrawdown > 0 && (
-                <circle
-                  cx={lastX}
-                  cy={toY(points[points.length - 1].dd)}
-                  r="3"
-                  fill="rgb(234 179 8)"
-                />
-              )}
-            </svg>
-
-            <div className="flex justify-between mt-1 px-1">
-              {xLabels.map((p, i) => (
-                <span key={i} className="text-[9px] text-muted-foreground font-mono">
-                  {p.label}
-                </span>
-              ))}
-            </div>
-          </>
+          <ScrubPlot
+            count={count}
+            yPcts={coords.map((c) => c.y)}
+            ticks={ticks}
+            xLabels={xLabels}
+            dotColor={dotColor}
+            height={160}
+            tooltip={(i) => {
+              const p = points[i]
+              const peakAtPoint = p.cumPnl - p.dd
+              return (
+                <div className="space-y-0.5">
+                  <p className="text-muted-foreground">Trade #{i + 1} · {p.label}</p>
+                  <p className={cn("font-mono font-bold text-sm", p.dd < 0 ? "text-loss" : "text-profit")}>
+                    {p.dd < 0 ? `-$${Math.abs(p.dd).toFixed(0)}` : "$0"}{" "}
+                    <span className="text-[10px] font-normal text-muted-foreground">abaixo do pico</span>
+                  </p>
+                  <p className="font-mono text-muted-foreground">
+                    equity {signedUsd(p.cumPnl)} · pico {signedUsd(peakAtPoint)}
+                  </p>
+                </div>
+              )
+            }}
+          >
+            <defs>
+              <linearGradient id="ddGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgb(239 68 68)" stopOpacity="0.30" />
+                <stop offset="100%" stopColor="rgb(239 68 68)" stopOpacity="0.04" />
+              </linearGradient>
+            </defs>
+            <path d={areaD} fill="url(#ddGradient)" />
+            <path
+              d={pathD} fill="none" stroke="rgb(239 68 68)" strokeWidth="1.5"
+              strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"
+            />
+          </ScrubPlot>
         )}
       </div>
     </div>

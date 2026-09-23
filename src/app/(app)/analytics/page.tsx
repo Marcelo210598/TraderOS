@@ -5,6 +5,11 @@ import { Header } from "@/components/layout/header"
 import { EquityCurve } from "@/components/analytics/equity-curve"
 import { DrawdownChart } from "@/components/analytics/drawdown-chart"
 import { WhatIfSimulator } from "@/components/analytics/what-if-simulator"
+import { ExplainButton, type ExplainTopic } from "@/components/analytics/explain-modal"
+import {
+  SampleBanner, EntryDiagnosisCard, ExitLeakCard, TimeOfDayCard, BehaviorCard, DaysAndDistributionCard,
+} from "@/components/analytics/insights"
+import type { InsightTrade } from "@/lib/analytics-insights"
 import { formatShortDateBR, formatDateBR } from "@/lib/date"
 import { cn, signedUsd } from "@/lib/utils"
 import Link from "next/link"
@@ -162,6 +167,18 @@ export default async function AnalyticsPage({ searchParams }: Props) {
   const avgLoser = losses.length > 0 ? lossPnl / losses.length : 0
   const expectancy = (winRate / 100) * avgWinner - ((100 - winRate) / 100) * avgLoser
 
+  // Formato enxuto pros diagnósticos e pro simulador (serializável pro client)
+  const insightTrades: InsightTrade[] = trades.map((t) => ({
+    date: new Date(t.date).getTime(),
+    pnl: Number(t.pnl),
+    pnlPoints: Number(t.pnlPoints),
+    result: t.result as InsightTrade["result"],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mfe: (t as any).mfe != null ? Number((t as any).mfe) : null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mae: (t as any).mae != null ? Number((t as any).mae) : null,
+  }))
+
   // ── Equity curve ────────────────────────────────────────────────────────
   const equityPoints = trades.reduce<{ label: string; cumPnl: number }[]>((acc, t) => {
     const prevCumPnl = acc.length > 0 ? acc[acc.length - 1].cumPnl : 0
@@ -310,18 +327,21 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           {[
             { label: "P&L Total", value: signedUsd(totalPnl), color: totalPnl >= 0 ? "text-profit" : "text-loss", icon: BarChart2 },
             { label: "Win Rate", value: `${winRate}%`, color: winRate >= 50 ? "text-profit" : "text-loss", icon: Target },
-            { label: "Profit Factor", value: profitFactor >= 99 ? "∞" : profitFactor.toFixed(2), color: profitFactor >= 1.5 ? "text-profit" : profitFactor >= 1 ? "text-yellow-400" : "text-loss", icon: TrendingUp },
-            { label: "Expectância", value: signedUsd(expectancy), color: expectancy >= 0 ? "text-profit" : "text-loss", icon: Zap },
+            { label: "Profit Factor", value: profitFactor >= 99 ? "∞" : profitFactor.toFixed(2), color: profitFactor >= 1.5 ? "text-profit" : profitFactor >= 1 ? "text-yellow-400" : "text-loss", icon: TrendingUp, topic: "profitFactor" as ExplainTopic },
+            { label: "Expectância", value: signedUsd(expectancy), color: expectancy >= 0 ? "text-profit" : "text-loss", icon: Zap, topic: "expectancy" as ExplainTopic },
           ].map((s) => (
             <div key={s.label} className="bg-card border border-border rounded-xl p-4">
               <div className="flex items-center gap-1.5 mb-2">
                 <s.icon className="w-3.5 h-3.5 text-muted-foreground/60" />
                 <p className="text-xs text-muted-foreground">{s.label}</p>
+                {"topic" in s && s.topic && <ExplainButton topic={s.topic} />}
               </div>
               <p className={cn("text-2xl font-bold font-mono", s.color)}>{s.value}</p>
             </div>
           ))}
         </div>
+
+        <SampleBanner total={totalTrades} />
 
         {/* ── Equity Curve ── */}
         <div data-tour="analytics-equity">
@@ -346,6 +366,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
               sub: "pior recuperação",
               color: maxDrawdown > 0 ? "text-loss" : "text-foreground",
               icon: TrendingDown,
+              topic: "drawdown" as ExplainTopic,
             },
             {
               label: "Drawdown Atual",
@@ -373,6 +394,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
               <div className="flex items-center gap-1.5 mb-2">
                 <s.icon className="w-3.5 h-3.5 text-muted-foreground/60" />
                 <p className="text-xs text-muted-foreground">{s.label}</p>
+                {"topic" in s && s.topic && <ExplainButton topic={s.topic} />}
               </div>
               <p className={cn("text-2xl font-bold font-mono", s.color)}>{s.value}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">{s.sub}</p>
@@ -402,7 +424,11 @@ export default async function AnalyticsPage({ searchParams }: Props) {
         {(avgMfe != null || avgMae != null) && (
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-foreground">MFE / MAE — Qualidade de Execução</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-semibold text-foreground">MFE / MAE — Qualidade de Execução</h2>
+                <ExplainButton topic="mfe" label="o que é MFE?" />
+                <ExplainButton topic="mae" label="o que é MAE?" />
+              </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Baseado em {tradesWithMfe.length} trade{tradesWithMfe.length !== 1 ? "s" : ""} com dados registrados
               </p>
@@ -410,21 +436,21 @@ export default async function AnalyticsPage({ searchParams }: Props) {
             <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
               {avgMfe != null && (
                 <div className="text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Avg MFE</p>
+                  <p className="text-xs text-muted-foreground mb-1 inline-flex items-center gap-1">Avg MFE <ExplainButton topic="mfe" /></p>
                   <p className="text-2xl font-bold font-mono text-profit">+{avgMfe.toFixed(1)} pts</p>
                   <p className="text-[10px] text-muted-foreground">potencial médio a favor</p>
                 </div>
               )}
               {avgMae != null && (
                 <div className="text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Avg MAE</p>
+                  <p className="text-xs text-muted-foreground mb-1 inline-flex items-center gap-1">Avg MAE <ExplainButton topic="mae" /></p>
                   <p className="text-2xl font-bold font-mono text-loss">-{avgMae.toFixed(1)} pts</p>
                   <p className="text-[10px] text-muted-foreground">excursão adversa média</p>
                 </div>
               )}
               {avgCaptureRate != null && (
                 <div className="text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Taxa de Captura</p>
+                  <p className="text-xs text-muted-foreground mb-1 inline-flex items-center gap-1">Taxa de Captura <ExplainButton topic="captura" /></p>
                   <p className={cn("text-2xl font-bold font-mono", avgCaptureRate >= 0.6 ? "text-profit" : avgCaptureRate >= 0.4 ? "text-yellow-400" : "text-loss")}>
                     {(avgCaptureRate * 100).toFixed(0)}%
                   </p>
@@ -441,6 +467,9 @@ export default async function AnalyticsPage({ searchParams }: Props) {
             )}
           </div>
         )}
+
+        <EntryDiagnosisCard trades={insightTrades} />
+        <ExitLeakCard trades={insightTrades} totalPnl={totalPnl} />
 
         {/* ── Avg Winner / Loser + Trades ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -631,19 +660,6 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           )}
         </div>
 
-        {/* ── Simulador "E se" ── */}
-        <div data-tour="analytics-whatif">
-          <WhatIfSimulator
-            trades={trades.map(t => ({
-              pnl: Number(t.pnl),
-              pnlPoints: Number(t.pnlPoints),
-              result: t.result,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              mfe: (t as any).mfe != null ? Number((t as any).mfe) : null,
-            }))}
-          />
-        </div>
-
         {/* ── Dia da semana ── */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border">
@@ -685,6 +701,15 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           </div>
         </div>
 
+
+        <TimeOfDayCard trades={insightTrades} />
+        <BehaviorCard trades={insightTrades} />
+        <DaysAndDistributionCard trades={insightTrades} />
+
+        {/* ── Simulador "E se" ── */}
+        <div data-tour="analytics-whatif">
+          <WhatIfSimulator trades={insightTrades} />
+        </div>
       </div>
     </div>
   )

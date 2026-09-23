@@ -1,5 +1,22 @@
 # TraderOS — Progresso
 
+## ✅ 23/09/2026 (noite, v3) — Analytics: gráficos interativos + explicações + diagnósticos + "E se" completo
+Pedido do Marcelo: números nos gráficos (hover/toque), modal explicando MFE/MAE/Drawdown, seção Analytics
+mais densa (análise de verdade pra melhorar entrada) e "E se" menos vago.
+- **Equity Curve + Drawdown:** eixo Y com números + crosshair/tooltip no hover e no toque (`scrub-plot.tsx`,
+  compartilhado). Pontos/textos em HTML posicionado em % (SVG `preserveAspectRatio="none"`).
+- **Modal "o que é isso?"** (`explain-modal.tsx`): MFE, MAE (com diagrama), captura, drawdown, profit factor,
+  expectância, "como funciona o E se". Botão "?" nos KPIs e cabeçalhos.
+- **Diagnósticos novos** (`insights.tsx`, cálculos puros em `src/lib/analytics-insights.ts`): entrada (MAE wins vs
+  losses), lucro deixado na mesa (MFE vs saída + losses que já estiveram no verde), horário (BR), comportamento
+  (pós-loss, reentrada ≤15min, overtrading), dias + distribuição + concentração (melhor dia/trade), banner amostra <30.
+- **"E se" reescrito:** stop simulado, alvo, stop+alvo (assume stop primeiro se ambos), parar após N losses/dia,
+  máx N trades/dia, sem pior hora, sem pior dia da semana, sem 3 piores losses. Sliders, equity real vs cenário,
+  quantos trades melhoram/pioram. "Melhor histórico" só sugerido se supera o real (com dados reais o melhor stop
+  rendia MENOS que o real: $1.092 vs $1.469 — o app agora diz isso).
+- Validado com os 26 trades reais do Marcelo (base bate: $1.468,70). `tsc` + eslint limpos.
+- ⚠️ Não testado visualmente antes do deploy (login localhost quebrado — `redirect_uri_mismatch`). Ajustar ao vivo.
+
 ## ✅ 23/09/2026 (noite, v2) — Fix de bug real achado no primeiro deploy da vela
 Marcelo testou ao vivo em produção e apontou 2 problemas concretos na primeira
 versão da vela:
