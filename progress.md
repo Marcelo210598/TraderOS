@@ -1,5 +1,20 @@
 # TraderOS — Progresso
 
+## ✅ 23/09/2026 (noite, v2) — Fix de bug real achado no primeiro deploy da vela
+Marcelo testou ao vivo em produção e apontou 2 problemas concretos na primeira
+versão da vela:
+1. **Bug de sobreposição de texto:** quando o MAE bate exatamente no ponto de
+   saída (trade que estoura o stop sem devolver nada — CASO MAIS COMUM),
+   a linha do MAE e a linha da Saída caíam na mesma altura e os textos ficavam
+   ilegíveis, grudados um no outro. Fix: se MAE/MFE coincide (±4% da altura do
+   gráfico) com entrada ou saída, não desenha uma linha própria — vira um
+   selinho pequeno colado na linha que já existe.
+2. **Vela sem destaque visual:** corpo estreito demais, pavio quase invisível
+   (1px cinza). Fix: corpo mais largo (w-20, borda dupla, mais opacidade),
+   pavio mais grosso (2px, colorido igual o corpo) com "caps" (bolinhas) nas
+   pontas, deixando claro onde o preço bateu o extremo.
+`tsc --noEmit` limpo.
+
 ## ✅ 23/09/2026 (noite) — Gráfico de Execução vira vela de verdade + link TradingView removido
 `src/components/journal/trade-execution-chart.tsx`: o "Gráfico de Execução" do
 detalhe do trade (`/journal/[id]`) era um retângulo colorido preenchendo quase

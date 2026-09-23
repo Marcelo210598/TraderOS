@@ -52,12 +52,37 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
   const wickBotY = yPct(lowDelta)
 
   const zoneColor = isWin
-    ? { bg: "bg-profit/20", border: "border-profit/50", glow: "shadow-[0_0_8px_rgba(0,200,100,0.2)]" }
+    ? { bg: "bg-profit/30", border: "border-profit", glow: "shadow-[0_0_12px_rgba(0,200,100,0.25)]" }
     : isLoss
-    ? { bg: "bg-loss/20", border: "border-loss/50", glow: "shadow-[0_0_8px_rgba(255,80,80,0.15)]" }
-    : { bg: "bg-muted/30", border: "border-border", glow: "" }
+    ? { bg: "bg-loss/30", border: "border-loss", glow: "shadow-[0_0_12px_rgba(255,80,80,0.2)]" }
+    : { bg: "bg-muted/40", border: "border-border", glow: "" }
+  const wickColor = isWin ? "bg-profit/60" : isLoss ? "bg-loss/60" : "bg-foreground/30"
 
   const lineColor = isWin ? "border-profit" : isLoss ? "border-loss" : "border-foreground/40"
+
+  // Quando MAE/MFE bate exatamente na entrada ou na saída (ex: stop estourado
+  // sem devolver nada — o caso mais comum de todos), as duas linhas caem na
+  // MESMA altura e os textos ficam sobrepostos/ilegíveis. Em vez de desenhar
+  // uma linha própria pra esses casos, vira um selinho colado na linha que já
+  // existe (entrada ou saída).
+  const near = (a: number, b: number) => Math.abs(yPct(a) - yPct(b)) < 4
+  const maeMergesExit = maeDelta != null && near(maeDelta, exitDelta)
+  const maeMergesEntry = maeDelta != null && !maeMergesExit && near(maeDelta, 0)
+  const showMaeRow = maeDelta != null && !maeMergesExit && !maeMergesEntry
+  const mfeMergesExit = mfeDelta != null && near(mfeDelta, exitDelta)
+  const mfeMergesEntry = mfeDelta != null && !mfeMergesExit && near(mfeDelta, 0)
+  const showMfeRow = mfeDelta != null && !mfeMergesExit && !mfeMergesEntry
+
+  function Badge({ label, tone }: { label: string; tone: "profit" | "loss" }) {
+    return (
+      <span className={cn(
+        "text-[8px] font-mono font-bold px-1 py-px rounded",
+        tone === "profit" ? "bg-teal/15 text-teal/80" : "bg-loss/15 text-loss/70"
+      )}>
+        {label}
+      </span>
+    )
+  }
 
   // Exit efficiency
   const exitEff = mfe != null && mfe > 0 ? Math.round((pnlPoints / mfe) * 100) : null
@@ -78,44 +103,38 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
       <div className="p-4">
         <div className="relative h-52 select-none">
 
-          {/* ── MAE ── */}
-          {maeDelta != null && (
-            <>
-              {/* MAE dashed line */}
-              <div
-                className="absolute left-0 right-0 flex items-center"
-                style={{ top: yPctStr(maeDelta), transform: "translateY(-50%)" }}
-              >
-                <div className="w-10 shrink-0 text-right pr-1.5">
-                  <span className="text-[9px] font-mono text-loss/60">{maeDelta.toFixed(1)}</span>
-                </div>
-                <div className="flex-1 border-t border-dashed border-loss/35" />
-                <div className="w-24 shrink-0 pl-1.5 flex items-baseline gap-1">
-                  <span className="text-[9px] font-mono text-loss/70">{(isLong ? entryPrice + maeDelta : entryPrice - maeDelta).toFixed(2)}</span>
-                  <span className="text-[8px] text-loss/40 font-mono">MAE</span>
-                </div>
+          {/* ── MAE (só desenha linha própria se não coincidir com entrada/saída) ── */}
+          {showMaeRow && (
+            <div
+              className="absolute left-0 right-0 flex items-center"
+              style={{ top: yPctStr(maeDelta!), transform: "translateY(-50%)" }}
+            >
+              <div className="w-10 shrink-0 text-right pr-1.5">
+                <span className="text-[9px] font-mono text-loss/60">{maeDelta!.toFixed(1)}</span>
               </div>
-            </>
+              <div className="flex-1 border-t border-dashed border-loss/35" />
+              <div className="w-24 shrink-0 pl-1.5 flex items-baseline gap-1">
+                <span className="text-[9px] font-mono text-loss/70">{(isLong ? entryPrice + maeDelta! : entryPrice - maeDelta!).toFixed(2)}</span>
+                <span className="text-[8px] text-loss/40 font-mono">MAE</span>
+              </div>
+            </div>
           )}
 
-          {/* ── MFE ── */}
-          {mfeDelta != null && (
-            <>
-              {/* MFE dashed line */}
-              <div
-                className="absolute left-0 right-0 flex items-center"
-                style={{ top: yPctStr(mfeDelta), transform: "translateY(-50%)" }}
-              >
-                <div className="w-10 shrink-0 text-right pr-1.5">
-                  <span className="text-[9px] font-mono text-teal/60">+{mfe!.toFixed(1)}</span>
-                </div>
-                <div className="flex-1 border-t border-dashed border-teal/35" />
-                <div className="w-24 shrink-0 pl-1.5 flex items-baseline gap-1">
-                  <span className="text-[9px] font-mono text-teal/80">{(isLong ? entryPrice + mfe! : entryPrice - mfe!).toFixed(2)}</span>
-                  <span className="text-[8px] text-teal/50 font-mono">MFE</span>
-                </div>
+          {/* ── MFE (só desenha linha própria se não coincidir com entrada/saída) ── */}
+          {showMfeRow && (
+            <div
+              className="absolute left-0 right-0 flex items-center"
+              style={{ top: yPctStr(mfeDelta!), transform: "translateY(-50%)" }}
+            >
+              <div className="w-10 shrink-0 text-right pr-1.5">
+                <span className="text-[9px] font-mono text-teal/60">+{mfe!.toFixed(1)}</span>
               </div>
-            </>
+              <div className="flex-1 border-t border-dashed border-teal/35" />
+              <div className="w-24 shrink-0 pl-1.5 flex items-baseline gap-1">
+                <span className="text-[9px] font-mono text-teal/80">{(isLong ? entryPrice + mfe! : entryPrice - mfe!).toFixed(2)}</span>
+                <span className="text-[8px] text-teal/50 font-mono">MFE</span>
+              </div>
+            </div>
           )}
 
           {/* ── Vela: pavio (MFE↔MAE) + corpo (entrada↔saída) ── */}
@@ -123,13 +142,20 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
             className="absolute left-10 right-24 flex justify-center pointer-events-none"
             style={{ top: `${wickTopY}%`, height: `${Math.max(wickBotY - wickTopY, 1)}%` }}
           >
-            <div className="w-px h-full bg-foreground/25" />
+            <div className={cn("w-0.5 h-full rounded-full", wickColor)} />
+          </div>
+          {/* caps nas pontas do pavio — deixa claro onde o preço bateu o extremo */}
+          <div className="absolute left-10 right-24 flex justify-center pointer-events-none" style={{ top: `${wickTopY}%`, transform: "translateY(-50%)" }}>
+            <div className={cn("w-1.5 h-1.5 rounded-full", wickColor)} />
+          </div>
+          <div className="absolute left-10 right-24 flex justify-center pointer-events-none" style={{ top: `${wickBotY}%`, transform: "translateY(-50%)" }}>
+            <div className={cn("w-1.5 h-1.5 rounded-full", wickColor)} />
           </div>
           <div
             className="absolute left-10 right-24 flex justify-center pointer-events-none"
             style={{ top: `${bodyTopY}%`, height: `${bodyH}%` }}
           >
-            <div className={cn("w-14 h-full rounded-[3px] border", zoneColor.bg, zoneColor.border, zoneColor.glow)} />
+            <div className={cn("w-20 h-full rounded-md border-2", zoneColor.bg, zoneColor.border, zoneColor.glow)} />
           </div>
 
           {/* ── EXIT line ── */}
@@ -145,13 +171,15 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
               </span>
             </div>
             <div className={cn("flex-1 border-t-2", lineColor)} />
-            <div className="w-24 shrink-0 pl-1.5 flex items-baseline gap-1">
+            <div className="w-24 shrink-0 pl-1.5 flex items-baseline gap-1 flex-wrap">
               <span className={cn("text-[11px] font-mono font-bold",
                 isWin ? "text-profit" : isLoss ? "text-loss" : "text-foreground/80"
               )}>
                 {exitPrice.toFixed(2)}
               </span>
               <span className="text-[9px] text-muted-foreground/50 font-mono">saída</span>
+              {maeMergesExit && <Badge label="MAE" tone="loss" />}
+              {mfeMergesExit && <Badge label="MFE" tone="profit" />}
             </div>
           </div>
 
@@ -164,11 +192,13 @@ export function TradeExecutionChart({ entryPrice, exitPrice, direction, pnlPoint
               <span className="text-[10px] font-mono text-foreground/50">0</span>
             </div>
             <div className="flex-1 border-t-2 border-foreground/30" />
-            <div className="w-24 shrink-0 pl-1.5 flex items-baseline gap-1">
+            <div className="w-24 shrink-0 pl-1.5 flex items-baseline gap-1 flex-wrap">
               <span className="text-[11px] font-mono font-semibold text-foreground/70">
                 {entryPrice.toFixed(2)}
               </span>
               <span className="text-[9px] text-muted-foreground/50 font-mono">entrada</span>
+              {maeMergesEntry && <Badge label="MAE" tone="loss" />}
+              {mfeMergesEntry && <Badge label="MFE" tone="profit" />}
             </div>
           </div>
 
