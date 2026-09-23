@@ -1,5 +1,18 @@
 # TraderOS — Progresso
 
+## ✅ 23/09/2026 — CORRIGIDO: import CSV NinjaTrader PT-BR zerava P&L negativo
+Bug achado em 22/09 (fills que saem no stop importavam como P&L $0,00 em vez do valor
+real). Causa raiz: `parseBRNumber` em `src/components/journal/importar-client.tsx` não
+removia o espaço entre `-` e o número em `"-$ 117,00"`, e `parseFloat("- 117.00")`
+retornava `NaN` → caía no fallback `0`. Fix: remove todo espaço em branco antes de
+trocar a vírgula decimal. Validado com os 4 casos de teste do plano e reprocessando o
+CSV real de 22/09 fora do app (script isolado, sem login) — os 2 fills do stop agora
+saem `-$117,00` e `-$58,50`, P&L total do dia bate em `$236,00`. `tsc --noEmit` limpo.
+Detalhe completo em `docs/bug-import-csv-pnl-negativo-zerado.md`. **Pendente:**
+`parseNinjaTrader` (EN) e `parseTradovate` não foram tocados — usam formato decimal
+diferente (ponto, sem inversão BR) e não têm um CSV real de exemplo em mãos ainda pra
+confirmar se sofrem do mesmo problema.
+
 ## Última atualização: 22/09/2026 — Checklist de pendências revisado. **Rate limiting na IA: ✅ já implementado** (`src/lib/rate-limit.ts` — Upstash Redis distribuído com fallback in-memory, nunca derruba a request se o Redis falhar) e cobre todos os pontos certos: login (8/5min), registro (8/10min), Vega chat `ask-claude` (20/min), análise de trade IA (15/min), check-in IA (10/min), resumo semanal (5/min; o cron em si é protegido por `CRON_SECRET`, não precisa de rate limit). Pode ser considerado feito. **Semgrep: ✅ já rodou** em 16/09 (baseline p/security-audit+secrets, TypeScript/React/Node/Next.js + Trail of Bits) — mas isso foi ANTES do código novo de 17-18/09 (tours guiados, import CSV, fixes de conta teste abaixo), que ainda não passou por scan. Recomendo rodar de novo quando der.
 ### Documentado aqui o que faltou registrar de 17-18/09 (trabalho real, só não tinha entrado no progress.md/histórico):
 - **Tours guiados contextuais** em todas as páginas principais (Dashboard, Vega IA, Carteira, Journal, Progress, Analytics)

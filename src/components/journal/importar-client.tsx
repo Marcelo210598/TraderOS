@@ -95,9 +95,14 @@ function normalizeHeader(h: string): string {
 }
 
 // Números no formato BR: "$ 1.234,56" -> 1234.56. Remove símbolo de moeda e
-// espaços, remove pontos de milhar, troca a vírgula decimal por ponto.
+// TODO espaço (inclusive o que o NT8 deixa entre "-" e o número, ex: "-$ 117,00"),
+// remove pontos de milhar, troca a vírgula decimal por ponto.
 function parseBRNumber(raw: string): number {
-  const cleaned = raw.replace(/[$R]/g, "").trim().replace(/\./g, "").replace(",", ".")
+  const cleaned = raw
+    .replace(/[$R]/g, "")
+    .replace(/\s+/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".")
   return parseFloat(cleaned)
 }
 
