@@ -16,7 +16,7 @@ function TradeDiagram({ show }: { show: "mfe" | "mae" | "both" }) {
     { y: 104, label: "MAE  19.985", color: "rgb(239 68 68)", on: show !== "mfe", note: "máximo contra: -15 pts" },
   ]
   return (
-    <svg viewBox="0 0 300 120" className="w-full max-w-sm mx-auto" role="img" aria-label="Diagrama de um trade com entrada, MFE, MAE e saída">
+    <svg viewBox={show === "mae" ? "0 34 300 86" : show === "mfe" ? "0 0 300 92" : "0 0 300 120"} className="w-full max-w-sm mx-auto" role="img" aria-label="Diagrama de um trade com entrada, MFE, MAE e saída">
       {rows.filter((r) => r.on).map((r) => (
         <g key={r.label}>
           <line x1="8" x2="150" y1={r.y} y2={r.y} stroke={r.color} strokeWidth="1.5" strokeDasharray={r.label.startsWith("Entrada") ? "0" : "4 3"} />
@@ -202,7 +202,7 @@ export function ExplainButton({ topic, label, className }: ExplainButtonProps) {
         onClick={() => setOpen(true)}
         aria-label={`O que é: ${content.title}`}
         className={cn(
-          "inline-flex items-center gap-1 text-muted-foreground/70 hover:text-teal transition-colors align-middle",
+          "inline-flex items-center gap-1 p-1.5 -m-1.5 text-muted-foreground/70 hover:text-teal transition-colors align-middle",
           label ? "text-[11px] underline decoration-dotted underline-offset-2" : "",
           className,
         )}
@@ -221,7 +221,7 @@ export function ExplainButton({ topic, label, className }: ExplainButtonProps) {
             aria-modal="true"
             aria-label={content.title}
             onClick={(e) => e.stopPropagation()}
-            className="bg-popover text-popover-foreground border border-border w-full sm:max-w-md max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-2xl"
+            className="bg-popover text-popover-foreground border border-border w-full sm:max-w-md max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-2xl sm:rounded-2xl shadow-2xl pb-[env(safe-area-inset-bottom)]"
           >
             <div className="sticky top-0 bg-popover flex items-center justify-between px-5 py-4 border-b border-border">
               <h3 className="text-sm font-semibold">{content.title}</h3>

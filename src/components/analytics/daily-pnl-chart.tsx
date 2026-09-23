@@ -14,14 +14,14 @@ export function DailyPnlChart({ days }: { days: DayPnl[] }) {
 
   return (
     <div>
-      <p className="h-5 text-xs mb-1 font-mono">
+      <p className="min-h-5 text-xs mb-2 font-mono">
         {info ? (
           <>
             <span className="text-muted-foreground">{shortDay(info.key)} · {info.trades} trade{info.trades > 1 ? "s" : ""} · </span>
             <span className={cn("font-bold", info.pnl >= 0 ? "text-profit" : "text-loss")}>{signedUsd(info.pnl)}</span>
           </>
         ) : (
-          <span className="text-muted-foreground/70 font-sans">Passe o mouse ou toque numa barra pra ver o dia</span>
+          <span className="text-muted-foreground/70 font-sans">Toque numa barra pra ver o dia</span>
         )}
       </p>
 

@@ -1,5 +1,12 @@
 # TraderOS — Progresso
 
+## ✅ 23/09/2026 (noite, v3.1) — Analytics testado e ajustado pra mobile
+Testado em 320/390/768px com página de preview temporária (removida) + dados sintéticos: sem overflow
+horizontal, tooltip por toque OK, modal vira bottom sheet OK. Ajustes: lista "onde escapou dinheiro" quebra
+em 2 linhas, tabela de comportamento com rótulos curtos, contagem por horário visível no cel, eixo X com
+labels alternados no cel, "?" com área de toque maior + safe-area no modal, recorte do diagrama MFE/MAE,
+plural "dia/dias", espaço faltando no veredito da entrada.
+
 ## ✅ 23/09/2026 (noite, v3) — Analytics: gráficos interativos + explicações + diagnósticos + "E se" completo
 Pedido do Marcelo: números nos gráficos (hover/toque), modal explicando MFE/MAE/Drawdown, seção Analytics
 mais densa (análise de verdade pra melhorar entrada) e "E se" menos vago.

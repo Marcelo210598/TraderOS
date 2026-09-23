@@ -86,7 +86,7 @@ export function EntryDiagnosisCard({ trades }: { trades: InsightTrade[] }) {
       {d.verdict === "tight" && (
         <Verdict tone="good">
           <B>Entrada boa.</B> Seus wins quase não sofrem (média de {pts(d.avgMaeWin)} contra), enquanto os losses chegam a {pts(d.avgMaeLoss)}.
-          80% dos seus wins nunca passaram de <B>{pts(d.p80MaeWin)}</B> contra. Isso indica folga no stop: teste um stop mais curto no simulador &quot;E se&quot; mais abaixo.
+          80% dos seus wins nunca passaram de <B>{pts(d.p80MaeWin)}</B>{" "}contra. Isso indica folga no stop: teste um stop mais curto no simulador &quot;E se&quot; mais abaixo.
         </Verdict>
       )}
       {d.verdict === "sufoco" && (
@@ -137,14 +137,14 @@ export function ExitLeakCard({ trades, totalPnl }: { trades: InsightTrade[]; tot
           <p className="text-xs text-muted-foreground mb-2">Onde mais escapou dinheiro</p>
           <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
             {l.top.map((r, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-2 text-xs">
+              <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-xs">
                 <span className="font-mono text-muted-foreground w-12 shrink-0">{formatShortDateBR(r.date)}</span>
                 <span className={cn("text-[10px] font-bold w-10 shrink-0", r.result === "WIN" ? "text-profit" : "text-loss")}>{r.result === "WIN" ? "WIN" : "LOSS"}</span>
-                <span className="flex-1 text-muted-foreground font-mono">
+                <span className="font-mono font-bold text-yellow-400 shrink-0 ml-auto sm:order-last">-{usd(r.leftUsd)}</span>
+                <span className="basis-full sm:basis-auto sm:flex-1 text-muted-foreground font-mono text-[11px] sm:text-xs">
                   foi a <span className="text-profit">+{r.mfe.toFixed(0)}</span>, saiu em{" "}
                   <span className={r.exitPts >= 0 ? "text-profit" : "text-loss"}>{r.exitPts >= 0 ? "+" : ""}{r.exitPts.toFixed(0)}</span> pts
                 </span>
-                <span className="font-mono font-bold text-yellow-400 shrink-0">-{usd(r.leftUsd)}</span>
               </div>
             ))}
           </div>
@@ -186,8 +186,8 @@ export function TimeOfDayCard({ trades }: { trades: InsightTrade[] }) {
               />
             </div>
             <span className={cn("w-16 text-right text-xs font-mono font-bold shrink-0", h.pnl >= 0 ? "text-profit" : "text-loss")}>{signedUsd(h.pnl)}</span>
-            <span className="w-24 text-right text-[10px] text-muted-foreground shrink-0 hidden sm:block">
-              {h.total} trade{h.total > 1 ? "s" : ""} · {h.winRate}% win
+            <span className="w-14 sm:w-24 text-right text-[10px] text-muted-foreground shrink-0 leading-tight">
+              {h.total}<span className="hidden sm:inline"> trade{h.total > 1 ? "s" : ""}</span><span className="sm:hidden">t</span> · {h.winRate}%<span className="hidden sm:inline"> win</span>
             </span>
           </div>
         ))}
@@ -208,13 +208,13 @@ export function TimeOfDayCard({ trades }: { trades: InsightTrade[] }) {
 // ── 4. Comportamento (pós-loss, revenge, overtrading) ────────────────────────
 function FollowRow({ label, hint, s }: { label: string; hint: string; s: FollowStat }) {
   return (
-    <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-4 px-4 py-2.5 text-xs">
+    <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-2 sm:gap-x-4 px-3 sm:px-4 py-2.5 text-xs">
       <div>
         <p className="text-foreground font-medium">{label}</p>
         <p className="text-[10px] text-muted-foreground">{hint}</p>
       </div>
-      <span className="font-mono text-muted-foreground w-10 text-right">{s.total}x</span>
-      <span className={cn("font-mono w-12 text-right", s.total === 0 ? "text-muted-foreground" : s.winRate >= 50 ? "text-profit" : "text-loss")}>
+      <span className="font-mono text-muted-foreground w-8 text-right">{s.total}x</span>
+      <span className={cn("font-mono w-10 text-right", s.total === 0 ? "text-muted-foreground" : s.winRate >= 50 ? "text-profit" : "text-loss")}>
         {s.total ? `${s.winRate}%` : "—"}
       </span>
       <span className={cn("font-mono font-bold w-16 text-right", s.total === 0 ? "text-muted-foreground" : s.avgPnl >= 0 ? "text-profit" : "text-loss")}>
@@ -234,12 +234,12 @@ export function BehaviorCard({ trades }: { trades: InsightTrade[] }) {
   return (
     <Card title="Comportamento" subtitle="Como você opera depois de ganhar e depois de perder (só trades seguidos no mesmo dia)">
       <div className="border border-border rounded-lg divide-y divide-border">
-        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 px-4 py-2 text-[10px] text-muted-foreground uppercase tracking-wide">
-          <span>Situação</span><span className="w-10 text-right">vezes</span><span className="w-12 text-right">win %</span><span className="w-16 text-right">média</span>
+        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-2 sm:gap-x-4 px-3 sm:px-4 py-2 text-[10px] text-muted-foreground uppercase tracking-wide">
+          <span>Situação</span><span className="w-8 text-right">vezes</span><span className="w-10 text-right">win %</span><span className="w-16 text-right">média</span>
         </div>
-        <FollowRow label="Trade depois de um win" hint="o próximo trade" s={a.afterWin} />
-        <FollowRow label="Trade depois de um loss" hint="o próximo trade" s={a.afterLoss} />
-        <FollowRow label="Reentrada em até 15 min após loss" hint="possível revenge trade" s={a.quickAfterLoss} />
+        <FollowRow label="Depois de um win" hint="o próximo trade" s={a.afterWin} />
+        <FollowRow label="Depois de um loss" hint="o próximo trade" s={a.afterLoss} />
+        <FollowRow label="Reentrada ≤ 15 min" hint="após um loss · possível revenge" s={a.quickAfterLoss} />
       </div>
 
       {tilt ? (
@@ -259,7 +259,7 @@ export function BehaviorCard({ trades }: { trades: InsightTrade[] }) {
       )}
       {a.overtradingDays && (
         <Verdict tone={a.overtradingDays.avgDayPnl < a.overtradingDays.otherAvgDayPnl ? "warn" : "info"}>
-          Você faz em média <B>{a.avgTradesPerDay.toFixed(1)} trades/dia</B>. Nos {a.overtradingDays.days} dias com {a.overtradingDays.threshold}+ trades o dia rendeu{" "}
+          Você faz em média <B>{a.avgTradesPerDay.toFixed(1)} trades/dia</B>. Nos {a.overtradingDays.days} {a.overtradingDays.days > 1 ? "dias" : "dia"} com {a.overtradingDays.threshold}+ trades o dia rendeu{" "}
           <B>{signedUsd(a.overtradingDays.avgDayPnl)}</B> em média, contra <B>{signedUsd(a.overtradingDays.otherAvgDayPnl)}</B> nos demais dias.
         </Verdict>
       )}

@@ -1,5 +1,6 @@
 "use client"
 
+import { cn } from "@/lib/utils"
 import { useRef, useState, type ReactNode, type PointerEvent } from "react"
 
 // Área de plot compartilhada (Equity Curve + Drawdown): eixo Y com números,
@@ -118,7 +119,7 @@ export function ScrubPlot({ count, yPcts, ticks, xLabels, dotColor, height = 180
       {/* Eixo X */}
       <div className="flex justify-between mt-1.5 pl-12 pr-1">
         {xLabels.map((l, i) => (
-          <span key={i} className="text-[10px] text-muted-foreground font-mono">{l}</span>
+          <span key={i} className={cn("text-[10px] text-muted-foreground font-mono", i % 2 === 1 && i !== xLabels.length - 1 && "hidden sm:inline")}>{l}</span>
         ))}
       </div>
     </div>
