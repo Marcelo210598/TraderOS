@@ -151,13 +151,25 @@ export default async function CarteiraPage() {
   const monthPct = balanceMonthAgo !== 0 ? (monthPnl / Math.abs(balanceMonthAgo)) * 100 : 0
 
   // ── Equity curve (consolidada + uma linha por TIPO) ───────────────
+  // Todas as séries compartilham o MESMO intervalo de tempo (do primeiro
+  // trade ativo até hoje). Antes, cada linha começava no seu próprio
+  // primeiro trade — um tipo com atividade recente e concentrada num só
+  // dia (ex: Avaliação) ficava espremido numa fatia mínima de pixels lá
+  // no canto do gráfico, virando um traço solto e desconexo da curva.
+  const rangeStart = activeTrades[0] ? new Date(activeTrades[0].date).getTime() - 1 : now.getTime()
+  const rangeEnd = now.getTime()
+
   function buildSeries(initial: number, accTrades: RawTrade[]) {
     let running = initial
-    const pts: { t: number; v: number }[] = [{ t: accTrades[0] ? new Date(accTrades[0].date).getTime() - 1 : now.getTime(), v: round2(running) }]
+    const pts: { t: number; v: number }[] = [{ t: rangeStart, v: round2(running) }]
     for (const t of accTrades) {
       running += Number(t.pnl)
       pts.push({ t: new Date(t.date).getTime(), v: round2(running) })
     }
+    // Estende até hoje com o saldo atual, pra linha não parar no meio do
+    // gráfico caso o tipo/conta não tenha operado nos últimos dias.
+    const lastT = pts[pts.length - 1].t
+    if (lastT < rangeEnd) pts.push({ t: rangeEnd, v: round2(running) })
     return pts
   }
   const consolidatedSeries = buildSeries(totalInitial, activeTrades)

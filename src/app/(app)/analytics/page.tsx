@@ -19,16 +19,35 @@ import { excludeArchivedTrades } from "@/lib/account"
 
 export const metadata: Metadata = { title: "Analytics" }
 
-export default async function AnalyticsPage() {
+// Mesma taxonomia de 3 baldes da Carteira (Avaliação/Aprovada/Teste), só que
+// aqui filtra o dataset inteiro do Analytics em vez de só o saldo.
+type Bucket = "EVAL" | "PA" | "TEST"
+const BUCKET_META: Record<Bucket, { name: string }> = {
+  EVAL: { name: "Avaliação" },
+  PA: { name: "Aprovada" },
+  TEST: { name: "Teste" },
+}
+function bucketOf(label: string): Bucket {
+  if (label === "TEST") return "TEST"
+  if (label?.toUpperCase().startsWith("PA")) return "PA"
+  return "EVAL"
+}
+
+interface Props {
+  searchParams: Promise<Record<string, string>>
+}
+
+export default async function AnalyticsPage({ searchParams }: Props) {
   const session = await auth()
   const user = session!.user
+  const sp = await searchParams
 
   // select estreito: só as colunas usadas nas métricas/gráficos — evita puxar
   // notes/aiAnalysis (textos longos) de todo o histórico. excludeArchivedTrades
   // fora do gráfico só conta arquivada (avaliação antiga que o trader guardou),
   // mas MANTÉM teste/simulação — igual Carteira e Journal, que também mostram
   // performance de conta teste, só separada/rotulada.
-  const trades = await prisma.trade.findMany({
+  const allTrades = await prisma.trade.findMany({
     where: { userId: user.id, ...excludeArchivedTrades },
     select: {
       date: true,
@@ -39,12 +58,42 @@ export default async function AnalyticsPage() {
       sessionType: true,
       mfe: true,
       mae: true,
+      accountLabel: true,
       setup: { select: { id: true, name: true } },
     },
     orderBy: { date: "asc" },
   })
 
-  if (trades.length === 0) {
+  // Só entra no seletor o tipo que realmente tem trade — sem opção vazia.
+  const availableBuckets = (["EVAL", "PA", "TEST"] as Bucket[]).filter((b) =>
+    allTrades.some((t) => bucketOf(t.accountLabel) === b)
+  )
+  const activeBucket: Bucket | null = availableBuckets.includes(sp.tipo as Bucket) ? (sp.tipo as Bucket) : null
+  const trades = activeBucket ? allTrades.filter((t) => bucketOf(t.accountLabel) === activeBucket) : allTrades
+
+  // Seletor "Todos / Avaliação / Teste" — só aparece quando há mais de um
+  // tipo de conta com trade, senão não tem o que surfar.
+  const typeToggle = availableBuckets.length > 1 && (
+    <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5 w-fit">
+      <Link
+        href="/analytics"
+        className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", !activeBucket ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+      >
+        Todos
+      </Link>
+      {availableBuckets.map((b) => (
+        <Link
+          key={b}
+          href={`/analytics?tipo=${b}`}
+          className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", activeBucket === b ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+        >
+          {BUCKET_META[b].name}
+        </Link>
+      ))}
+    </div>
+  )
+
+  if (allTrades.length === 0) {
     return (
       <div className="flex flex-col flex-1 overflow-auto">
         <Header
@@ -82,6 +131,28 @@ export default async function AnalyticsPage() {
               + Registrar Trade
             </Link>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Filtro escolhido não tem trade nenhum (ex: type ainda não operou) — mostra
+  // o seletor mesmo assim, senão o trader fica preso sem como voltar pro "Todos".
+  if (trades.length === 0) {
+    return (
+      <div className="flex flex-col flex-1 overflow-auto">
+        <Header
+          title="Analytics"
+          userName={user.name}
+          userEmail={user.email}
+          userImage={user.image}
+          userPlan={user.plan ?? "FREE"}
+        />
+        <div className="flex-1 p-4 lg:p-6 space-y-5 max-w-5xl mx-auto w-full">
+          {typeToggle}
+          <p className="text-sm text-muted-foreground text-center py-12">
+            Nenhum trade em {activeBucket ? BUCKET_META[activeBucket].name : "todos os tipos"} ainda.
+          </p>
         </div>
       </div>
     )
@@ -244,6 +315,8 @@ export default async function AnalyticsPage() {
       />
 
       <div className="flex-1 p-4 lg:p-6 space-y-5 max-w-5xl mx-auto w-full">
+
+        {typeToggle}
 
         {/* ── KPIs principais ── */}
         <div data-tour="analytics-kpis" className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -1,6 +1,24 @@
 # TraderOS — Progresso
 
-## ✅ 23/09/2026 — CORRIGIDO: import CSV NinjaTrader PT-BR zerava P&L negativo
+## ✅ 23/09/2026 — Fix gráfico Carteira + toggle por tipo no Analytics
+1. **Fix equity curve da Carteira** (`src/app/(app)/carteira/page.tsx`): no modo "Por
+   tipo", cada linha (Avaliação/Teste) calculava sua própria escala de tempo a partir
+   do PRÓPRIO primeiro trade. Um tipo com atividade recente e concentrada num único dia
+   (ex: Avaliação, só trades de 22/09) ficava espremido numa fatia mínima de pixels no
+   canto do gráfico compartilhado, virando um traço solto e desconexo — feio e confuso.
+   Fix: todas as séries agora compartilham o mesmo intervalo de tempo (primeiro trade
+   ativo geral até hoje), com lead-in plano no saldo inicial e extensão plana até hoje
+   quando o tipo não operou nos últimos dias.
+2. **Toggle "Todos / Avaliação / Teste" no Analytics** (`src/app/(app)/analytics/page.tsx`):
+   pedido do Marcelo pra poder "surfar" entre tipos de conta na página inteira, não só
+   na Carteira. Via query param `?tipo=EVAL|PA|TEST`, filtra o dataset de trades ANTES
+   de calcular qualquer métrica — então KPIs, Equity Curve, Drawdown, streaks, MFE/MAE,
+   sessão/instrumento/setup e o Simulador "E se" reagem juntos ao filtro escolhido. Só
+   mostra no seletor tipos que realmente têm trade; se o filtro ativo zerar os trades,
+   mostra mensagem + mantém o seletor visível (não prende o trader sem como voltar).
+`tsc --noEmit` limpo nos dois. Testado no localhost pelo Marcelo antes do deploy.
+
+## ✅ 23/09/2026 (cedo) — CORRIGIDO: import CSV NinjaTrader PT-BR zerava P&L negativo
 Bug achado em 22/09 (fills que saem no stop importavam como P&L $0,00 em vez do valor
 real). Causa raiz: `parseBRNumber` em `src/components/journal/importar-client.tsx` não
 removia o espaço entre `-` e o número em `"-$ 117,00"`, e `parseFloat("- 117.00")`
