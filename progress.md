@@ -1,5 +1,14 @@
 # TraderOS — Progresso
 
+## ✅ 23/09/2026 (tarde) — Toggle por tipo também no Calendário
+Mesmo padrão do Analytics: seletor "Todos / Avaliação / Teste" no topo do
+`/calendario`, filtrando P&L do mês, win rate, dias operados, melhor/pior dia,
+dias lucrativos e a grade inteira do calendário por tipo de conta. Ao trocar de
+mês pelas setas (`CalendarNav`), o filtro de tipo agora vai junto na URL — antes
+resetaria pra "Todos" a cada navegação de mês. Extraído `bucketOf`/`BUCKET_META`
+pra `src/lib/accounts.ts` (já era a 3ª página repetindo a mesma lógica de balde
+EVAL/PA/TEST — Analytics também passou a importar dali). `tsc --noEmit` limpo.
+
 ## ✅ 23/09/2026 — Fix gráfico Carteira + toggle por tipo no Analytics
 1. **Fix equity curve da Carteira** (`src/app/(app)/carteira/page.tsx`): no modo "Por
    tipo", cada linha (Avaliação/Teste) calculava sua própria escala de tempo a partir

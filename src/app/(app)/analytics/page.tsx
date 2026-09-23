@@ -16,22 +16,9 @@ import { SectionTour } from "@/components/tour/section-tour"
 import { hasSeenTour } from "@/lib/tours"
 import { ANALYTICS_TOUR_STEPS } from "@/lib/tour-content"
 import { excludeArchivedTrades } from "@/lib/account"
+import { bucketOf, BUCKET_META, type Bucket } from "@/lib/accounts"
 
 export const metadata: Metadata = { title: "Analytics" }
-
-// Mesma taxonomia de 3 baldes da Carteira (Avaliação/Aprovada/Teste), só que
-// aqui filtra o dataset inteiro do Analytics em vez de só o saldo.
-type Bucket = "EVAL" | "PA" | "TEST"
-const BUCKET_META: Record<Bucket, { name: string }> = {
-  EVAL: { name: "Avaliação" },
-  PA: { name: "Aprovada" },
-  TEST: { name: "Teste" },
-}
-function bucketOf(label: string): Bucket {
-  if (label === "TEST") return "TEST"
-  if (label?.toUpperCase().startsWith("PA")) return "PA"
-  return "EVAL"
-}
 
 interface Props {
   searchParams: Promise<Record<string, string>>

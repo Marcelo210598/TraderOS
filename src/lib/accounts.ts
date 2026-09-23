@@ -21,3 +21,18 @@ export const NON_REAL_LABELS: string[] = ["TEST"]
 export function getAccountOption(value: string) {
   return ACCOUNT_OPTIONS.find((a) => a.value === value) ?? ACCOUNT_OPTIONS[0]
 }
+
+// Os 3 baldes "macro" que agrupam qualquer accountLabel (TEST, EVAL, PA, PA25K...)
+// nas 3 fases da jornada — usado no seletor "por tipo" (Carteira, Analytics,
+// Calendário) pra não precisar separar por conta individual.
+export type Bucket = "EVAL" | "PA" | "TEST"
+export const BUCKET_META: Record<Bucket, { name: string; color: string }> = {
+  EVAL: { name: "Avaliação", color: "#F59E0B" },
+  PA: { name: "Aprovada", color: "#10B981" },
+  TEST: { name: "Teste", color: "#64748B" },
+}
+export function bucketOf(label: string): Bucket {
+  if (label === "TEST") return "TEST"
+  if (label?.toUpperCase().startsWith("PA")) return "PA"
+  return "EVAL"
+}

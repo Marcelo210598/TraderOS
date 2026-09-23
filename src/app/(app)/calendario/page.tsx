@@ -21,6 +21,7 @@ import { SectionTour } from "@/components/tour/section-tour"
 import { CALENDARIO_TOUR_STEPS } from "@/lib/tour-content"
 import { hasSeenTour } from "@/lib/tours"
 import { excludeArchivedTrades } from "@/lib/account"
+import { bucketOf, BUCKET_META, type Bucket } from "@/lib/accounts"
 
 export const metadata: Metadata = { title: "Calendário" }
 
@@ -50,15 +51,23 @@ export default async function CalendarioPage({ searchParams }: Props) {
   // Fetch trades do mês — exclui só conta arquivada, mantém teste/simulação
   // visível (igual Carteira e Journal), senão o calendário fica vazio pra
   // quem só tem trades em conta de teste no momento.
-  const trades = await prisma.trade.findMany({
+  const allTrades = await prisma.trade.findMany({
     where: {
       userId: user.id,
       date: { gte: monthStart, lte: monthEnd },
       ...excludeArchivedTrades,
     },
-    select: { date: true, result: true, pnl: true },
+    select: { date: true, result: true, pnl: true, accountLabel: true },
     orderBy: { date: "asc" },
   })
+
+  // Seletor "Todos / Avaliação / Teste" — só entra no seletor o tipo que tem
+  // trade no mês selecionado, e some sozinho se só sobrar um tipo.
+  const availableBuckets = (["EVAL", "PA", "TEST"] as Bucket[]).filter((b) =>
+    allTrades.some((t) => bucketOf(t.accountLabel) === b)
+  )
+  const activeBucket: Bucket | null = availableBuckets.includes(sp.tipo as Bucket) ? (sp.tipo as Bucket) : null
+  const trades = activeBucket ? allTrades.filter((t) => bucketOf(t.accountLabel) === activeBucket) : allTrades
 
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
   const weekDayStart = getDay(monthStart)
@@ -140,6 +149,29 @@ export default async function CalendarioPage({ searchParams }: Props) {
 
   const calendarioTourSeen = await hasSeenTour(user.id, "calendario")
 
+  // Seletor "Todos / Avaliação / Teste" — preserva o mês selecionado (sp.month)
+  // ao trocar de tipo, senão a troca jogaria de volta pro mês atual.
+  const monthQs = sp.month ? `month=${sp.month}` : ""
+  const typeToggle = availableBuckets.length > 1 && (
+    <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5 w-fit">
+      <a
+        href={monthQs ? `/calendario?${monthQs}` : "/calendario"}
+        className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", !activeBucket ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+      >
+        Todos
+      </a>
+      {availableBuckets.map((b) => (
+        <a
+          key={b}
+          href={`/calendario?tipo=${b}${monthQs ? `&${monthQs}` : ""}`}
+          className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", activeBucket === b ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+        >
+          {BUCKET_META[b].name}
+        </a>
+      ))}
+    </div>
+  )
+
   return (
     <div className="flex flex-col flex-1 overflow-auto">
       <SectionTour id="calendario" steps={CALENDARIO_TOUR_STEPS} initialSeen={calendarioTourSeen} />
@@ -153,6 +185,8 @@ export default async function CalendarioPage({ searchParams }: Props) {
       />
 
       <div className="flex-1 p-4 lg:p-6 max-w-4xl mx-auto w-full space-y-5">
+        {typeToggle}
+
         {/* Stats */}
         <div data-tour="calendario-stats" className="grid grid-cols-3 lg:grid-cols-6 gap-3">
           {stats.map((s) => (
@@ -175,6 +209,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
               prevMonth={prevMonthStr}
               nextMonth={nextMonthStr}
               isCurrentMonth={isCurrentMonth}
+              tipo={activeBucket}
             />
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
