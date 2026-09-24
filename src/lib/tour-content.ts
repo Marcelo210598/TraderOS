@@ -183,6 +183,39 @@ export const CALENDARIO_TOUR_STEPS: TourStep[] = [
   },
 ]
 
+export const DRAWDOWN_TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="drawdown-tabs"]',
+    title: "Real ou Simular",
+    body: "Real usa os trades que você já lançou pra mostrar como está sua conta. Simular deixa você testar cenários na mão, sem mexer em nada seu.",
+  },
+  {
+    target: '[data-tour="drawdown-rules"]',
+    title: "As regras da sua conta",
+    body: "Preencha saldo, meta e drawdown da sua mesa (ou escolha um preset). Campos com cadeado são liberados em planos superiores — toque neles pra ver qual.",
+  },
+  {
+    target: '[data-tour="drawdown-hero"]',
+    title: "Quanto ainda posso perder",
+    body: "O número que mais importa: a margem até o limite da conta. A cor mostra a zona — folgado, atenção, perigo ou quebrou.",
+  },
+  {
+    target: '[data-tour="drawdown-chart"]',
+    title: "Corredor de segurança",
+    body: "A área sombreada é o espaço entre seu patrimônio e o limite. Quanto mais fina, mais perto de quebrar. Passe o mouse (ou o dedo) pra ver cada momento.",
+  },
+  {
+    target: '[data-tour="drawdown-scoreboard"]',
+    title: "Compare as regras",
+    body: "Cada mesa calcula o drawdown de um jeito. Aqui você vê a mesma conta nas quatro regras e qual é a mais apertada. Toque numa regra pra colocá-la em foco.",
+  },
+  {
+    target: '[data-tour="drawdown-risk"]',
+    title: "Quanto cabe arriscar",
+    body: "Informe o ativo e o stop em pontos: o app calcula o risco por trade e quantos contratos cabem na sua margem — respeitando o limite diário.",
+  },
+]
+
 export const DESAFIOS_TOUR_STEPS: TourStep[] = [
   {
     target: '[data-tour="desafios-new"]',

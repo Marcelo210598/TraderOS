@@ -134,7 +134,7 @@ export function RulesForm({ rules, onChange, plan, mode }: RulesFormProps) {
   const activePreset = PRESETS.find((p) => p.rules.preset === rules.preset)
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+    <div data-tour="drawdown-rules" className="bg-card border border-border rounded-xl p-4 space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Field label="Preset de mesa" feature="presets" plan={plan}>
           <select

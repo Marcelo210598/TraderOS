@@ -1,5 +1,10 @@
 # TraderOS — Progresso
 
+## ✅ 24/09/2026 (tarde) — Drawdown: tutorial (SectionTour) + botão "Tutorial" + testes de celular da v2
+- Tutorial `drawdown` (6 passos: Real/Simular, regras, herói, corredor, placar, quanto cabe arriscar) em `tour-content.ts`; `SectionTour` + `tourId="drawdown"` no Header (botão de replay igual às outras páginas). Sem migration: usa `User.seenTours` existente.
+- **Testes mobile da v2 (preview sem login, dados de exemplo):** 390px Real/Pro → sem overflow horizontal (scrollWidth 384); 320px Simular/Free → sem overflow (314); tutorial abre no celular (passo 1 de 6). v1 (Free/Simular 390px) já tinha sido testada antes. **Não testado:** app logado em produção no celular, gráfico com toque real em aparelho, tutorial passo a passo até o fim.
+- Detalhe conhecido: select "Trava do trailing" corta o texto em 320–390px (cosmético).
+
 ## ✅ 24/09/2026 (tarde) — Drawdown v2: visual PRÓPRIO (não cópia do simulador da aula)
 Feedback do Marcelo: linhas/estilo idênticos ao print do Piero → "usar como inspiração, fazer melhor e diferente". Redesenhado:
 - **Herói "Quanto ainda posso perder"** (margem da regra em foco, termômetro com zonas Folgado >60% / Atenção 30–60% / Perigo <30% / Quebrou).

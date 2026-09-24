@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma"
 import { Header } from "@/components/layout/header"
 import { DrawdownClient } from "@/components/drawdown/drawdown-client"
 import type { PlanKey } from "@/lib/plans"
+import { SectionTour } from "@/components/tour/section-tour"
+import { DRAWDOWN_TOUR_STEPS } from "@/lib/tour-content"
+import { hasSeenTour } from "@/lib/tours"
 
 export const metadata: Metadata = { title: "Drawdown" }
 
@@ -36,14 +39,18 @@ export default async function DrawdownPage({ searchParams }: Props) {
       })
     : []
 
+  const drawdownTourSeen = await hasSeenTour(user.id, "drawdown")
+
   return (
     <div className="flex flex-col flex-1 overflow-auto">
+      <SectionTour id="drawdown" steps={DRAWDOWN_TOUR_STEPS} initialSeen={drawdownTourSeen} />
       <Header
         title="Drawdown"
         userName={user.name}
         userEmail={user.email}
         userImage={user.image}
         userPlan={user.plan ?? "FREE"}
+        tourId="drawdown"
       />
       <div className="flex-1 p-4 lg:p-6 max-w-5xl mx-auto w-full space-y-2">
         <p className="text-sm text-muted-foreground">

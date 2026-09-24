@@ -55,7 +55,7 @@ export function ResultPanel({ frames, rules, plan, highlight, xLabels, stepLabel
       <Stats last={last} rules={rules} />
       <StatusBadges last={last} rules={rules} plan={plan} />
 
-      <div className="bg-card border border-border rounded-xl p-4">
+      <div data-tour="drawdown-chart" className="bg-card border border-border rounded-xl p-4">
         <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
           <p className="text-sm font-semibold">
             Corredor de segurança <span className="text-muted-foreground font-normal">· {DRAWDOWN_LABEL[focus]}</span>
@@ -112,7 +112,7 @@ function MarginHero({ frame, rules, focus }: { frame: Frame; rules: AccountRules
   const style = RULE_STYLE[focus]
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5" style={{ borderLeftColor: zone.color, borderLeftWidth: 4 }}>
+    <div data-tour="drawdown-hero" className="bg-card border border-border rounded-xl p-5" style={{ borderLeftColor: zone.color, borderLeftWidth: 4 }}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -235,7 +235,7 @@ function Scoreboard({
   const gap = margins.length > 1 ? Math.max(...margins) - Math.min(...margins) : 0
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div data-tour="drawdown-scoreboard" className="bg-card border border-border rounded-xl p-4">
       <div className="flex items-center justify-between gap-2 mb-1">
         <p className="text-sm font-semibold">Placar das regras</p>
         <span className="text-[10px] text-muted-foreground">toque numa regra pra colocar em foco</span>
@@ -328,7 +328,7 @@ function RiskCard({ frame, rules, plan, focus }: { frame: Frame; rules: AccountR
   const maxStop1 = pv > 0 ? budget / pv : 0
 
   return (
-    <div className="relative bg-card border border-border rounded-xl p-4">
+    <div data-tour="drawdown-risk" className="relative bg-card border border-border rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-semibold">Quanto cabe arriscar agora</p>
         {locked && (

@@ -24,7 +24,7 @@ export function DrawdownClient({ plan, tab, accounts, selectedId, trades }: Prop
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5 w-fit">
+      <div data-tour="drawdown-tabs" className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5 w-fit">
         {tabs.map((t) => (
           <button
             key={t.id}
