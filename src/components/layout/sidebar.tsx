@@ -20,6 +20,7 @@ import {
   Zap,
   X,
   ShieldCheck,
+  Gauge,
   LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -53,6 +54,7 @@ const navGroups: NavGroup[] = [
     label: "Ferramentas",
     items: [
       { href: "/analytics", icon: BarChart2, label: "Analytics" },
+      { href: "/drawdown", icon: Gauge, label: "Drawdown" },
       { href: "/setups", icon: BarChart3, label: "Setups", planRequired: "TRADER" },
       { href: "/planner", icon: ClipboardList, label: "Planner" },
       { href: "/calendario", icon: Calendar, label: "Calendário" },

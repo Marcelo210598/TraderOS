@@ -226,6 +226,40 @@ export function simulate(rules: DrawdownRules, steps: Step[]): Frame[] {
   return frames
 }
 
+export interface TradeInput {
+  date: number // ms epoch
+  pnl: number // líquido de comissão
+  mfe: number | null // melhor lucro em aberto durante o trade ($)
+  mae: number | null // pior prejuízo em aberto durante o trade ($)
+}
+
+/**
+ * Converte trades reais em passos da simulação. Como o app não sabe a ORDEM do caminho, usa o
+ * PIOR CASO pro drawdown: primeiro o pico (MFE), depois o fundo (MAE), depois a saída. Só o
+ * Intraday é afetado (é o único que conta o lucro em aberto) — por isso é uma estimativa.
+ * `dayKeyOf` decide a virada do dia (calendário BR ou trading day da mesa).
+ */
+export function stepsFromTrades(trades: TradeInput[], dayKeyOf: (ms: number) => string): Step[] {
+  const sorted = [...trades].sort((a, b) => a.date - b.date)
+  const steps: Step[] = []
+  let lastKey: string | null = null
+  for (const t of sorted) {
+    const key = dayKeyOf(t.date)
+    if (lastKey !== null && key !== lastKey) steps.push({ type: "END_DAY" })
+    lastKey = key
+    const peak = t.mfe === null ? Math.max(t.pnl, 0) : Math.max(Math.abs(t.mfe), t.pnl, 0)
+    const trough = t.mae === null ? Math.min(t.pnl, 0) : Math.min(-Math.abs(t.mae), t.pnl, 0)
+    let cur = 0
+    for (const to of [peak, trough, t.pnl]) {
+      const delta = round2(to - cur)
+      if (delta !== 0) steps.push({ type: "MOVE", delta })
+      cur = to
+    }
+    steps.push({ type: "CLOSE" })
+  }
+  return steps
+}
+
 export interface Scenario {
   id: string
   name: string

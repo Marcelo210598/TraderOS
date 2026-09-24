@@ -1,5 +1,20 @@
 # TraderOS — Progresso
 
+## ✅ 24/09/2026 (meio-dia) — Seção "Drawdown" NO AR (`/drawdown`, menu Ferramentas)
+- **Abas Real e Simular**, mesmo motor (`drawdown-engine.ts`). Simular: +$100/+$500/−$100/−$500, Fechar posição, Encerrar dia, Desfazer,
+  Reiniciar, cenários prontos (Próximo passo/Reproduzir), gráfico com tooltip, 4 cards (limite, margem, falta pra meta, barra, status).
+  Real: contas do usuário, regras editáveis, trades reais → passos (`stepsFromTrades`, pior caso: pico antes do fundo), consistência, virada do dia.
+- **Cadeados (Free/Starter/Pro):** campo visível e travado; clique/toque abre o `UpgradeModal` do app. Free: saldo/meta/DD + Static/Intraday + Simular manual +
+  1 conta Real. Starter: + End of Day + limite diário. Pro: tudo (End of Position, trava, consistência, virada, dias mín., cenários, presets, várias contas).
+  ⚠️ Gate é **só no front** por enquanto (calculadora, sem dado sensível); API/servidor entra junto com a coluna no banco.
+- **Persistência v1 = localStorage** (por conta, neste navegador). ⚠️ A coluna `drawdownRules JSONB` em `trading_accounts` foi **bloqueada** pelo classificador de
+  segurança (ALTER no Neon de produção). Migration pronta pra recriar: `ALTER TABLE "trading_accounts" ADD COLUMN IF NOT EXISTS "drawdownRules" JSONB;`.
+  Decisão do Marcelo: rodar/autorizar → depois trocar `loadStoredRules/saveStoredRules` (`drawdown-rules.ts`) por API + Zod + `plan-guard`.
+- **Presets (dado, só o verificado):** Lucid Flex 50K (painel do Marcelo) e Apex EOD 25/50/100/150K (tabela do PDF). Trava do trailing em branco de propósito.
+- **Validação:** End of Day calculado com os trades reais da LFE = limite **$48.433,50** ≈ MLL do painel da Lucid ($48.434). 11 testes ok (`node scripts/test-drawdown-engine.mts`).
+- **Pendências:** coluna no banco; calibração "limite segundo a mesa"; presets de outras mesas (só com regra confirmada); versão pública/SEO; `Aprovada` já no seletor.
+- Testado com preview temporário (removido) em 1280px (Pro/Real) e 390px (Free/Simular): sem overflow, cadeado intercepta clique.
+
 ## ✅ 24/09/2026 (manhã) — Seletor com "Aprovada" sempre visível + deploy + diagnóstico do localhost
 - **Calendário e Analytics:** seletor agora é `Todos / Avaliação / Aprovada / Teste` **sempre** (antes só aparecia o tipo com trade no mês →
   conta aprovada sumia). Tipo sem trade fica esmaecido; escolher um vazio mostra o mês/aviso vazio sem quebrar. `BUCKETS` em `src/lib/accounts.ts`.

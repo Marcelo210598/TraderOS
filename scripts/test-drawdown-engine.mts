@@ -5,6 +5,7 @@ import {
   DEFAULT_RULES,
   SCENARIOS,
   simulate,
+  stepsFromTrades,
   type DrawdownRules,
   type Step,
 } from "../src/lib/drawdown-engine.ts"
@@ -135,6 +136,35 @@ test("frame carrega consistência dos dias simulados", () => {
   assert.equal(f.daysTraded, 4)
   assert.equal(f.consistency!.pct, 25)
   assert.equal(f.consistency!.ok, true)
+})
+
+test("stepsFromTrades: trades reais da LucidFlex com virada do dia às 18h BRT", () => {
+  // trading day às 18h BRT: desloca +6h antes de pegar a data (UTC-3 → a virada cai em 21h UTC)
+  const dayKeyOf = (ms: number) => new Date(ms - 3 * 3600e3 + 6 * 3600e3).toISOString().slice(0, 10)
+  const t = (iso: string, pnl: number, mfe: number | null = null, mae: number | null = null) => ({
+    date: Date.parse(iso),
+    pnl,
+    mfe,
+    mae,
+  })
+  const steps = stepsFromTrades(
+    [
+      t("2026-09-22T13:30:00Z", 411.5), // 10h30 BRT dia 22
+      t("2026-09-23T00:30:00Z", -175.5), // 21h30 BRT dia 22 → já é o trading day 23
+      t("2026-09-23T13:30:00Z", 197.5, 260, 72), // dia 23
+    ],
+    dayKeyOf
+  )
+  const f = last(steps, { ...rules, consistencyMaxPct: 50 })
+  assert.equal(f.balance, 50000 + 411.5 - 175.5 + 197.5)
+  assert.equal(f.trades, 3)
+  // dia 22 (só o trade da manhã) = +411,5; dia 23 (noite de 22 + manhã de 23) = +22
+  assert.equal(steps.filter((s) => s.type === "END_DAY").length, 1)
+  assert.equal(f.consistency!.bestDay, 411.5)
+  assert.equal(f.consistency!.pct, 94.93)
+  // pior caso: pico do 3º trade (260) vem antes do fundo (−72) → intraday já viu o pico
+  const peak = Math.max(...simulate(rules, steps).map((x) => x.equity))
+  assert.equal(peak, 50000 + 411.5 - 175.5 + 260)
 })
 
 console.log(`\n${passed} testes ok`)
