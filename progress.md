@@ -1,5 +1,13 @@
 # TraderOS — Progresso
 
+## 💡 24/09/2026 — Ideia registrada (PRÓXIMA SEÇÃO): "Importar por imagem"
+Marcelo: usuário sobe print do painel da mesa (ex.: Lucid "Account Summary") e o app lê a configuração da conta. Viável (visão do Claude via SDK Anthropic já no projeto).
+- **Lê direto do print da Lucid:** plano (LucidFlex 50K), tipo EOD, nº da conta (casa com `brokerName`), saldo, MLL, meta, trading days, limite diário ($1.200), % de consistência atual.
+- **Não está no print (perguntar/inferir):** drawdown $ (inferível: saldo de fechamento − MLL), trava do trailing, virada do dia, LIMITE % de consistência.
+- **Ganhos:** preencher regras (com confirmação do usuário) + **conferir com a mesa** (MLL do painel × MLL calculado: 48.434 × 48.433,50) + detectar trade faltando (saldo do painel × saldo do app).
+- **Cuidados:** não guardar a imagem (só os campos), validar saída com Zod, tratar texto da imagem como dado (prompt injection), sempre confirmar antes de aplicar, rate limit, contar na cota da Vega (Free 0 / Starter 5 / Pro 40), aviso de que print pode ter dado sensível.
+- **Depende de:** coluna `drawdownRules` no banco (decisão pendente). Depois: mesmo ponto de entrada pra CSV/PDF.
+
 ## ✅ 24/09/2026 (tarde) — Drawdown: tutorial (SectionTour) + botão "Tutorial" + testes de celular da v2
 - Tutorial `drawdown` (6 passos: Real/Simular, regras, herói, corredor, placar, quanto cabe arriscar) em `tour-content.ts`; `SectionTour` + `tourId="drawdown"` no Header (botão de replay igual às outras páginas). Sem migration: usa `User.seenTours` existente.
 - **Testes mobile da v2 (preview sem login, dados de exemplo):** 390px Real/Pro → sem overflow horizontal (scrollWidth 384); 320px Simular/Free → sem overflow (314); tutorial abre no celular (passo 1 de 6). v1 (Free/Simular 390px) já tinha sido testada antes. **Não testado:** app logado em produção no celular, gráfico com toque real em aparelho, tutorial passo a passo até o fim.
