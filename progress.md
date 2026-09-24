@@ -1,5 +1,17 @@
 # TraderOS — Progresso
 
+## ✅ 24/09/2026 (manhã) — Seletor com "Aprovada" sempre visível + deploy + diagnóstico do localhost
+- **Calendário e Analytics:** seletor agora é `Todos / Avaliação / Aprovada / Teste` **sempre** (antes só aparecia o tipo com trade no mês →
+  conta aprovada sumia). Tipo sem trade fica esmaecido; escolher um vazio mostra o mês/aviso vazio sem quebrar. `BUCKETS` em `src/lib/accounts.ts`.
+- **Calendário:** "Dia negativo (avg)" mostrava `-$0` sem dia negativo → agora `—`.
+- **Deploy:** commit `fa03545` (motor de drawdown + seletor) → `vercel deploy --prod` → aliased `meutrade.app`.
+- **Localhost:** dev server sobe normal (login 200). Erro era só o **Google OAuth** (`redirect_uri_mismatch`). O login **e-mail/senha funciona no local**
+  (usuário Marcelo tem senha). Correção definitiva = adicionar `http://localhost:3000/api/auth/callback/google` (+ origem `http://localhost:3000`)
+  no OAuth Client do Google Cloud. ⚠️ O `.env` local aponta pro Neon de PRODUÇÃO (mesmo banco) — cuidado com escrita nos testes.
+- **Achado no calendário (não é bug, é regra de dia):** grade agrupa por dia-calendário BR (22/09 +$236, 23/09 +$198, 24/09 +$239 = +$673); a Lucid
+  agrupa por *trading day* (virada 18h): 22/09 +$411,50, 23/09 +$22, 24/09 +$239. O trade da noite de 22/09 (−$175,50, ~21h30) cai no dia 23 da Lucid.
+  Total bate. Vai virar parâmetro "hora de virada do dia" na seção Drawdown.
+
 ## 🚧 24/09/2026 — Seção "Drawdown" (calculadora de drawdown de mesa) — motor pronto, sem tela ainda
 Ideia do Marcelo (aula do Théo mostrou um simulador de 4 tipos de drawdown). Decisões:
 - **Nome:** "Drawdown" (rota `/drawdown`, subtítulo "Calculadora de drawdown") — "Mesas" confundia com comprar mesa.

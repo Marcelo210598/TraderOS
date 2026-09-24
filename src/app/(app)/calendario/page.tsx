@@ -327,8 +327,8 @@ export default async function CalendarioPage({ searchParams }: Props) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Dia negativo (avg)</span>
-                  <span className="text-sm font-mono font-bold text-loss">
-                    -${Math.abs(avgLossDay).toFixed(0)}
+                  <span className={cn("text-sm font-mono font-bold", avgLossDay === 0 ? "text-muted-foreground" : "text-loss")}>
+                    {avgLossDay === 0 ? "—" : `-$${Math.abs(avgLossDay).toFixed(0)}`}
                   </span>
                 </div>
                 <div className="h-px bg-border/50 my-1" />
