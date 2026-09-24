@@ -21,7 +21,7 @@ import { SectionTour } from "@/components/tour/section-tour"
 import { CALENDARIO_TOUR_STEPS } from "@/lib/tour-content"
 import { hasSeenTour } from "@/lib/tours"
 import { excludeArchivedTrades } from "@/lib/account"
-import { bucketOf, BUCKET_META, type Bucket } from "@/lib/accounts"
+import { bucketOf, BUCKET_META, BUCKETS, type Bucket } from "@/lib/accounts"
 
 export const metadata: Metadata = { title: "Calendário" }
 
@@ -61,12 +61,10 @@ export default async function CalendarioPage({ searchParams }: Props) {
     orderBy: { date: "asc" },
   })
 
-  // Seletor "Todos / Avaliação / Teste" — só entra no seletor o tipo que tem
-  // trade no mês selecionado, e some sozinho se só sobrar um tipo.
-  const availableBuckets = (["EVAL", "PA", "TEST"] as Bucket[]).filter((b) =>
-    allTrades.some((t) => bucketOf(t.accountLabel) === b)
-  )
-  const activeBucket: Bucket | null = availableBuckets.includes(sp.tipo as Bucket) ? (sp.tipo as Bucket) : null
+  // Seletor "Todos / Avaliação / Aprovada / Teste" — os 3 tipos aparecem sempre; o que não
+  // tem trade no mês selecionado fica esmaecido (clicar mostra o mês vazio, não quebra).
+  const availableBuckets = BUCKETS.filter((b) => allTrades.some((t) => bucketOf(t.accountLabel) === b))
+  const activeBucket: Bucket | null = BUCKETS.includes(sp.tipo as Bucket) ? (sp.tipo as Bucket) : null
   const trades = activeBucket ? allTrades.filter((t) => bucketOf(t.accountLabel) === activeBucket) : allTrades
 
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
@@ -152,7 +150,7 @@ export default async function CalendarioPage({ searchParams }: Props) {
   // Seletor "Todos / Avaliação / Teste" — preserva o mês selecionado (sp.month)
   // ao trocar de tipo, senão a troca jogaria de volta pro mês atual.
   const monthQs = sp.month ? `month=${sp.month}` : ""
-  const typeToggle = availableBuckets.length > 1 && (
+  const typeToggle = (
     <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5 w-fit">
       <a
         href={monthQs ? `/calendario?${monthQs}` : "/calendario"}
@@ -160,11 +158,12 @@ export default async function CalendarioPage({ searchParams }: Props) {
       >
         Todos
       </a>
-      {availableBuckets.map((b) => (
+      {BUCKETS.map((b) => (
         <a
           key={b}
           href={`/calendario?tipo=${b}${monthQs ? `&${monthQs}` : ""}`}
-          className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", activeBucket === b ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          title={availableBuckets.includes(b) ? undefined : "Sem trades neste mês"}
+          className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", activeBucket === b ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground", activeBucket !== b && !availableBuckets.includes(b) && "opacity-50")}
         >
           {BUCKET_META[b].name}
         </a>

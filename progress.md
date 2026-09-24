@@ -1,5 +1,24 @@
 # TraderOS — Progresso
 
+## 🚧 24/09/2026 — Seção "Drawdown" (calculadora de drawdown de mesa) — motor pronto, sem tela ainda
+Ideia do Marcelo (aula do Théo mostrou um simulador de 4 tipos de drawdown). Decisões:
+- **Nome:** "Drawdown" (rota `/drawdown`, subtítulo "Calculadora de drawdown") — "Mesas" confundia com comprar mesa.
+- **Genérico, sem amarrar em mesa:** regras = parâmetros (`DrawdownRules`); mesas viram **presets como dado**
+  (híbrido: poucos presets verificados + "Personalizada"). Regras guardadas em **coluna JSON validada com Zod** na `TradingAccount`.
+  Só regra de dinheiro (drawdown, trava, meta, limite diário, consistência, virada do dia, dias mínimos).
+- **4 tipos = 1 regra, muda QUANDO o pico atualiza:** Intraday (a cada tick, com aberto) · End of Position (fecha posição) ·
+  End of Day (encerra dia) · Static (nunca). Meta é LUCRO (nível = saldo inicial + meta).
+- **2 modos, mesmo motor:** Simular (botões +$100/−$500, cenários prontos, Próximo passo/Reproduzir) e Real (lê os trades da conta;
+  MFE como pico intraday = estimado, pior caso). Campo de calibração "limite atual segundo a mesa".
+- **Free × Starter × Pro (cadeado, campo visível):** Free = saldo/meta/drawdown + Static e Intraday + Simular manual + 1 conta Real básica.
+  Starter = Free + End of Day + limite diário. Pro = tudo (trava, consistência, End of Position, virada/dias mínimos, cenários, replay, presets,
+  calibração, todas as contas). Clique/toque no cadeado → aviso "liberado no Pro" + Ver planos. **Bloqueio também no servidor** (`plan-guard.ts`).
+- **Feito:** `src/lib/drawdown-engine.ts` (motor puro) + `scripts/test-drawdown-engine.mts` (10 testes ok: cenário "lucro aberto devolvido",
+  referência dos cards da aula, trava, limite diário, consistência com os números reais da LucidFlex). tsc limpo. `tsconfig` exclui `scripts/*.mts`.
+- **Achado:** o motor bateu com os cards do simulador da aula (equity 51.600 → limites 49.600/48.000, margens 2.000/3.600, barras 59%/72%).
+- **Próximo:** tela "Simular" no localhost (checkpoint) → migration da coluna de regras → modo Real → cadeados/planos. Login local segue quebrado (`redirect_uri_mismatch`) → usar página de preview temporária.
+- Rodar testes: `node scripts/test-drawdown-engine.mts`
+
 ## ✅ 23/09/2026 (noite, v3.1) — Analytics testado e ajustado pra mobile
 Testado em 320/390/768px com página de preview temporária (removida) + dados sintéticos: sem overflow
 horizontal, tooltip por toque OK, modal vira bottom sheet OK. Ajustes: lista "onde escapou dinheiro" quebra

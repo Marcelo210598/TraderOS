@@ -21,7 +21,7 @@ import { SectionTour } from "@/components/tour/section-tour"
 import { hasSeenTour } from "@/lib/tours"
 import { ANALYTICS_TOUR_STEPS } from "@/lib/tour-content"
 import { excludeArchivedTrades } from "@/lib/account"
-import { bucketOf, BUCKET_META, type Bucket } from "@/lib/accounts"
+import { bucketOf, BUCKET_META, BUCKETS, type Bucket } from "@/lib/accounts"
 
 export const metadata: Metadata = { title: "Analytics" }
 
@@ -56,16 +56,14 @@ export default async function AnalyticsPage({ searchParams }: Props) {
     orderBy: { date: "asc" },
   })
 
-  // Só entra no seletor o tipo que realmente tem trade — sem opção vazia.
-  const availableBuckets = (["EVAL", "PA", "TEST"] as Bucket[]).filter((b) =>
-    allTrades.some((t) => bucketOf(t.accountLabel) === b)
-  )
-  const activeBucket: Bucket | null = availableBuckets.includes(sp.tipo as Bucket) ? (sp.tipo as Bucket) : null
+  // Os 3 tipos aparecem sempre no seletor (Aprovada inclusive sem trade ainda); o que não
+  // tem trade fica esmaecido, e escolher um vazio cai no aviso "Nenhum trade em ...".
+  const availableBuckets = BUCKETS.filter((b) => allTrades.some((t) => bucketOf(t.accountLabel) === b))
+  const activeBucket: Bucket | null = BUCKETS.includes(sp.tipo as Bucket) ? (sp.tipo as Bucket) : null
   const trades = activeBucket ? allTrades.filter((t) => bucketOf(t.accountLabel) === activeBucket) : allTrades
 
-  // Seletor "Todos / Avaliação / Teste" — só aparece quando há mais de um
-  // tipo de conta com trade, senão não tem o que surfar.
-  const typeToggle = availableBuckets.length > 1 && (
+  // Seletor "Todos / Avaliação / Aprovada / Teste".
+  const typeToggle = (
     <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5 w-fit">
       <Link
         href="/analytics"
@@ -73,11 +71,12 @@ export default async function AnalyticsPage({ searchParams }: Props) {
       >
         Todos
       </Link>
-      {availableBuckets.map((b) => (
+      {BUCKETS.map((b) => (
         <Link
           key={b}
           href={`/analytics?tipo=${b}`}
-          className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", activeBucket === b ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          title={availableBuckets.includes(b) ? undefined : "Sem trades ainda"}
+          className={cn("text-xs px-3 py-1.5 rounded-md font-medium transition-colors", activeBucket === b ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground", activeBucket !== b && !availableBuckets.includes(b) && "opacity-50")}
         >
           {BUCKET_META[b].name}
         </Link>

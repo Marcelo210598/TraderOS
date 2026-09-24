@@ -26,6 +26,9 @@ export function getAccountOption(value: string) {
 // nas 3 fases da jornada — usado no seletor "por tipo" (Carteira, Analytics,
 // Calendário) pra não precisar separar por conta individual.
 export type Bucket = "EVAL" | "PA" | "TEST"
+// Ordem da jornada no seletor: Avaliação → Aprovada → Teste. O seletor mostra os 3 SEMPRE
+// (Aprovada inclusive sem trade ainda) pra quem lançar conta aprovada já ter onde ver.
+export const BUCKETS: Bucket[] = ["EVAL", "PA", "TEST"]
 export const BUCKET_META: Record<Bucket, { name: string; color: string }> = {
   EVAL: { name: "Avaliação", color: "#F59E0B" },
   PA: { name: "Aprovada", color: "#10B981" },
