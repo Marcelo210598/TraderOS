@@ -1,6 +1,6 @@
 # TraderOS — Progresso
 
-## 💡 24/09/2026 — Ideia registrada (PRÓXIMA SEÇÃO): "Importar por imagem"
+## 💡 24/09/2026 — Ideia em STANDBY (definido pelo Marcelo): "Importar por imagem"
 Marcelo: usuário sobe print do painel da mesa (ex.: Lucid "Account Summary") e o app lê a configuração da conta. Viável (visão do Claude via SDK Anthropic já no projeto).
 - **Lê direto do print da Lucid:** plano (LucidFlex 50K), tipo EOD, nº da conta (casa com `brokerName`), saldo, MLL, meta, trading days, limite diário ($1.200), % de consistência atual.
 - **Não está no print (perguntar/inferir):** drawdown $ (inferível: saldo de fechamento − MLL), trava do trailing, virada do dia, LIMITE % de consistência.

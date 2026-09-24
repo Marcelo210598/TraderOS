@@ -12,6 +12,7 @@
 - **Progress** ✅ — XP, level up, 12 conquistas, 4 tipos de streak
 - **Calendário** ✅ — grid mensal com P&L por dia (verde = lucrativo, vermelho = negativo)
 - **Analytics** ✅ — equity curve, drawdown, MFE/MAE agregado, gráfico de execução por trade (`journal/[id]`), Simulador "E se?" (cenário MFE + sem N piores losses)
+- **Drawdown** ✅ (24/09/2026) — `/drawdown`: calculadora de drawdown genérica (Intraday/End of Day/End of Position/Static), abas Real (trades da conta) e Simular, margem com zonas, corredor de segurança, placar, "quanto cabe arriscar", consistência, tutorial e cadeados Free/Starter/Pro. Regras no localStorage até a coluna `drawdownRules` ser autorizada. Detalhe: `historico/2026-09-24.md`
 - **Vega IA** ✅ — chat contextual com dados reais dos últimos 90 dias do trader (plano PRO); sabe win rate, setups, sessões, P&L
 - **Notificações** ✅ — sino no header com badge; resumo semanal gerado pelo Claude toda sábado 9h BRT (plano TRADER/PRO)
 - **Contas/Labels** ✅ — separação AUTOMÁTICA por tipo (Teste/Avaliação/Aprovada) pelo nome da corretora + por conta real (brokerName); filtro por conta no journal; badge de tipo na Carteira; bulk reassign em /journal/contas
