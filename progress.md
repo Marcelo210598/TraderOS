@@ -1,5 +1,15 @@
 # TraderOS — Progresso
 
+## ✅ 24/09/2026 (tarde) — Drawdown v2: visual PRÓPRIO (não cópia do simulador da aula)
+Feedback do Marcelo: linhas/estilo idênticos ao print do Piero → "usar como inspiração, fazer melhor e diferente". Redesenhado:
+- **Herói "Quanto ainda posso perder"** (margem da regra em foco, termômetro com zonas Folgado >60% / Atenção 30–60% / Perigo <30% / Quebrou).
+- **Gráfico "Corredor de segurança"** (`drawdown-chart.tsx`): área sombreada entre patrimônio e limite da regra em foco (cor da zona), regras em comparação
+  como linhas finas, **rótulos diretos** no fim das linhas (sem legenda de tracejado), meta pontilhada, paleta nova + **marcadores por forma** (círculo/quadrado/losango/triângulo).
+- **Placar das regras** no lugar dos 4 cards iguais: barra de margem por regra, zona, clique põe em foco, frase "X é a mais apertada: $N a menos que Y".
+- **Novo: "Quanto cabe arriscar agora"** (Starter): ativo + stop em pts + % da margem → risco por trade, contratos e stop máx.; respeita o que resta do limite diário.
+- Consistência com barra e marca do limite. `rule-style.tsx` = paleta/zonas/marcadores. tsc + eslint limpos, 11 testes ok; testado 1280px (Pro/Real e Simular).
+- Pendências: coluna `drawdownRules` no banco (aguarda autorização do Marcelo); calibração com painel da mesa.
+
 ## ✅ 24/09/2026 (meio-dia) — Seção "Drawdown" NO AR (`/drawdown`, menu Ferramentas)
 - **Abas Real e Simular**, mesmo motor (`drawdown-engine.ts`). Simular: +$100/+$500/−$100/−$500, Fechar posição, Encerrar dia, Desfazer,
   Reiniciar, cenários prontos (Próximo passo/Reproduzir), gráfico com tooltip, 4 cards (limite, margem, falta pra meta, barra, status).

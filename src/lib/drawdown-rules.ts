@@ -33,6 +33,7 @@ export type DrawdownFeature =
   | "scenarios"
   | "presets"
   | "multiAccount"
+  | "riskSizing"
 
 export const FEATURE_MIN_PLAN: Record<DrawdownFeature, "TRADER" | "PRO"> = {
   typeEndOfDay: "TRADER",
@@ -45,6 +46,7 @@ export const FEATURE_MIN_PLAN: Record<DrawdownFeature, "TRADER" | "PRO"> = {
   scenarios: "PRO",
   presets: "PRO",
   multiAccount: "PRO",
+  riskSizing: "TRADER",
 }
 
 export const FEATURE_LABEL: Record<DrawdownFeature, string> = {
@@ -58,6 +60,7 @@ export const FEATURE_LABEL: Record<DrawdownFeature, string> = {
   scenarios: "Os cenários prontos e o replay",
   presets: "Os presets de mesa",
   multiAccount: "Configurar mais de uma conta",
+  riskSizing: "O cálculo de quanto cabe arriscar",
 }
 
 export const TYPE_FEATURE: Partial<Record<DrawdownType, DrawdownFeature>> = {
