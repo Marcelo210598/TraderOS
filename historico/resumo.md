@@ -12,7 +12,7 @@
 - **Progress** ✅ — XP, level up, 12 conquistas, 4 tipos de streak
 - **Calendário** ✅ — grid mensal com P&L por dia (verde = lucrativo, vermelho = negativo)
 - **Analytics** ✅ — equity curve, drawdown, MFE/MAE agregado, gráfico de execução por trade (`journal/[id]`), Simulador "E se?" (cenário MFE + sem N piores losses)
-- **Drawdown** ✅ (24/09/2026) — `/drawdown`: calculadora de drawdown genérica (Intraday/End of Day/End of Position/Static), abas Real (trades da conta) e Simular, margem com zonas, corredor de segurança, placar, "quanto cabe arriscar", consistência, tutorial e cadeados Free/Starter/Pro. Regras no localStorage até a coluna `drawdownRules` ser autorizada. Detalhe: `historico/2026-09-24.md`
+- **Drawdown** ✅ (24/09, persistência 27/09/2026) — `/drawdown`: calculadora de drawdown genérica (Intraday/End of Day/End of Position/Static), abas Real (trades da conta) e Simular, margem com zonas, corredor de segurança, placar, "quanto cabe arriscar", consistência, tutorial e cadeados Free/Starter/Pro. Regras persistidas no banco (`TradingAccount.drawdownRules`) via `GET/PUT /api/accounts/[id]/drawdown-rules` (Zod + `enforcePlan` no servidor), migrou automático quem tinha regra no localStorage. Detalhe: `historico/2026-09-24.md` + `historico/2026-09-27.md`
 - **Vega IA** ✅ — chat contextual com dados reais dos últimos 90 dias do trader (plano PRO); sabe win rate, setups, sessões, P&L
 - **Notificações** ✅ — sino no header com badge; resumo semanal gerado pelo Claude toda sábado 9h BRT (plano TRADER/PRO)
 - **Contas/Labels** ✅ — separação AUTOMÁTICA por tipo (Teste/Avaliação/Aprovada) pelo nome da corretora + por conta real (brokerName); filtro por conta no journal; badge de tipo na Carteira; bulk reassign em /journal/contas
@@ -22,14 +22,14 @@
 - **Cadastro/Login** ✅ — email+senha ou Google OAuth
 - **Configurações** ✅ — perfil (atualizar nome), troca de senha, info do plano, integrações
 - **Trilha de Aprendizado** ✅ — 5 módulos completos (módulo 5 generalizado pra "Mesas Proprietárias" em 17/09, sem citar Apex)
-- **Termos de Uso / Política de Privacidade** ✅ — `/termos` e `/privacidade`, LGPD-compliant (17/09/2026)
+- **Termos de Uso / Política de Privacidade** ✅ — `/termos` e `/privacidade`, LGPD-compliant (17/09, reforçado 27/09/2026: exclusão de conta self-service, consentimento explícito no cadastro, banner de cookies)
 - **Sync automático (NT8/MT5)** 🔴 PAUSADO DE PROPÓSITO em 17/09/2026 — flag reversível em `src/lib/integration-flags.ts`, reativa aos poucos com testes quando decidir
 - **Pagamentos** ✅ — Asaas (não Stripe), checkout recorrente em produção
 
 ## Stack
-- Next.js 16.2.6 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI)
+- Next.js 16.3.6 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI)
 - Prisma 7 + @prisma/adapter-pg + Neon PostgreSQL (SA-East-1)
-- NextAuth v5 beta.31 (Google OAuth + Credentials JWT)
+- NextAuth v5 beta.32 + @auth/prisma-adapter 2.11.3 (Google OAuth + Credentials JWT) — atualizado 27/09/2026, fechou 2 CVEs críticos do Auth.js
 - bcryptjs para hash de senhas
 - Resend v6 (email de boas-vindas no cadastro)
 - UploadThing v7.7.4 (screenshots do Journal — app ID: de0183n798)
@@ -42,6 +42,14 @@
 - **Projeto Vercel:** trader-os (prj_iZJFGM2AFCg8rgAG3IiVRbqQ5mUl)
 - **Org Vercel:** team_eV0i1XLGL1ae6c4VBGyXSdoo
 - **Deploy:** SEMPRE `vercel deploy --prod` na raiz do projeto após push (nunca confiar no webhook do GitHub) — só confirma quando o CLI retorna `Aliased: https://meutrade.app`
+
+## Segurança & LGPD (27/09/2026)
+- `npm audit`: 0 críticos (era 4 — `next` e `next-auth`/`@auth/core` atualizados). ~14 HIGH restantes
+  são dependências transitivas sem exploração real no app (baixa prioridade).
+- Semgrep rodou de novo (baseline + TS/React/Node/Next + Trail of Bits): 0 findings.
+- LGPD: exclusão de conta self-service (Configurações → Zona de perigo), consentimento explícito
+  no cadastro (`User.termsAcceptedAt`), banner de cookies (Meta Pixel/GA só com aceite).
+- Detalhe completo da auditoria + correções: `historico/2026-09-27.md`.
 
 ## Conta de teste
 ```
