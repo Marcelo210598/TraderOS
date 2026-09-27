@@ -60,10 +60,11 @@ export default function PrivacidadePage() {
       <section>
         <h2>4. Cookies</h2>
         <p>
-          Usamos cookies essenciais (sessão de login) e cookies de terceiros para analytics (Google
-          Analytics, Meta Pixel) e melhoria de performance (Vercel Analytics). Você pode bloquear
-          cookies de terceiros nas configurações do seu navegador; isso não impede o uso do
-          MeuTrade, mas pode afetar funcionalidades de personalização.
+          Usamos cookies essenciais (sessão de login), que não dependem de consentimento por serem
+          estritamente necessários pro funcionamento do app. Cookies de analytics e anúncios (Google
+          Analytics, Meta Pixel) só carregam se você aceitar no banner exibido na primeira visita, ou
+          na opção &quot;Gerenciar cookies&quot; em Configurações — onde você pode mudar de ideia a qualquer
+          momento. Vercel Analytics/Speed Insights não usam cookies e não são afetados por essa escolha.
         </p>
       </section>
 
@@ -101,8 +102,9 @@ export default function PrivacidadePage() {
           <li>Informação sobre com quem compartilhamos seus dados.</li>
         </ul>
         <p>
-          Para exercer qualquer desses direitos, entre em contato pelo e-mail abaixo. Respondemos
-          em até 15 dias.
+          A exclusão da conta pode ser feita diretamente pelo app, em Configurações → Zona de
+          perigo — é imediata e apaga seus dados na hora. Para os demais direitos, entre em
+          contato pelo e-mail abaixo. Respondemos em até 15 dias.
         </p>
       </section>
 

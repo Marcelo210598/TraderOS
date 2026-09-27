@@ -13,6 +13,8 @@ const schema = z.object({
   // normaliza o email (trim + minusculo) p/ evitar duplicidade e falha de login por case
   email: z.string().email().transform((e) => e.trim().toLowerCase()),
   password: z.string().min(8).max(100),
+  // LGPD Art. 5º XII: consentimento precisa ser uma ação explícita, não só um texto no rodapé.
+  accepted: z.literal(true),
 })
 
 export async function POST(req: NextRequest) {
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const hashed = await hash(password, 12)
   const created = await prisma.user.create({
-    data: { name, email, password: hashed },
+    data: { name, email, password: hashed, termsAcceptedAt: new Date() },
   })
 
   // Email de boas-vindas — não bloqueia o cadastro se falhar

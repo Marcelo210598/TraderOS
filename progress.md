@@ -1,5 +1,32 @@
 # TraderOS — Progresso
 
+## ✅ 27/09/2026 — 3 gaps de LGPD fechados: exclusão de conta, consentimento no cadastro, cookies
+Itens 4/5/6 da auditoria de segurança/LGPD desta sessão (ver bloco logo abaixo):
+- **Exclusão de conta self-service** (Art. 18 LGPD): `DELETE /api/user` — cancela assinatura Asaas
+  ativa ANTES de apagar (senão o Asaas continuava cobrando uma assinatura órfã), depois
+  `prisma.user.delete` (todas as 16 relações com `userId` têm `onDelete: Cascade` de verdade no
+  banco, confirmado nas migrations — apaga trades, journal, check-ins, setups, planos, API keys,
+  notificações etc. numa tacada só). UI em Configurações → "Zona de perigo": modal exige digitar
+  "EXCLUIR" antes de habilitar o botão. Admins são avisados por push (`notifyAdminsAccountDeleted`).
+  **Testado ao vivo com conta descartável** (`teste.lgpd.claude@example.com`, criada e apagada na
+  hora): confirmado no banco que o usuário sumiu, cascade rodou sem erro de FK, e a conta real do
+  Marcelo + os 64 trades dele seguem intactos.
+- **Consentimento explícito no cadastro** (Art. 5º XII): checkbox obrigatório (desmarcado por
+  padrão) substituindo o texto passivo no rodapé do formulário — trava tanto o botão de
+  e-mail/senha quanto o "Continuar com Google" até marcar. Campo novo `User.termsAcceptedAt`
+  (migration aplicada em produção) grava quando aceitou, nos dois fluxos (rota de registro +
+  `events.createUser` do NextAuth pro Google). Testado ao vivo: sem marcar, botão não faz nada;
+  marcando, conta criada e timestamp gravado (confirmado direto no Neon).
+- **Banner de cookies**: `CookieConsentBanner` — cookies de sessão (login) sempre ativos, sem
+  pedir nada; `TrackingScripts` (Meta Pixel + GA/Google Ads) só renderiza depois de aceitar.
+  Decisão em `localStorage`, com link "Gerenciar cookies" em Configurações pra mudar de ideia
+  a qualquer momento (reabre o banner via evento customizado, sem precisar recarregar a página).
+  Vercel Analytics/Speed Insights não usam cookie, ficaram de fora do gate. Testado ao vivo:
+  aparece na primeira visita, "Recusar"/"Aceitar" funcionam, "Gerenciar cookies" reabre.
+- Política de Privacidade atualizada pra refletir a realidade nova (exclusão self-service
+  imediata, banner de cookies) em vez do texto genérico de antes.
+- `tsc` + `eslint` + build de produção limpos em tudo. Deploy: aguardando ok do Marcelo.
+
 ## ✅ 27/09/2026 — Auditoria de segurança + LGPD, upgrades de dependência e Semgrep de novo
 Pedido do Marcelo: avaliação geral de segurança + LGPD. Resultado completo (achados, gaps de LGPD,
 prioridades) só na conversa por ora, não copiado pra cá — resumo do que foi corrigido nesta sessão:

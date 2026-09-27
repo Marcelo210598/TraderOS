@@ -14,6 +14,7 @@ export function RegisterForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
+  const [accepted, setAccepted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -21,6 +22,10 @@ export function RegisterForm() {
     e.preventDefault()
     setError("")
 
+    if (!accepted) {
+      setError("É preciso aceitar os Termos de Uso e a Política de Privacidade")
+      return
+    }
     if (password !== confirm) {
       setError("As senhas não conferem")
       return
@@ -35,7 +40,7 @@ export function RegisterForm() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, accepted }),
     })
 
     if (!res.ok) {
@@ -65,6 +70,11 @@ export function RegisterForm() {
   }
 
   async function handleGoogle() {
+    if (!accepted) {
+      setError("É preciso aceitar os Termos de Uso e a Política de Privacidade")
+      return
+    }
+    setError("")
     setLoading(true)
     await signIn("google", { callbackUrl: "/dashboard" })
   }
@@ -148,6 +158,27 @@ export function RegisterForm() {
           />
         </div>
 
+        <label htmlFor="reg-accept" className="flex items-start gap-2 text-[11px] text-muted-foreground leading-relaxed cursor-pointer">
+          <input
+            id="reg-accept"
+            type="checkbox"
+            checked={accepted}
+            onChange={(e) => setAccepted(e.target.checked)}
+            className="mt-0.5 w-3.5 h-3.5 shrink-0 rounded border-border accent-primary cursor-pointer"
+          />
+          <span>
+            Li e aceito os{" "}
+            <Link href="/termos" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+              termos de uso
+            </Link>{" "}
+            e a{" "}
+            <Link href="/privacidade" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+              política de privacidade
+            </Link>
+            .
+          </span>
+        </label>
+
         {error && (
           <p className="text-xs text-loss bg-loss/10 border border-loss/20 rounded-lg px-3 py-2">
             {error}
@@ -157,23 +188,11 @@ export function RegisterForm() {
         <Button
           type="submit"
           className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
-          disabled={loading}
+          disabled={loading || !accepted}
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar conta gratuita"}
         </Button>
       </form>
-
-      <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
-        Ao criar sua conta você concorda com os{" "}
-        <Link href="/termos" target="_blank" className="underline underline-offset-2 hover:text-foreground">
-          termos de uso
-        </Link>{" "}
-        e{" "}
-        <Link href="/privacidade" target="_blank" className="underline underline-offset-2 hover:text-foreground">
-          política de privacidade
-        </Link>
-        .
-      </p>
     </div>
   )
 }

@@ -33,6 +33,36 @@ export async function notifyAdminsNewSignup(user: {
   }
 }
 
+// Avisa TODOS os admins por push quando alguém exclui a própria conta (LGPD, direito à exclusão).
+// Nunca lança — chamada depois que a exclusão já aconteceu, só pra dar visibilidade.
+export async function notifyAdminsAccountDeleted(user: {
+  email?: string | null
+  name?: string | null
+}): Promise<void> {
+  try {
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    })
+    if (admins.length === 0) return
+
+    const nome = user.name?.trim() || "Usuário"
+    const email = user.email ?? "sem email"
+
+    await Promise.all(
+      admins.map((a) =>
+        sendPushToUser(a.id, {
+          title: "🗑️ Conta excluída no MeuTrade",
+          body: `${nome} · ${email} pediu exclusão da conta (LGPD)`,
+          url: "/admin",
+        })
+      )
+    )
+  } catch (err) {
+    console.error("[notifyAdminsAccountDeleted]", err)
+  }
+}
+
 export interface AdminUserDTO {
   id: string
   name: string | null

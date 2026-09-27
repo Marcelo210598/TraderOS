@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { PwaRegister } from "@/components/pwa-register"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
-import { TrackingScripts } from "@/components/analytics/tracking-scripts"
+import { CookieConsentBanner } from "@/components/analytics/cookie-consent-banner"
 import { Toaster } from "@/components/ui/toast"
 import "./globals.css"
 
@@ -81,7 +81,7 @@ export default function RootLayout({
         <PwaRegister />
         {children}
         <Toaster />
-        <TrackingScripts />
+        <CookieConsentBanner />
         <Analytics />
         <SpeedInsights />
       </body>

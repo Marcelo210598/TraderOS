@@ -5,8 +5,10 @@ import { Header } from "@/components/layout/header"
 import { ProfileForm, PasswordForm } from "@/components/settings/settings-forms"
 import { IntegrationSection } from "@/components/settings/integration-section"
 import { PushNotifications } from "@/components/settings/push-notifications"
+import { DeleteAccount } from "@/components/settings/delete-account"
+import { ManageCookiesButton } from "@/components/settings/manage-cookies-button"
 import Link from "next/link"
-import { Shield, User, CreditCard, Link2, Bell } from "lucide-react"
+import { Shield, User, CreditCard, Link2, Bell, AlertTriangle, Cookie } from "lucide-react"
 
 const PLAN_LABELS: Record<string, { label: string; color: string; description: string }> = {
   FREE:   { label: "Free",    color: "text-muted-foreground", description: "Acesso básico ao Journal e Dashboard" },
@@ -111,6 +113,34 @@ export default async function ConfiguracoesPage() {
                 Membro desde {new Date(user.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "long", year: "numeric" })}
               </p>
             </div>
+          </section>
+
+          {/* Privacidade */}
+          <section className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Cookie className="w-4 h-4 text-teal" />
+              <h2 className="text-sm font-semibold text-foreground">Privacidade</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-5">
+              Reveja sua escolha sobre cookies de analytics e anúncios a qualquer momento.
+            </p>
+            <ManageCookiesButton />
+          </section>
+
+          {/* Zona de perigo */}
+          <section className="bg-card border border-loss/20 rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle className="w-4 h-4 text-loss" />
+              <h2 className="text-sm font-semibold text-foreground">Zona de perigo</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-5">
+              Excluir sua conta apaga seus dados permanentemente. Veja como tratamos isso na{" "}
+              <Link href="/privacidade" className="underline underline-offset-2 hover:text-foreground">
+                Política de Privacidade
+              </Link>
+              .
+            </p>
+            <DeleteAccount />
           </section>
 
         </div>

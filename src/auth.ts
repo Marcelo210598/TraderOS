@@ -139,6 +139,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Dispara quando o adapter cria um usuário novo (cadastro via Google).
     // O cadastro por email/senha é avisado direto na rota /api/auth/register.
     async createUser({ user }) {
+      // Consentimento (LGPD Art. 5º XII): o botão "Continuar com Google" no cadastro fica
+      // desabilitado até o checkbox de Termos/Privacidade ser marcado, então a criação do
+      // usuário aqui já implica aceite — registramos o timestamp pra ter evidência.
+      if (user.id) {
+        await prisma.user.update({ where: { id: user.id }, data: { termsAcceptedAt: new Date() } }).catch(() => null)
+      }
       await notifyAdminsNewSignup({ email: user.email, name: user.name }).catch(() => null)
       // Retargeting: mede quanto do tráfego IG/FB vira cadastro (Lead).
       await sendCapiEvent({ eventName: "Lead", email: user.email }).catch(() => null)
