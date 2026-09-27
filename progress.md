@@ -1,5 +1,24 @@
 # TraderOS — Progresso
 
+## ✅ 27/09/2026 — Coluna `drawdownRules` no banco + API/Zod/plan-guard (Drawdown sai do localStorage)
+- **Migration aplicada em produção (Neon):** `drawdownRules JSONB` nullable em `trading_accounts`, via `prisma migrate deploy`
+  (migration manual `20260927130204_add_drawdown_rules` — o `migrate dev` não rodou por um drift pré-existente no shadow
+  database numa migration de julho, sem relação com essa mudança; `migrate deploy` não usa shadow db, então não foi afetado).
+  Campo espelhado no `schema.prisma`. Sem risco: coluna aditiva/nullable, sem default, não mexeu em dado existente.
+- **Nova rota `GET/PUT /api/accounts/[id]/drawdown-rules`:** autentica, confirma dono da conta (`userId`), valida o body
+  com Zod (schema espelha `AccountRules`) e **reforça `enforcePlan` no servidor** antes de salvar — um PUT direto na API
+  não consegue "vazar" regra Pro/Starter pra quem não paga, mesmo que o front (que já travava isso) seja contornado.
+- **`real-tab.tsx` trocou `localStorage` pela API:** ao abrir a conta, busca as regras salvas no servidor; se não tem nada
+  lá ainda, migra automaticamente o que estava salvo no navegador (v1) e já manda pra API — ninguém perde a regra que já
+  tinha configurado. `saveStoredRules` (não usada mais) removida de `drawdown-rules.ts`; `loadStoredRules` ficou só pra
+  essa migração pontual.
+- **Testado:** `tsc --noEmit` + `eslint` limpos nos arquivos tocados; rota sem sessão devolve 401 (GET e PUT); roundtrip
+  do JSONB validado direto no banco de produção dentro de uma transação com rollback forçado (não persistiu nada) —
+  valores batem 100% (a diferença de ordem das chaves no JSON é normal do Postgres, não é bug).
+- **Não testado ainda:** fluxo ponta a ponta logado no navegador — login local via Google segue quebrado
+  (`redirect_uri_mismatch`, pendência antiga) e não tentei login por senha. Testar ao vivo em produção assim que possível.
+- **Sem commit ainda** — mudanças no working tree, aguardando ok do Marcelo pra commitar/deployar.
+
 ## 💡 24/09/2026 — Ideia em STANDBY (definido pelo Marcelo): "Importar por imagem"
 Marcelo: usuário sobe print do painel da mesa (ex.: Lucid "Account Summary") e o app lê a configuração da conta. Viável (visão do Claude via SDK Anthropic já no projeto).
 - **Lê direto do print da Lucid:** plano (LucidFlex 50K), tipo EOD, nº da conta (casa com `brokerName`), saldo, MLL, meta, trading days, limite diário ($1.200), % de consistência atual.

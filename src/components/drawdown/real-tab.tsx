@@ -9,7 +9,6 @@ import {
   DEFAULT_ACCOUNT_RULES,
   enforcePlan,
   loadStoredRules,
-  saveStoredRules,
   tradingDayKeyBR,
   type AccountRules,
 } from "@/lib/drawdown-rules"
@@ -78,13 +77,38 @@ function RealAccount({ account, plan, trades }: { account: DrawdownAccount; plan
     ...DEFAULT_ACCOUNT_RULES,
     ...(account.initialBalance > 0 ? { startBalance: account.initialBalance, trailingLock: account.initialBalance } : {}),
   })
-  const [saved, setSaved] = useState<"idle" | "ok" | "fail">("idle")
+  const [saved, setSaved] = useState<"idle" | "saving" | "ok" | "fail">("idle")
 
-  // regras guardadas no navegador (v1) — carrega depois de montar pra não divergir do HTML do servidor
+  // regras guardadas no banco (por usuário/conta) — carrega depois de montar pra não divergir do HTML do servidor
   useEffect(() => {
-    const stored = loadStoredRules(account.id)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (stored) setRules(stored)
+    let ignore = false
+    async function load() {
+      try {
+        const res = await fetch(`/api/accounts/${account.id}/drawdown-rules`)
+        const data = res.ok ? await res.json() : null
+        if (ignore) return
+        if (data?.rules) {
+          setRules({ ...DEFAULT_ACCOUNT_RULES, ...data.rules })
+          return
+        }
+        // sem regra salva no servidor ainda: migra o que tinha no navegador (v1), se houver
+        const local = loadStoredRules(account.id)
+        if (local) {
+          setRules(local)
+          fetch(`/api/accounts/${account.id}/drawdown-rules`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(local),
+          }).catch(() => {})
+        }
+      } catch {
+        // sem conexão: mantém as regras padrão/locais em memória, sem travar a tela
+      }
+    }
+    load()
+    return () => {
+      ignore = true
+    }
   }, [account.id])
 
   const effective = useMemo(() => enforcePlan(plan, rules), [plan, rules])
@@ -98,8 +122,21 @@ function RealAccount({ account, plan, trades }: { account: DrawdownAccount; plan
     ? [formatShortDateBR(Math.min(...dates)), formatShortDateBR(Math.max(...dates))]
     : ["", ""]
 
-  function save() {
-    setSaved(saveStoredRules(account.id, effective) ? "ok" : "fail")
+  async function save() {
+    setSaved("saving")
+    try {
+      const res = await fetch(`/api/accounts/${account.id}/drawdown-rules`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(effective),
+      })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      if (data.rules) setRules({ ...DEFAULT_ACCOUNT_RULES, ...data.rules })
+      setSaved("ok")
+    } catch {
+      setSaved("fail")
+    }
     setTimeout(() => setSaved("idle"), 2500)
   }
 
@@ -118,12 +155,13 @@ function RealAccount({ account, plan, trades }: { account: DrawdownAccount; plan
         <button
           type="button"
           onClick={save}
-          className="text-xs font-medium px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          disabled={saved === "saving"}
+          className="text-xs font-medium px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-60"
         >
-          Salvar regras desta conta
+          {saved === "saving" ? "Salvando..." : "Salvar regras desta conta"}
         </button>
-        {saved === "ok" && <span className="text-xs text-profit">Salvo neste navegador ✓</span>}
-        {saved === "fail" && <span className="text-xs text-loss">Não consegui salvar (navegador bloqueou o armazenamento).</span>}
+        {saved === "ok" && <span className="text-xs text-profit">Salvo ✓</span>}
+        {saved === "fail" && <span className="text-xs text-loss">Não consegui salvar. Tente de novo.</span>}
       </div>
 
       {trades.length === 0 ? (

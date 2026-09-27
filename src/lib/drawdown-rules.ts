@@ -159,8 +159,9 @@ export function usd(n: number, opts: { sign?: boolean } = {}) {
   return `${sign}$${txt}`
 }
 
-// ─── Persistência local (v1) ─────────────────────────────────────────────────
-// Regras da conta ficam no navegador até a coluna no banco ser aprovada.
+// ─── Persistência local (v1, legado) ─────────────────────────────────────────
+// Regras salvas no navegador antes da coluna `drawdownRules` existir no banco.
+// Mantido só pra migrar (ler uma vez e mandar pra API) quem já tinha salvo assim.
 
 const storageKey = (accountId: string) => `drawdown-rules:v1:${accountId}`
 
@@ -171,14 +172,5 @@ export function loadStoredRules(accountId: string): AccountRules | null {
     return { ...DEFAULT_ACCOUNT_RULES, ...(JSON.parse(raw) as Partial<AccountRules>) }
   } catch {
     return null
-  }
-}
-
-export function saveStoredRules(accountId: string, rules: AccountRules): boolean {
-  try {
-    window.localStorage.setItem(storageKey(accountId), JSON.stringify(rules))
-    return true
-  } catch {
-    return false
   }
 }

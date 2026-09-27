@@ -146,6 +146,7 @@ model TradingAccount {
   equity         Decimal? @db.Decimal(14, 2)  // patrimônio (Fase 2)
   balanceSyncAt  DateTime?                     // quando o saldo real foi atualizado
   isArchived     Boolean  @default(false)
+  drawdownRules  Json?                         // regras de drawdown/mesa (validadas com Zod na aplicação)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
