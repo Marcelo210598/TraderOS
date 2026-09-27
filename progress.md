@@ -1,5 +1,26 @@
 # TraderOS — Progresso
 
+## ✅ 27/09/2026 — Auditoria de segurança + LGPD, upgrades de dependência e Semgrep de novo
+Pedido do Marcelo: avaliação geral de segurança + LGPD. Resultado completo (achados, gaps de LGPD,
+prioridades) só na conversa por ora, não copiado pra cá — resumo do que foi corrigido nesta sessão:
+- **`npm audit`: 4 críticos → 0.** `next` 16.2.6 → 16.3.6 (RCE/SSRF/DoS corrigidos, sem major bump).
+  `next-auth` beta.31 → beta.32 + `@auth/prisma-adapter` 2.11.2 → 2.11.3 (unifica `@auth/core` em
+  0.41.3) — fecha os 2 CVEs críticos do Auth.js (fail-open em erro de config; bypass de homóglifo
+  no normalizador de e-mail) + 2 HIGH/MODERATE. Testado: tsc + build limpos, 11 testes do
+  drawdown-engine ok, login Google E por senha validados ao vivo no localhost pós-upgrade.
+- **Semgrep rodou de novo** (pendente desde 16/09) — baseline (`p/security-audit`, `p/secrets`) +
+  TypeScript/React/Node/Next.js + Trail of Bits, modo important-only (achados de segurança
+  confiança/impacto médio-alto). **0 findings** em 285 arquivos escaneados (todas os 8 scans
+  rodaram limpo, 0 falharam). `p/nextjs` cobriu 0 arquivos — glob da ruleset não bate com
+  `proxy.ts` (Next 16 renomeou de `middleware.ts`), sem impacto real já que `p/nodejs`/`p/react`
+  cobrem o mesmo código.
+- **Pendências da auditoria que ainda faltam** (LGPD, menor risco/mais trabalho): fluxo de exclusão
+  de conta (a Política promete 30 dias, produto não tem essa função ainda — gap real), checkbox de
+  consentimento explícito no cadastro, banner de cookies (GA/Meta Pixel disparam sem opt-in),
+  exportação completa de dados pessoais (só tem export de trades em PDF hoje).
+- ~14 HIGH restantes no `npm audit` são dependências transitivas (postcss, sharp, prisma engines,
+  uploadthing, mysql2, hono, js-yaml etc.) sem exploração real no código do app — baixa prioridade.
+
 ## ✅ 27/09/2026 — RESOLVIDO: login Google quebrado no localhost (`redirect_uri_mismatch`)
 Causa: o OAuth Client do Google Cloud ("Cliente Web 1", projeto `traderostraderos` — nome do projeto ficou o antigo,
 o rebrand foi só de app/domínio) só tinha as origens/redirects de produção (`trader-os-ashy.vercel.app` e `meutrade.app`),
