@@ -1,5 +1,14 @@
 # TraderOS — Progresso
 
+## ✅ 27/09/2026 — RESOLVIDO: login Google quebrado no localhost (`redirect_uri_mismatch`)
+Causa: o OAuth Client do Google Cloud ("Cliente Web 1", projeto `traderostraderos` — nome do projeto ficou o antigo,
+o rebrand foi só de app/domínio) só tinha as origens/redirects de produção (`trader-os-ashy.vercel.app` e `meutrade.app`),
+sem `localhost:3000`. Adicionado via Google Cloud Console (só adição, nada removido):
+- Origem JavaScript: `http://localhost:3000`
+- URI de redirecionamento: `http://localhost:3000/api/auth/callback/google`
+**Testado ao vivo:** login completo com a conta `difoggijuniormarcelo@gmail.com` no `npm run dev` local, chegou no
+`/dashboard` sem erro. Login por e-mail/senha não foi tocado (já funcionava).
+
 ## ✅ 27/09/2026 — Coluna `drawdownRules` no banco + API/Zod/plan-guard (Drawdown sai do localStorage)
 - **Migration aplicada em produção (Neon):** `drawdownRules JSONB` nullable em `trading_accounts`, via `prisma migrate deploy`
   (migration manual `20260927130204_add_drawdown_rules` — o `migrate dev` não rodou por um drift pré-existente no shadow
@@ -15,9 +24,9 @@
 - **Testado:** `tsc --noEmit` + `eslint` limpos nos arquivos tocados; rota sem sessão devolve 401 (GET e PUT); roundtrip
   do JSONB validado direto no banco de produção dentro de uma transação com rollback forçado (não persistiu nada) —
   valores batem 100% (a diferença de ordem das chaves no JSON é normal do Postgres, não é bug).
-- **Não testado ainda:** fluxo ponta a ponta logado no navegador — login local via Google segue quebrado
-  (`redirect_uri_mismatch`, pendência antiga) e não tentei login por senha. Testar ao vivo em produção assim que possível.
-- **Sem commit ainda** — mudanças no working tree, aguardando ok do Marcelo pra commitar/deployar.
+- **Testado ao vivo também:** login Google local foi consertado na mesma sessão (ver item acima) — confirmei o fluxo
+  completo logado, incluindo abrir a conta na seção Drawdown.
+- **Commitado** (`c437176`) — falta decidir sobre deploy pra produção.
 
 ## 💡 24/09/2026 — Ideia em STANDBY (definido pelo Marcelo): "Importar por imagem"
 Marcelo: usuário sobe print do painel da mesa (ex.: Lucid "Account Summary") e o app lê a configuração da conta. Viável (visão do Claude via SDK Anthropic já no projeto).
