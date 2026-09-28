@@ -1,11 +1,12 @@
 import { Check, Info } from "lucide-react"
-import { usd, type Plano, type Tamanho } from "@/lib/mesas"
+import { dadosDoTamanho, usd, type Plano, type Tamanho } from "@/lib/mesas"
 
 export function PlanoCards({ planos, tamanho }: { planos: Plano[]; tamanho: Tamanho }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {planos.map((p) => {
-        const escalonamento = p.tamanhos[tamanho].escalonamento
+        const dados = dadosDoTamanho(p, tamanho)
+        const escalonamento = dados?.escalonamento
         return (
           <article key={p.id} className="rounded-xl border border-border bg-card p-5 flex flex-col gap-4">
             <header>
@@ -41,6 +42,12 @@ export function PlanoCards({ planos, tamanho }: { planos: Plano[]; tamanho: Tama
                 ))}
               </ul>
             </div>
+
+            {!dados && (
+              <p className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted-foreground">
+                Este plano não existe na conta de {tamanho}K. Troque o tamanho no comparativo pra ver onde ele está disponível.
+              </p>
+            )}
 
             {escalonamento && (
               <div>

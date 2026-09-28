@@ -111,6 +111,7 @@ const PRO: Plano = {
 
 const FLEX: Plano = {
   id: "flex",
+  exigeLucroLiquidoNoCiclo: true,
   nome: "LucidFlex",
   resumo: "O saque mais simples da Lucid: na financiada não tem consistência nem colchão. Em troca, o lote começa menor e cresce com o lucro.",
   paraQuem: "Quem prefere regras de saque simples e não se importa em começar com lote menor na financiada.",
@@ -159,6 +160,7 @@ const FLEX: Plano = {
 
 const DAILY: Plano = {
   id: "daily",
+  exigeLucroLiquidoNoCiclo: true,
   nome: "LucidDaily",
   resumo: "Saque diário e sem consistência na financiada. Em troca: drawdown intraday na financiada e proibido operar notícia forte.",
   paraQuem: "Quem quer sacar com frequência e evita operar em horário de notícia.",
@@ -264,6 +266,7 @@ export const LUCID: Mesa = {
   resumo:
     "Mesa de futuros com 4 tipos de plano, sem mensalidade e sem taxa de ativação da conta financiada. Você fica com 90% dos saques.",
   planos: [PRO, FLEX, DAILY, DIRECT],
+  saqueMinimo: MINIMO_SAQUE,
   vantagens: [
     "Sem mensalidade e sem taxa de ativação da conta financiada",
     "Você fica com 90% dos saques",

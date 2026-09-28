@@ -1,6 +1,6 @@
-// Monitor semanal do Help Center da Lucid: detecta quando um artigo de regra mudou pra o Marcelo revisar `lucid.ts`.
+// Monitor semanal das mesas (Lucid: Help Center; FFF: páginas do site): detecta quando uma regra mudou pra o Marcelo revisar os dados.
 // Funções PURAS (sem rede, sem banco) pra testar em scripts/test-mesas-monitor.mts. A rota que usa isto: /api/cron/mesas-check.
-// Só o Help Center (Intercom, abre por HTTP normal). O site principal dá 403 Cloudflare e NÃO entra aqui: não burlamos anti-robô.
+// Lucid: só o Help Center (Intercom); o site principal dá 403 Cloudflare e NÃO entra aqui (não burlamos anti-robô). FFF: site WordPress abre normal.
 
 import { createHash } from "node:crypto"
 
@@ -61,21 +61,75 @@ export const ARTIGOS_LUCID: readonly string[] = [
 
 export const urlArtigo = (slug: string) => `${BASE_ARTIGOS}${slug}`
 
-/** Anti-SSRF: só https, host EXATO do Help Center e caminho de artigo. */
+const SITE_FFF = "https://www.fundedfuturesfamily.com"
+
+/**
+ * Páginas da Funded Futures Family que definem regra (35 lidas em 28/09/2026): 5 páginas de plano, regras de saque,
+ * velocidade de saque, Termos e 27 FAQs de regra. O blog fica de fora (marketing comparativo). A página de saques ao vivo
+ * também (muda a cada pagamento). Cada item é o caminho sem barras nas pontas.
+ */
+export const PAGINAS_FFF: readonly string[] = [
+  "prime-plan",
+  "velocity-plan",
+  "premier-plan",
+  "straight-to-funded",
+  "s2f-accelerate",
+  "payout-rules",
+  "payout-speed",
+  "terms-and-conditions",
+  "faq/does-funded-futures-family-charge-an-activation-fee",
+  "faq/are-there-monthly-or-recurring-fees",
+  "faq/what-is-straight-to-funded-and-what-does-it-cost",
+  "faq/how-much-does-a-funded-futures-account-cost",
+  "faq/how-much-does-it-cost-to-get-a-funded-futures-account",
+  "faq/how-long-does-it-take-to-pass-an-evaluation",
+  "faq/how-fast-does-my-funded-account-activate-after-passing",
+  "faq/how-many-funded-accounts-can-i-have",
+  "faq/what-account-sizes-are-available",
+  "faq/is-news-trading-allowed",
+  "faq/is-there-a-daily-loss-limit",
+  "faq/can-i-hold-positions-overnight",
+  "faq/can-i-scalp-or-trade-micros",
+  "faq/what-is-fff-advanced-monitoring-system",
+  "faq/what-happens-if-i-break-a-rule",
+  "faq/what-happens-if-i-fail-or-blow-the-evaluation",
+  "faq/does-funded-futures-family-deny-payouts",
+  "faq/how-fast-does-funded-futures-family-pay-out",
+  "faq/how-much-of-my-profit-do-i-keep",
+  "faq/can-i-trade-commodity-futures",
+  "faq/what-trading-platforms-does-fff-support",
+  "faq/what-happens-if-i-blow-my-funded-account",
+  "faq/where-is-fff-based-and-who-can-trade",
+  "faq/how-do-i-get-to-the-live-account",
+  "faq/does-funded-futures-family-have-a-consistency-rule",
+  "faq/what-plans-does-fff-offer",
+  "faq/what-is-the-consistency-rule-in-prop-firms-and-does-fff-have-one",
+]
+
+export const urlPaginaFff = (caminho: string) => `${SITE_FFF}/${caminho}/`
+
+/** O que o cron vigia de cada mesa. `id` é estável (vira parte da chave no Redis). */
+export interface AlvoMonitor {
+  /** Slug da mesa (prefixo das chaves `mesas:<mesa>:*`). */
+  mesa: string
+  /** Nome curto que aparece na notificação. */
+  nome: string
+  /** "artigos" (Help Center) ou "páginas" (site). */
+  rotulo: string
+  itens: readonly string[]
+  urlDe: (id: string) => string
+}
+
+export const ALVOS_MONITOR: readonly AlvoMonitor[] = [
+  { mesa: "lucid", nome: "Lucid", rotulo: "artigos", itens: ARTIGOS_LUCID, urlDe: urlArtigo },
+  { mesa: "fff", nome: "Funded Futures Family", rotulo: "páginas", itens: PAGINAS_FFF, urlDe: urlPaginaFff },
+]
+
+const URLS_PERMITIDAS = new Set(ALVOS_MONITOR.flatMap((a) => a.itens.map((id) => a.urlDe(id))))
+
+/** Anti-SSRF: só as URLs EXATAS que estão nas listas acima (https, host e caminho certos). Qualquer outra é recusada. */
 export function urlPermitida(url: string): boolean {
-  try {
-    const u = new URL(url)
-    return (
-      u.protocol === "https:" &&
-      u.hostname === HELP_CENTER_HOST &&
-      u.port === "" &&
-      u.username === "" &&
-      u.password === "" &&
-      u.pathname.startsWith("/en/articles/")
-    )
-  } catch {
-    return false
-  }
+  return URLS_PERMITIDAS.has(url)
 }
 
 const ENTIDADES: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&apos;": "'", "&nbsp;": " " }
@@ -86,9 +140,9 @@ function decodificar(s: string): string {
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
 }
 
-/** Texto limpo (uma linha por bloco) de dentro do <article>. null = página sem article (bloqueio/mudança de layout). */
+/** Texto limpo (uma linha por bloco) de dentro do <article> (ou do <main>, quando não há article: FAQs da FFF). null = nenhum dos dois (bloqueio/mudança de layout). */
 export function extrairTexto(html: string): string | null {
-  const m = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
+  const m = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i) ?? html.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
   if (!m) return null
   const texto = decodificar(
     m[1]
@@ -125,5 +179,5 @@ export function diffLinhas(antigo: string, novo: string): Diferenca {
   }
 }
 
-/** "12945796-lucidflex-payouts" → "lucidflex payouts" */
-export const tituloDoSlug = (slug: string) => slug.replace(/^\d+-/, "").replace(/-/g, " ")
+/** "12945796-lucidflex-payouts" → "lucidflex payouts"; "faq/is-news-trading-allowed" → "is news trading allowed" */
+export const tituloDoSlug = (slug: string) => slug.replace(/^faq\//, "").replace(/^\d+-/, "").replace(/-/g, " ")

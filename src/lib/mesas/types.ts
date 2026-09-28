@@ -38,10 +38,11 @@ export interface DadosTamanho {
   /** Limite de perda diário fixo. null = não existe neste tamanho. */
   limiteDiario: number | null
   lotes: { minis: number; micros: number }
-  /** Saldo (acima do inicial) a partir do qual a perda máxima trava. */
-  travaTrailing: number
+  /** Saldo a partir do qual a perda máxima trava. null = nunca trava (ex.: intraday que só sobe) ou não informado. */
+  travaTrailing: number | null
   saque: {
-    minimo: number
+    /** Mínimo por pedido. null = a mesa não publica pra este plano. */
+    minimo: number | null
     /** Lucro exigido no ciclo antes de sacar (Pro/Direct). `demais` = do 2º saque em diante. */
     metaLucroCiclo?: { primeiro: number; demais: number }
     /** Dias com lucro mínimo exigidos no ciclo (Flex). */
@@ -57,9 +58,18 @@ export interface DadosTamanho {
   liveBonus: number | null
   /** Preço de TABELA em US$ (sem promoção — o valor real muda toda semana). null = varia por configuração. */
   precoTabelaUsd: number | null
+  /** Prefixo do preço na tela quando há variantes (ex.: "a partir de"). */
+  precoRotulo?: string
 }
 
-export type PlanoId = "pro" | "flex" | "daily" | "direct"
+/** Identificador do plano dentro da mesa (ex.: "pro", "prime"). Único só dentro da mesa. */
+export type PlanoId = string
+
+/**
+ * Texto de uma linha da tabela. Lista = um item por linha. Por tamanho = valor muda com o tamanho da conta.
+ * Usado quando a regra da mesa não cabe nos campos estruturados (variantes, datas de mudança de regra).
+ */
+export type Celula = string[] | Partial<PorTamanho<string[]>>
 
 export interface Plano {
   id: PlanoId
@@ -71,8 +81,12 @@ export interface Plano {
   caminho: "avaliacao" | "direto"
   drawdown: {
     avaliacao: TipoDrawdown | "ESCOLHA" | null
-    financiada: TipoDrawdown
+    financiada: TipoDrawdown | "ESCOLHA"
   }
+  /** Como o preço é cobrado. Padrão: "unica" (compra única). "mensal" = assinatura até passar. */
+  cobranca?: "mensal" | "unica"
+  /** Saque exige lucro líquido positivo desde o último saque (Lucid Flex/Daily). */
+  exigeLucroLiquidoNoCiclo?: boolean
   /** Dá pra ligar/desligar o limite diário na compra (ligar costuma sair mais barato). */
   dllOpcional: boolean
   consistencia: { avaliacao: number | null; financiada: number | null }
@@ -82,7 +96,12 @@ export interface Plano {
   saquesAteLive: number | null
   destaques: string[]
   atencao: string[]
-  tamanhos: PorTamanho<DadosTamanho>
+  /** Tamanho ausente = o plano não existe nele (ex.: só no 50K). */
+  tamanhos: Partial<PorTamanho<DadosTamanho>>
+  /** Sobrescreve linhas do comparativo, por rótulo da linha (ex.: "Perda máxima"). */
+  celulas?: Record<string, Celula>
+  /** Valores das linhas extras da mesa (`Mesa.linhasExtras`), por rótulo. */
+  extras?: Record<string, Celula>
   fontes: Fonte[]
 }
 
@@ -116,6 +135,17 @@ export interface QuizMesa {
   perguntas: PerguntaQuiz[]
 }
 
+/** Linha do comparativo que só existe pra esta mesa (ex.: "Reset da conta financiada"). */
+export interface LinhaExtra {
+  rotulo: string
+  ajuda?: string
+}
+
+export interface BlocoRegras {
+  titulo: string
+  itens: string[]
+}
+
 export interface Mesa {
   slug: string
   nome: string
@@ -127,6 +157,15 @@ export interface Mesa {
   splitTrader: number
   resumo: string
   planos: Plano[]
+  /** Mínimo de saque que vale pra mesa toda (aparece na ajuda da linha de saque). */
+  saqueMinimo?: number
+  /** Ajuda da linha "Preço de tabela". Padrão fala de promoção semanal. */
+  ajudaPreco?: string
+  linhasExtras?: LinhaExtra[]
+  /** Regras que valem pra todos os planos da mesa, em blocos (conduta, horários, limites...). */
+  regrasGerais?: BlocoRegras[]
+  /** Avisos de destaque no topo da comparação (ex.: regra que mudou numa data). */
+  avisos?: string[]
   /** Pontos fortes da MESA como um todo (não de um plano). Só regra verificada no oficial. */
   vantagens?: string[]
   /** Pontos de atenção da MESA como um todo. Tom realista, sem desanimar. */

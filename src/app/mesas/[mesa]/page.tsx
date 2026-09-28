@@ -7,8 +7,9 @@ import { MesasShell } from "@/components/mesas/mesas-shell"
 import { ComparativoPlanos } from "@/components/mesas/comparativo-planos"
 import { PlanoCards } from "@/components/mesas/plano-cards"
 import { PontosDaMesa } from "@/components/mesas/pontos-da-mesa"
+import { RegrasGerais } from "@/components/mesas/regras-gerais"
 import { QuizPlano } from "@/components/mesas/quiz-plano"
-import { TAMANHOS, getMesa, linkDaMesa, parseTamanho } from "@/lib/mesas"
+import { TAMANHOS, getMesa, linkDaMesa, parseTamanho, type Mesa } from "@/lib/mesas"
 import { cn } from "@/lib/utils"
 
 interface Props {
@@ -17,6 +18,9 @@ interface Props {
 }
 
 const dataBR = (iso: string) => iso.split("-").reverse().join("/")
+
+/** Fontes da mesa + de cada plano, sem repetir a mesma URL (várias páginas valem pra mais de um plano). */
+const fontesUnicas = (mesa: Mesa) => [...new Map([...mesa.fontes, ...mesa.planos.flatMap((p) => p.fontes)].map((f) => [f.url, f])).values()]
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const mesa = getMesa((await params).mesa)
@@ -92,13 +96,26 @@ export default async function MesaPage({ params, searchParams }: Props) {
             ))}
           </nav>
         </div>
-        <ComparativoPlanos planos={mesa.planos} tamanho={tamanho} splitTrader={mesa.splitTrader} />
+        {mesa.avisos?.length ? (
+          <ul className="mb-4 space-y-1.5 rounded-lg border border-gold/40 bg-gold/5 px-4 py-3 text-sm">
+            {mesa.avisos.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+        ) : null}
+        <ComparativoPlanos mesa={mesa} tamanho={tamanho} />
       </section>
 
       <section className="mt-12">
         <h2 className="text-lg font-semibold mb-4">O que muda na prática</h2>
         <PlanoCards planos={mesa.planos} tamanho={tamanho} />
       </section>
+
+      {mesa.regrasGerais?.length ? (
+        <div className="mt-12">
+          <RegrasGerais mesa={mesa} />
+        </div>
+      ) : null}
 
       <div className="mt-12">
         <PontosDaMesa mesa={mesa} />
@@ -111,7 +128,7 @@ export default async function MesaPage({ params, searchParams }: Props) {
       <section className="mt-12 text-xs text-muted-foreground">
         <h2 className="text-sm font-semibold text-foreground mb-2">Fontes oficiais</h2>
         <ul className="space-y-1">
-          {[...mesa.fontes, ...mesa.planos.flatMap((p) => p.fontes)].map((f) => (
+          {fontesUnicas(mesa).map((f) => (
             <li key={f.url}>
               <a href={f.url} target="_blank" rel="noopener noreferrer" className="hover:text-foreground underline underline-offset-2 break-all">
                 {f.url}

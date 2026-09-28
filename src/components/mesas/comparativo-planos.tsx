@@ -1,13 +1,11 @@
-import { usd, type DadosTamanho, type Plano, type Tamanho } from "@/lib/mesas"
+import { celulaDoTamanho, dadosDoTamanho, usd, type DadosTamanho, type Mesa, type Plano, type Tamanho } from "@/lib/mesas"
 
-const DRAWDOWN_LABEL = { EOD: "Fim do dia (EOD)", INTRADAY: "Intraday" } as const
+const DRAWDOWN_LABEL = { EOD: "Fim do dia (EOD)", INTRADAY: "Intraday", ESCOLHA: "Você escolhe" } as const
 
 const drawdownTexto = (p: Plano) => {
   if (p.caminho === "direto") return `${DRAWDOWN_LABEL[p.drawdown.financiada]} (já financiada)`
-  const aval = p.drawdown.avaliacao === "ESCOLHA" ? "Você escolhe" : DRAWDOWN_LABEL[p.drawdown.avaliacao as "EOD" | "INTRADAY"]
-  return p.drawdown.avaliacao === p.drawdown.financiada
-    ? aval
-    : `Avaliação: ${aval} · Financiada: ${DRAWDOWN_LABEL[p.drawdown.financiada]}`
+  const aval = p.drawdown.avaliacao === null ? "" : DRAWDOWN_LABEL[p.drawdown.avaliacao]
+  return p.drawdown.avaliacao === p.drawdown.financiada ? aval : `Avaliação: ${aval} · Financiada: ${DRAWDOWN_LABEL[p.drawdown.financiada]}`
 }
 
 const limiteDiarioTexto = (p: Plano, d: DadosTamanho) => {
@@ -36,7 +34,7 @@ const criteriosSaque = (p: Plano, d: DadosTamanho): string[] => {
   if (s.diasComLucro) linhas.push(`${s.diasComLucro.dias} dias com lucro ≥ ${usd(s.diasComLucro.lucroMinimoPorDia)}`)
   if (s.colchao) linhas.push(`Colchão de ${usd(s.colchao)} de lucro que não sai`)
   if (p.consistencia.financiada != null) linhas.push(`Maior dia ≤ ${p.consistencia.financiada}% do lucro`)
-  if (p.id === "flex" || p.id === "daily") linhas.push("Lucro líquido positivo desde o último saque")
+  if (p.exigeLucroLiquidoNoCiclo) linhas.push("Lucro líquido positivo desde o último saque")
   return linhas
 }
 
@@ -47,11 +45,42 @@ const maximoTexto = (d: DadosTamanho) =>
     return `${m.rotulo}: até ${usd(m.valor)}`
   })
 
+const precoTexto = (p: Plano, d: DadosTamanho): React.ReactNode => {
+  if (d.precoTabelaUsd == null) return "Varia pela configuração"
+  const valor = `${d.precoRotulo ? `${d.precoRotulo} ` : ""}${usd(d.precoTabelaUsd)}${p.cobranca === "mensal" ? "/mês" : ""}`
+  const como = p.cobranca === "mensal" ? "Assinatura mensal até passar" : p.cobranca === "unica" ? "Pagamento único" : null
+  return (
+    <>
+      {valor}
+      {como && <span className="block text-xs text-muted-foreground">{como}</span>}
+    </>
+  )
+}
+
+const lista = (itens: string[]): React.ReactNode =>
+  itens.length === 1 ? (
+    itens[0]
+  ) : (
+    <ul className="space-y-1">
+      {itens.map((t) => (
+        <li key={t}>{t}</li>
+      ))}
+    </ul>
+  )
+
+interface Contexto {
+  split: number
+  saqueMinimo?: number
+  ajudaPreco?: string
+}
+
 interface Linha {
   rotulo: string
-  ajuda?: string | ((splitTrader: number) => string)
+  ajuda?: string | ((c: Contexto) => string)
   celula: (p: Plano, d: DadosTamanho) => React.ReactNode
 }
+
+const AJUDA_PRECO_PADRAO = "Sem promoção. O valor final muda toda semana — confira no site."
 
 const LINHAS: Linha[] = [
   { rotulo: "Caminho", celula: (p) => (p.caminho === "direto" ? "Direto pra financiada (sem avaliação)" : "Avaliação → financiada") },
@@ -70,26 +99,11 @@ const LINHAS: Linha[] = [
       </>
     ),
   },
-  {
-    rotulo: "Pra liberar o saque",
-    celula: (p, d) => (
-      <ul className="space-y-1">
-        {criteriosSaque(p, d).map((t) => (
-          <li key={t}>{t}</li>
-        ))}
-      </ul>
-    ),
-  },
+  { rotulo: "Pra liberar o saque", celula: (p, d) => lista(criteriosSaque(p, d)) },
   {
     rotulo: "Quanto dá pra sacar",
-    ajuda: (split) => `Mínimo de $500 por pedido. Você fica com ${split}%.`,
-    celula: (_, d) => (
-      <ul className="space-y-1">
-        {maximoTexto(d).map((t) => (
-          <li key={t}>{t}</li>
-        ))}
-      </ul>
-    ),
+    ajuda: (c) => `${c.saqueMinimo ? `Mínimo de $${c.saqueMinimo} por pedido. ` : ""}Você fica com ${c.split}%.`,
+    celula: (_, d) => lista(maximoTexto(d)),
   },
   { rotulo: "Frequência de saque", celula: (p) => (p.saqueDiario ? "Todos os dias (quando elegível)" : "Quando cumprir os critérios") },
   {
@@ -99,12 +113,16 @@ const LINHAS: Linha[] = [
   },
   {
     rotulo: "Preço de tabela",
-    ajuda: "Sem promoção. O valor final muda toda semana — confira no site.",
-    celula: (_, d) => (d.precoTabelaUsd != null ? `${usd(d.precoTabelaUsd)}` : "Varia pela configuração"),
+    ajuda: (c) => c.ajudaPreco ?? AJUDA_PRECO_PADRAO,
+    celula: (p, d) => precoTexto(p, d),
   },
 ]
 
-export function ComparativoPlanos({ planos, tamanho, splitTrader }: { planos: Plano[]; tamanho: Tamanho; splitTrader: number }) {
+export function ComparativoPlanos({ mesa, tamanho }: { mesa: Mesa; tamanho: Tamanho }) {
+  const { planos } = mesa
+  const ctx: Contexto = { split: mesa.splitTrader, saqueMinimo: mesa.saqueMinimo, ajudaPreco: mesa.ajudaPreco }
+  const ajudaDe = (l: { ajuda?: string | ((c: Contexto) => string) }) => (typeof l.ajuda === "function" ? l.ajuda(ctx) : l.ajuda)
+
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full min-w-[820px] text-sm border-collapse">
@@ -121,21 +139,48 @@ export function ComparativoPlanos({ planos, tamanho, splitTrader }: { planos: Pl
           </tr>
         </thead>
         <tbody>
-          {LINHAS.map((l) => (
+          {LINHAS.map((l, linhaIdx) => (
             <tr key={l.rotulo} className="border-t border-border align-top">
-              <th scope="row" className="sticky left-0 bg-background text-left font-medium text-[13px] sm:text-sm px-3 sm:px-4 py-3 w-28 sm:w-44">
+              <th
+                scope="row"
+                className="sticky left-0 bg-background text-left font-medium text-[13px] sm:text-sm px-3 sm:px-4 py-3 w-28 sm:w-44"
+              >
                 {l.rotulo}
-                {l.ajuda && (
-                  <span className="hidden sm:block text-xs font-normal text-muted-foreground mt-0.5">
-                    {typeof l.ajuda === "function" ? l.ajuda(splitTrader) : l.ajuda}
-                  </span>
-                )}
+                {l.ajuda && <span className="hidden sm:block text-xs font-normal text-muted-foreground mt-0.5">{ajudaDe(l)}</span>}
               </th>
-              {planos.map((p) => (
-                <td key={p.id} className="px-3 sm:px-4 py-3 text-foreground/90">
-                  {l.celula(p, p.tamanhos[tamanho])}
-                </td>
-              ))}
+              {planos.map((p) => {
+                const d = dadosDoTamanho(p, tamanho)
+                let conteudo: React.ReactNode
+                if (!d) conteudo = linhaIdx === 0 ? `Não existe na conta de ${tamanho}K` : "—"
+                else {
+                  const sobrescrita = celulaDoTamanho(p.celulas?.[l.rotulo], tamanho)
+                  conteudo = sobrescrita ? lista(sobrescrita) : l.celula(p, d)
+                }
+                return (
+                  <td key={p.id} className={`px-3 sm:px-4 py-3 ${d ? "text-foreground/90" : "text-muted-foreground"}`}>
+                    {conteudo}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+          {mesa.linhasExtras?.map((l) => (
+            <tr key={l.rotulo} className="border-t border-border align-top">
+              <th
+                scope="row"
+                className="sticky left-0 bg-background text-left font-medium text-[13px] sm:text-sm px-3 sm:px-4 py-3 w-28 sm:w-44"
+              >
+                {l.rotulo}
+                {l.ajuda && <span className="hidden sm:block text-xs font-normal text-muted-foreground mt-0.5">{l.ajuda}</span>}
+              </th>
+              {planos.map((p) => {
+                const itens = dadosDoTamanho(p, tamanho) ? celulaDoTamanho(p.extras?.[l.rotulo], tamanho) : null
+                return (
+                  <td key={p.id} className={`px-3 sm:px-4 py-3 ${itens ? "text-foreground/90" : "text-muted-foreground"}`}>
+                    {itens ? lista(itens) : "—"}
+                  </td>
+                )
+              })}
             </tr>
           ))}
         </tbody>

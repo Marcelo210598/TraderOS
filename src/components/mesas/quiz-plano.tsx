@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { ArrowLeft, Check, ExternalLink, Info, MessageCircle, RotateCcw } from "lucide-react"
-import { linkDaMesa, usd, type Mesa, type Tamanho } from "@/lib/mesas"
+import { dadosDoTamanho, linkDaMesa, usd, type Mesa, type Tamanho } from "@/lib/mesas"
 import { ESPECIALISTA, linkWhatsApp } from "@/lib/mesas/contato"
 import { calcularSugestao, type Respostas, type ResultadoPlano } from "@/lib/mesas/quiz"
 import { cn } from "@/lib/utils"
@@ -10,11 +10,22 @@ import { cn } from "@/lib/utils"
 const unicos = (lista: string[]) => [...new Set(lista)]
 
 function Numeros({ r, tamanho }: { r: ResultadoPlano; tamanho: Tamanho }) {
-  const d = r.plano.tamanhos[tamanho]
+  const d = dadosDoTamanho(r.plano, tamanho)
+  if (!d) {
+    return (
+      <p className="rounded-lg border border-border bg-surface p-3 text-sm text-muted-foreground">
+        Este plano não existe na conta de {tamanho}K. Troque o tamanho no comparativo abaixo pra ver onde ele está disponível.
+      </p>
+    )
+  }
+  const preco =
+    d.precoTabelaUsd != null
+      ? `${d.precoRotulo ? `${d.precoRotulo} ` : ""}${usd(d.precoTabelaUsd)}${r.plano.cobranca === "mensal" ? "/mês" : ""}`
+      : "Varia pela configuração"
   const itens = [
     { rotulo: "Meta da avaliação", valor: d.metaAvaliacao != null ? usd(d.metaAvaliacao) : "Sem avaliação" },
     { rotulo: "Perda máxima", valor: usd(d.perdaMaxima) },
-    { rotulo: "Preço de tabela", valor: d.precoTabelaUsd != null ? usd(d.precoTabelaUsd) : "Varia pela configuração" },
+    { rotulo: "Preço de tabela", valor: preco },
   ]
   return (
     <dl className="grid grid-cols-3 gap-3 rounded-lg border border-border bg-surface p-3 text-sm">

@@ -1,9 +1,10 @@
+import { FFF } from "./fff"
 import { LUCID } from "./lucid"
-import { TAMANHOS, type Mesa, type Tamanho } from "./types"
+import { TAMANHOS, type Celula, type DadosTamanho, type Mesa, type Plano, type Tamanho } from "./types"
 
 export * from "./types"
 
-export const MESAS: Mesa[] = [LUCID]
+export const MESAS: Mesa[] = [LUCID, FFF]
 
 export const getMesa = (slug: string) => MESAS.find((m) => m.slug === slug)
 
@@ -17,3 +18,13 @@ export const parseTamanho = (raw: string | string[] | undefined): Tamanho => {
 }
 
 export const usd = (n: number) => `$${n.toLocaleString("en-US")}`
+
+/** Dados do plano no tamanho pedido, ou null se o plano não existe nesse tamanho. */
+export const dadosDoTamanho = (p: Plano, t: Tamanho): DadosTamanho | null => p.tamanhos[t] ?? null
+
+/** Resolve uma célula (lista fixa ou por tamanho) pro tamanho pedido. null = sem valor pra esse tamanho. */
+export const celulaDoTamanho = (c: Celula | undefined, t: Tamanho): string[] | null => {
+  if (!c) return null
+  if (Array.isArray(c)) return c
+  return c[t] ?? null
+}

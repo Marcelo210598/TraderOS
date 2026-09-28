@@ -1,7 +1,7 @@
 // Testes do monitor do Help Center (sem framework): node scripts/test-mesas-monitor.mts
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
-import { ARTIGOS_LUCID, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlArtigo, urlPermitida } from "../src/lib/mesas/monitor.ts"
+import { ALVOS_MONITOR, ARTIGOS_LUCID, PAGINAS_FFF, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlArtigo, urlPaginaFff, urlPermitida } from "../src/lib/mesas/monitor.ts"
 
 let passed = 0
 const test = (name: string, fn: () => void) => {
@@ -27,6 +27,13 @@ test("extrairTexto pega só o <article>, uma linha por bloco, sem tag/script/ent
   assert.ok(t.includes("Line with nbsp 'quote'"))
   assert.ok(t.includes("after break"))
   assert.ok(!t.includes("menu que NÃO conta") && !t.includes("rodapé") && !t.includes("lixo") && !t.includes("<"))
+})
+
+test("sem <article>, cai pro <main> (FAQs da FFF) e ignora o resto da página", () => {
+  const faq = `<html><header>Promo: 6 Days : 02 Hr : 19 Min : 44 Sec</header><main><div><h1>Is news trading allowed?</h1><p>Yes. At Funded Futures Family, you\u2019re allowed to trade major news events like FOMC, CPI, and NFP.</p></div></main><footer>rodapé</footer></html>`
+  const t = extrairTexto(faq)!
+  assert.ok(t.includes("Is news trading allowed?") && t.includes("FOMC"))
+  assert.ok(!t.includes("Promo") && !t.includes("rodapé"))
 })
 
 test("página sem <article> ou com texto curto demais = null (erro de leitura, não 'mudou')", () => {
@@ -88,6 +95,56 @@ test("todo slug monitorado existe na lista oficial lida em 28/09", () => {
 
 test("tituloDoSlug", () => {
   assert.equal(tituloDoSlug("12945796-lucidflex-payouts"), "lucidflex payouts")
+})
+
+// ---------- Funded Futures Family ----------
+test("FFF: 35 páginas, sem duplicata, todas na lista permitida", () => {
+  assert.equal(PAGINAS_FFF.length, 35)
+  assert.equal(new Set(PAGINAS_FFF).size, PAGINAS_FFF.length)
+  for (const c of PAGINAS_FFF) {
+    assert.match(c, /^(faq\/)?[a-z0-9-]+$/, `caminho inválido: ${c}`)
+    assert.ok(urlPermitida(urlPaginaFff(c)), c)
+  }
+})
+
+test("FFF: a lista do monitor é IGUAL ao arquivo de URLs do levantamento", () => {
+  const arquivo = readFileSync(new URL("../docs/mesas-proprietarias/fontes/fff-urls.txt", import.meta.url), "utf8")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+  assert.deepEqual(new Set(arquivo), new Set(PAGINAS_FFF.map(urlPaginaFff)))
+})
+
+test("FFF: toda fonte citada em fff.ts (fonte(...)) está sendo monitorada", () => {
+  const fff = readFileSync(new URL("../src/lib/mesas/fff.ts", import.meta.url), "utf8")
+  const fontes = [...fff.matchAll(/fonte\("([^"]+)"\)/g)].map((m) => m[1].replace(/\/$/, ""))
+  assert.ok(fontes.length >= 10, `achou só ${fontes.length} fontes`)
+  for (const f of fontes) assert.ok(PAGINAS_FFF.includes(f), `fonte de fff.ts fora do monitor: ${f}`)
+})
+
+test("FFF anti-SSRF: só a URL exata; quase-certas são recusadas (inclui ?ref_code)", () => {
+  const ruins = [
+    "https://www.fundedfuturesfamily.com/blog/",
+    "https://www.fundedfuturesfamily.com/live-payouts/",
+    "https://www.fundedfuturesfamily.com/prime-plan/?ref_code=abc",
+    "https://www.fundedfuturesfamily.com/prime-plan",
+    "http://www.fundedfuturesfamily.com/prime-plan/",
+    "https://fundedfuturesfamily.com/prime-plan/",
+    "https://www.fundedfuturesfamily.com.evil.com/prime-plan/",
+    "https://www.fundedfuturesfamily.com@evil.com/prime-plan/",
+    "https://evil.com/https://www.fundedfuturesfamily.com/prime-plan/",
+  ]
+  for (const u of ruins) assert.equal(urlPermitida(u), false, u)
+})
+
+test("monitor: alvos da Lucid e da FFF, com nomes de mesa únicos e itens não vazios", () => {
+  assert.deepEqual(ALVOS_MONITOR.map((a) => a.mesa), ["lucid", "fff"])
+  for (const a of ALVOS_MONITOR) assert.ok(a.itens.length > 0 && a.nome && a.rotulo, a.mesa)
+})
+
+test("tituloDoSlug entende FAQ da FFF", () => {
+  assert.equal(tituloDoSlug("faq/is-news-trading-allowed"), "is news trading allowed")
+  assert.equal(tituloDoSlug("prime-plan"), "prime plan")
 })
 
 console.log(`\n${passed} testes ok`)

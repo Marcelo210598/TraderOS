@@ -1,6 +1,7 @@
 // Testes do "Qual plano combina comigo?" da Lucid (sem framework): node scripts/test-quiz-mesas.mts
 import assert from "node:assert/strict"
 import { calcularSugestao, type Respostas } from "../src/lib/mesas/quiz.ts"
+import { QUIZ_FFF } from "../src/lib/mesas/quiz-fff.ts"
 import { QUIZ_LUCID } from "../src/lib/mesas/quiz-lucid.ts"
 import type { Plano, PlanoId } from "../src/lib/mesas/types.ts"
 
@@ -83,6 +84,66 @@ test("alternativa só aparece quando a nota é próxima e o plano não está blo
   assert.equal(s.alternativa?.plano.id, "flex")
   const b = calcularSugestao(QUIZ_LUCID, planos, responde("Ainda estou", "Evito", "Poucos dias", "Entro e saio", "Poder sacar"))
   assert.ok(!b.alternativa || b.principal!.pontos - b.alternativa.pontos <= 2)
+})
+
+// ---------- Funded Futures Family ----------
+const ordemFff: PlanoId[] = ["prime", "velocity", "premier", "s2f", "accelerate"]
+const planosFff = ordemFff.map((id) => ({ id, nome: id }) as unknown as Plano)
+const respondeFff = (...rotulos: string[]): Respostas =>
+  Object.fromEntries(
+    QUIZ_FFF.perguntas.map((p, i) => {
+      const idx = p.opcoes.findIndex((o) => o.rotulo.startsWith(rotulos[i]))
+      assert.notEqual(idx, -1, `FFF: opção "${rotulos[i]}" não existe na pergunta ${p.id}`)
+      return [i, idx]
+    })
+  )
+const principalFff = (...r: string[]) => calcularSugestao(QUIZ_FFF, planosFff, respondeFff(...r)).principal?.plano.id
+
+test("FFF: perguntas com opções e efeitos só em planos que existem", () => {
+  assert.equal(QUIZ_FFF.perguntas.length, 5)
+  for (const p of QUIZ_FFF.perguntas) {
+    assert.ok(p.opcoes.length >= 2, p.id)
+    for (const o of p.opcoes) for (const id of Object.keys(o.efeitos)) assert.ok(ordemFff.includes(id), `${p.id}: plano ${id}`)
+  }
+})
+
+test("FFF: quer pagar uma vez + método validado → Straight to Funded", () => {
+  assert.equal(principalFff("Método validado", "Prefiro pagar uma vez", "Deixo o trade", "Ganhos parecidos", "Sacar valores"), "s2f")
+})
+
+test("FFF: iniciante nunca recebe S2F nem Accelerate, em nenhuma combinação", () => {
+  for (const pag of ["Mensalidade", "Prefiro pagar", "Tanto faz"])
+    for (const est of ["Deixo o trade", "Entro e saio"])
+      for (const gan of ["Poucos dias", "Ganhos parecidos", "Ainda não sei"])
+        for (const saq of ["Poder sacar", "Regras simples", "Sacar valores"]) {
+          const id = principalFff("Ainda estou", pag, est, gan, saq)
+          assert.ok(id !== "s2f" && id !== "accelerate", `${pag}/${est}/${gan}/${saq} → ${id}`)
+        }
+})
+
+test("FFF: deixa o trade correr → Velocity e Accelerate levam alerta de drawdown intraday", () => {
+  const s = calcularSugestao(QUIZ_FFF, planosFff, respondeFff("Tenho método", "Tanto faz", "Deixo o trade", "Ainda não sei", "Poder sacar"))
+  for (const id of ["velocity", "accelerate"]) {
+    const r = s.ranking.find((x) => x.plano.id === id)!
+    assert.ok(r.alertas.some((a) => a.includes("intraday")), id)
+  }
+  assert.notEqual(s.principal?.plano.id, "velocity")
+})
+
+test("FFF: saque frequente + scalp → Velocity (add-on de saque diário)", () => {
+  assert.equal(principalFff("Ainda estou", "Mensalidade", "Entro e saio", "Poucos dias", "Poder sacar"), "velocity")
+})
+
+test("FFF: regras simples de saque → Premier+", () => {
+  assert.equal(principalFff("Ainda estou", "Tanto faz", "Deixo o trade", "Ainda não sei", "Regras simples"), "premier")
+})
+
+test("FFF: poucos dias grandes → S2F e Accelerate levam alerta de consistência (25%)", () => {
+  const s = calcularSugestao(QUIZ_FFF, planosFff, respondeFff("Método validado", "Prefiro pagar uma vez", "Entro e saio", "Poucos dias", "Sacar valores"))
+  for (const id of ["s2f", "accelerate"]) {
+    const r = s.ranking.find((x) => x.plano.id === id)!
+    assert.ok(r.alertas.some((a) => a.includes("25%")), id)
+  }
 })
 
 console.log(`\n${passed} testes ok`)

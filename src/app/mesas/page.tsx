@@ -24,18 +24,57 @@ export default function MesasPage() {
         </a>
       </div>
 
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold mb-3">Mesas disponíveis</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+      <section className="mt-12" aria-labelledby="escolha-mesa">
+        <div className="flex items-end justify-between gap-4 mb-5">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-teal">Comece por aqui</p>
+            <h2 id="escolha-mesa" className="mt-1 text-2xl font-bold">Escolha a sua mesa</h2>
+          </div>
+          <p className="hidden sm:block text-xs text-muted-foreground">Dados lidos nos sites oficiais e monitorados toda semana</p>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
           {MESAS.map((m) => (
             <Link
               key={m.slug}
               href={`/mesas/${m.slug}`}
-              className="rounded-xl border border-border bg-card p-5 hover:border-teal/60 transition-colors"
+              className="group relative flex flex-col overflow-hidden rounded-2xl border border-teal/40 bg-gradient-to-br from-teal/15 via-card to-card p-6 sm:p-7 shadow-[0_0_40px_-18px] shadow-teal transition-all hover:-translate-y-0.5 hover:border-teal hover:shadow-[0_0_60px_-14px] focus-visible:outline-2 focus-visible:outline-teal"
             >
-              <h3 className="text-base font-semibold">{m.nome}</h3>
-              <p className="text-sm text-muted-foreground mt-1">{m.resumo}</p>
-              <p className="text-xs text-teal mt-3">Comparar os {m.planos.length} planos →</p>
+              <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-teal/20 blur-3xl transition-opacity group-hover:opacity-100 opacity-70" />
+
+              <div className="relative flex items-start justify-between gap-3">
+                <h3 className="text-xl sm:text-2xl font-bold tracking-tight">{m.nome}</h3>
+                <span className="shrink-0 rounded-full border border-teal/50 bg-teal/10 px-3 py-1 text-xs font-semibold text-teal">
+                  {m.planos.length} planos
+                </span>
+              </div>
+
+              <p className="relative mt-3 text-sm text-muted-foreground leading-relaxed">{m.resumo}</p>
+
+              <ul className="relative mt-5 flex flex-wrap gap-2" aria-label="Planos">
+                {m.planos.map((p) => (
+                  <li key={p.id} className="rounded-md border border-border bg-background/60 px-2.5 py-1 text-xs font-medium">
+                    {p.nome}
+                  </li>
+                ))}
+              </ul>
+
+              <dl className="relative mt-5 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
+                <div>
+                  <dt className="inline">Você fica com </dt>
+                  <dd className="inline font-semibold text-foreground">{m.splitTrader}% dos saques</dd>
+                </div>
+                <div>
+                  <dt className="inline">Conferido em </dt>
+                  <dd className="inline font-semibold text-foreground">{m.verificadoEm.split("-").reverse().join("/")}</dd>
+                </div>
+              </dl>
+
+              <div className="relative mt-auto pt-6">
+                <span className="inline-flex items-center gap-2 rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-teal-foreground transition-opacity group-hover:opacity-90">
+                  Comparar os {m.planos.length} planos <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
+                </span>
+              </div>
             </Link>
           ))}
         </div>

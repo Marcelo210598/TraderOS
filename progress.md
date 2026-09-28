@@ -1,5 +1,14 @@
 # TraderOS — Progresso
 
+## 🚧 28/09/2026 (noite) — 2ª mesa: Funded Futures Family (FFF), só localhost
+Marcelo pediu todos os planos, todas as informações e a FFF no cron. O botão da FFF usa a URL base, sem código de referência (o `ref_code` do link recebido não pertence a ninguém).
+- **Levantamento** em `docs/mesas-proprietarias/fff-levantamento-2026-09-28.md` (site WordPress abre normal, sem Cloudflare). 5 planos: Prime, Velocity, Premier+, Straight to Funded, S2F Accelerate (só 50K). Avaliações = assinatura mensal; S2F = pagamento único. Regras gerais (16:15 NY, regra dos 10s, teto $100K, Rise, Live/Rithmic, Brasil fora da lista restrita), Termos (não reembolsável, chargeback).
+- **Modelo de dados estendido, compatível** (`types.ts`): `cobranca` mensal/única, tamanho ausente (`Partial`), `celulas`/`extras` por plano, `linhasExtras`, `regrasGerais`, `avisos`, `saqueMinimo`. Regressão: tabela da Lucid IDÊNTICA à de produção nos 4 tamanhos (pegou um `saqueMinimo` que eu tinha esquecido).
+- Dados em `src/lib/mesas/fff.ts` + quiz próprio `quiz-fff.ts` (5 perguntas). Página `/mesas/fff` com aviso da mudança do Premier+ (09/09/2026), comparativo, cards, "Regras que valem pra todos os planos" (6 blocos), fontes deduplicadas. Sitemap agora deriva de `MESAS`. Corrigi frases minhas que as tabelas do site não sustentavam ("Velocity mais barato").
+- **Cron generalizado** (`monitor.ts` + `api/cron/mesas-check`): Lucid (44 artigos) + FFF (35 páginas: 5 planos, regras, Termos, 27 FAQs). Anti-SSRF agora só aceita URLs EXATAS da lista. Achado: FAQs da FFF não têm `<article>` → extrator cai pro `<main>` (sem isso daria 27 erros/semana). 79/79 lidos, hash estável, caminho "mudou" testado na FFF.
+- **Hub `/mesas`**: cards das mesas com destaque (brilho teal, chips dos planos, split e data de conferência, botão alinhado no fundo), por pedido do Marcelo.
+- Testes: `test-quiz-mesas.mts` 16 ok, `test-mesas-monitor.mts` 16 ok. tsc/eslint limpos. **Commitado e no ar em 28/09/2026 (ver commit `feat: adiciona Funded Futures Family...`).** Cron da FFF passa a rodar a partir do deploy (1ª execução segunda 05/10 12h UTC).
+
 ## 🚧 28/09/2026 — Seção "Mesas Proprietárias" (passos 1 e 2, só localhost)
 Seção nova e separada do Drawdown, pública (sem login) em `/mesas` e `/mesas/lucid`.
 - **Levantamento oficial da Lucid** (4 planos: Pro/Flex/Daily/Direct) em `docs/mesas-proprietarias/`, lido do site oficial + Help Center (59 artigos). Conferido: 59/59 artigos idênticos, 24/24 números e 33/33 regras batem com os dados do código.

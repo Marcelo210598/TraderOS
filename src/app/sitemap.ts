@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next"
+import { MESAS } from "@/lib/mesas"
 
 const BASE_URL = "https://meutrade.app"
 
@@ -19,11 +20,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.7,
     },
-    {
-      url: `${BASE_URL}/mesas/lucid`,
-      changeFrequency: "weekly",
+    ...MESAS.map((m) => ({
+      url: `${BASE_URL}/mesas/${m.slug}`,
+      changeFrequency: "weekly" as const,
       priority: 0.7,
-    },
+    })),
     {
       url: `${BASE_URL}/login`,
       changeFrequency: "monthly",
