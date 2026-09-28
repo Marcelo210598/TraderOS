@@ -108,6 +108,78 @@ export const PAGINAS_FFF: readonly string[] = [
 
 export const urlPaginaFff = (caminho: string) => `${SITE_FFF}/${caminho}/`
 
+/**
+ * Help Center oficial da FFF (Intercom, 60 artigos lidos em 28/09/2026): a fonte mais detalhada e a que manda quando
+ * as páginas de venda divergem. Inclui Base plan e Prestige (não aparecem nas páginas de venda), pra avisar se virarem públicos.
+ */
+export const ARTIGOS_FFF_HELP: readonly string[] = [
+  "10697823-refund-policy-and-cancellation",
+  "11157829-understanding-your-billing-cycle",
+  "11157832-refund-policy-explained",
+  "13289636-professional-stage-account-performance-check-account-pca",
+  "15650632-what-is-funded-futures-family",
+  "15650686-can-i-trade-under-my-business",
+  "15650704-creating-your-funded-futures-family-account",
+  "15650785-account-fees",
+  "15656536-connecting-your-trading-platform",
+  "15657092-prime-evaluation-account",
+  "15695739-how-many-accounts-per-household",
+  "15696806-accepted-payments-methods",
+  "15697017-payout-methods",
+  "15705476-prime-funded-account",
+  "15715050-prime-payout-requirements",
+  "15808673-prime-consistency",
+  "15808767-prime-drawdown",
+  "15809232-premier-evaluation",
+  "15811095-premier-funded-account",
+  "15811464-premier-payout-requirements",
+  "15850031-premier-drawdown",
+  "15850710-velocity-evaluation",
+  "15851015-velocity-funded-account",
+  "15878902-velocity-payout-requirements",
+  "15879043-velocity-consistency",
+  "15879485-velocity-drawdown",
+  "15879855-straight-to-funded-s2f-funded-account",
+  "15879981-straight-to-funded-s2f-payout-requirements",
+  "15880555-straight-to-funded-s2f-consistency-percentage",
+  "15880602-straight-to-funded-s2f-drawdown",
+  "15880840-professional-stage-structure",
+  "15890961-professional-stage-payouts",
+  "15891902-professional-stage-operational-policies",
+  "15892228-live-stage-structure",
+  "15892316-rules-restricted-countries-regions",
+  "15892350-permitted-times-to-trade",
+  "15892353-news-trading-policy",
+  "15892376-fair-play-and-integrity-policy",
+  "15892413-bots-algorithmic-trading-policy",
+  "15892419-micro-scalping-policy",
+  "15892427-maximum-account-idle-time",
+  "16302640-prime-scaling-plan",
+  "16302826-premier-scaling-plan",
+  "16310772-velocity-scaling-plan",
+  "16310780-straight-to-funded-s2f-scaling-plan",
+  "16311789-do-first-time-users-get-any-special-offers",
+  "16418181-professional-stage-account-performance-check-account-pca",
+  "16544461-third-party-name-purchases",
+  "16911595-prestige-evaluation",
+  "16949878-accelerate-plan-funded-account",
+  "16950249-accelerate-plan-payout-requirements",
+  "16964667-premier-consistency",
+  "16964735-s2f-accelerate-plan-consistency-percentage",
+  "16964753-s2f-accelerate-plan-drawdown",
+  "17075322-base-plan-evaluation",
+  "17076299-base-plan-funded-account",
+  "17079566-base-plan-payout-requirements",
+  "17082450-base-plan-drawdown",
+  "17083162-base-plan-scaling-plan",
+  "17155892-device-sharing",
+]
+
+const HELP_FFF = "https://intercom.help/funded-futures-family/en/articles"
+
+/** Itens da FFF: caminho do site (`prime-plan`) ou `hc/<slug>` (artigo do Help Center). */
+export const urlItemFff = (id: string) => (id.startsWith("hc/") ? `${HELP_FFF}/${id.slice(3)}` : urlPaginaFff(id))
+
 /** O que o cron vigia de cada mesa. `id` é estável (vira parte da chave no Redis). */
 export interface AlvoMonitor {
   /** Slug da mesa (prefixo das chaves `mesas:<mesa>:*`). */
@@ -122,7 +194,7 @@ export interface AlvoMonitor {
 
 export const ALVOS_MONITOR: readonly AlvoMonitor[] = [
   { mesa: "lucid", nome: "Lucid", rotulo: "artigos", itens: ARTIGOS_LUCID, urlDe: urlArtigo },
-  { mesa: "fff", nome: "Funded Futures Family", rotulo: "páginas", itens: PAGINAS_FFF, urlDe: urlPaginaFff },
+  { mesa: "fff", nome: "Funded Futures Family", rotulo: "páginas", itens: [...PAGINAS_FFF, ...ARTIGOS_FFF_HELP.map((a) => `hc/${a}`)], urlDe: urlItemFff },
 ]
 
 const URLS_PERMITIDAS = new Set(ALVOS_MONITOR.flatMap((a) => a.itens.map((id) => a.urlDe(id))))
@@ -180,4 +252,4 @@ export function diffLinhas(antigo: string, novo: string): Diferenca {
 }
 
 /** "12945796-lucidflex-payouts" → "lucidflex payouts"; "faq/is-news-trading-allowed" → "is news trading allowed" */
-export const tituloDoSlug = (slug: string) => slug.replace(/^faq\//, "").replace(/^\d+-/, "").replace(/-/g, " ")
+export const tituloDoSlug = (slug: string) => slug.replace(/^(faq|hc)\//, "").replace(/^\d+-/, "").replace(/-/g, " ")

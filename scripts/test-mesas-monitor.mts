@@ -1,7 +1,7 @@
 // Testes do monitor do Help Center (sem framework): node scripts/test-mesas-monitor.mts
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
-import { ALVOS_MONITOR, ARTIGOS_LUCID, PAGINAS_FFF, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlArtigo, urlPaginaFff, urlPermitida } from "../src/lib/mesas/monitor.ts"
+import { ALVOS_MONITOR, ARTIGOS_FFF_HELP, ARTIGOS_LUCID, PAGINAS_FFF, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlArtigo, urlPaginaFff, urlPermitida } from "../src/lib/mesas/monitor.ts"
 
 let passed = 0
 const test = (name: string, fn: () => void) => {
@@ -145,6 +145,46 @@ test("monitor: alvos da Lucid e da FFF, com nomes de mesa únicos e itens não v
 test("tituloDoSlug entende FAQ da FFF", () => {
   assert.equal(tituloDoSlug("faq/is-news-trading-allowed"), "is news trading allowed")
   assert.equal(tituloDoSlug("prime-plan"), "prime plan")
+})
+
+test("FFF Help Center: 60 artigos, lista IGUAL ao arquivo de URLs, todos permitidos", () => {
+  assert.equal(ARTIGOS_FFF_HELP.length, 60)
+  assert.equal(new Set(ARTIGOS_FFF_HELP).size, ARTIGOS_FFF_HELP.length)
+  const arquivo = readFileSync(new URL("../docs/mesas-proprietarias/fontes/fff-helpcenter-urls.txt", import.meta.url), "utf8")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+  const base = "https://intercom.help/funded-futures-family/en/articles/"
+  assert.deepEqual(new Set(arquivo), new Set(ARTIGOS_FFF_HELP.map((a) => base + a)))
+  for (const a of ARTIGOS_FFF_HELP) {
+    assert.match(a, /^\d+-[a-z0-9-]+$/, `slug inválido: ${a}`)
+    assert.ok(urlPermitida(base + a), a)
+  }
+})
+
+test("FFF Help Center: toda fonteHc(...) citada em fff.ts está sendo monitorada", () => {
+  const fff = readFileSync(new URL("../src/lib/mesas/fff.ts", import.meta.url), "utf8")
+  const fontes = [...fff.matchAll(/fonteHc\("([^"]+)"\)/g)].map((m) => m[1])
+  assert.ok(fontes.length >= 15, `achou só ${fontes.length} fontes do Help Center`)
+  for (const f of fontes) assert.ok(ARTIGOS_FFF_HELP.includes(f), `fonteHc de fff.ts fora do monitor: ${f}`)
+})
+
+test("FFF Help Center anti-SSRF: só as URLs exatas dos artigos", () => {
+  const ruins = [
+    "https://intercom.help/funded-futures-family/en/articles/99999999-outro-artigo",
+    "https://intercom.help/funded-futures-family/en/",
+    "https://intercom.help.evil.com/funded-futures-family/en/articles/11157829-understanding-your-billing-cycle",
+    "http://intercom.help/funded-futures-family/en/articles/11157829-understanding-your-billing-cycle",
+    "https://intercom.help/outra-empresa/en/articles/11157829-understanding-your-billing-cycle",
+  ]
+  for (const u of ruins) assert.equal(urlPermitida(u), false, u)
+})
+
+test("FFF no monitor = 35 páginas do site + 60 artigos do Help Center", () => {
+  const fff = ALVOS_MONITOR.find((a) => a.mesa === "fff")!
+  assert.equal(fff.itens.length, 95)
+  assert.equal(new Set(fff.itens).size, 95)
+  for (const id of fff.itens) assert.ok(urlPermitida(fff.urlDe(id)), id)
 })
 
 console.log(`\n${passed} testes ok`)

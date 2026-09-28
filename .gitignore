@@ -48,3 +48,4 @@ next-env.d.ts
 # Texto bruto do Help Center da Lucid (conteúdo de terceiros, só local; a lista de URLs fica versionada)
 docs/mesas-proprietarias/fontes/lucid-helpcenter-2026-*.txt
 docs/mesas-proprietarias/fontes/fff-site-2026-*.txt
+docs/mesas-proprietarias/fontes/fff-helpcenter-2026-*.txt

@@ -14,7 +14,7 @@ import { ALVOS_MONITOR, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlPe
 
 export const maxDuration = 60
 
-const CONCORRENCIA = 6
+const CONCORRENCIA = 8
 const LIMITE_ERROS_PARA_ALERTA = 5
 const MAX_MUDANCAS_GUARDADAS = 20
 const MAX_LINHAS_NO_DIFF = 12

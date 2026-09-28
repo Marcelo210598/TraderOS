@@ -99,11 +99,32 @@ Meta (todas): $1.500 / $3.000 / $6.000 / $9.000. Reset financiada: $649 / $649 /
 - **Consistência 25% pra vida toda da conta** (não zera após saque). 5 dias qualificados ($200+ de lucro fechado).
 - Saldo acima de $52.100 pra pedir saque. Máx.: $1.250 (1º e 2º), $1.500 (do 3º em diante). Mínimo $500. Não é plano pra iniciante, segundo o próprio site.
 
+## Atualização: Help Center oficial (60 artigos, `intercom.help/funded-futures-family`)
+Achado depois do 1º levantamento: o site tem um Help Center Intercom, mais detalhado que as páginas de venda (lista em `fontes/fff-helpcenter-urls.txt`; texto bruto local, gitignorado). Quando divergem, ele manda.
+**Dúvidas resolvidas**
+- Consistência do Premier+ na financiada: "todas as contas financiadas Premier+" têm 40% (compradas a partir de 09/09/2026), inclusive o Standard. As anteriores mantêm os termos originais.
+- S2F 25K: o Help Center também mostra 1 mini de contrato máximo, e a tabela de escalonamento vai a 3 minis. **Ambíguo na própria fonte**; usamos 1 mini e avisamos.
+**Correções ao 1º levantamento**
+- Fechamento diário: Help Center diz **16:45** (NY) e que a posição esquecida é fechada sozinha, sem quebrar a conta; o FAQ do site diz 16:15. Divergência mantida no texto ("na dúvida, antes das 16:15").
+- **S2F não tem reset** ("Not available on S2F Accounts"); a página de venda dizia "sem taxa de reset do S2F".
+- Saques são **aprovados a cada fim de dia (EOD)** (Help Center), enquanto as páginas de venda falam em "instantâneo". Bancário 1–3 dias úteis, cripto no mesmo dia (até 24h); taxa do provedor (Rise). Dias mínimos contam a partir do dia seguinte ao pedido.
+- Live: $5.000 em saques aprovados da etapa profissional **ou** um 1º saque profissional com consistência demonstrada; análise individual, documentação e corretor (Rithmic).
+- Premier+ avaliação Standard: página de venda diz consistência de 50%; o Help Center diz **nenhuma**. Conflito mantido e sinalizado.
+**Novas regras**
+- Assinatura começa no dia do cadastro e renova todo mês; passou = para sozinha; estourou = reseta no próximo ciclo e a assinatura continua até cancelar. Resets: ilimitados na avaliação, até 3 na financiada, nenhum no S2F.
+- Reembolso só se **nenhum trade**, **só a 1ª conta** e em **até 14 dias**.
+- Depois de passar (Prime, Velocity, Premier+), **7 dias pra ativar** a financiada, senão é fechada.
+- Inatividade: pelo menos 1 trade de 10s por semana (seg–sex) por conta; uma semana inteira parada = conta fechada e irrecuperável.
+- Sem dividir aparelho com outro trader; cartão em nome do titular (terceiros proibido). Notícia liberada com aviso de gap/derrapagem/atraso de dados.
+- Premier+ financiada: ao pedir o 1º saque, o drawdown sobe pro saldo base. Contas de giveaway do Premier+: 7 dias e 40%.
+**Programas que só existem no Help Center (fora da comparação)**
+- **Prestige:** só por convite. Avaliação de 5 dias com 40%, depois ambiente Live, EOD, saque diário.
+- **Base $2K:** conta de $2.000, saque todo dia ($500–$1.000), sem consistência nem dias qualificados, drawdown intraday que trava com $2.000 de lucro, saldo mínimo $4.000 depois do saque. Não aparece nas páginas de venda.
+- Etapa Profissional: com menos de 20 dias qualificados pode sacar até 50% do lucro acima do buffer; a partir de 20 dias, até 100%.
+
 ## Pendências / não sabemos
-- Mínimo de saque dos demais planos (só o Accelerate cita $500).
-- Se o Premier+ Standard tem consistência de 40% na financiada (ver acima).
+- Horário de fechamento diário: 16:45 (Help Center) ou 16:15 (FAQ)?
+- Premier+ Standard: consistência de 50% na avaliação (página de venda) ou nenhuma (Help Center)?
+- S2F 25K: 1 mini (contrato máximo) ou escalonamento até 3 minis? As duas informações estão no Help Center.
+- Mínimo de saque dos demais planos (só o Accelerate e o Base citam $500).
 - Bônus ao ir pra Live: não há valor publicado.
-- Quantos saques até a análise pra Live: a regra é "1º pedido ou $5.000", não uma contagem.
-- S2F Standard 25K: a tabela de especificações mostra 1 mini/10 micros de posição máxima, mas a tabela de escalonamento chega a 3 minis. Estamos usando a de especificações (1 mini).
-- A tabela de escalonamento parece ser a da versão "Max" (o teto de cada tamanho bate com o Prime Max/Velocity). O site não explica se a versão Incluída do Prime é limitada abaixo disso; os dados mostram o teto por versão na linha "Lote máximo".
-- FAQs da FFF não têm `<article>`: o monitor lê o `<main>` deles. Se o layout do WordPress mudar, o cron avisa por "muitos erros".
