@@ -21,6 +21,7 @@ import {
   X,
   ShieldCheck,
   Gauge,
+  Landmark,
   LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -65,6 +66,7 @@ const navGroups: NavGroup[] = [
     label: "Aprendizado",
     items: [
       { href: "/trilha", icon: GraduationCap, label: "Trilha" },
+      { href: "/mesas", icon: Landmark, label: "Mesas Proprietárias" },
       { href: "/ask-claude", icon: MessageSquare, label: "Vega IA", planRequired: "PRO" },
     ],
   },

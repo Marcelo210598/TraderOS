@@ -63,6 +63,22 @@ export async function notifyAdminsAccountDeleted(user: {
   }
 }
 
+// Avisa TODOS os admins por push sobre o monitor das mesas proprietárias (cron semanal).
+// Nunca lança — o cron já gravou o resultado; falha de push não pode derrubá-lo.
+export async function notifyAdminsMesas(title: string, body: string, url = "/mesas"): Promise<number> {
+  try {
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    })
+    const envios = await Promise.all(admins.map((a) => sendPushToUser(a.id, { title, body, url })))
+    return envios.reduce((soma, e) => soma + e.sent, 0)
+  } catch (err) {
+    console.error("[notifyAdminsMesas]", err)
+    return 0
+  }
+}
+
 export interface AdminUserDTO {
   id: string
   name: string | null

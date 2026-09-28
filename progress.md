@@ -1,5 +1,20 @@
 # TraderOS — Progresso
 
+## 🚧 28/09/2026 — Seção "Mesas Proprietárias" (passos 1 e 2, só localhost)
+Seção nova e separada do Drawdown, pública (sem login) em `/mesas` e `/mesas/lucid`.
+- **Levantamento oficial da Lucid** (4 planos: Pro/Flex/Daily/Direct) em `docs/mesas-proprietarias/`, lido do site oficial + Help Center (59 artigos). Conferido: 59/59 artigos idênticos, 24/24 números e 33/33 regras batem com os dados do código.
+- **Comparativo lado a lado** por tamanho (25K–150K), cards "A favor / Vale saber antes", escalonamento do Flex, fontes com data. Dados como DADO em `src/lib/mesas/` (genérico p/ outras mesas). `/mesas` liberado em `src/proxy.ts` + sitemap.
+- **Bloco "Ficou com dúvida?"**: WhatsApp do especialista com mensagem pronta + link do site de cupons dele com modal de aviso ao sair.
+- Preço = só "de tabela" (muda toda semana). Cupom VAULT é da própria Lucid, não é afiliado. `linkAfiliado` existe, vazio.
+- **Mobile testado** (390/320px): tabela comparativa com rótulo estreito (112px) + coluna fixa, ajuda dos rótulos só no desktop; sem overflow.
+- **Quiz "Qual plano combina comigo?" (passo 3, feito)**: 5 perguntas → plano sugerido + motivos + "fique de olho" + alternativa. Motor puro em `src/lib/mesas/quiz.ts`, perguntas como DADO em `quiz-lucid.ts` (cada frase amarrada a regra verificada), UI em `components/mesas/quiz-plano.tsx`. Notícia forte bloqueia a Daily. Testes: `node scripts/test-quiz-mesas.mts` (9 ok). Testado ao vivo em 390px.
+- **CTA do especialista (Piero)** no resultado do quiz + bloco "Ficou com dúvida?": nome, "mais de 2 anos no mercado de mesas proprietárias", WhatsApp citando o plano sugerido. Marcelo NÃO recebe nada; aviso de transparência em `contato.ts` (`avisoParceria`).
+- **Bloco educativo (feito)**: `/mesas` ganhou "Como funciona uma mesa proprietária" (4 passos, "o que costuma ser bom", "pra ir de olho", glossário de 9 termos em `<details>`), dados em `src/lib/mesas/educativo.ts`. `/mesas/lucid` ganhou "A Lucid como mesa" (vantagens + atenção da mesa toda, campos opcionais `Mesa.vantagens/atencao`, só regra verificada). Testado em 390px, sem overflow.
+- **Dourado nos tamanhos (25K–150K)** do comparativo (novo token `--gold` em `globals.css`, reaproveitável) + **link "Mesas Proprietárias" no menu lateral** (grupo Aprendizado, ícone Landmark, `sidebar.tsx`). Sidebar não testada logada por mim (só tsc/eslint).
+- **Cron do Help Center (feito, SEM IA)**: `GET /api/cron/mesas-check` (segunda 12h UTC = 9h BRT, em `vercel.json`, protegido por `CRON_SECRET`). Baixa 44 artigos de regras da Lucid (só `support.lucidtrading.com`, anti-SSRF, sem seguir redirect), compara hash com o snapshot no **Upstash Redis** (chaves `mesas:lucid:*`, sem migration) e, se mudou, **push pros admins** + diff guardado em `mesas:lucid:mudancas` e no log. NÃO publica nada: Marcelo revisa `lucid.ts`. 1ª execução só cria a base e avisa "Monitor ativo". `?dry=1` = lê e compara sem gravar nem push. Código: `src/lib/mesas/{monitor,kv}.ts` + `notifyAdminsMesas` em `admin.ts`. Testes: `node scripts/test-mesas-monitor.mts` (9 ok). Validado: 44/44 lidos, hash estável em 2 leituras (0 falso alarme), Redis roundtrip, caminho "mudou" com snapshot adulterado. **Não testado:** push real (só depois do deploy). Resumo por IA (Groq) fica pra depois, só se o diff bruto ficar ruim de ler.
+- **Decisão (28/09):** Drawdown fica CENTRALIZADO na seção Drawdown. Não haverá botão "Simular no Drawdown" nas páginas de mesa.
+- **NADA commitado nem deployado.** Falta: simulador de saque (opcional), link-ponte NÃO, deploy.
+
 ## ✅ 27/09/2026 — 3 gaps de LGPD fechados: exclusão de conta, consentimento no cadastro, cookies
 Itens 4/5/6 da auditoria de segurança/LGPD desta sessão (ver bloco logo abaixo):
 - **Exclusão de conta self-service** (Art. 18 LGPD): `DELETE /api/user` — cancela assinatura Asaas

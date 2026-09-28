@@ -44,3 +44,6 @@ next-env.d.ts
 
 # semgrep scan output (local, não versionar)
 /.semgrep-scan
+
+# Texto bruto do Help Center da Lucid (conteúdo de terceiros, só local; a lista de URLs fica versionada)
+docs/mesas-proprietarias/fontes/lucid-helpcenter-2026-*.txt
