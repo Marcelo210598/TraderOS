@@ -199,6 +199,21 @@ export const ALVOS_MONITOR: readonly AlvoMonitor[] = [
 
 const URLS_PERMITIDAS = new Set(ALVOS_MONITOR.flatMap((a) => a.itens.map((id) => a.urlDe(id))))
 
+/**
+ * Mesas que o servidor NÃO consegue ler (Cloudflare devolve 403 e não burlamos anti-robô). O cron só LEMBRA o admin
+ * de conferir à mão pelo Chrome (docs/mesas-proprietarias/apex-conferencia.md).
+ */
+export interface AlvoManual {
+  mesa: string
+  nome: string
+  motivo: string
+}
+
+export const ALVOS_MANUAIS: readonly AlvoManual[] = [{ mesa: "apex", nome: "Apex Trader Funding", motivo: "o site fica atrás de Cloudflare" }]
+
+/** Lembrete mensal: só na primeira segunda-feira do mês (UTC), que é quando o cron semanal cai entre os dias 1 e 7. */
+export const lembreteManualDevido = (d: Date) => d.getUTCDay() === 1 && d.getUTCDate() <= 7
+
 /** Anti-SSRF: só as URLs EXATAS que estão nas listas acima (https, host e caminho certos). Qualquer outra é recusada. */
 export function urlPermitida(url: string): boolean {
   return URLS_PERMITIDAS.has(url)

@@ -1,6 +1,7 @@
 // Testes do "Qual plano combina comigo?" da Lucid (sem framework): node scripts/test-quiz-mesas.mts
 import assert from "node:assert/strict"
 import { calcularSugestao, type Respostas } from "../src/lib/mesas/quiz.ts"
+import { QUIZ_APEX } from "../src/lib/mesas/quiz-apex.ts"
 import { QUIZ_FFF } from "../src/lib/mesas/quiz-fff.ts"
 import { QUIZ_LUCID } from "../src/lib/mesas/quiz-lucid.ts"
 import type { Plano, PlanoId } from "../src/lib/mesas/types.ts"
@@ -144,6 +145,48 @@ test("FFF: poucos dias grandes → S2F e Accelerate levam alerta de consistênci
     const r = s.ranking.find((x) => x.plano.id === id)!
     assert.ok(r.alertas.some((a) => a.includes("25%")), id)
   }
+})
+
+// ---------- Apex ----------
+const ordemApex: PlanoId[] = ["eod", "intraday"]
+const planosApex = ordemApex.map((id) => ({ id, nome: id }) as unknown as Plano)
+const respondeApex = (...rotulos: string[]): Respostas =>
+  Object.fromEntries(
+    QUIZ_APEX.perguntas.map((p, i) => {
+      const idx = p.opcoes.findIndex((o) => o.rotulo.startsWith(rotulos[i]))
+      assert.notEqual(idx, -1, `Apex: opção "${rotulos[i]}" não existe na pergunta ${p.id}`)
+      return [i, idx]
+    })
+  )
+const sugApex = (...r: string[]) => calcularSugestao(QUIZ_APEX, planosApex, respondeApex(...r))
+
+test("Apex: perguntas com opções e efeitos só em planos que existem", () => {
+  assert.equal(QUIZ_APEX.perguntas.length, 5)
+  for (const p of QUIZ_APEX.perguntas) {
+    assert.ok(p.opcoes.length >= 2, p.id)
+    for (const o of p.opcoes) for (const id of Object.keys(o.efeitos)) assert.ok(ordemApex.includes(id), `${p.id}: plano ${id}`)
+  }
+})
+
+test("Apex: deixa o trade correr → EOD; Intraday leva alerta de lucro aberto", () => {
+  const s = sugApex("Deixo o trade", "Tanto faz", "Tanto faz", "Tenho método", "Tanto faz")
+  assert.equal(s.principal?.plano.id, "eod")
+  const intraday = s.ranking.find((r) => r.plano.id === "intraday")!
+  assert.ok(intraday.alertas.some((a) => a.includes("lucro aberto")))
+})
+
+test("Apex: scalp + quer pagar pouco + sem trava diária → Intraday", () => {
+  assert.equal(sugApex("Entro e saio", "Quero pagar o mínimo", "Prefiro liberdade", "Método validado", "Dias de lucro").principal?.plano.id, "intraday")
+})
+
+test("Apex: iniciante que deixa correr e aceita pagar mais → EOD, com motivos", () => {
+  const s = sugApex("Deixo o trade", "Posso pagar mais", "Prefiro um limite", "Ainda estou", "Tanto faz")
+  assert.equal(s.principal?.plano.id, "eod")
+  assert.ok(s.principal!.motivos.length >= 3)
+})
+
+test("Apex: sem respostas, empate resolvido pela ordem da mesa (EOD primeiro)", () => {
+  assert.equal(calcularSugestao(QUIZ_APEX, planosApex, {}).principal?.plano.id, "eod")
 })
 
 console.log(`\n${passed} testes ok`)

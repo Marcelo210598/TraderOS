@@ -1,10 +1,11 @@
+import { APEX } from "./apex"
 import { FFF } from "./fff"
 import { LUCID } from "./lucid"
 import { TAMANHOS, type Celula, type DadosTamanho, type Mesa, type Plano, type Tamanho } from "./types"
 
 export * from "./types"
 
-export const MESAS: Mesa[] = [LUCID, FFF]
+export const MESAS: Mesa[] = [LUCID, FFF, APEX]
 
 export const getMesa = (slug: string) => MESAS.find((m) => m.slug === slug)
 

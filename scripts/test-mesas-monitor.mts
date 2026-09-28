@@ -1,7 +1,7 @@
 // Testes do monitor do Help Center (sem framework): node scripts/test-mesas-monitor.mts
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
-import { ALVOS_MONITOR, ARTIGOS_FFF_HELP, ARTIGOS_LUCID, PAGINAS_FFF, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlArtigo, urlPaginaFff, urlPermitida } from "../src/lib/mesas/monitor.ts"
+import { ALVOS_MANUAIS, ALVOS_MONITOR, ARTIGOS_FFF_HELP, ARTIGOS_LUCID, PAGINAS_FFF, diffLinhas, extrairTexto, hashTexto, lembreteManualDevido, tituloDoSlug, urlArtigo, urlPaginaFff, urlPermitida } from "../src/lib/mesas/monitor.ts"
 
 let passed = 0
 const test = (name: string, fn: () => void) => {
@@ -185,6 +185,37 @@ test("FFF no monitor = 35 páginas do site + 60 artigos do Help Center", () => {
   assert.equal(fff.itens.length, 95)
   assert.equal(new Set(fff.itens).size, 95)
   for (const id of fff.itens) assert.ok(urlPermitida(fff.urlDe(id)), id)
+})
+
+// ---------- Apex (conferência manual) ----------
+test("Apex: toda fonte citada em apex.ts existe no arquivo de hashes do marco zero", () => {
+  const apex = readFileSync(new URL("../src/lib/mesas/apex.ts", import.meta.url), "utf8")
+  const hashes = readFileSync(new URL("../docs/mesas-proprietarias/fontes/apex-hashes-2026-09-28.txt", import.meta.url), "utf8")
+  const conhecidos = new Set(hashes.split("\n").filter((l) => l && !l.startsWith("#")).map((l) => l.split(" ")[0]))
+  const fontes = [...apex.matchAll(/fonte\("([^"]+)"\)/g)].map((m) => m[1])
+  assert.ok(fontes.length >= 15, `achou só ${fontes.length} fontes`)
+  for (const f of fontes) assert.ok(conhecidos.has(f), `fonte de apex.ts sem hash: ${f}`)
+})
+
+test("Apex: arquivo de hashes bem formado (16 hex, tamanho, sem duplicata)", () => {
+  const hashes = readFileSync(new URL("../docs/mesas-proprietarias/fontes/apex-hashes-2026-09-28.txt", import.meta.url), "utf8")
+  const linhas = hashes.split("\n").filter((l) => l && !l.startsWith("#"))
+  assert.equal(linhas.length, 38)
+  assert.equal(new Set(linhas.map((l) => l.split(" ")[0])).size, 38)
+  for (const l of linhas) assert.match(l, /^[a-z0-9-]+\/[a-z0-9-]+ [0-9a-f]{16} \d+$/, l)
+})
+
+test("Apex não está no monitor automático (Cloudflare) e tem lembrete manual", () => {
+  assert.ok(!ALVOS_MONITOR.some((a) => a.mesa === "apex"))
+  assert.deepEqual(ALVOS_MANUAIS.map((a) => a.mesa), ["apex"])
+})
+
+test("lembrete manual só na primeira segunda-feira do mês (UTC)", () => {
+  assert.equal(lembreteManualDevido(new Date("2026-10-05T12:00:00Z")), true) // 1ª segunda de outubro
+  assert.equal(lembreteManualDevido(new Date("2026-10-12T12:00:00Z")), false)
+  assert.equal(lembreteManualDevido(new Date("2026-10-26T12:00:00Z")), false)
+  assert.equal(lembreteManualDevido(new Date("2026-11-02T12:00:00Z")), true) // 1ª segunda de novembro
+  assert.equal(lembreteManualDevido(new Date("2026-10-06T12:00:00Z")), false) // terça
 })
 
 console.log(`\n${passed} testes ok`)

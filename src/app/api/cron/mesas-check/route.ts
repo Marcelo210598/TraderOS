@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { notifyAdminsMesas } from "@/lib/admin"
 import { kvDisponivel, kvGetJson, kvSetJson } from "@/lib/mesas/kv"
-import { ALVOS_MONITOR, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlPermitida, type AlvoMonitor, type Diferenca } from "@/lib/mesas/monitor"
+import { ALVOS_MANUAIS, ALVOS_MONITOR, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlPermitida, lembreteManualDevido, type AlvoMonitor, type Diferenca } from "@/lib/mesas/monitor"
 
 // Vercel Cron: segundas às 12:00 UTC (9:00 BRT). Configurado em vercel.json.
 //
@@ -189,5 +189,20 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ dry, pushes, mesas: porMesa })
+  // Mesas que o servidor não consegue ler: lembra o admin de conferir à mão (1x por mês).
+  const lembretes: string[] = []
+  if (lembreteManualDevido(new Date())) {
+    for (const m of ALVOS_MANUAIS) {
+      lembretes.push(m.mesa)
+      if (!dry) {
+        pushes += await notifyAdminsMesas(
+          `🔎 Hora de conferir a ${m.nome}`,
+          `A leitura automática não funciona (${m.motivo}). Peça pro Claude conferir pelo Chrome: docs/mesas-proprietarias/apex-conferencia.md.`,
+          `/mesas/${m.mesa}`
+        )
+      }
+    }
+  }
+
+  return NextResponse.json({ dry, pushes, mesas: porMesa, lembretes })
 }

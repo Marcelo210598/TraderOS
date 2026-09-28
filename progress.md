@@ -1,5 +1,14 @@
 # TraderOS — Progresso
 
+## ✅ 28/09/2026 (noite) — 3ª mesa: Apex Trader Funding, NO AR
+Levantamento pedido pelo Marcelo (site + Help Center). O site e o suporte da Apex ficam atrás de **Cloudflare (403 pro servidor)**, então a leitura foi feita **pelo Chrome do Marcelo** (extensão Claude in Chrome) e o **cron NÃO vigia a Apex**: a conferência é manual (`docs/mesas-proprietarias/apex-conferencia.md`), com o marco zero em `fontes/apex-hashes-2026-09-28.txt` (38 artigos) e um **lembrete por push na 1ª segunda de cada mês** (`ALVOS_MANUAIS` + `lembreteManualDevido` em `monitor.ts`, rota `mesas-check`).
+- **Só contas novas (a partir de 01/03/2026):** duas trilhas, **EOD** e **Intraday** (cada uma Standard ou "No Activation Fee"). Legado fora da comparação (aviso na página).
+- **Fatos:** avaliação = pagamento ÚNICO, 30 dias corridos, sem reset, sem reembolso; taxa de ativação da PA ($59 Intraday, $90 EOD, ou grátis na versão mais cara) com 7 dias pra pagar; split 100%; saque a cada 5 dias qualificados, consistência 50%, safety net, mín $500, máx 6 saques por PA; até 20 PAs; inatividade (2 dias de $50 em 30 dias); fechar tudo antes das 16:59 ET; stop obrigatório, sem hedge/robô; Live por convite (90/10, saque diário); saque fora dos EUA pela Plane (conta no país de residência); **Brasil não está na lista de países restritos**.
+- **Código:** `src/lib/mesas/apex.ts` (2 planos), `quiz-apex.ts` (5 perguntas), Apex em `MESAS` (hub agora com 3 mesas, sitemap dinâmico). Preços de tabela lidos no seletor da home (16 combinações).
+- **Validado:** números do 50K e 25K conferem com o levantamento; console sem erro; quiz e hub no celular ok; cron em dry (Lucid 44 + FFF 95, 0 erros). Testes: quiz 21 ok, monitor 24 ok. tsc/eslint limpos.
+- Divergências da própria fonte (documentadas): artigo geral de saque (© 2023) fala em "8 dias com 5 de $50" × páginas atuais (5 dias com $100–$350); home diz "sem revisão de saque" × Help Center (análise em até 2 dias úteis, 5–11 dias úteis no total).
+- **Commitado e no ar em 28/09/2026** (Apex incluída). O aviso "site bloqueia leitura automática" foi removido da página (usuário não precisa saber como os dados são lidos).
+
 ## 🚧 28/09/2026 (noite) — 2ª mesa: Funded Futures Family (FFF), só localhost
 Marcelo pediu todos os planos, todas as informações e a FFF no cron. O botão da FFF usa a URL base, sem código de referência (o `ref_code` do link recebido não pertence a ninguém).
 - **Levantamento** em `docs/mesas-proprietarias/fff-levantamento-2026-09-28.md` (site WordPress abre normal, sem Cloudflare). 5 planos: Prime, Velocity, Premier+, Straight to Funded, S2F Accelerate (só 50K). Avaliações = assinatura mensal; S2F = pagamento único. Regras gerais (16:15 NY, regra dos 10s, teto $100K, Rise, Live/Rithmic, Brasil fora da lista restrita), Termos (não reembolsável, chargeback).

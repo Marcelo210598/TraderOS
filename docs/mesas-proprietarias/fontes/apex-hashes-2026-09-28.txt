@@ -1,0 +1,42 @@
+# Apex Trader Funding: marco zero da conferência manual (28/09/2026)
+# Formato: <caminho em apextraderfunding.com/help-center/> <16 primeiros hex do SHA-256 do texto> <nº de caracteres>
+# O texto é o do <article> (ou <main>, ou <body>) lido pelo Chrome do Marcelo, com o extrator descrito em apex-conferencia.md.
+# Os servidores NÃO conseguem ler a Apex (Cloudflare devolve 403), então o cron não vigia este site: a conferência é manual.
+additional-helpful-items/50-consistency-requirement c789df0a36a3ae24 4017
+additional-helpful-items/daily-loss-limit-explained 25aa88586dd9a765 7492
+additional-helpful-items/how-to-request-a-payout d549fffb8dc5106e 2176
+additional-helpful-items/new-feature-early-account-update-notifications 827d4c1dcb88d858 5438
+additional-helpful-items/new-products 1e571d0b1bef4caf 303
+additional-helpful-items/payment-methods-and-checkout-errors 9e849a3c65f1a9c6 2115
+additional-helpful-items/payout-method-information fb9ab008bf37fb61 3312
+additional-helpful-items/payout-method-international-users f3dcc42a35d1f56a 2833
+additional-helpful-items/payout-method-us-based-users 58e28c32546fcb5f 3356
+additional-helpful-items/position-sizing-evaluation 83fd156d756cb984 2041
+additional-helpful-items/scaling-levels-pa-explained d663549753bf6dcd 5761
+billing/accessing-invoices 6db121e0d025f6c6 244
+billing/coupon-codes b313d5ae2f6427f2 1486
+billing/error-only-one-invoice-can-be-activate-at-a-time 3aefc3378e9e27b8 366
+billing/evaluation-bundle-5-pack 2f5dfc6c03a09486 3284
+billing/evaluation-plan-fees-and-access-explained ef820974575a1b6a 5681
+billing/inactivity-policy-on-performance-accounts-pa e61ef64e32fa5c39 3018
+billing/pa-activation-process-deadline-explained 3e11384924035ca4 6116
+billing/payment-methods-and-possible-checkout-errors 0567115b9d38d835 2112
+billing/refund-policy b408ebac5c224294 2155
+eod-trailing-drawdown-accounts/eod-drawdown-explained c5e12a9c06753b28 5840
+eod-trailing-drawdown-accounts/eod-evaluations 2ec003cd5277e374 4050
+eod-trailing-drawdown-accounts/eod-payouts 956ca8315b4bd4dc 6611
+eod-trailing-drawdown-accounts/eod-performance-accounts-pa ba7fcb2a8b89ba00 2247
+evaluation-accounts-ea/intraday-trailing-drawdown-evaluations 62425643ac14145d 5282
+getting-started/apex-live-prop-trading-program-faq 9f8cc0ab1267cff5 36546
+getting-started/apex-trader-funding-background-and-history 2df6eeb47d80df12 2649
+getting-started/choosing-the-right-platform 479be9e9df6c0708 4623
+getting-started/code-of-conduct 9bae40f8c17c3cd3 1339
+getting-started/futures-trading-times f3991b1e597595b6 2698
+getting-started/prohibited-activities c5784c7c1eecb8b2 6152
+getting-started/registering-as-a-person-or-business 57b5c08a23228c14 6334
+getting-started/restricted-countries c73c96abf650a0d2 4474
+getting-started/user-summary-and-trade-violations 7442c58bc87415af 943
+intraday-trailing-drawdown-accounts/intraday-trailing-drawdown-explained 98a8faec068a9e25 6494
+intraday-trailing-drawdown-accounts/intraday-trailing-drawdown-payouts 898feea3a4f3e0b2 7212
+intraday-trailing-drawdown-accounts/intraday-trailing-drawdown-performance-accounts-pa d6696dcbbd070b25 2603
+legacy-products/legacy-products-overview 29e07d2f38b33556 2612
