@@ -4,6 +4,7 @@ import { calcularSugestao, type Respostas } from "../src/lib/mesas/quiz.ts"
 import { QUIZ_APEX } from "../src/lib/mesas/quiz-apex.ts"
 import { QUIZ_FFF } from "../src/lib/mesas/quiz-fff.ts"
 import { QUIZ_LUCID } from "../src/lib/mesas/quiz-lucid.ts"
+import { QUIZ_BULENOX } from "../src/lib/mesas/quiz-bulenox.ts"
 import { QUIZ_TRADEIFY } from "../src/lib/mesas/quiz-tradeify.ts"
 import type { Plano, PlanoId } from "../src/lib/mesas/types.ts"
 
@@ -233,6 +234,51 @@ test("Tradeify: dias grandes + sem trava diária → Select Flex, e Lightning le
 
 test("Tradeify: sem respostas, empate resolvido pela ordem da mesa (Growth primeiro)", () => {
   assert.equal(calcularSugestao(QUIZ_TRADEIFY, planosTradeify, {}).principal?.plano.id, "growth")
+})
+
+// ---------- Bulenox ----------
+const ordemBulenox: PlanoId[] = ["qualification", "momentum", "fast-track"]
+const planosBulenox = ordemBulenox.map((id) => ({ id, nome: id }) as unknown as Plano)
+const respondeBulenox = (...rotulos: string[]): Respostas =>
+  Object.fromEntries(
+    QUIZ_BULENOX.perguntas.map((p, i) => {
+      const idx = p.opcoes.findIndex((o) => o.rotulo.startsWith(rotulos[i]))
+      assert.notEqual(idx, -1, `Bulenox: opção "${rotulos[i]}" não existe na pergunta ${p.id}`)
+      return [i, idx]
+    })
+  )
+const sugBulenox = (...r: string[]) => calcularSugestao(QUIZ_BULENOX, planosBulenox, respondeBulenox(...r))
+
+test("Bulenox: 5 perguntas com opções e efeitos só em planos que existem", () => {
+  assert.equal(QUIZ_BULENOX.perguntas.length, 5)
+  for (const p of QUIZ_BULENOX.perguntas) {
+    assert.ok(p.opcoes.length >= 2, p.id)
+    for (const o of p.opcoes) for (const id of Object.keys(o.efeitos)) assert.ok(ordemBulenox.includes(id), `${p.id}: plano ${id}`)
+  }
+})
+
+test("Bulenox: iniciante que quer o menor custo total → Momentum", () => {
+  assert.equal(sugBulenox("Ainda estou", "Menor custo", "Tanto faz", "Ainda não sei", "Tanto faz").principal?.plano.id, "momentum")
+})
+
+test("Bulenox: método validado + paga mais + saque rápido → Fast Track; Momentum leva alerta de avaliação", () => {
+  const s = sugBulenox("Método validado", "Posso pagar mais", "Rápido", "Ganhos parecidos", "Tanto faz")
+  assert.equal(s.principal?.plano.id, "fast-track")
+  assert.ok(s.ranking.find((r) => r.plano.id === "momentum")!.alertas.some((a) => a.includes("avaliação")))
+})
+
+test("Bulenox: aprende, saque semanal, ganhos parecidos e rotina diária → Qualification", () => {
+  assert.equal(sugBulenox("Ainda estou", "Tanto faz", "Uma vez por semana", "Ganhos parecidos", "Opero quase").principal?.plano.id, "qualification")
+})
+
+test("Bulenox: dias grandes → Fast Track e Master levam alerta de consistência", () => {
+  const s = sugBulenox("Método validado", "Tanto faz", "Tanto faz", "Poucos dias grandes", "Tanto faz")
+  assert.ok(s.ranking.find((r) => r.plano.id === "fast-track")!.alertas.some((a) => a.includes("consistência")))
+  assert.ok(s.ranking.find((r) => r.plano.id === "qualification")!.alertas.some((a) => a.includes("40%")))
+})
+
+test("Bulenox: sem respostas, empate resolvido pela ordem da mesa (Qualification primeiro)", () => {
+  assert.equal(calcularSugestao(QUIZ_BULENOX, planosBulenox, {}).principal?.plano.id, "qualification")
 })
 
 console.log(`\n${passed} testes ok`)

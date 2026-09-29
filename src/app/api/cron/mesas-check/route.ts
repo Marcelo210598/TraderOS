@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { notifyAdminsMesas } from "@/lib/admin"
 import { kvDisponivel, kvGetJson, kvSetJson } from "@/lib/mesas/kv"
-import { ALVOS_MANUAIS, ALVOS_MONITOR, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlPermitida, lembreteManualDevido, type AlvoMonitor, type Diferenca } from "@/lib/mesas/monitor"
+import { ALVOS_MANUAIS, ALVOS_MONITOR, cmsParaTexto, diffLinhas, extrairTexto, hashTexto, tituloDoSlug, urlPermitida, lembreteManualDevido, type AlvoMonitor, type Diferenca } from "@/lib/mesas/monitor"
 
 // Vercel Cron: segundas às 12:00 UTC (9:00 BRT). Configurado em vercel.json.
 //
-// Baixa as páginas de regras de cada mesa monitorada (Lucid: Help Center; FFF: site), compara com a última versão
+// Baixa as páginas de regras de cada mesa monitorada (Lucid: Help Center; FFF: site; Bulenox: API pública do site), compara com a última versão
 // guardada no Redis e, se algo mudou, manda push pros admins. NÃO publica nada e NÃO altera os dados das mesas:
 // quem revisa é o Marcelo. Lucid: só o Help Center (o site principal dá 403 Cloudflare e não entra). Sem IA: o diff
 // bruto vai na resposta, no log e em `mesas:<mesa>:mudancas`.
@@ -58,8 +58,11 @@ async function baixarTexto(url: string): Promise<string> {
     signal: AbortSignal.timeout(15000),
   })
   if (res.status !== 200) throw new Error(`HTTP ${res.status}`)
-  const texto = extrairTexto(await res.text())
-  if (!texto) throw new Error("sem <article>/<main> (bloqueio ou layout mudou)")
+  const corpo = await res.text()
+  // Bulenox devolve JSON (API pública do site); as demais mesas devolvem HTML.
+  const ehJson = url.includes("/cms/items/")
+  const texto = ehJson ? cmsParaTexto(corpo) : extrairTexto(corpo)
+  if (!texto) throw new Error(ehJson ? "JSON vazio ou fora do formato (a API mudou?)" : "sem <article>/<main> (bloqueio ou layout mudou)")
   return texto
 }
 

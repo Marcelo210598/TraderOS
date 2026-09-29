@@ -1,7 +1,7 @@
 // Testes do monitor do Help Center (sem framework): node scripts/test-mesas-monitor.mts
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
-import { ALVOS_MANUAIS, ALVOS_MONITOR, ARTIGOS_FFF_HELP, ARTIGOS_LUCID, PAGINAS_FFF, diffLinhas, extrairTexto, hashTexto, lembreteManualDevido, tituloDoSlug, urlArtigo, urlPaginaFff, urlPermitida } from "../src/lib/mesas/monitor.ts"
+import { ALVOS_MANUAIS, ALVOS_MONITOR, ARTIGOS_FFF_HELP, ARTIGOS_LUCID, ITENS_BULENOX, PAGINAS_FFF, cmsParaTexto, diffLinhas, extrairTexto, hashTexto, lembreteManualDevido, tituloDoSlug, urlArtigo, urlItemBulenox, urlPaginaFff, urlPermitida } from "../src/lib/mesas/monitor.ts"
 
 let passed = 0
 const test = (name: string, fn: () => void) => {
@@ -138,7 +138,7 @@ test("FFF anti-SSRF: só a URL exata; quase-certas são recusadas (inclui ?ref_c
 })
 
 test("monitor: alvos da Lucid e da FFF, com nomes de mesa únicos e itens não vazios", () => {
-  assert.deepEqual(ALVOS_MONITOR.map((a) => a.mesa), ["lucid", "fff"])
+  assert.deepEqual(ALVOS_MONITOR.map((a) => a.mesa), ["lucid", "fff", "bulenox"])
   for (const a of ALVOS_MONITOR) assert.ok(a.itens.length > 0 && a.nome && a.rotulo, a.mesa)
 })
 
@@ -207,7 +207,7 @@ test("Apex: arquivo de hashes bem formado (16 hex, tamanho, sem duplicata)", () 
 
 test("Apex não está no monitor automático (Cloudflare) e tem lembrete manual", () => {
   assert.ok(!ALVOS_MONITOR.some((a) => a.mesa === "apex"))
-  assert.deepEqual(ALVOS_MANUAIS.map((a) => a.mesa), ["apex", "tradeify"])
+  assert.deepEqual(ALVOS_MANUAIS.map((a) => a.mesa), ["apex", "tradeify", "bulenox"])
   assert.ok(!ALVOS_MONITOR.some((a) => a.mesa === "tradeify"))
 })
 
@@ -217,6 +217,60 @@ test("lembrete manual só na primeira segunda-feira do mês (UTC)", () => {
   assert.equal(lembreteManualDevido(new Date("2026-10-26T12:00:00Z")), false)
   assert.equal(lembreteManualDevido(new Date("2026-11-02T12:00:00Z")), true) // 1ª segunda de novembro
   assert.equal(lembreteManualDevido(new Date("2026-10-06T12:00:00Z")), false) // terça
+})
+
+// ---------- Bulenox (API pública do site) ----------
+test("Bulenox: URLs permitidas só as da API pública do site (https, host exato)", () => {
+  for (const id of ITENS_BULENOX) {
+    const u = urlItemBulenox(id)
+    assert.ok(u.startsWith("https://bulenox.com/cms/items/"), id)
+    assert.ok(urlPermitida(u), id)
+  }
+  const ruins = [
+    "http://bulenox.com/cms/items/faq_items",
+    "https://bulenox.com.evil.com/cms/items/faq_items",
+    "https://bulenox.com/cms/items/directus_users",
+    "https://bulenox.com/cms/users",
+  ]
+  for (const u of ruins) assert.equal(urlPermitida(u), false, u)
+})
+
+test("Bulenox: cmsParaTexto lê só o inglês, tabelas, listas e limpa HTML", () => {
+  const json = JSON.stringify({
+    data: [
+      {
+        key: "reset",
+        sort: 1,
+        translations: [
+          { languages_code: "ru", title: "Сброс", blocks: [{ type: "p", text: "русский", sort: 1 }] },
+          {
+            languages_code: "en",
+            title: "Reset",
+            lead: "Hit the limit?",
+            blocks: [
+              { type: "p", text: "A reset costs <strong>$78</strong> and returns your balance to its starting value.", sort: 1 },
+              { type: "ul", list_items: [{ value: "Log in" }, { value: "Click <b>Reset</b>" }], sort: 2 },
+              { type: "table", table: { head: ["Size", "Fee"], rows: [["$25,000", "$94"]] }, sort: 3 },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const t = cmsParaTexto(json)!
+  assert.ok(t.includes("### Reset [reset]") && t.includes("A reset costs $78 and returns"))
+  assert.ok(t.includes("- Click Reset") && t.includes("Size | Fee") && t.includes("$25,000 | $94"))
+  assert.ok(!t.includes("русский"))
+})
+
+test("Bulenox: cmsParaTexto recusa JSON quebrado, vazio ou sem data", () => {
+  assert.equal(cmsParaTexto("<html>Cloudflare</html>"), null)
+  assert.equal(cmsParaTexto("{}"), null)
+  assert.equal(cmsParaTexto(JSON.stringify({ data: [] })), null)
+})
+
+test("Bulenox: tituloDoSlug entende help/<categoria>", () => {
+  assert.equal(tituloDoSlug("help/fast-track"), "fast track")
 })
 
 console.log(`\n${passed} testes ok`)

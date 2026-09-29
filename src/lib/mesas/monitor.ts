@@ -180,6 +180,36 @@ const HELP_FFF = "https://intercom.help/funded-futures-family/en/articles"
 /** Itens da FFF: caminho do site (`prime-plan`) ou `hc/<slug>` (artigo do Help Center). */
 export const urlItemFff = (id: string) => (id.startsWith("hc/") ? `${HELP_FFF}/${id.slice(3)}` : urlPaginaFff(id))
 
+
+const SITE_BULENOX = "https://bulenox.com"
+
+/**
+ * Bulenox: o site é uma SPA e o texto do Help Center/FAQ vem da API pública do próprio site (`/cms/items/...`), que o
+ * robots.txt deixa aberta de propósito. Cada item vigiado é uma CATEGORIA do Help Center (`help/<categoria>`) ou o FAQ inteiro.
+ * Os preços da Qualification só existem no JavaScript da página de preços, então ficam na conferência manual.
+ */
+export const ITENS_BULENOX: readonly string[] = [
+  "help/general",
+  "help/qualification",
+  "help/fast-track",
+  "help/momentum",
+  "help/master",
+  "help/funded",
+  "help/connection",
+  "help/subscription",
+  "help/warning",
+  "faq",
+]
+
+const CAMPOS_BLOCOS = "translations.blocks.type,translations.blocks.text,translations.blocks.list_items,translations.blocks.table,translations.blocks.sort"
+const CAMPOS_HELP = `key,sort,category,translations.languages_code,translations.title,translations.lead,${CAMPOS_BLOCOS}`
+const CAMPOS_FAQ = `sort,group,translations.languages_code,translations.question,${CAMPOS_BLOCOS}`
+
+export const urlItemBulenox = (id: string) =>
+  id === "faq"
+    ? `${SITE_BULENOX}/cms/items/faq_items?fields=${CAMPOS_FAQ}&filter[status][_eq]=published&sort=sort&limit=-1`
+    : `${SITE_BULENOX}/cms/items/help_items?fields=${CAMPOS_HELP}&filter[status][_eq]=published&filter[category][_eq]=${id.replace(/^help\//, "")}&sort=sort&limit=-1`
+
 /** O que o cron vigia de cada mesa. `id` é estável (vira parte da chave no Redis). */
 export interface AlvoMonitor {
   /** Slug da mesa (prefixo das chaves `mesas:<mesa>:*`). */
@@ -195,6 +225,7 @@ export interface AlvoMonitor {
 export const ALVOS_MONITOR: readonly AlvoMonitor[] = [
   { mesa: "lucid", nome: "Lucid", rotulo: "artigos", itens: ARTIGOS_LUCID, urlDe: urlArtigo },
   { mesa: "fff", nome: "Funded Futures Family", rotulo: "páginas", itens: [...PAGINAS_FFF, ...ARTIGOS_FFF_HELP.map((a) => `hc/${a}`)], urlDe: urlItemFff },
+  { mesa: "bulenox", nome: "Bulenox", rotulo: "páginas", itens: ITENS_BULENOX, urlDe: urlItemBulenox },
 ]
 
 const URLS_PERMITIDAS = new Set(ALVOS_MONITOR.flatMap((a) => a.itens.map((id) => a.urlDe(id))))
@@ -214,6 +245,7 @@ export interface AlvoManual {
 export const ALVOS_MANUAIS: readonly AlvoManual[] = [
   { mesa: "apex", nome: "Apex Trader Funding", motivo: "o site fica atrás de Cloudflare", doc: "apex-conferencia.md" },
   { mesa: "tradeify", nome: "Tradeify", motivo: "o Help Center fica atrás de Cloudflare", doc: "tradeify-conferencia.md" },
+  { mesa: "bulenox", nome: "Bulenox (só os preços)", motivo: "os preços da Qualification ficam dentro do código da página de preços", doc: "bulenox-conferencia.md" },
 ]
 
 /** Lembrete mensal: só na primeira segunda-feira do mês (UTC), que é quando o cron semanal cai entre os dias 1 e 7. */
@@ -252,6 +284,64 @@ export function extrairTexto(html: string): string | null {
   return texto.length >= 50 ? texto : null
 }
 
+const limparHtml = (t: string | null | undefined) =>
+  decodificar((t ?? "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n").replace(/<[^>]+>/g, ""))
+    .split("\n")
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+
+interface BlocoCms {
+  type?: string
+  text?: string | null
+  sort?: number | null
+  list_items?: ({ value?: string } | string)[] | null
+  table?: { head?: unknown[]; rows?: unknown[][] } | null
+}
+interface TraducaoCms {
+  languages_code?: string
+  title?: string
+  question?: string
+  lead?: string | null
+  blocks?: BlocoCms[] | null
+}
+interface ItemCms {
+  key?: string
+  sort?: number | null
+  translations?: TraducaoCms[] | null
+}
+
+/** Texto (uma linha por bloco) da resposta JSON da API do Bulenox, só em inglês. null = resposta vazia ou fora do formato. */
+export function cmsParaTexto(json: string): string | null {
+  let dados: unknown
+  try {
+    dados = (JSON.parse(json) as { data?: unknown }).data
+  } catch {
+    return null
+  }
+  if (!Array.isArray(dados)) return null
+  const linhas: string[] = []
+  for (const item of dados as ItemCms[]) {
+    const t = item.translations?.find((x) => x.languages_code === "en")
+    if (!t) continue
+    linhas.push(`### ${limparHtml(t.title ?? t.question)}${item.key ? ` [${item.key}]` : ""}`)
+    if (t.lead) linhas.push(limparHtml(t.lead))
+    for (const b of [...(t.blocks ?? [])].sort((a, c) => (a.sort ?? 0) - (c.sort ?? 0))) {
+      if (b.type === "ul" || b.type === "ol") {
+        for (const li of b.list_items ?? []) linhas.push(`- ${limparHtml(typeof li === "string" ? li : li.value)}`)
+      } else if (b.type === "table") {
+        const tab = b.table ?? {}
+        if (tab.head?.length) linhas.push(tab.head.join(" | "))
+        for (const r of tab.rows ?? []) linhas.push(r.join(" | "))
+      } else if (b.text) {
+        linhas.push(limparHtml(b.text))
+      }
+    }
+  }
+  const texto = linhas.filter(Boolean).join("\n")
+  return texto.length >= 50 ? texto : null
+}
+
 export const hashTexto = (texto: string) => createHash("sha256").update(texto).digest("hex")
 
 export interface Diferenca {
@@ -272,4 +362,4 @@ export function diffLinhas(antigo: string, novo: string): Diferenca {
 }
 
 /** "12945796-lucidflex-payouts" → "lucidflex payouts"; "faq/is-news-trading-allowed" → "is news trading allowed" */
-export const tituloDoSlug = (slug: string) => slug.replace(/^(faq|hc)\//, "").replace(/^\d+-/, "").replace(/-/g, " ")
+export const tituloDoSlug = (slug: string) => slug.replace(/^(faq|hc|help)\//, "").replace(/^\d+-/, "").replace(/-/g, " ")
