@@ -1,5 +1,11 @@
 # TraderOS — Progresso
 
+## ✅ 29/09/2026 — 4ª e 5ª mesas: Tradeify e Bulenox, NO AR
+Pesquisa das mesas que mais valem entrar → **Tradeify** (commit `aed0c8c`) e **Bulenox** (`8fb7ea3`), ambas no ar em `meutrade.app`. Detalhe em `historico/2026-09-29.md`.
+- **Tradeify:** Growth, Select Flex, Select Daily, Lightning. Help Center atrás de Cloudflare → lido pelo Chrome; monitoramento manual + lembrete mensal.
+- **Bulenox:** Qualification + Master, Momentum, Fast Track. Help Center/FAQ vêm da API pública do site → cron lê 10 itens (`cmsParaTexto`); preços da Qualification = conferência manual.
+- Testes: quiz 33 ok, monitor 28 ok.
+
 ## ✅ 28/09/2026 (noite) — 3ª mesa: Apex Trader Funding, NO AR
 Levantamento pedido pelo Marcelo (site + Help Center). O site e o suporte da Apex ficam atrás de **Cloudflare (403 pro servidor)**, então a leitura foi feita **pelo Chrome do Marcelo** (extensão Claude in Chrome) e o **cron NÃO vigia a Apex**: a conferência é manual (`docs/mesas-proprietarias/apex-conferencia.md`), com o marco zero em `fontes/apex-hashes-2026-09-28.txt` (38 artigos) e um **lembrete por push na 1ª segunda de cada mês** (`ALVOS_MANUAIS` + `lembreteManualDevido` em `monitor.ts`, rota `mesas-check`).
 - **Só contas novas (a partir de 01/03/2026):** duas trilhas, **EOD** e **Intraday** (cada uma Standard ou "No Activation Fee"). Legado fora da comparação (aviso na página).
