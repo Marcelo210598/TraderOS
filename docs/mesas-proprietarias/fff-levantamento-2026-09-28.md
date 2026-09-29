@@ -122,9 +122,9 @@ Achado depois do 1º levantamento: o site tem um Help Center Intercom, mais deta
 - **Base $2K:** conta de $2.000, saque todo dia ($500–$1.000), sem consistência nem dias qualificados, drawdown intraday que trava com $2.000 de lucro, saldo mínimo $4.000 depois do saque. Não aparece nas páginas de venda.
 - Etapa Profissional: com menos de 20 dias qualificados pode sacar até 50% do lucro acima do buffer; a partir de 20 dias, até 100%.
 
-## Pendências / não sabemos
-- Horário de fechamento diário: 16:45 (Help Center) ou 16:15 (FAQ)?
-- Premier+ Standard: consistência de 50% na avaliação (página de venda) ou nenhuma (Help Center)?
-- S2F 25K: 1 mini (contrato máximo) ou escalonamento até 3 minis? As duas informações estão no Help Center.
-- Mínimo de saque dos demais planos (só o Accelerate e o Base citam $500).
-- Bônus ao ir pra Live: não há valor publicado.
+## Dúvidas fechadas em 29/09/2026 (relidas no site e no Help Center)
+- **S2F 25K:** a tabela de escalonamento (site e Help Center) marca **3 minis como o máximo** do 25K (1 mini de $0 a $999, 2 minis de $1.000 a $1.999, 3 minis a partir de $2.000). O "1 mini" da tabela de especificações é o tamanho INICIAL (nos outros tamanhos essa coluna mostra o teto). Corrigido em `fff.ts`: teto 3 minis, começando em 1.
+- **Premier+ Standard, consistência na avaliação:** 50%. A página do plano e o FAQ dizem isso de forma explícita ("Standard: 2+ dias, 50% só na avaliação"), e o mínimo de 2 dias só faz sentido com essa regra. A tabela do Help Center mostra "nenhuma" sem separar Standard e Fast Pass (é genérica). Fast Pass: nenhuma. Financiada (contas a partir de 09/09/2026): 40% nas duas versões.
+- **Fechamento do dia:** continua divergente na própria fonte (FAQ do site: 16:15 · Help Center: 16:45). As duas fontes dizem que posição esquecida é fechada sozinha, sem quebrar a conta. Mantido "na dúvida, feche antes das 16:15".
+- **Mínimo de saque:** a FFF só publica mínimo pra Accelerate e Base ($500). Nos demais planos não há valor publicado (a tela já mostra "não informado").
+- **Bônus ao ir pra Live:** nenhum valor publicado.

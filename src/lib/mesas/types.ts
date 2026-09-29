@@ -60,6 +60,8 @@ export interface DadosTamanho {
   precoTabelaUsd: number | null
   /** Prefixo do preço na tela quando há variantes (ex.: "a partir de"). */
   precoRotulo?: string
+  /** Taxa única paga DEPOIS de passar na avaliação pra liberar a conta financiada (US$). Ausente = não tem. */
+  ativacaoUsd?: number
 }
 
 /** Identificador do plano dentro da mesa (ex.: "pro", "prime"). Único só dentro da mesa. */
@@ -155,6 +157,8 @@ export interface Mesa {
   linkAfiliado: string | null
   /** Percentual que fica com o trader nos saques. */
   splitTrader: number
+  /** Texto do split quando não é um percentual único (ex.: "100% dos primeiros $10.000 e 90% depois"). */
+  splitTexto?: string
   resumo: string
   planos: Plano[]
   /** Mínimo de saque que vale pra mesa toda (aparece na ajuda da linha de saque). */

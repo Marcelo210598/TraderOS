@@ -20,6 +20,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.7,
     },
+    {
+      url: `${BASE_URL}/mesas/comparar`,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    },
     ...MESAS.map((m) => ({
       url: `${BASE_URL}/mesas/${m.slug}`,
       changeFrequency: "weekly" as const,

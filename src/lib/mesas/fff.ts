@@ -269,7 +269,7 @@ const PREMIER: Plano = {
     "As regras mudaram em 09/09/2026: contas novas têm consistência de 40% na financiada e contratos fixos (2, 4, 6 e 10 minis), sem escalonamento",
     "Contas compradas antes de 09/09/2026 seguem as regras antigas (sem consistência na financiada, escalonamento e mais contratos)",
     "A consistência de 40% na financiada vale pra todas as contas Premier+ compradas a partir de 09/09/2026, inclusive no Standard",
-    "No Standard (2 dias pra passar), a página do plano diz que há consistência de 50% na avaliação, mas o Help Center diz que não há. Confirme no site antes de comprar",
+    "No Standard (mínimo de 2 dias pra passar) há consistência de 50% na avaliação, segundo a página do plano e o FAQ. A tabela do Help Center só mostra \"nenhuma\" sem separar Standard e Fast Pass",
     "Ao pedir o primeiro saque, o drawdown sobe pro saldo base da conta",
     "Cada saque exige 5 dias qualificados (lucro de pelo menos $200 no dia)",
     "A avaliação é uma assinatura mensal, e o EOD custa mais que o Intraday",
@@ -294,7 +294,7 @@ const PREMIER: Plano = {
     Drawdown: ["Você escolhe: Intraday ou EOD", "No EOD, trava no saldo inicial depois que o saldo passa dele"],
     Consistência: [
       "Fast Pass: sem consistência na avaliação",
-      "Standard: 50% na avaliação segundo a página do plano (o Help Center diz que não tem; confirme)",
+      "Standard: 50% na avaliação (página do plano e FAQ; a tabela do Help Center não separa Standard e Fast Pass)",
       "Financiada, em todas as versões: 40% (contas a partir de 09/09/2026; as anteriores mantêm os termos originais)",
     ],
     "Lote máximo": cadaTamanho((i) => [
@@ -330,7 +330,8 @@ const PREMIER: Plano = {
 
 // ---- S2F STANDARD ----
 const S2F_PRECO = [329, 469, 629, 734] as const
-const S2F_MINIS = [1, 5, 10, 15] as const
+/** Teto do escalonamento (a tabela de escalonamento marca 3, 5, 10 e 15 minis como o máximo); o 25K começa em 1 mini. */
+const S2F_MINIS = [3, 5, 10, 15] as const
 
 const S2F: Plano = {
   id: "s2f",
@@ -357,7 +358,7 @@ const S2F: Plano = {
     "Consistência de 25%: seu lucro total precisa ser pelo menos 4 vezes o seu melhor dia (zera a cada saque)",
     "Você já trabalha com as regras de conta financiada desde o primeiro trade, sem período de teste",
     "Custa mais no começo do que o primeiro mês da avaliação do mesmo tamanho",
-    "No 25K o Help Center mostra 1 mini de contrato máximo, mas a tabela de escalonamento chega a 3 minis. Usamos 1 mini; confirme no site",
+    "No 25K você começa com 1 mini e chega a 3 minis com $2.000 de lucro simulado",
     NOTA_ESCALONAMENTO,
   ],
   tamanhos: tamanhos((_, i) => ({

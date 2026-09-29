@@ -17,6 +17,9 @@ export async function MesasShell({ children }: { children: React.ReactNode }) {
             <Link href="/mesas" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
               Mesas Proprietárias
             </Link>
+            <Link href="/mesas/comparar" className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Comparar
+            </Link>
           </div>
           {logado ? (
             <Link href="/dashboard" className="text-xs font-medium text-teal hover:underline underline-offset-2">

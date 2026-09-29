@@ -75,7 +75,12 @@ export default async function MesaPage({ params, searchParams }: Props) {
 
       <section id="comparativo" className="mt-10 scroll-mt-20">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h2 className="text-lg font-semibold">Comparativo lado a lado</h2>
+          <div>
+            <h2 className="text-lg font-semibold">Comparativo lado a lado</h2>
+            <Link href={`/mesas/comparar?tamanho=${tamanho}`} className="text-xs text-teal hover:underline underline-offset-2">
+              Comparar com outras mesas →
+            </Link>
+          </div>
           <nav aria-label="Tamanho da conta" className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground mr-1">Tamanho da conta</span>
             {TAMANHOS.map((t) => (

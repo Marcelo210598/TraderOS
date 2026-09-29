@@ -113,6 +113,7 @@ const dadosDaTrilha = (tr: Trilha, i: 0 | 1 | 2 | 3): DadosTamanho => {
     escalonamento: escalonamentoDe(t),
     liveBonus: null,
     precoTabelaUsd: tr.preco.standard[i],
+    ativacaoUsd: tr.preco.ativacao,
     precoRotulo: "Standard",
   }
 }

@@ -188,3 +188,83 @@ export function ComparativoPlanos({ mesa, tamanho }: { mesa: Mesa; tamanho: Tama
     </div>
   )
 }
+
+/** Lado a lado de planos de MESAS diferentes (até 3), usando as mesmas linhas do comparativo de uma mesa só. */
+export function ComparativoEntre({ itens, tamanho }: { itens: { mesa: Mesa; plano: Plano }[]; tamanho: Tamanho }) {
+  // Cada mesa tem seu split, mínimo de saque e nota de preço: nas ajudas dinâmicas, um texto neutro (o split de cada uma vai numa linha própria).
+  const AJUDA_NEUTRA: Record<string, string> = {
+    "Quanto dá pra sacar": "Teto de cada pedido de saque, conforme o número do saque.",
+    "Preço de tabela": "Sem promoção. Mensalidade é por mês e continua até passar. Promoções mudam toda semana.",
+  }
+  const ajudaDe = (l: { rotulo?: string; ajuda?: string | ((c: Contexto) => string) }) =>
+    typeof l.ajuda === "function" ? (l.rotulo ? AJUDA_NEUTRA[l.rotulo] : undefined) : l.ajuda
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border">
+      <table className="w-full min-w-[720px] text-sm border-collapse">
+        <thead>
+          <tr className="bg-surface">
+            <th className="sticky left-0 z-10 bg-surface text-left font-medium text-muted-foreground text-xs px-3 sm:px-4 py-3 w-28 sm:w-44">
+              Conta {tamanho}K
+            </th>
+            {itens.map(({ mesa, plano }) => (
+              <th key={`${mesa.slug}:${plano.id}`} className="text-left px-3 sm:px-4 py-3 align-bottom min-w-[200px]">
+                <span className="block text-xs font-medium text-teal">{mesa.nome}</span>
+                <span className="block text-base font-semibold">{plano.nome}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {LINHAS.map((l, linhaIdx) => (
+            <tr key={l.rotulo} className="border-t border-border align-top">
+              <th scope="row" className="sticky left-0 bg-background text-left font-medium text-[13px] sm:text-sm px-3 sm:px-4 py-3 w-28 sm:w-44">
+                {l.rotulo}
+                {ajudaDe(l) && <span className="hidden sm:block text-xs font-normal text-muted-foreground mt-0.5">{ajudaDe(l)}</span>}
+              </th>
+              {itens.map(({ mesa, plano }) => {
+                const d = dadosDoTamanho(plano, tamanho)
+                let conteudo: React.ReactNode
+                if (!d) conteudo = linhaIdx === 0 ? `Não existe na conta de ${tamanho}K` : "—"
+                else {
+                  const sobrescrita = celulaDoTamanho(plano.celulas?.[l.rotulo], tamanho)
+                  conteudo = sobrescrita ? lista(sobrescrita) : l.celula(plano, d)
+                }
+                return (
+                  <td key={`${mesa.slug}:${plano.id}`} className={`px-3 sm:px-4 py-3 ${d ? "text-foreground/90" : "text-muted-foreground"}`}>
+                    {conteudo}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+          <tr className="border-t border-border align-top">
+            <th scope="row" className="sticky left-0 bg-background text-left font-medium text-[13px] sm:text-sm px-3 sm:px-4 py-3 w-28 sm:w-44">
+              Você fica com
+              <span className="hidden sm:block text-xs font-normal text-muted-foreground mt-0.5">Parte do lucro sacado que fica com você.</span>
+            </th>
+            {itens.map(({ mesa, plano }) => (
+              <td key={`${mesa.slug}:${plano.id}`} className="px-3 sm:px-4 py-3 text-foreground/90">
+                {mesa.splitTexto ?? `${mesa.splitTrader}% dos saques`}
+              </td>
+            ))}
+          </tr>
+          <tr className="border-t border-border align-top">
+            <th scope="row" className="sticky left-0 bg-background text-left font-medium text-[13px] sm:text-sm px-3 sm:px-4 py-3 w-28 sm:w-44">
+              Taxa depois de passar
+              <span className="hidden sm:block text-xs font-normal text-muted-foreground mt-0.5">Pago uma vez pra liberar a conta financiada.</span>
+            </th>
+            {itens.map(({ mesa, plano }) => {
+              const d = dadosDoTamanho(plano, tamanho)
+              return (
+                <td key={`${mesa.slug}:${plano.id}`} className="px-3 sm:px-4 py-3 text-foreground/90">
+                  {!d ? "—" : d.ativacaoUsd ? usd(d.ativacaoUsd) : "Não tem"}
+                </td>
+              )
+            })}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  )
+}

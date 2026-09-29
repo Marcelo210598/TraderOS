@@ -62,7 +62,7 @@ export default function MesasPage() {
               <dl className="relative mt-5 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
                 <div>
                   <dt className="inline">Você fica com </dt>
-                  <dd className="inline font-semibold text-foreground">{m.splitTrader}% dos saques</dd>
+                  <dd className="inline font-semibold text-foreground">{m.splitTexto ?? `${m.splitTrader}% dos saques`}</dd>
                 </div>
                 <div>
                   <dt className="inline">Conferido em </dt>
@@ -78,6 +78,22 @@ export default function MesasPage() {
             </Link>
           ))}
         </div>
+
+        <Link
+          href="/mesas/comparar"
+          className="group mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gold/40 bg-gradient-to-r from-gold/10 via-card to-card p-5 sm:p-6 transition-all hover:border-gold hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-gold"
+        >
+          <div className="max-w-xl">
+            <p className="text-xs font-medium uppercase tracking-widest text-gold">Ainda em dúvida?</p>
+            <h3 className="mt-1 text-lg sm:text-xl font-bold tracking-tight">Compare todas as mesas em uma tabela só</h3>
+            <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+              Filtre por sem limite diário, sem consistência ou pagamento único, e ponha até 3 planos lado a lado.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-2 rounded-lg bg-gold px-4 py-2 text-sm font-semibold text-background transition-opacity group-hover:opacity-90">
+            Comparar as mesas <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
+          </span>
+        </Link>
       </section>
 
       <div className="mt-12">
