@@ -201,15 +201,20 @@ const URLS_PERMITIDAS = new Set(ALVOS_MONITOR.flatMap((a) => a.itens.map((id) =>
 
 /**
  * Mesas que o servidor NÃO consegue ler (Cloudflare devolve 403 e não burlamos anti-robô). O cron só LEMBRA o admin
- * de conferir à mão pelo Chrome (docs/mesas-proprietarias/apex-conferencia.md).
+ * de conferir à mão pelo Chrome (docs/mesas-proprietarias/<doc>).
  */
 export interface AlvoManual {
   mesa: string
   nome: string
   motivo: string
+  /** Roteiro da conferência manual (caminho em docs/mesas-proprietarias/). */
+  doc: string
 }
 
-export const ALVOS_MANUAIS: readonly AlvoManual[] = [{ mesa: "apex", nome: "Apex Trader Funding", motivo: "o site fica atrás de Cloudflare" }]
+export const ALVOS_MANUAIS: readonly AlvoManual[] = [
+  { mesa: "apex", nome: "Apex Trader Funding", motivo: "o site fica atrás de Cloudflare", doc: "apex-conferencia.md" },
+  { mesa: "tradeify", nome: "Tradeify", motivo: "o Help Center fica atrás de Cloudflare", doc: "tradeify-conferencia.md" },
+]
 
 /** Lembrete mensal: só na primeira segunda-feira do mês (UTC), que é quando o cron semanal cai entre os dias 1 e 7. */
 export const lembreteManualDevido = (d: Date) => d.getUTCDay() === 1 && d.getUTCDate() <= 7

@@ -207,7 +207,8 @@ test("Apex: arquivo de hashes bem formado (16 hex, tamanho, sem duplicata)", () 
 
 test("Apex não está no monitor automático (Cloudflare) e tem lembrete manual", () => {
   assert.ok(!ALVOS_MONITOR.some((a) => a.mesa === "apex"))
-  assert.deepEqual(ALVOS_MANUAIS.map((a) => a.mesa), ["apex"])
+  assert.deepEqual(ALVOS_MANUAIS.map((a) => a.mesa), ["apex", "tradeify"])
+  assert.ok(!ALVOS_MONITOR.some((a) => a.mesa === "tradeify"))
 })
 
 test("lembrete manual só na primeira segunda-feira do mês (UTC)", () => {

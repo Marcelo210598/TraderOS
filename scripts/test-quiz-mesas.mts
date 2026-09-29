@@ -4,6 +4,7 @@ import { calcularSugestao, type Respostas } from "../src/lib/mesas/quiz.ts"
 import { QUIZ_APEX } from "../src/lib/mesas/quiz-apex.ts"
 import { QUIZ_FFF } from "../src/lib/mesas/quiz-fff.ts"
 import { QUIZ_LUCID } from "../src/lib/mesas/quiz-lucid.ts"
+import { QUIZ_TRADEIFY } from "../src/lib/mesas/quiz-tradeify.ts"
 import type { Plano, PlanoId } from "../src/lib/mesas/types.ts"
 
 // Só o `id` importa pro motor; evita importar lucid.ts (imports sem extensão não rodam no node puro).
@@ -187,6 +188,51 @@ test("Apex: iniciante que deixa correr e aceita pagar mais → EOD, com motivos"
 
 test("Apex: sem respostas, empate resolvido pela ordem da mesa (EOD primeiro)", () => {
   assert.equal(calcularSugestao(QUIZ_APEX, planosApex, {}).principal?.plano.id, "eod")
+})
+
+// ---------- Tradeify ----------
+const ordemTradeify: PlanoId[] = ["growth", "select-flex", "select-daily", "lightning"]
+const planosTradeify = ordemTradeify.map((id) => ({ id, nome: id }) as unknown as Plano)
+const respondeTradeify = (...rotulos: string[]): Respostas =>
+  Object.fromEntries(
+    QUIZ_TRADEIFY.perguntas.map((p, i) => {
+      const idx = p.opcoes.findIndex((o) => o.rotulo.startsWith(rotulos[i]))
+      assert.notEqual(idx, -1, `Tradeify: opção "${rotulos[i]}" não existe na pergunta ${p.id}`)
+      return [i, idx]
+    })
+  )
+const sugTradeify = (...r: string[]) => calcularSugestao(QUIZ_TRADEIFY, planosTradeify, respondeTradeify(...r))
+
+test("Tradeify: 5 perguntas com opções e efeitos só em planos que existem", () => {
+  assert.equal(QUIZ_TRADEIFY.perguntas.length, 5)
+  for (const p of QUIZ_TRADEIFY.perguntas) {
+    assert.ok(p.opcoes.length >= 2, p.id)
+    for (const o of p.opcoes) for (const id of Object.keys(o.efeitos)) assert.ok(ordemTradeify.includes(id), `${p.id}: plano ${id}`)
+  }
+})
+
+test("Tradeify: iniciante que quer pagar pouco → Growth", () => {
+  assert.equal(sugTradeify("Ainda estou", "Pagar o mínimo", "Tanto faz", "Ganhos parecidos", "Tanto faz").principal?.plano.id, "growth")
+})
+
+test("Tradeify: método validado + paga mais → Lightning; Growth leva alerta de avaliação", () => {
+  const s = sugTradeify("Método validado", "Posso pagar mais", "De vez em quando", "Ganhos parecidos", "Tanto faz")
+  assert.equal(s.principal?.plano.id, "lightning")
+  assert.ok(s.ranking.find((r) => r.plano.id === "growth")!.alertas.some((a) => a.includes("avaliação")))
+})
+
+test("Tradeify: quer sacar todo dia → Select Daily", () => {
+  assert.equal(sugTradeify("Tenho método", "Tanto faz", "Todo dia", "Ainda não sei", "Prefiro um limite").principal?.plano.id, "select-daily")
+})
+
+test("Tradeify: dias grandes + sem trava diária → Select Flex, e Lightning leva alerta de consistência", () => {
+  const s = sugTradeify("Tenho método", "Tanto faz", "De vez em quando", "Poucos dias grandes", "Quero liberdade")
+  assert.equal(s.principal?.plano.id, "select-flex")
+  assert.ok(s.ranking.find((r) => r.plano.id === "lightning")!.alertas.some((a) => a.includes("consistência")))
+})
+
+test("Tradeify: sem respostas, empate resolvido pela ordem da mesa (Growth primeiro)", () => {
+  assert.equal(calcularSugestao(QUIZ_TRADEIFY, planosTradeify, {}).principal?.plano.id, "growth")
 })
 
 console.log(`\n${passed} testes ok`)

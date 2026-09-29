@@ -197,7 +197,7 @@ export async function GET(req: NextRequest) {
       if (!dry) {
         pushes += await notifyAdminsMesas(
           `🔎 Hora de conferir a ${m.nome}`,
-          `A leitura automática não funciona (${m.motivo}). Peça pro Claude conferir pelo Chrome: docs/mesas-proprietarias/apex-conferencia.md.`,
+          `A leitura automática não funciona (${m.motivo}). Peça pro Claude conferir pelo Chrome: docs/mesas-proprietarias/${m.doc}.`,
           `/mesas/${m.mesa}`
         )
       }
