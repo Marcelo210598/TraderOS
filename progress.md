@@ -5,6 +5,7 @@ Pesquisa das mesas que mais valem entrar → **Tradeify** (commit `aed0c8c`) e *
 - **Tradeify:** Growth, Select Flex, Select Daily, Lightning. Help Center atrás de Cloudflare → lido pelo Chrome; monitoramento manual + lembrete mensal.
 - **Bulenox:** Qualification + Master, Momentum, Fast Track. Help Center/FAQ vêm da API pública do site → cron lê 10 itens (`cmsParaTexto`); preços da Qualification = conferência manual.
 - Testes: quiz 33 ok, monitor 28 ok.
+- **Comparativo entre mesas** `/mesas/comparar` no ar (`db0ec92`) + dúvidas da FFF fechadas.
 
 ## ✅ 28/09/2026 (noite) — 3ª mesa: Apex Trader Funding, NO AR
 Levantamento pedido pelo Marcelo (site + Help Center). O site e o suporte da Apex ficam atrás de **Cloudflare (403 pro servidor)**, então a leitura foi feita **pelo Chrome do Marcelo** (extensão Claude in Chrome) e o **cron NÃO vigia a Apex**: a conferência é manual (`docs/mesas-proprietarias/apex-conferencia.md`), com o marco zero em `fontes/apex-hashes-2026-09-28.txt` (38 artigos) e um **lembrete por push na 1ª segunda de cada mês** (`ALVOS_MANUAIS` + `lembreteManualDevido` em `monitor.ts`, rota `mesas-check`).
