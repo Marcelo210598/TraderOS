@@ -47,4 +47,6 @@ o **próprio arquivo como oráculo** (ex.: coluna de acumulado do NT8) a embutir
 Qual relatório é (Orders ou Fills), o fuso da conta/plataforma, e se a comissão aparece no arquivo. Se alguma informação
 for indispensável para o parser, eu peço naquele momento.
 
-> **Fuso padrão registrado:** sem `sourceTz` explícito o import usa `America/Sao_Paulo` e emite `W_SOURCE_TZ_DEFAULTED`. Informe `sourceTzOrigin: "USER"` no `.context.json` quando o fuso for confirmado. O parser NT8 PT-BR agora reconstrói ciclos; o `expected.json` descreve **ciclos**, não linhas.
+> **Fuso padrão registrado:** sem `sourceTz` explícito o import usa `DEFAULT_SOURCE_TIME_ZONE` (hoje `America/Sao_Paulo`, valor de compatibilidade) e emite `W_SOURCE_TZ_DEFAULTED`, com `sourceTzOrigin = DEFAULT`. Informe `sourceTz` no `.context.json` só quando o fuso do Windows for **confirmado** (origem `USER`); **não** infira o fuso pelos horários dos trades.
+>
+> **Dados reais:** CSV/JSON reais são **locais e ignorados pelo git**; o **original** fica fora de qualquer repositório (ex.: `/Users/Shared/MeuTrade-dados-reais/`, que não está dentro do repo da home). Não usar `.gitignore` como única proteção. O oráculo independente é `python3 scripts/oracle-nt8-cycles.py <csv> --expected <expected.json>`. O NT8 em inglês segue **NÃO VALIDADO** (não há fixture real). O parser NT8 PT-BR agora reconstrói ciclos; o `expected.json` descreve **ciclos**, não linhas.

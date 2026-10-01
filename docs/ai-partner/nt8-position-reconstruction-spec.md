@@ -98,6 +98,8 @@ Verificado nos dados reais (🟢):
 2. `ETD = MFE − Profit` em **todas** as linhas (🟢) ⇒ ETD é **derivado**, redundante; serve de **verificação de unidade**.
 3. 🟡 Há indício de que o NT8 mede a excursão **da posição inteira (até a última saída)** e **repete** o valor em cada linha: no ciclo observado, o extremo favorável ultrapassa o preço do alvo da 2ª saída, que só executou **depois** da 1ª saída — logo o extremo não pode pertencer à janela de vida da 1ª linha.
 
+> **Correção após o 2º fixture real (27 linhas → 15 ciclos):** a premissa 1 vale para o 1º fixture, mas **não é universal**. Em ao menos um ciclo as linhas **divergem** nos extremos (janelas de medição diferentes). A regra abaixo já previa isso e **não foi alterada**: não somar, preservar o cru, extremo mais amplo, `conflict`/`EXCURSION_CONFLICT`; o resultado é limite inferior/inferência, não medição exata.
+
 **Conclusão:** o valor por linha **não é uma excursão independente** — é a **mesma** excursão (do ciclo), repetida e escalada pela quantidade da linha. **Somar triplicaria**; multiplicar por quantidade também erra.
 **Regra proposta (trade):** converter cada linha para **preços extremos absolutos** (`high`/`low`), tomar **`high = máximo` e `low = mínimo`** entre as linhas e derivar `mfePoints/maePoints` **relativos à entrada média** (pontos por contrato). Se as linhas **discordarem** nos extremos (janelas diferentes) ⇒ usar o extremo mais amplo e marcar `excursion.conflict = true` (é um **limite inferior** da excursão real). Proveniência: `BROKER_POSITION_LEVEL (inferred)`. US$ do trade = pontos × pointValue × quantidade (informativo). Os valores crus por linha ficam em `sourceRows` (auditoria, sem perda).
 

@@ -194,14 +194,19 @@ Hora/dia/dia da semana mudam com `timeZone` (ecoado). **Sessão** (ET) e **dia d
 
 ## 12. canonical-trade/2 — reconstrução de ciclos de posição (NT8)
 
-**Implementado** (spec: `nt8-position-reconstruction-spec.md`). Linha do NT8 Trade Performance = par casado lote-de-entrada ↔ lote-de-saída, **não** um trade. O **Trade analítico = ciclo reconstruído** (0 → posição aberta → saídas parciais → 0) por chave `conta + contrato (com vencimento) + estratégia + direção`.
+**Implementado** (spec: `nt8-position-reconstruction-spec.md`). **Unidade analítica.** Uma linha do NT8 Trade Performance = par casado **lote de entrada ↔ lote de saída** (*matched lot*), **não** necessariamente um Trade. O sistema reconstrói `linhas NT8 → matched lots → ciclo de posição → canonical trade`: 7 linhas reais viraram 2 ciclos, 27 viraram 15.
+
+**Invariantes financeiros.** Reconstruir **não pode** mudar `netPnl`, `grossPnl`, `commission`, `fees` nem `quantity` (testado em dado real por `scripts/test-real-nt8-metrics.mts`). Muda a **unidade analítica**, então mudam `trade count`, `averageTrade`, `largestWinner/Loser`, `winRate`. `profitFactor` e `maxDrawdown` são path-dependentes: ficaram iguais nos fixtures reais atuais, mas **não são invariantes garantidos** (um ciclo com linhas de sinais opostos os alteraria).
+
+Linha do NT8 Trade Performance = par casado lote-de-entrada ↔ lote-de-saída, **não** um trade. O **Trade analítico = ciclo reconstruído** (0 → posição aberta → saídas parciais → 0) por chave `conta + contrato (com vencimento) + estratégia + direção`.
 
 - **Só o parser `ninjatrader-trades-ptbr` reconstrói** (`reconstruction: "NT8_ROW_INTERVALS_V1"`). NT8 EN, template e execuções por fill não mudam de comportamento (`granularity: "SOURCE_ROW"`); opt-out via `reconstructCycles: false`.
 - **Continuidade:** entrada < última saída do ciclo ⇒ mesmo ciclo; lacuna ⇒ separa; **entrada e saída no mesmo segundo ⇒ separa** + ambiguidade `SAME_SECOND_BOUNDARY` (confiança LOW). Nunca agrupa automaticamente.
 - **Campos novos (todos opcionais ⇒ v1 continua válido):** `granularity` (`POSITION_CYCLE`|`SOURCE_ROW`), `peakQuantity`, `entryLegs[]`, `exitLegs[]` (`role`, `sizeAfter`, `simultaneous`, `reason`, `reasonRule`, `pnl`), `exitSummary` (derivado), `reconstruction` (`method`, `scope`, `cycleKey`, `confidence`, `ambiguities[]`, `completeness`, `boundary`, `integrity`), `sourceRows[]` (valores crus preservados), `excursions.{highPrice,lowPrice,conflict,origin}`.
 - **exitReason:** `Target*→TARGET`, `Stop*→STOP`, `Zerar|Flat|Close→MANUAL`, demais `UNKNOWN`; mapa configurável (`exitReasonMap`); preserva `sourceLabel` e `reasonRule`. Não existe exitReason único no Trade.
 - **P&L:** soma das pernas/linhas (centavos exatos); "Acu lucro líquido" é só **oráculo de integridade** (`CONSISTENT|BROKEN|UNAVAILABLE`), nunca P&L. Base NET só quando todas as linhas concordam.
-- **MAE/MFE:** nunca somados. Reconstruídos de extremos absolutos (máx high / mín low) relativos à entrada média ponderada; `origin = RECONSTRUCTED_NT8_ROWS`; divergência entre linhas ⇒ `EXCURSION_CONFLICT` (INFO).
+- **MAE/MFE:** nunca somados. **Descoberta em dado real:** os valores **não** se repetem necessariamente em todas as linhas de um mesmo ciclo (o 2º fixture real trouxe divergência; o 1º não). Regra: preservar os valores crus em `sourceRows`; reconstruir de extremos absolutos (máx high / mín low) relativos à entrada média ponderada (`origin = RECONSTRUCTED_NT8_ROWS`); se divergirem, usar o extremo **mais amplo** e marcar `conflict` + `EXCURSION_CONFLICT`. Nesse caso o valor é um **limite inferior / inferência**, nunca uma medição exata, e não pode ser apresentado como tal.
+- **exitReason vazio:** nome de saída ausente ⇒ `UNKNOWN` com `reasonRule = NONE`. **Nunca** inferir Target/Stop/Manual pelo P&L.
 - **Ambiguidades:** `SAME_SECOND_BOUNDARY`, `REVERSAL_CANDIDATE` (INFO), `OVERLAP_OPPOSITE_DIRECTION`, `CROSS_KEY_OVERLAP`, `ACCUMULATED_MISMATCH`, `ROWS_REJECTED_IN_FILE`, `EXCURSION_CONFLICT`. Ciclos LOW e com bordas não verificadas (`UNVERIFIED_HEAD|TAIL|BOTH`) **entram nas métricas, sinalizados** (`W_RECONSTRUCTION_LOW_CONFIDENCE`, `W_RECONSTRUCTION_UNVERIFIED_EDGES`, `W_MIXED_GRANULARITY`).
 - **Fuso:** ver §13 (quatro conceitos independentes).
 
@@ -236,3 +241,21 @@ Regras de proveniência: o offset explícito já é representado por `TimeValue.
 - DST segue as regras IANA: hora inexistente → `E_TIME_GAP`; hora repetida → `FOLD_*_ASSUMED` registrado.
 - Nunca converter silenciosamente com fuso desconhecido; heurísticas (ex.: janela de pregão) podem no máximo **sugerir**.
 - `User.timezone` (Prisma legado, default `America/Sao_Paulo`) é candidato a `analysisTimezone`; não foi alterado nesta etapa.
+
+## 14. Evidence — arquitetura aprovada (evidence/1, NÃO implementada)
+
+> **Evidence não é uma segunda fonte de verdade.** Canonical Trade = verdade analítica · Metrics = verdade dos cálculos · Evidence = rastreabilidade, explicação e verificação. Nunca duplica o CSV.
+
+```text
+Claim → MetricEvidence → population.tradeIds → TradeEvidence → SourceRowRef → ImportRef
+```
+
+Decisões aprovadas:
+- **Hash:** SHA-256 via `node:crypto`, atrás de um adaptador de infraestrutura/servidor (sem criptografia manual e sem espalhar a dependência pelo domínio). `tradeSetHash` passa a SHA-256 na Evidence.
+- **tradeId:** determinístico e reprodutível (identidade do import/arquivo + linhas de origem + identidade da reconstrução); **sem UUID/random**; mesmo conteúdo ⇒ mesmo id; imports diferentes não colidem; mudança material na reconstrução pode mudar o id; reordenar linhas sem mudar a semântica não precisa mudar a identidade. `fileHash:firstRowNo` **não** é a identidade definitiva.
+- **Privacidade:** `account.sourceName` fica só na proveniência interna; a Evidence exposta usa `accountRef` (fingerprint não reversível).
+- `importedAt` e `computedAt` ficam **fora** do hash de identidade; JSON canônico (chaves ordenadas).
+
+Campos mínimos: **ImportRef** (importId, platform, parserId/Version, reconstructionMethod/Version, fileName, fileSha256, fileBytes, encoding, lineEnding, rowsRead/Accepted/Rejected, sourceTz, sourceTzOrigin, dateOrder, numberLocale, excursionUnit, declaredPnlBasis, resumo da reconstrução, importedAt) · **SourceRowRef** (importId, rowNo, rowHash, reportedProfit, commission, fees, quantity, preços, rótulos, MAE/MFE/ETD crus) · **TradeEvidence** (tradeId, importId, instrumento, direção, qty, pico, entradas/saídas, pnl{net,gross,commission,fees,basis,basisSource}, legs+rowRefs+label+reasonRule, reconstruction, excursions, issues, fieldProvenance, sourceRows) · **MetricEvidence** (metricId, definitionVersion, engineVersion, value, unit, basis, sampleSize, coverage, reason, query/filtros/opções/timeZone/groupKey, period, population{inputTrades, afterFilters, tradeSetHash, tradeIds, filterReport}, contributors, dataQuality, warnings) · **EvidenceBundle** (`evidence/1`, claim, subject, evidence, evidenceHash).
+
+Lacunas conhecidas (G1–G9): id posicional; sem ImportRecord/SHA-256/encoding/importId/versão do motor; sem `rowHash`; `tradeSetHash` = hash53 e fingerprint incompleto; sem mapa de contribuintes; sem dimensão/métrica por motivo de saída (P&L por motivo existe só por perna, `exitLegs[].pnl`); confiança/ambiguidade/completude não sobem para a Evidence individual; sem claim nem schema versionado; privacidade de `account.sourceName`. Plano E1–E6 e retomada: `MEUTRADE-CHECKPOINT-2026-10-01.md`.

@@ -34,8 +34,8 @@ let validated = 0
 let pending = 0
 
 if (files.length === 0) {
-  console.log("• nenhuma fixture REAL ainda (fixtures/tradovate, ninjatrader, rithmic vazias) — nada a validar.")
-  console.log("  Forneça exports reais anonimizados seguindo fixtures/README.md.")
+  console.log("• nenhum export REAL local encontrado (fixtures reais são locais e ignoradas pelo git) — nada a validar.")
+  console.log("  Para validar, coloque exports reais seguindo fixtures/README.md.")
 }
 
 for (const file of files) {

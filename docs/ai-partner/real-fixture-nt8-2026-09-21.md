@@ -28,3 +28,11 @@ O parser `ninjatrader-trades-ptbr` leu **7/7 linhas sem erro**, sem alteração 
 ## Atualização — reconstrução de ciclos
 
 O fixture real agora é validado **por ciclo** (7 linhas → 2 Trades; `integrity CONSISTENT`, 0 ambiguidades, bordas `UNVERIFIED_BOTH`, confiança HIGH). O P&L total é idêntico antes/depois; só contagem e médias mudam. Fuso de origem continua **assumido** (America/Sao_Paulo, `sourceTzOrigin` ausente ⇒ aviso) até confirmação do usuário.
+
+## Segundo fixture real — `nt8-grid-ptbr-2026-10-01` (local, ignorado pelo git)
+
+Export real PT-BR de 01/10/2026: 27 linhas → **15 ciclos**, um único contrato (MNQ), 2 contas (uma com estratégia e nomes de ordem; outra sem nenhum dos dois). Integridade `CONSISTENT`, confiança HIGH. **Sem valores de P&L neste documento** (repositório público).
+
+Validado pela primeira vez em dado real: ciclos perdedores, vários ciclos por chave, bordas `VERIFIED`, scale-in, scale-out, saídas simultâneas, preços de entrada diferentes, `Stop1/Stop2` e `Zerar`, valores negativos (`-$ 99,99`), múltiplas contas, linhas **sem estratégia/rótulo** (⇒ `exitReason UNKNOWN`, `reasonRule NONE`) e **um `EXCURSION_CONFLICT`** (MAE/MFE divergentes entre linhas do mesmo ciclo).
+
+Validação: invariantes financeiros preservados antes/depois da reconstrução e **oráculo independente** (`scripts/oracle-nt8-cycles.py`, sem dependência do TypeScript) com 0 divergências nos dois fixtures. `.context.json` **sem `sourceTz`** (fuso do Windows não confirmado) ⇒ `sourceTzOrigin = DEFAULT` + `W_SOURCE_TZ_DEFAULTED`. O arquivo original fica **fora de qualquer repositório git**.
