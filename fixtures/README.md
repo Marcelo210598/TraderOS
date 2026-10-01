@@ -46,3 +46,5 @@ o **próprio arquivo como oráculo** (ex.: coluna de acumulado do NT8) a embutir
 ### Tradovate: o que preciso saber ao receber o arquivo
 Qual relatório é (Orders ou Fills), o fuso da conta/plataforma, e se a comissão aparece no arquivo. Se alguma informação
 for indispensável para o parser, eu peço naquele momento.
+
+> **Fuso padrão registrado:** sem `sourceTz` explícito o import usa `America/Sao_Paulo` e emite `W_SOURCE_TZ_DEFAULTED`. Informe `sourceTzOrigin: "USER"` no `.context.json` quando o fuso for confirmado. O parser NT8 PT-BR agora reconstrói ciclos; o `expected.json` descreve **ciclos**, não linhas.

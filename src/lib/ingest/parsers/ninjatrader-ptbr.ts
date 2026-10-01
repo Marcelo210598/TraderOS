@@ -35,6 +35,8 @@ export const ninjaTraderPtBr: ParserDescriptor = {
     declaredPnlBasis: "UNKNOWN", // inferida pelos preços; "Profit" pode ou não incluir custos
   },
 
+  reconstruction: "NT8_ROW_INTERVALS_V1",
+
   detect(table: CsvTable) {
     const missing = REQUIRED.filter((h) => !table.headers.includes(h))
     if (missing.length === 0) return { confidence: 1, reasons: ["cabeçalhos do NT8 em português presentes"] }
@@ -63,6 +65,12 @@ export const ninjaTraderPtBr: ParserDescriptor = {
         mfe: has("mfe") ? f.mfe : undefined,
         account: has("conta") ? f.conta : undefined,
         strategy: has("estrategia") ? f.estrategia : undefined,
+        // Nomes das ordens: a coluna de saída aparece como "Sáída" (acento a mais) no export real ⇒ normaliza para "saida".
+        entryLabel: has("entrada") ? f.entrada : undefined,
+        exitLabel: has("saida") ? f.saida : undefined,
+        etd: has("etd") ? f.etd : undefined,
+        bars: has("barras") ? f.barras : undefined,
+        cumulativeNet: has("acu_lucro_liquido") ? f.acu_lucro_liquido : undefined,
       }
     })
     return { records, issues: [] }

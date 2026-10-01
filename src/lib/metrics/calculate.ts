@@ -251,6 +251,15 @@ function dataQualityOf(rows: TradeRow[]): DataQuality {
     },
     instruments: { unknown: rows.filter((r) => r.symbol === null).length },
     order: { approximate: approx > 0, approximateCount: approx },
+    granularity: {
+      positionCycles: rows.filter((r) => r.granularity === "POSITION_CYCLE").length,
+      sourceRows: rows.filter((r) => r.granularity === "SOURCE_ROW").length,
+    },
+    reconstruction: {
+      cycles: rows.filter((r) => r.granularity === "POSITION_CYCLE").length,
+      lowConfidence: rows.filter((r) => r.lowConfidence).length,
+      unverifiedEdges: rows.filter((r) => r.unverifiedEdges).length,
+    },
   }
 }
 
@@ -271,6 +280,14 @@ function warningsOf(q: DataQuality, o: ResolvedOptions, report: FilterReport, af
   if (q.time.dateOnly + q.time.unknown > 0) w_("W_DATE_ONLY_TRADES", `${q.time.dateOnly + q.time.unknown} trades sem hora: ficam fora de análises por hora/sessão/dia de pregão.`, "hour")
   if (q.order.approximate) w_("W_ORDER_APPROXIMATE", `${q.order.approximateCount} trades sem horário de saída: a ordem (drawdown/sequências) é aproximada.`, "maxDrawdown")
   if (q.instruments.unknown > 0) w_("W_UNKNOWN_INSTRUMENT", `${q.instruments.unknown} trades de instrumento desconhecido (sem pointValue): P&L em dólar indisponível quando depende dele.`)
+  const g = q.granularity
+  if (g.positionCycles > 0 && g.sourceRows > 0) {
+    w_("W_MIXED_GRANULARITY", `População mista: ${g.positionCycles} ciclos de posição + ${g.sourceRows} linhas da fonte tratadas como trade. Contagens e taxas misturam unidades diferentes.`, "totalTrades")
+  } else if (g.sourceRows > 0) {
+    w_("W_SOURCE_ROW_TRADES", `${g.sourceRows} "trades" são LINHAS da fonte (ciclo de posição não verificado): se a fonte divide um ciclo em várias linhas, a contagem e o win rate ficam inflados.`, "totalTrades", "INFO")
+  }
+  if (q.reconstruction.lowConfidence > 0) w_("W_RECONSTRUCTION_LOW_CONFIDENCE", `${q.reconstruction.lowConfidence} de ${g.positionCycles} ciclos têm reconstrução de baixa confiança (ambiguidade registrada no próprio ciclo); entram nas métricas, sinalizados.`, "totalTrades")
+  if (q.reconstruction.unverifiedEdges > 0) w_("W_RECONSTRUCTION_UNVERIFIED_EDGES", `${q.reconstruction.unverifiedEdges} de ${g.positionCycles} ciclos têm borda não verificável (podem ter começado antes do período ou continuar abertos); entram nas métricas, sinalizados.`, "totalTrades", "INFO")
   const unknownExcluded = Object.values(report.excluded).reduce((a, e) => a + (e?.unknown ?? 0), 0)
   if (unknownExcluded > 0) w_("W_FILTER_EXCLUDED_UNKNOWN", `${unknownExcluded} trades foram excluídos pelos filtros por terem o atributo filtrado desconhecido.`, undefined, "INFO")
   return w

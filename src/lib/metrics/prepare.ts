@@ -5,7 +5,7 @@
 //   - hora/dia/semana/mês/dia da semana derivam do instante âncora no fuso pedido; DATE_ONLY só tem a data (hora = null);
 //   - a ORDEM da sequência (drawdown/streaks) usa o instante de SAÍDA (quando o P&L se realiza); sem hora, aproxima e avisa.
 
-import { isValidTimeZone, addDays, legacySessionType, toLocal, tradingDay, type TimeValue } from "../domain/time.ts"
+import { DEFAULT_USER_TIME_ZONE, isValidTimeZone, addDays, legacySessionType, toLocal, tradingDay, type TimeValue } from "../domain/time.ts"
 import { toCents, toRScaled } from "./exact.ts"
 import {
   MetricsInputError,
@@ -15,7 +15,8 @@ import {
 } from "./types.ts"
 import type { CanonicalTrade } from "../domain/canonical.ts"
 
-export const DEFAULT_TIME_ZONE = "America/New_York"
+/** Análise do trader: America/Sao_Paulo (padrão do MeuTrade). Sessão (AM/PM/OVERNIGHT) segue em ET e dia de pregão no calendário CME, independente deste fuso. */
+export const DEFAULT_TIME_ZONE = DEFAULT_USER_TIME_ZONE
 
 export function resolveOptions(o: AnalysisOptions = {}): ResolvedOptions {
   const timeZone = o.timeZone ?? DEFAULT_TIME_ZONE
@@ -72,6 +73,10 @@ export interface TradeRow {
   orderApprox: boolean
   timePrecision: "DATETIME" | "DATE_ONLY" | "UNKNOWN"
   unknownBasis: boolean
+  /** POSITION_CYCLE (ciclo reconstruído) ou SOURCE_ROW (linha da fonte tratada como trade). Ausente no v1 = SOURCE_ROW. */
+  granularity: "POSITION_CYCLE" | "SOURCE_ROW"
+  lowConfidence: boolean
+  unverifiedEdges: boolean
 }
 
 function anchorOf(t: CanonicalTrade, o: ResolvedOptions): TimeValue {
@@ -167,6 +172,9 @@ export function prepareTrades(trades: AnalyticsTrade[], o: ResolvedOptions): Tra
       orderApprox,
       timePrecision: at.precision,
       unknownBasis: p.basis === "UNKNOWN",
+      granularity: t.granularity ?? "SOURCE_ROW",
+      lowConfidence: t.reconstruction?.confidence === "LOW",
+      unverifiedEdges: t.reconstruction != null && t.reconstruction.completeness !== "VERIFIED",
     }
   })
 }

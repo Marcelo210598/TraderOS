@@ -7,7 +7,7 @@ import { round2 } from "../domain/pnl.ts"
 import { UNKNOWN_TIME, parseLocalDateTime, type DateOrder, type FoldPolicy, type TimeValue } from "../domain/time.ts"
 import { parseNumber, type NumberLocale } from "./csv.ts"
 import type { TradeDraft } from "./build-trade.ts"
-import type { ParserDescriptor, SourceRecord } from "./types.ts"
+import type { ParserDescriptor, RowMeta, SourceRecord } from "./types.ts"
 
 export interface EffectiveSettings {
   sourceTz: string | null
@@ -28,6 +28,8 @@ export interface NormalizeContext {
 export interface NormalizeResult {
   draft: TradeDraft | null
   issues: Issue[]
+  /** Valores crus da linha (rótulos, MAE/MFE/ETD em US$, barras, acumulado) para reconstrução/auditoria. */
+  meta: RowMeta | null
 }
 
 export function normalizeRecord(rec: SourceRecord, ctx: NormalizeContext): NormalizeResult {
@@ -97,7 +99,7 @@ export function normalizeRecord(rec: SourceRecord, ctx: NormalizeContext): Norma
     entryPrice === null ||
     exitPrice === null
   ) {
-    return { draft: null, issues }
+    return { draft: null, issues, meta: null }
   }
 
   const source: SourceMetadata = {
@@ -117,8 +119,27 @@ export function normalizeRecord(rec: SourceRecord, ctx: NormalizeContext): Norma
     },
   }
 
+  // Extras NÃO obrigatórios: valor ilegível vira null (não rejeita a linha por causa de um campo informativo).
+  const soft = (text: string | undefined): number | null => {
+    if (text === undefined || text.trim() === "") return null
+    const r = parseNumber(text, settings.numberLocale)
+    return r.ok ? r.value : null
+  }
+  const label = (t: string | undefined): string | null => (t !== undefined && t.trim() !== "" ? t.trim() : null)
+  const meta: RowMeta = {
+    entryLabel: label(rec.entryLabel),
+    exitLabel: label(rec.exitLabel),
+    reportedProfit: reportedPnl,
+    maeUsd: maeRaw,
+    mfeUsd: mfeRaw,
+    etdUsd: soft(rec.etd),
+    bars: soft(rec.bars),
+    cumulativeNetReported: soft(rec.cumulativeNet),
+  }
+
   return {
     issues,
+    meta,
     draft: {
       source,
       accountName: rec.account?.trim() ? rec.account.trim() : null,

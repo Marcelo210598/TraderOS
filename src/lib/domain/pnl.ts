@@ -33,6 +33,13 @@ export interface Pnl {
 
 export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100
 
+/** Soma monetária EXATA (em centavos inteiros): 0,7 + 0,6 + 0,3 = 1,6. `null` se QUALQUER parcela for null (não afirmamos o que não sabemos). */
+export function sumMoney(values: Array<number | null>): number | null {
+  if (values.length === 0 || values.some((v) => v === null)) return null
+  const cents = values.reduce<number>((a, v) => a + Math.round((v as number) * 100), 0)
+  return cents === 0 ? 0 : cents / 100
+}
+
 /** Variação de preço em pontos, POR CONTRATO, com sinal (positivo = a favor do trade). */
 export function pointsPerContract(direction: "LONG" | "SHORT", entryPrice: number, exitPrice: number): number {
   const pts = direction === "LONG" ? exitPrice - entryPrice : entryPrice - exitPrice

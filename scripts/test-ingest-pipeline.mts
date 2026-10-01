@@ -117,12 +117,19 @@ test("EN: o fuso de origem muda o instante (mesmo arquivo, NY ≠ BRT) e fica re
   assert.equal(en.trades[0].source.settings.sourceTz, BRT)
 })
 
-test("EN: sem fuso de origem → NENHUMA linha entra (E_TZ_REQUIRED) em vez de assumir UTC/BRT", () => {
+test("EN: SEM fuso informado → vale o PADRÃO do MeuTrade (America/Sao_Paulo), REGISTRADO como metadado e AVISADO (nada silencioso)", () => {
   const r = runImportPipeline(EN, {})
-  assert.equal(r.stats.accepted, 0)
-  assert.equal(r.stats.rejected, 5)
-  assert.ok(r.issues.some((i) => i.code === "E_TZ_REQUIRED"))
-  assert.ok(r.rejected[0].issues.some((i) => i.code === "E_TZ_REQUIRED"))
+  assert.equal(r.stats.accepted, 5)
+  assert.equal(r.settings?.sourceTz, "America/Sao_Paulo")
+  assert.equal(r.settings?.sourceTzOrigin, "DEFAULT")
+  assert.ok(r.issues.some((i) => i.code === "W_SOURCE_TZ_DEFAULTED"))
+  // o metadado vai em CADA trade (auditável) e o resultado é idêntico ao de informar o mesmo fuso explicitamente
+  assert.equal(r.trades[0].source.settings.sourceTzOrigin, "DEFAULT")
+  assert.equal(r.trades[0].entry.at.instantUtc, en.trades[0].entry.at.instantUtc)
+  // informado pelo usuário ⇒ origem USER e sem aviso
+  assert.equal(en.settings?.sourceTzOrigin, "USER")
+  assert.ok(!en.issues.some((i) => i.code === "W_SOURCE_TZ_DEFAULTED"))
+  assert.equal(en.trades[0].source.settings.sourceTzOrigin, "USER")
 })
 
 test("EN: proveniência — fileName/fileHash/rowNo/parserVersion gravados em cada trade", () => {
@@ -248,8 +255,8 @@ test("data com dia > 12 num arquivo inteiro permite inferir a ordem (DMY) sem di
   assert.equal(r.trades[0].entry.at.localDate, "2026-04-03")
 })
 
-test("todo trade aceito já cumpre o schema canônico (Zod) e tem schemaVersion", () => {
-  for (const t of [...en.trades, ...pt.trades, ...tpl.trades]) assert.equal(t.schemaVersion, "canonical-trade/1")
+test("todo trade aceito já cumpre o schema canônico (Zod) e tem schemaVersion v2", () => {
+  for (const t of [...en.trades, ...pt.trades, ...tpl.trades]) assert.equal(t.schemaVersion, "canonical-trade/2")
 })
 
 console.log(`\n${passed} testes ok`)

@@ -8,6 +8,13 @@
 //   5) horário de verão/transições são tratados de verdade (Intl/IANA), não por offset fixo.
 // Sem dependências externas.
 
+/**
+ * Fuso padrão do MeuTrade (análise do trader E fuso de origem de import quando o usuário não informa outro).
+ * Armazenamento interno é sempre UTC. Sessão/calendário CME usam America/New_York (ver `legacySessionType`).
+ * Quando este padrão é usado como fuso de ORIGEM, o import registra `sourceTzOrigin = "DEFAULT"` e avisa — não é silencioso.
+ */
+export const DEFAULT_USER_TIME_ZONE = "America/Sao_Paulo"
+
 export type DateOrder = "MDY" | "DMY" | "YMD"
 export type TimePrecision = "DATETIME" | "DATE_ONLY" | "UNKNOWN"
 export type FoldAmbiguity = "NONE" | "FOLD_EARLIER_ASSUMED" | "FOLD_LATER_ASSUMED"

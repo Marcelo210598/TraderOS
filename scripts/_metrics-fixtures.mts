@@ -6,7 +6,9 @@ import { SCHEMA_TRADE, type CanonicalTrade, type SourceMetadata } from "../src/l
 import { UNKNOWN_TIME, parseLocalDateTime, type TimeValue } from "../src/lib/domain/time.ts"
 import { buildCanonicalTrade } from "../src/lib/ingest/build-trade.ts"
 import { validateTrade } from "../src/lib/ingest/validator.ts"
-import type { AnalyticsTrade } from "../src/lib/metrics/types.ts"
+import { aggregateTrades as aggregateRaw, calculateMetrics as calculateRaw } from "../src/lib/metrics/calculate.ts"
+import { filterTrades as filterRaw } from "../src/lib/metrics/filter.ts"
+import type { AnalysisOptions, AnalyticsTrade, Dimension, TradeFilters } from "../src/lib/metrics/types.ts"
 
 export const NY = "America/New_York"
 export const BRT = "America/Sao_Paulo"
@@ -132,3 +134,14 @@ export function val(result: { metrics: Record<string, { value: number | null }> 
 
 /** true se o número tem no máximo `d` casas decimais "limpas" (sem 1.5999999999999999). */
 export const clean = (x: number, d: number): boolean => Math.abs(Math.round(x * 10 ** d) / 10 ** d - x) < 1e-12
+
+// O padrão do MeuTrade para ANÁLISE é America/Sao_Paulo. O dataset TEN foi calculado à mão em America/New_York,
+// então estes wrappers fixam NY (quem quiser o padrão usa as funções cruas / passa timeZone explicitamente).
+export const calculateMetrics = (trades: AnalyticsTrade[], args: { filters?: TradeFilters } & AnalysisOptions = {}) =>
+  calculateRaw(trades, { timeZone: NY, ...args })
+export const aggregateTrades = (
+  trades: AnalyticsTrade[],
+  args: { groupBy: Dimension | Dimension[]; filters?: TradeFilters; metrics?: string[] } & AnalysisOptions,
+) => aggregateRaw(trades, { timeZone: NY, ...args })
+export const filterTrades = (trades: AnalyticsTrade[], filters: TradeFilters = {}, options: AnalysisOptions = {}) =>
+  filterRaw(trades, filters, { timeZone: NY, ...options })

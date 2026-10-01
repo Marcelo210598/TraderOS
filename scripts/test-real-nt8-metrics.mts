@@ -36,6 +36,13 @@ const oracle = table.rows.map((r) => ({
   cumulative: br(r.fields.acu_lucro_liquido),
 }))
 
+// oráculo INDEPENDENTE do algoritmo: neste arquivo todo lote do mesmo ativo+horário de entrada pertence ao mesmo ciclo
+const batches = new Map<string, number[]>()
+table.rows.forEach((r, i) => {
+  const k = `${r.fields.ativo}|${r.fields.hora_entrada}`
+  batches.set(k, [...(batches.get(k) ?? []), i])
+})
+
 const imp = runImportPipeline(text, { sourceTz: "America/Sao_Paulo", fileName: "nt8-grid-ptbr-2026-09-21.csv", fileHash: "local" })
 const trades = toAnalyticsTrades(imp.trades)
 const m = calculateMetrics(trades)
@@ -43,6 +50,9 @@ const v = (id: string) => m.metrics[id].value
 
 test("todas as linhas do arquivo real entram, sem problema de arquivo, todas COMPLETE e com instrumento conhecido", () => {
   assert.deepEqual([imp.stats.rowsRead, imp.stats.accepted, imp.stats.rejected, imp.issues.length], [oracle.length, oracle.length, 0, 0])
+  assert.equal(imp.stats.trades, batches.size) // linhas → CICLOS (oráculo: lotes por ativo+entrada)
+  assert.equal(imp.trades.length, batches.size)
+  assert.equal(imp.rowTrades.length, oracle.length)
   assert.equal(imp.parser?.id, "ninjatrader-trades-ptbr")
   assert.equal(m.dataQuality.level, "COMPLETE")
   assert.equal(m.dataQuality.instruments.unknown, 0)
@@ -53,34 +63,41 @@ test("CRUZAMENTO: líquido do motor = Σ Profit do NT8 = última 'Acu lucro líq
   assert.equal(v("netPnl"), sumProfit)
   assert.equal(sumProfit, oracle[oracle.length - 1].cumulative)
   let acc = 0
-  imp.trades.forEach((t, i) => {
+  imp.rowTrades.forEach((t, i) => {
     acc = cents([acc, t.pnl.net as number])
     assert.equal(acc, oracle[i].cumulative, `linha ${oracle[i].rowNo}`)
   })
 })
 
 test("o 'Profit' do NT8 é LÍQUIDO: a base é inferida pelos preços em TODAS as linhas; custos separados batem com as colunas", () => {
-  assert.ok(imp.trades.every((t) => t.pnl.basis === "NET" && t.pnl.basisSource === "INFERRED_FROM_PRICES"))
+  assert.ok(imp.rowTrades.every((t) => t.pnl.basis === "NET" && t.pnl.basisSource === "INFERRED_FROM_PRICES"))
+  assert.ok(imp.trades.every((t) => t.pnl.basis === "NET")) // e o ciclo herda a base quando TODAS as linhas concordam
   assert.equal(v("commission"), cents(oracle.map((o) => o.commission)))
   assert.equal(v("fees"), cents(oracle.map((o) => o.fees)))
   // identidade: bruto − comissão − taxas = líquido
   assert.equal(cents([v("grossPnl") as number, -(v("commission") as number), -(v("fees") as number)]), v("netPnl"))
 })
 
-test("contagens e sequências batem com o sinal do Profit do próprio arquivo", () => {
-  const w = oracle.filter((o) => o.profit > 0).length
-  const l = oracle.filter((o) => o.profit < 0).length
-  assert.deepEqual([v("winners"), v("losers"), v("totalTrades")], [w, l, oracle.length])
+test("contagens por CICLO batem com a soma do Profit de cada ciclo do próprio arquivo (e as linhas inflavam a contagem)", () => {
+  const cycleProfits = [...batches.values()].map((idx) => cents(idx.map((i) => oracle[i].profit)))
+  const w = cycleProfits.filter((p) => p > 0).length
+  const l = cycleProfits.filter((p) => p < 0).length
+  assert.deepEqual([v("winners"), v("losers"), v("totalTrades")], [w, l, batches.size])
+  const rowsM = calculateMetrics(toAnalyticsTrades(imp.rowTrades))
+  assert.equal(rowsM.metrics.totalTrades.value, oracle.length) // ANTES: 1 linha = 1 trade
+  assert.equal(rowsM.metrics.netPnl.value, v("netPnl")) // o dinheiro é o mesmo antes e depois
   if (l === 0) assert.equal(m.metrics.profitFactor.reason, "NO_LOSERS")
   assert.equal(v("totalR"), null) // o NT8 não exporta stop ⇒ R indisponível, nunca inferido
   assert.ok(m.warnings.some((x) => x.code === "W_R_UNAVAILABLE"))
 })
 
-test("por símbolo: líquido de cada grupo = Σ Profit das linhas daquele ativo no arquivo", () => {
+test("por símbolo: ciclos e líquido de cada grupo = Σ Profit das linhas daquele ativo no arquivo", () => {
   const g = aggregateTrades(trades, { groupBy: "symbol" })
   const bySym = new Map<string, number[]>()
   for (const o of oracle) bySym.set(o.symbol, [...(bySym.get(o.symbol) ?? []), o.profit])
-  const expected = [...bySym.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([s, ps]) => [s, ps.length, cents(ps)])
+  const cyclesBySym = new Map<string, number>()
+  for (const k of batches.keys()) cyclesBySym.set(k.split(" ")[0], (cyclesBySym.get(k.split(" ")[0]) ?? 0) + 1)
+  const expected = [...bySym.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([s, ps]) => [s, cyclesBySym.get(s), cents(ps)])
   assert.deepEqual(g.groups.map((x) => [x.key[0], x.sampleSize, x.metrics.netPnl.value]), expected)
 })
 

@@ -33,7 +33,7 @@ export type RBasisOption = "NET" | "POINTS"
 export type TimeAnchor = "ENTRY" | "EXIT"
 
 export interface AnalysisOptions {
-  /** Fuso IANA para hora/dia/semana/mês/dia da semana. Padrão America/New_York. Sempre ecoado no resultado. */
+  /** Fuso IANA para hora/dia/semana/mês/dia da semana. Padrão America/Sao_Paulo (fuso do trader). Sessão/calendário CME usam New_York por definição. Sempre ecoado. */
   timeZone?: string
   /** Qual instante do trade define "quando" (padrão: a ENTRADA). */
   timeAnchor?: TimeAnchor
@@ -146,6 +146,10 @@ export interface DataQuality {
   time: { datetime: number; dateOnly: number; unknown: number }
   instruments: { unknown: number }
   order: { approximate: boolean; approximateCount: number }
+  /** Unidade factual dos "trades": ciclos de posição reconstruídos × linhas da fonte tratadas como trade. */
+  granularity: { positionCycles: number; sourceRows: number }
+  /** Sinalização da reconstrução: ciclos de baixa confiança / borda não verificada ENTRAM nas métricas, nunca são descartados. */
+  reconstruction: { cycles: number; lowConfidence: number; unverifiedEdges: number }
 }
 
 export interface Population {

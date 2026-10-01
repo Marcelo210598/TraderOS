@@ -13,12 +13,14 @@ import type { PnlBasis } from "../domain/pnl.ts"
 import type { ExcursionUnit } from "../domain/risk.ts"
 import type { DateOrder, FoldPolicy } from "../domain/time.ts"
 import type { CsvTable, NumberLocale } from "./csv.ts"
+import type { ExitReasonRule } from "./exit-reason.ts"
 
 /** O que o USUÁRIO/JOB sabe sobre o arquivo e a máquina da qual ele veio. Nada aqui é adivinhado pelo sistema. */
 export interface ImportContext {
   /**
    * Fuso IANA em que os horários do arquivo foram gerados (ex.: "America/Sao_Paulo" = fuso do PC que exportou).
-   * Obrigatório para horários sem offset — sem ele a linha é rejeitada (E_TZ_REQUIRED), nunca assumido.
+   * Se omitido, vale o PADRÃO do MeuTrade (America/Sao_Paulo) — registrado em `settings.sourceTzOrigin = "DEFAULT"` e avisado
+   * (W_SOURCE_TZ_DEFAULTED): é metadado auditável, não uma suposição silenciosa.
    */
   sourceTz?: string | null
   dateOrder?: DateOrder
@@ -31,6 +33,13 @@ export interface ImportContext {
   fileHash?: string
   /** Força um parser (pula a detecção). */
   forceParserId?: string
+  /**
+   * Reconstruir ciclos de posição 0→0 a partir de linhas de lotes casados (NT8). Padrão: ligado nos parsers que declaram
+   * `reconstruction` (NT8 PT-BR, validado com export real), desligado nos demais. `false` força linha = trade.
+   */
+  reconstructCycles?: boolean
+  /** Mapa de rótulo de saída → motivo (prioridade sobre as regras padrão). */
+  exitReasonMap?: ExitReasonRule[]
 }
 
 /** Uma linha de plataforma já traduzida para nomes neutros, mas ainda em TEXTO. */
@@ -57,6 +66,25 @@ export interface SourceRecord {
   strategy?: string
   notes?: string
   sessionHint?: string
+  /** Nome da ordem de entrada/saída ("Entry", "Target1", "Zerar") — preservado, nunca descartado. */
+  entryLabel?: string
+  exitLabel?: string
+  etd?: string
+  bars?: string
+  /** "Acu lucro líquido" cru — só p/ checar integridade do relatório, NUNCA como P&L. */
+  cumulativeNet?: string
+}
+
+/** Valores crus de uma linha que não cabem no trade-linha, mas alimentam a reconstrução e a auditoria. */
+export interface RowMeta {
+  entryLabel: string | null
+  exitLabel: string | null
+  reportedProfit: number | null
+  maeUsd: number | null
+  mfeUsd: number | null
+  etdUsd: number | null
+  bars: number | null
+  cumulativeNetReported: number | null
 }
 
 export interface ParserDefaults {
@@ -75,14 +103,19 @@ export interface ParserDescriptor {
   defaults: ParserDefaults
   /** Colunas que o parser aceita sem terem sido validadas contra um export REAL (pendentes de fixture). */
   unverifiedAliases?: string[]
+  /** O formato é "um lote casado por linha" e permite reconstruir ciclos de posição (validado com export real). */
+  reconstruction?: "NT8_ROW_INTERVALS_V1"
   detect(table: CsvTable): { confidence: number; reasons: string[] }
   parse(table: CsvTable): { records: SourceRecord[]; issues: Issue[] }
 }
 
 export interface PipelineStats {
   rowsRead: number
+  /** Linhas da fonte aceitas (passaram em normalizar+validar). */
   accepted: number
   rejected: number
+  /** Trades FINAIS (ciclos reconstruídos + linhas sem reconstrução). Sem reconstrução = igual a `accepted`. */
+  trades: number
   warnings: number
 }
 
@@ -91,10 +124,27 @@ export interface RejectedRow {
   issues: Issue[]
 }
 
+export interface ReconstructionSummary {
+  method: "NT8_ROW_INTERVALS_V1"
+  rowsIn: number
+  cyclesOut: number
+  /** Linhas que não puderam entrar (sem horário completo) e seguiram como trade-linha. */
+  passthroughRows: number
+  integrity: "CONSISTENT" | "BROKEN" | "UNAVAILABLE"
+  lowConfidenceCycles: number
+  /** Contagem por código de ambiguidade (todas as ambiguidades detectadas, nenhuma descartada). */
+  ambiguities: Array<{ code: string; count: number }>
+}
+
 export interface PipelineResult {
   parser: { id: string; version: string; platform: Platform; confidence: number } | null
   settings: CanonicalTrade["source"]["settings"] | null
+  /** Trades analíticos finais: ciclos de posição (quando reconstruídos) ou linhas. */
   trades: CanonicalTrade[]
+  /** As linhas aceitas como trade-linha (granularity SOURCE_ROW), ANTES da reconstrução. Auditoria e comparação antes/depois. */
+  rowTrades: CanonicalTrade[]
+  /** Resumo da reconstrução (null se não houve). */
+  reconstruction: ReconstructionSummary | null
   rejected: RejectedRow[]
   /** Problemas do ARQUIVO (formato desconhecido, fuso ausente, cabeçalho duplicado…). Os de linha ficam em trades[].issues / rejected[].issues. */
   issues: Issue[]

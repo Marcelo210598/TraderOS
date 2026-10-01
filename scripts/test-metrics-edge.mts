@@ -4,8 +4,6 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import {
-  aggregateTrades,
-  calculateMetrics,
   METRIC_CATALOG,
   METRIC_IDS,
   MetricsInputError,
@@ -13,7 +11,7 @@ import {
   type MetricsResult,
 } from "../src/lib/metrics/index.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
-import { BRT, clean, mk, ten, val } from "./_metrics-fixtures.mts"
+import { aggregateTrades, calculateMetrics, BRT, clean, mk, ten, val } from "./_metrics-fixtures.mts"
 
 let passed = 0
 const test = (name: string, fn: () => void) => {

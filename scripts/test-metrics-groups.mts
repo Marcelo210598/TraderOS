@@ -1,8 +1,8 @@
 // Testes de filtros, agrupamentos (groupBy), fuso, overnight e virada de dia: node scripts/test-metrics-groups.mts
 // Valores esperados do dataset TEN calculados à mão (docs/ai-partner/metrics-audit-dataset.md).
 import assert from "node:assert/strict"
-import { aggregateTrades, calculateMetrics, filterTrades, MetricsInputError, type AggregateResult } from "../src/lib/metrics/index.ts"
-import { BRT, mk, ten, val } from "./_metrics-fixtures.mts"
+import { MetricsInputError, type AggregateResult } from "../src/lib/metrics/index.ts"
+import { aggregateTrades, calculateMetrics, filterTrades, BRT, mk, ten, val } from "./_metrics-fixtures.mts"
 
 let passed = 0
 const test = (name: string, fn: () => void) => {

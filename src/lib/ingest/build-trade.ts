@@ -65,6 +65,13 @@ export function buildCanonicalTrade(d: TradeDraft): CanonicalTrade {
   const mfe = normalizeExcursion({ value: d.mfeRaw, unit: d.excursionUnit, quantity: d.quantity, pointValue })
   const mae = normalizeExcursion({ value: d.maeRaw, unit: d.excursionUnit, quantity: d.quantity, pointValue })
 
+  // Extremos ABSOLUTOS do preço durante o trade (a base da reconstrução de ciclos). Favorável = a favor da direção.
+  const hi = d.direction === "LONG" ? mfe.points : mae.points
+  const lo = d.direction === "LONG" ? mae.points : mfe.points
+  const r6 = (x: number) => Math.round(x * 1e6) / 1e6
+  const highPrice = hi === null ? null : r6(d.entry.price + hi)
+  const lowPrice = lo === null ? null : r6(d.entry.price - lo)
+
   const prov: Record<string, Origin> = {
     "instrument.pointValue": pointValue === null ? "ABSENT" : "DERIVED", // do catálogo, não do arquivo
     "entry.at": d.entry.at.precision === "DATETIME" ? "FILE" : "ABSENT",
@@ -105,12 +112,29 @@ export function buildCanonicalTrade(d: TradeDraft): CanonicalTrade {
       reason: risk.reason,
     },
     r: { net: rNet.value, netReason: rNet.reason, points: rPts },
-    excursions: { mfePoints: mfe.points, maePoints: mae.points, mfeReason: mfe.reason, maeReason: mae.reason },
+    excursions: {
+      mfePoints: mfe.points,
+      maePoints: mae.points,
+      mfeReason: mfe.reason,
+      maeReason: mae.reason,
+      highPrice,
+      lowPrice,
+      conflict: false,
+      origin: mfe.points !== null || mae.points !== null ? "SOURCE_ROW" : "NONE",
+    },
     labels: { strategyName: d.strategyName, tags: d.tags ?? [], notes: d.notes },
     sessionHint: d.sessionHint,
     source: d.source,
     dataQuality: "PARTIAL", // definido de verdade pelo validador
     fieldProvenance: prov,
     issues: [],
+    // sem reconstrução, o "trade" é a linha da fonte (unidade factual explícita)
+    granularity: "SOURCE_ROW",
+    peakQuantity: null,
+    entryLegs: null,
+    exitLegs: null,
+    exitSummary: null,
+    reconstruction: null,
+    sourceRows: null,
   }
 }

@@ -1,8 +1,8 @@
 // Testes das métricas sobre o dataset TEN (10 trades, tabelado em docs/ai-partner/metrics-audit-dataset.md).
 // Todos os valores esperados foram calculados À MÃO (ver o documento). node scripts/test-metrics-core.mts
 import assert from "node:assert/strict"
-import { calculateMetrics, perTradeR } from "../src/lib/metrics/index.ts"
-import { clean, mk, ten, val } from "./_metrics-fixtures.mts"
+import { perTradeR } from "../src/lib/metrics/index.ts"
+import { calculateMetrics, clean, mk, ten, val } from "./_metrics-fixtures.mts"
 
 let passed = 0
 const test = (name: string, fn: () => void) => {

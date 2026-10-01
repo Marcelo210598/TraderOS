@@ -1,0 +1,8 @@
+Núm. Neg.;Ativo;Conta;Estratégia;Pos mercado.;Qtd;Preço entrada;Preço saída;Hora entrada;Hora saída;Entrada;Sáída;Profit;Acu lucro líquido;Corretagem;Taxa de Compensação;Taxa de Bolsa;Taxa de IP;Taxa NFA;MAE;MFE;ETD;Barras;
+1;MGC 12-26;Sim101;Estrategia Teste;Comprada;1;2000,0;2005,0;02/02/2026 21:00:00;02/02/2026 21:10:00;Entry;Target1;$ 47,60;$ 47,60;$ 2,40;$ 0,00;$ 0,00;$ 0,00;$ 0,00;$ 8,00;$ 90,00;$ 42,40;0;
+2;MGC 12-26;Sim101;Estrategia Teste;Comprada;1;2000,1;2005,0;02/02/2026 21:00:00;02/02/2026 21:10:00;Entry;Target1;$ 46,60;$ 94,20;$ 2,40;$ 0,00;$ 0,00;$ 0,00;$ 0,00;$ 9,00;$ 89,00;$ 42,40;0;
+3;MGC 12-26;Sim101;Estrategia Teste;Comprada;1;2000,1;2000,4;02/02/2026 21:00:00;02/02/2026 21:20:00;Entry;Stop2;$ 0,60;$ 94,80;$ 2,40;$ 0,00;$ 0,00;$ 0,00;$ 0,00;$ 9,00;$ 89,00;$ 88,40;0;
+4;MGC 12-26;Sim101;Estrategia Teste;Comprada;1;2000,1;2000,4;02/02/2026 21:00:00;02/02/2026 21:20:00;Entry;Stop3;$ 0,60;$ 95,40;$ 2,40;$ 0,00;$ 0,00;$ 0,00;$ 0,00;$ 9,00;$ 89,00;$ 88,40;0;
+5;MNQ 12-26;Sim101;Estrategia Teste;Comprada;2;20000,00;20020,00;03/02/2026 10:00:00;03/02/2026 10:30:00;Entry;Target1;$ 76,20;$ 171,60;$ 3,80;$ 0,00;$ 0,00;$ 0,00;$ 0,00;$ 40,00;$ 240,00;$ 163,80;0;
+6;MNQ 12-26;Sim101;Estrategia Teste;Comprada;1;20000,00;20040,00;03/02/2026 10:00:00;03/02/2026 10:40:00;Entry;Target2;$ 78,10;$ 249,70;$ 1,90;$ 0,00;$ 0,00;$ 0,00;$ 0,00;$ 20,00;$ 120,00;$ 41,90;0;
+7;MNQ 12-26;Sim101;Estrategia Teste;Comprada;1;20000,00;20010,00;03/02/2026 10:00:00;03/02/2026 10:50:00;Entry;Zerar;$ 18,10;$ 267,80;$ 1,90;$ 0,00;$ 0,00;$ 0,00;$ 0,00;$ 20,00;$ 120,00;$ 101,90;0;

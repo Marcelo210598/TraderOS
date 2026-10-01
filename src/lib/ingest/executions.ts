@@ -16,7 +16,7 @@
 //   - bruto = pelos preços dos fills (origem DERIVED_FROM_FILLS); sem pointValue → sem bruto;
 //   - o que sobra aberto no fim NÃO vira trade: volta em `open`.
 
-import { SCHEMA_EXECUTION, issue, type CanonicalExecution, type CanonicalOrder, type CanonicalTrade, type Issue, type SourceMetadata } from "../domain/canonical.ts"
+import { SCHEMA_EXECUTION, SCHEMA_TRADE, issue, type CanonicalExecution, type CanonicalOrder, type CanonicalTrade, type Issue, type SourceMetadata } from "../domain/canonical.ts"
 import { round2 } from "../domain/pnl.ts"
 import type { TimeValue } from "../domain/time.ts"
 import { buildCanonicalTrade } from "./build-trade.ts"
@@ -125,7 +125,8 @@ export function aggregateExecutions(facts: CanonicalExecution[]): AggregationRes
   const trades: AggregatedTrade[] = []
   const open: OpenPosition[] = []
 
-  const emit = (cycle: Cycle) => {
+  const headSeen = new Set<string>()
+  const emit = (cycle: Cycle, groupKey: string) => {
     const entries = cycle.legs.filter((l) => l.role === "ENTRY" || l.role === "SCALE_IN")
     const exits = cycle.legs.filter((l) => l.role === "EXIT" || l.role === "SCALE_OUT")
     const first = cycle.firstExecution
@@ -157,7 +158,56 @@ export function aggregateExecutions(facts: CanonicalExecution[]): AggregationRes
     if (cycle.legs.some((l) => l.granularity === "ORDER_AVERAGE")) {
       extra.push(issue("INFO", "I_ORDER_AVERAGE_FILLS", "Trade montado com preços MÉDIOS por ordem (não fills individuais)."))
     }
-    trades.push({ trade: { ...built, dataQuality: v.dataQuality, issues: [...v.issues, ...extra] }, legs: cycle.legs, peakQuantity: cycle.peak })
+
+    // canonical-trade/2: o MESMO formato de pernas do reconstrutor NT8 (aqui a unidade factual é FILL ou ORDER_AVERAGE)
+    const entryLegs = entries.map((l) => ({
+      at: l.at, price: l.price, quantity: l.quantity, sourceLabel: null as string | null,
+      rowRefs: l.rowNo === null ? [] : [l.rowNo], granularity: l.granularity, role: l.role === "ENTRY" ? ("ENTRY" as const) : ("SCALE_IN" as const),
+    }))
+    const exitMs = exits.map((l) => Date.parse(l.at.instantUtc as string))
+    let running = 0
+    const sizeAfterOf = new Map<TradeLeg, number>()
+    for (const l of cycle.legs) {
+      running += l.role === "ENTRY" || l.role === "SCALE_IN" ? l.quantity : -l.quantity
+      sizeAfterOf.set(l, Math.max(0, Math.round(running * 1e6) / 1e6))
+    }
+    const exitLegs = exits.map((l, i) => ({
+      at: l.at, price: l.price, quantity: l.quantity, sourceLabel: null as string | null,
+      rowRefs: l.rowNo === null ? [] : [l.rowNo], granularity: l.granularity,
+      role: (sizeAfterOf.get(l) as number) > 0 ? ("SCALE_OUT" as const) : ("EXIT" as const),
+      sizeAfter: sizeAfterOf.get(l) as number,
+      simultaneous: exitMs.filter((x) => x === exitMs[i]).length > 1,
+      reason: "UNKNOWN" as const, reasonRule: "NONE" as const,
+      pnl: { net: null, gross: null, commission: l.commission, fees: l.fees },
+    }))
+    const c = first.instrument.contract
+    const contractStr = `${first.instrument.root ?? first.instrument.raw.toUpperCase()}${c ? ` ${c.monthCode}${c.yearDigits}` : ""}`
+    const isHead = !headSeen.has(groupKey)
+    headSeen.add(groupKey)
+    const v2: CanonicalTrade = {
+      ...built,
+      schemaVersion: SCHEMA_TRADE,
+      dataQuality: v.dataQuality,
+      issues: [...v.issues, ...extra],
+      granularity: "POSITION_CYCLE",
+      peakQuantity: cycle.peak,
+      entryLegs,
+      exitLegs,
+      exitSummary: { finalReason: "UNKNOWN", finalReasons: ["UNKNOWN"], byReason: { UNKNOWN: qty }, mixed: false },
+      sourceRows: [],
+      reconstruction: {
+        method: "FILLS_FLAT_TO_FLAT",
+        scope: "ACCOUNT_POSITION", // fills são da conta+contrato (sem estratégia)
+        cycleKey: { account: first.account, contract: contractStr, strategy: null, direction: cycle.sign === 1 ? "LONG" : "SHORT" },
+        confidence: "HIGH",
+        ambiguities: [],
+        // com fills, o zero é OBSERVADO dos dois lados — exceto a cabeça do primeiro ciclo (pode ter começado antes dos dados)
+        completeness: isHead ? "UNVERIFIED_HEAD" : "VERIFIED",
+        boundary: { prev: "NONE", next: "NONE" },
+        integrity: "UNAVAILABLE",
+      },
+    }
+    trades.push({ trade: v2, legs: cycle.legs, peakQuantity: cycle.peak })
   }
 
   for (const g of groups.values()) {
@@ -195,7 +245,7 @@ export function aggregateExecutions(facts: CanonicalExecution[]): AggregationRes
       const flat = cur.net === 0
       cur.legs.push(mkLeg(flat ? "EXIT" : "SCALE_OUT", closing))
       if (flat) {
-        emit(cur)
+        emit(cur, g.length ? keyOf(g[0].e) : "")
         cur = null
         if (remainder > 0) {
           // flip: o resto do fill abre o trade seguinte (comissão proporcional)

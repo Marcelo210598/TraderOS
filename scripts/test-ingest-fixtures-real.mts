@@ -65,7 +65,6 @@ for (const file of files) {
       if (e.exit !== undefined) assert.equal(t.exit.at.instantUtc, e.exit, `${rel}:${e.row} saída UTC`)
       if (e.entryPrice !== undefined) assert.equal(t.entry.price, e.entryPrice, `${rel}:${e.row} preço entrada`)
       if (e.exitPrice !== undefined) assert.equal(t.exit.price, e.exitPrice, `${rel}:${e.row} preço saída`)
-      if (e.quantity !== undefined) assert.equal(t.quantity, e.quantity, `${rel}:${e.row} quantidade`)
       if (e.direction !== undefined) assert.equal(t.direction, e.direction, `${rel}:${e.row} direção`)
       if (e.gross !== undefined) assert.equal(t.pnl.gross, e.gross, `${rel}:${e.row} P&L bruto`)
       if (e.net !== undefined) assert.equal(t.pnl.net, e.net, `${rel}:${e.row} P&L líquido`)
@@ -77,11 +76,20 @@ for (const file of files) {
       if (e.maePoints !== undefined) assert.equal(t.excursions.maePoints, e.maePoints, `${rel}:${e.row} MAE (pts/contrato)`)
       const tz = ctx.sourceTz as string
       const local = (u: string | null) => (u ? ((l) => `${l.date}T${l.time}`)(toLocal(u, tz)) : null)
+      if (e.quantity !== undefined) assert.equal(t.quantity, e.quantity, `${rel}:${e.row} quantidade total`)
+      if (e.peakQuantity !== undefined) assert.equal(t.peakQuantity, e.peakQuantity, `${rel}:${e.row} pico de posição`)
+      if (e.entryLegs !== undefined) assert.equal(t.entryLegs?.length, e.entryLegs, `${rel}:${e.row} nº de pernas de entrada`)
+      if (e.exitLabels !== undefined) assert.deepEqual(t.exitLegs?.map((l) => l.sourceLabel), e.exitLabels, `${rel}:${e.row} rótulos das saídas`)
+      if (e.finalReason !== undefined) assert.equal(t.exitSummary?.finalReason, e.finalReason, `${rel}:${e.row} motivo final`)
+      if (e.byReason !== undefined) assert.deepEqual(t.exitSummary?.byReason, e.byReason, `${rel}:${e.row} saída por motivo`)
+      if (e.confidence !== undefined) assert.equal(t.reconstruction?.confidence, e.confidence, `${rel}:${e.row} confiança`)
       if (e.entryLocal !== undefined) assert.equal(local(t.entry.at.instantUtc), e.entryLocal, `${rel}:${e.row} entrada (local)`)
       if (e.exitLocal !== undefined) assert.equal(local(t.exit.at.instantUtc), e.exitLocal, `${rel}:${e.row} saída (local)`)
     }
     const cents = (xs: Array<number | null>) => Math.round(xs.reduce<number>((a, b) => a + (b ?? 0) * 100, 0)) / 100
-    const expTotals = exp as unknown as { netTotal?: number; grossTotal?: number }
+    const expTotals = exp as unknown as { netTotal?: number; grossTotal?: number; rowsIn?: number; cycles?: number }
+    if (expTotals.rowsIn !== undefined) assert.equal(r.stats.accepted, expTotals.rowsIn, `${rel}: linhas lidas`)
+    if (expTotals.cycles !== undefined) assert.equal(r.stats.trades, expTotals.cycles, `${rel}: ciclos reconstruídos`)
     if (expTotals.netTotal !== undefined) assert.equal(cents(r.trades.map((t) => t.pnl.net)), expTotals.netTotal, `${rel}: líquido total`)
     if (expTotals.grossTotal !== undefined) assert.equal(cents(r.trades.map((t) => t.pnl.gross)), expTotals.grossTotal, `${rel}: bruto total`)
   }

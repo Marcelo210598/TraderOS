@@ -191,3 +191,16 @@ Hora/dia/dia da semana mudam com `timeZone` (ecoado). **Sessão** (ET) e **dia d
 - Sequências de trades **só com data** têm ordem intradiária desconhecida (usa a ordem dos dados; avisa).
 - Sem MFE/MAE agregados, sem Monte Carlo, sem intervalo de confiança/significância (virão com o Research).
 - Em memória (arrays); funções puras, prontas para rodar sobre o resultado de uma query ou num worker.
+
+## 12. canonical-trade/2 — reconstrução de ciclos de posição (NT8)
+
+**Implementado** (spec: `nt8-position-reconstruction-spec.md`). Linha do NT8 Trade Performance = par casado lote-de-entrada ↔ lote-de-saída, **não** um trade. O **Trade analítico = ciclo reconstruído** (0 → posição aberta → saídas parciais → 0) por chave `conta + contrato (com vencimento) + estratégia + direção`.
+
+- **Só o parser `ninjatrader-trades-ptbr` reconstrói** (`reconstruction: "NT8_ROW_INTERVALS_V1"`). NT8 EN, template e execuções por fill não mudam de comportamento (`granularity: "SOURCE_ROW"`); opt-out via `reconstructCycles: false`.
+- **Continuidade:** entrada < última saída do ciclo ⇒ mesmo ciclo; lacuna ⇒ separa; **entrada e saída no mesmo segundo ⇒ separa** + ambiguidade `SAME_SECOND_BOUNDARY` (confiança LOW). Nunca agrupa automaticamente.
+- **Campos novos (todos opcionais ⇒ v1 continua válido):** `granularity` (`POSITION_CYCLE`|`SOURCE_ROW`), `peakQuantity`, `entryLegs[]`, `exitLegs[]` (`role`, `sizeAfter`, `simultaneous`, `reason`, `reasonRule`, `pnl`), `exitSummary` (derivado), `reconstruction` (`method`, `scope`, `cycleKey`, `confidence`, `ambiguities[]`, `completeness`, `boundary`, `integrity`), `sourceRows[]` (valores crus preservados), `excursions.{highPrice,lowPrice,conflict,origin}`.
+- **exitReason:** `Target*→TARGET`, `Stop*→STOP`, `Zerar|Flat|Close→MANUAL`, demais `UNKNOWN`; mapa configurável (`exitReasonMap`); preserva `sourceLabel` e `reasonRule`. Não existe exitReason único no Trade.
+- **P&L:** soma das pernas/linhas (centavos exatos); "Acu lucro líquido" é só **oráculo de integridade** (`CONSISTENT|BROKEN|UNAVAILABLE`), nunca P&L. Base NET só quando todas as linhas concordam.
+- **MAE/MFE:** nunca somados. Reconstruídos de extremos absolutos (máx high / mín low) relativos à entrada média ponderada; `origin = RECONSTRUCTED_NT8_ROWS`; divergência entre linhas ⇒ `EXCURSION_CONFLICT` (INFO).
+- **Ambiguidades:** `SAME_SECOND_BOUNDARY`, `REVERSAL_CANDIDATE` (INFO), `OVERLAP_OPPOSITE_DIRECTION`, `CROSS_KEY_OVERLAP`, `ACCUMULATED_MISMATCH`, `ROWS_REJECTED_IN_FILE`, `EXCURSION_CONFLICT`. Ciclos LOW e com bordas não verificadas (`UNVERIFIED_HEAD|TAIL|BOTH`) **entram nas métricas, sinalizados** (`W_RECONSTRUCTION_LOW_CONFIDENCE`, `W_RECONSTRUCTION_UNVERIFIED_EDGES`, `W_MIXED_GRANULARITY`).
+- **Fuso:** análise padrão `America/Sao_Paulo` (`DEFAULT_USER_TIME_ZONE`); armazenamento UTC; sessão/dia CME em `America/New_York`. `settings.sourceTzOrigin` (`USER|DEFAULT`) registra se o fuso de origem foi informado; se defaulted ⇒ `W_SOURCE_TZ_DEFAULTED`.

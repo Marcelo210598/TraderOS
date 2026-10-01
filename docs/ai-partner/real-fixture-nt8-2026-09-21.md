@@ -24,3 +24,7 @@ O parser `ninjatrader-trades-ptbr` leu **7/7 linhas sem erro**, sem alteração 
 3. As colunas **"Entrada"/"Sáída"** (nomes de ordem: `Entry`, `Target1`, `Stop2`, `Zerar`) hoje são **ignoradas**; seriam um `exitReason` útil para a análise (alvo × stop × saída manual). Não implementado.
 4. **Sem stop no export** ⇒ R indisponível (nunca inferido), como previsto.
 5. Ainda **sem validação real** para: NT8 em inglês, Tradovate (Orders/Fills) e Rithmic.
+
+## Atualização — reconstrução de ciclos
+
+O fixture real agora é validado **por ciclo** (7 linhas → 2 Trades; `integrity CONSISTENT`, 0 ambiguidades, bordas `UNVERIFIED_BOTH`, confiança HIGH). O P&L total é idêntico antes/depois; só contagem e médias mudam. Fuso de origem continua **assumido** (America/Sao_Paulo, `sourceTzOrigin` ausente ⇒ aviso) até confirmação do usuário.
