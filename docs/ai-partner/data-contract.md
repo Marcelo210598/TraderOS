@@ -129,3 +129,65 @@ Fontes: NT8 PT-BR documenta MAE/MFE em **dólar total** (padrão do parser); NT8
 | Limite de plano | **não aplicado** | **não aplicado** | a preservar no pipeline novo |
 
 > Nada disso foi corrigido no código em produção nesta etapa (sem banco/Prisma/UI). O domínio novo é a base para corrigir (Incrementos 2–3).
+
+---
+
+## 11. Métricas determinísticas (Incremento 4 — `src/lib/metrics/`)
+
+O motor recebe `AnalyticsTrade[]` (= `CanonicalTrade` + `id` estável + vínculos de estratégia/versão/setup/timeframe) e devolve estruturas auditáveis.
+**Não conhece** banco, UI, LLM, Evidence completo nem dado de mercado. API: `filterTrades()` → `calculateMetrics()` / `aggregateTrades()` (+ `perTradeR()`).
+
+### 11.1 Princípios
+1. **Nada de zero disfarçado:** sem dado ⇒ `value = null`, `available = false`, `reason` (`NO_PNL_DATA`, `NO_LOSERS`, `R_UNAVAILABLE`, `MIXED_INSTRUMENTS`…). Um `0` é um zero verdadeiro.
+2. **Cobertura em todo número:** `coverage = {used, total, ratio}` e `sampleSize`. `totalTrades` conta **todos**; cada métrica só usa quem tem o dado.
+3. **Base explícita e carimbada** (`basis`): `NET` | `GROSS` (P&L) e `R_NET` | `R_POINTS` (R). **Não existe "melhor disponível"** (misturar bruto e líquido é proibido). Trade sem P&L na base escolhida fica **fora** de vencedores/perdedores/médias/drawdown — e o aviso diz quantos.
+4. **R nunca é inferido:** vem do trade canônico (`r.net` = líquido / risco $; `r.points` = pontos / risco em pontos). Sem stop ⇒ sem R.
+5. **Dinheiro em centavos inteiros, R em 1e-4 inteiros** (somas exatas); arredondamento só na saída, **meia afasta do zero** por deslocamento decimal (1,005 → 1,01).
+   Saída: dinheiro 2 casas · R 4 · percentual (0–100) 2 · razões 4 · pontos 6.
+6. **Determinismo:** mesma população ⇒ mesmo resultado, independente da ordem do array. Empates entre extremos desempatam por `id`; a **ordem da sequência** usa o horário de **saída** (desempate: ordem de entrada dos dados).
+7. **Evidência-pronto:** cada `MetricValue` traz `metric, value, unit, sampleSize, coverage, basis, available, reason, definitionVersion` (+ `details` com ids). Cada resultado traz `query` (filtros **normalizados** + opções efetivas, incl. fuso), `period`, `population` (`afterFilters`, `tradeSetHash`, `tradeIds` até o limite) e `dataQuality`.
+
+### 11.2 Opções (todas ecoadas no resultado)
+| Opção | Padrão | Efeito |
+|---|---|---|
+| `timeZone` | `America/New_York` | fuso para hora/dia/semana/mês/dia da semana |
+| `timeAnchor` | `ENTRY` | instante que define "quando": entrada ou saída |
+| `pnlBasis` | `NET` | `NET` usa `pnl.net`; `GROSS` usa `pnl.gross` |
+| `rBasis` | `NET` | `NET` = `r.net`; `POINTS` = `r.points` |
+| `minSample` | 30 | limiar de amostra baixa (`W_LOW_SAMPLE`); grupo < 3 = `TINY` (mesmos `MIN_SAMPLE`/`MIN_BUCKET` do app) |
+
+### 11.3 Definições (N = trades na população; `pnl_i` na base escolhida; n = |{pnl_i conhecido}|; m = |{R_i conhecido}|)
+**Contagens e taxas** — `winners = |pnl>0|`, `losers = |pnl<0|`, `breakeven = |pnl=0|` (todas sobre n). `winRate = 100·winners/n`, `lossRate = 100·losers/n`, `breakevenRate` idem. Empate **não** é vitória nem derrota.
+**P&L** — `grossPnl = Σ gross_i`, `netPnl = Σ net_i`, `commission = Σ commission_i`, `fees = Σ fees_i` (cada um **só** sobre quem tem o componente; sem agregar bruto e líquido). `winnersTotal = Σ pnl_i (pnl>0)`; `losersTotal = Σ pnl_i (pnl<0)` (**negativo**). `averageTrade = Σpnl/n` (= expectancy em $); `averageWinner = winnersTotal/winners`; `averageLoser = losersTotal/losers`; `largestWinner/Loser = max/min pnl` (+ `tradeId`).
+`payoffRatio = averageWinner/|averageLoser|`. **`profitFactor = winnersTotal/|losersTotal|`** — sem perdedores ⇒ **indisponível** (`NO_LOSERS`), nunca infinito; sem ganhos e com perdas ⇒ 0.
+`largestWinnerSharePct = 100·largestWinner/winnersTotal`; `top3WinnersSharePct` idem com os 3 maiores (dependência de outliers).
+**R (só m trades com R conhecido)** — `totalR = ΣR`; `averageR = ΣR/m`; `medianR` = mediana (par: média dos 2 centrais); `winRateR = 100·|R>0|/m`; `averageWinnerR`/`averageLoserR` = média dos R>0 / R<0; **`expectancyR = pW·avgWinnerR + pL·avgLoserR ≡ ΣR/m`** (R=0 contribui 0; calculada pela soma exata e o teste confere a identidade).
+**Drawdown** — curva `equity_0 = 0; equity_i = equity_{i-1} + v_i` na **ordem de saída**; `peak_i = max(0, max_{j≤i} equity_j)` (o capital inicial **conta como pico**; pico novo exige `>` estrito); `dd_i = peak_i − equity_i`.
+`maxDrawdown = max dd_i` (**$ absoluto**; sem % porque não conhecemos o saldo da conta), com `details`: trade do pico, do fundo, `recovered` (1º trade depois do fundo com `equity ≥ pico`), `tradesPeakToTrough`, `tradesToRecover`, `windowTradeIds`. `currentDrawdown = dd_N`. **`maxDrawdownR`** = o mesmo sobre a curva de R (só trades com R, na ordem de saída). Empate de drawdowns ⇒ vale o **primeiro**.
+**`recoveryFactor = Σpnl / maxDrawdown`** (lucro líquido ÷ pior queda); sem drawdown ⇒ indisponível (`NO_DRAWDOWN`); negativo quando o resultado é negativo.
+**Sequências** — `maxConsecutiveWins/Losses` = maior run de `pnl>0` / `pnl<0` consecutivos; **empate quebra ambas**; empate de tamanho ⇒ 1ª ocorrência. `currentStreak = +n` (n vitórias até o último), `−n` (derrotas), `0` (último foi empate).
+**Pontos** — `totalPoints = Σ pointsPerContract_i` e `averagePoints` (por contrato; **não** pondera quantidade). Só com **um único instrumento conhecido** (pontos de ES ≠ pontos de NQ): senão `MIXED_INSTRUMENTS` / `UNKNOWN_INSTRUMENT`.
+
+### 11.4 Filtros (`TradeFilters`) — composáveis, sem função por combinação
+`from`/`to` (data local `YYYY-MM-DD`, inclusivo, do instante âncora), `symbol`, `direction`, `account`, `session` (`AM`/`PM`/`OVERNIGHT`, derivada em ET), `hour` (0–23 no fuso), `dayOfWeek` (0=dom), `tradingDay` (dia de pregão CME), `strategyId`, `strategyName`, `strategyVersionId`, `setup`, `timeframe`.
+**AND entre campos; array = OR dentro do campo.** Atributo **desconhecido** no trade (ex.: filtro de hora num trade só com data) ⇒ o trade é **excluído e contado** em `report.excluded[campo].unknown` (nunca "passa por não saber"). Filtro inválido (`from > to`, hora 24…) ⇒ `MetricsInputError` (não é ignorado). Filtros são ecoados **normalizados** (caixa, ordenados, sem repetição).
+
+### 11.5 Dimensões (`groupBy`, uma ou várias)
+`day`, `tradingDay`, `week` (segunda-feira), `month`, `dayOfWeek`, `hour`, `session`, `symbol`, `direction`, `account`, `strategy` (`strategyId ?? nome`), `strategyVersion`, `setup`, `timeframe`.
+Os grupos **particionam** a população: a soma das amostras = total (grupo **desconhecido**, `key = null`, vai por último: "sem horário", "sem setup"…). Cada grupo tem as métricas completas, **cobertura relativa ao grupo** e `sampleFlag` (`OK` ≥ minSample · `LOW` · `TINY` < 3).
+Tempo: **DATE_ONLY** só tem data ⇒ entra em `day/week/month/dayOfWeek`; **hora, sessão e dia de pregão** ficam em "sem horário". `session` = derivada do instante (ET); no DATE_ONLY usa a dica declarada pelo usuário, se houver.
+
+### 11.5.1 Fuso
+Hora/dia/dia da semana mudam com `timeZone` (ecoado). **Sessão** (ET) e **dia de pregão** (CME) **não** dependem do fuso de exibição. Entrada × saída (`timeAnchor`) muda o dia de um trade que atravessa a meia-noite.
+
+### 11.6 Avisos (`warnings`) e qualidade (`dataQuality`)
+`W_NO_TRADES`, `W_LOW_SAMPLE`, `W_R_UNAVAILABLE`, `W_R_PARTIAL_COVERAGE`, `W_PNL_PARTIAL_COVERAGE`, `W_UNKNOWN_BASIS_EXCLUDED`, `W_COMMISSION_PARTIAL`, `W_DATE_ONLY_TRADES`, `W_ORDER_APPROXIMATE`, `W_UNKNOWN_INSTRUMENT`, `W_FILTER_EXCLUDED_UNKNOWN` (+ nos grupos: `W_GROUP_UNKNOWN_BUCKET`, `W_LOW_SAMPLE_GROUPS`).
+`dataQuality.level`: `COMPLETE` (todos com líquido, hora completa e instrumento conhecido) · `PARTIAL` · `EMPTY`; mais contagens de P&L conhecido, R conhecido (por motivo), precisão de tempo, instrumentos desconhecidos e ordem aproximada.
+
+### 11.7 Limitações conhecidas (v1.0.0)
+- **Drawdown em % não existe** (falta o saldo da conta); só $ e R. Equity usa **apenas trades fechados** (sem marcação a mercado).
+- **R só existe se algum trade tem stop**; hoje nenhuma fonte de importação do app traz stop ⇒ na prática R vem de edição do usuário/IA (futuro).
+- Strategy/StrategyVersion/setup/timeframe entram como **vínculos externos** (`AnalyticsTrade`); o `CanonicalTrade` ainda só guarda `labels.strategyName`.
+- Sequências de trades **só com data** têm ordem intradiária desconhecida (usa a ordem dos dados; avisa).
+- Sem MFE/MAE agregados, sem Monte Carlo, sem intervalo de confiança/significância (virão com o Research).
+- Em memória (arrays); funções puras, prontas para rodar sobre o resultado de uma query ou num worker.
