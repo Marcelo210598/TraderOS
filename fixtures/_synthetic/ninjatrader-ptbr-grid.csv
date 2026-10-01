@@ -1,0 +1,4 @@
+Núm. Neg.;Ativo;Conta;Estratégia;Pos mercado.;Qtd;Preço entrada;Preço saída;Hora entrada;Hora saída;Entrada;Saída;Profit;Acu lucro líquido;Corretagem;Taxa de Compensação;Taxa de Bolsa;Taxa de IP;Taxa NFA;MAE;MFE;ETD;Barras
+1;MNQ 03-26;Sim101;ORB;Comprada;2;21.450,00;21.470,00;15/01/2026 09:42:10;15/01/2026 09:55:30;Entry;Exit;$ 80,00;$ 77,60;$ 1,40;$ 0,40;$ 0,30;$ 0,00;$ 0,30;$ 16,00;$ 120,00;$ 40,00;3
+2;NQ 03-26;Sim101;ORB;Venda;1;21.500,25;21.510,25;15/01/2026 11:05:00;15/01/2026 11:20:45;Entry;Exit;-$ 204,10;-$ 126,50;$ 2,50;$ 0,70;$ 0,60;$ 0,00;$ 0,30;$ 230,00;$ 40,00;$ 244,10;4
+3;MNQ 03-26;Sim101;;Comprada;1;21.400,00;21.410,00;15/01/2026 23:50:00;16/01/2026 00:10:00;Entry;Exit;$ 20,00;-$ 107,70;$ 0,70;$ 0,20;$ 0,15;$ 0,00;$ 0,15;$ 6,00;$ 26,00;$ 6,00;2

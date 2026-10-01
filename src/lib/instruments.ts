@@ -8,6 +8,12 @@ export const POINT_VALUES: Record<string, number> = {
 
 export const INSTRUMENTS = ["NQ", "ES", "YM", "RTY", "CL", "GC", "SI", "ZB", "6E", "MNQ", "MES"]
 
+/**
+ * @deprecated Devolve 20 (valor do NQ) em SILÊNCIO para instrumento desconhecido — isso inventa dado.
+ * No domínio novo use `pointValueOrNull` / `requirePointValue` de `@/lib/domain/instruments`
+ * (desconhecido = null ou erro explícito). Mantido intacto só para os chamadores atuais (UI/importador) até
+ * serem migrados (docs/ai-partner/data-contract.md §pointValue).
+ */
 export function pointValueFor(instrument: string): number {
   return POINT_VALUES[instrument.toUpperCase()] ?? 20
 }
