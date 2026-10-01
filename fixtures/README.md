@@ -18,6 +18,11 @@ fixtures/
   **não** provam que o formato real é igual. Quando houver um export real do NT8, ele tem prioridade e os parsers NT8
   devem ser corrigidos por ele.
 
+## Fixtures reais NÃO são versionadas
+O repositório é **público**: `.gitignore` ignora `fixtures/**/*.{csv,tsv,txt,xlsx,pdf,json}` (exceto `_synthetic/`). Os arquivos reais, o
+`.context.json` e o `.expected.json` ficam **só na sua máquina**; os testes pulam sozinhos quando não existem. Prefira testes que usem
+o **próprio arquivo como oráculo** (ex.: coluna de acumulado do NT8) a embutir valores no código.
+
 ## Como adicionar um arquivo real
 1. Exporte **sem editar** (não abra e salve no Excel — isso muda separadores/formatos/encoding).
 2. Anonimize **só** o que identifica (nº de conta/nome). **Não** altere horários, preços, quantidades, comissões ou colunas.

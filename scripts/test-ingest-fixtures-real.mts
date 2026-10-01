@@ -2,13 +2,16 @@
 //   <nome>.csv            export real, sem editar
 //   <nome>.context.json   o que só o usuário sabe: { sourceTz, dateOrder?, numberLocale?, excursionUnit?, … }
 //   <nome>.expected.json  (opcional) trades conferidos à mão: { "trades": [ { "row": 2, "entry": "…Z", "exit": "…Z",
-//                         "entryPrice": n, "exitPrice": n, "quantity": n, "gross": n|null, "net": n|null, "direction": "LONG" } ] }
+//                         "entryPrice": n, "exitPrice": n, "quantity": n, "gross": n|null, "net": n|null, "direction": "LONG",
+//                         "entryLocal"/"exitLocal": "YYYY-MM-DDTHH:mm:ss" (horário do ARQUIVO, no sourceTz — independe de o fuso estar certo),
+//                         "commission", "fees", "pointValue", "basis", "mfePoints", "maePoints" ], "netTotal": n, "grossTotal": n }
 // Sem arquivos reais → passa (nada a validar). Plataformas SEM parser (Tradovate, Rithmic) → "pendente", não falha:
 // o parser só nasce de um arquivo real (não inventamos formato).
 import assert from "node:assert/strict"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
+import { toLocal } from "../src/lib/domain/time.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
 import type { ImportContext } from "../src/lib/ingest/types.ts"
 
@@ -66,7 +69,21 @@ for (const file of files) {
       if (e.direction !== undefined) assert.equal(t.direction, e.direction, `${rel}:${e.row} direção`)
       if (e.gross !== undefined) assert.equal(t.pnl.gross, e.gross, `${rel}:${e.row} P&L bruto`)
       if (e.net !== undefined) assert.equal(t.pnl.net, e.net, `${rel}:${e.row} P&L líquido`)
+      if (e.commission !== undefined) assert.equal(t.pnl.commission, e.commission, `${rel}:${e.row} comissão`)
+      if (e.fees !== undefined) assert.equal(t.pnl.fees, e.fees, `${rel}:${e.row} taxas`)
+      if (e.pointValue !== undefined) assert.equal(t.instrument.pointValue, e.pointValue, `${rel}:${e.row} pointValue`)
+      if (e.basis !== undefined) assert.equal(t.pnl.basis, e.basis, `${rel}:${e.row} base do P&L`)
+      if (e.mfePoints !== undefined) assert.equal(t.excursions.mfePoints, e.mfePoints, `${rel}:${e.row} MFE (pts/contrato)`)
+      if (e.maePoints !== undefined) assert.equal(t.excursions.maePoints, e.maePoints, `${rel}:${e.row} MAE (pts/contrato)`)
+      const tz = ctx.sourceTz as string
+      const local = (u: string | null) => (u ? ((l) => `${l.date}T${l.time}`)(toLocal(u, tz)) : null)
+      if (e.entryLocal !== undefined) assert.equal(local(t.entry.at.instantUtc), e.entryLocal, `${rel}:${e.row} entrada (local)`)
+      if (e.exitLocal !== undefined) assert.equal(local(t.exit.at.instantUtc), e.exitLocal, `${rel}:${e.row} saída (local)`)
     }
+    const cents = (xs: Array<number | null>) => Math.round(xs.reduce<number>((a, b) => a + (b ?? 0) * 100, 0)) / 100
+    const expTotals = exp as unknown as { netTotal?: number; grossTotal?: number }
+    if (expTotals.netTotal !== undefined) assert.equal(cents(r.trades.map((t) => t.pnl.net)), expTotals.netTotal, `${rel}: líquido total`)
+    if (expTotals.grossTotal !== undefined) assert.equal(cents(r.trades.map((t) => t.pnl.gross)), expTotals.grossTotal, `${rel}: bruto total`)
   }
   console.log(`✓ ${rel}: ${r.stats.accepted} aceitas, ${r.stats.rejected} rejeitadas, ${r.stats.warnings} avisos (${r.parser?.id})`)
   validated += 1

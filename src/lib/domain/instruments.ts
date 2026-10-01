@@ -34,6 +34,8 @@ const SPECS: InstrumentSpec[] = [
   { root: "RTY", assetClass: "FUTURES", exchange: "CME", currency: "USD", pointValue: 50, exchangeTz: CME_TZ },
   { root: "CL", assetClass: "FUTURES", exchange: "NYMEX", currency: "USD", pointValue: 1000, exchangeTz: CME_TZ },
   { root: "GC", assetClass: "FUTURES", exchange: "COMEX", currency: "USD", pointValue: 100, exchangeTz: CME_TZ },
+  // MGC (Micro Ouro, 10 oz): US$ 10/ponto. VALIDADO por export real do NT8 (21/09/2026): 5,3 pts × 10 − corretagem 2,40 = Profit 50,60.
+  { root: "MGC", assetClass: "FUTURES", exchange: "COMEX", currency: "USD", pointValue: 10, exchangeTz: CME_TZ, microOf: "GC" },
   { root: "SI", assetClass: "FUTURES", exchange: "COMEX", currency: "USD", pointValue: 5000, exchangeTz: CME_TZ },
   { root: "ZB", assetClass: "FUTURES", exchange: "CBOT", currency: "USD", pointValue: 1000, exchangeTz: CME_TZ },
   { root: "6E", assetClass: "FUTURES", exchange: "CME", currency: "USD", pointValue: 125000, exchangeTz: CME_TZ },

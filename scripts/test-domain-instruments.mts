@@ -16,7 +16,7 @@ const test = (name: string, fn: () => void) => {
 }
 
 test("pointValue dos instrumentos conhecidos bate com a tabela já usada no app", () => {
-  const esperado: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5, YM: 5, RTY: 50, CL: 1000, GC: 100, SI: 5000, ZB: 1000, "6E": 125000 }
+  const esperado: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5, YM: 5, RTY: 50, CL: 1000, GC: 100, MGC: 10, SI: 5000, ZB: 1000, "6E": 125000 }
   for (const [root, pv] of Object.entries(esperado)) assert.equal(pointValueOrNull(root), pv, root)
 })
 
@@ -32,6 +32,12 @@ test("requirePointValue lança erro explícito para desconhecido", () => {
   assert.throws(() => requirePointValue("XYZ"), UnknownInstrumentError)
   assert.throws(() => requirePointValue(null), (e: unknown) => (e as UnknownInstrumentError).code === "E_INSTRUMENT_UNKNOWN")
   assert.equal(requirePointValue("mnq"), 2) // normaliza caixa
+})
+
+test("MGC (micro ouro) = US$ 10/ponto, micro de GC; símbolo NT8 'MGC 12-26' reconhecido", () => {
+  assert.equal(getInstrumentSpec("MGC")?.microOf, "GC")
+  const p = parseContractSymbol("MGC 12-26")
+  assert.deepEqual([p.root, p.contract?.month, p.contract?.yearDigits], ["MGC", 12, "26"])
 })
 
 test("MNQ e MES são micros dos contratos cheios", () => {

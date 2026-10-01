@@ -50,3 +50,13 @@ docs/mesas-proprietarias/fontes/lucid-helpcenter-2026-*.txt
 docs/mesas-proprietarias/fontes/fff-site-2026-*.txt
 docs/mesas-proprietarias/fontes/fff-helpcenter-2026-*.txt
 docs/mesas-proprietarias/fontes/bulenox-helpcenter-2026-*.txt
+
+# fixtures REAIS (exports de corretora): repositório PÚBLICO ⇒ nunca versionar trades reais.
+# Só entram README, .gitkeep e as sintéticas (_synthetic).
+fixtures/**/*.csv
+fixtures/**/*.tsv
+fixtures/**/*.txt
+fixtures/**/*.xlsx
+fixtures/**/*.pdf
+fixtures/**/*.json
+!fixtures/_synthetic/**
