@@ -5,7 +5,7 @@
 //   - hora/dia/semana/mês/dia da semana derivam do instante âncora no fuso pedido; DATE_ONLY só tem a data (hora = null);
 //   - a ORDEM da sequência (drawdown/streaks) usa o instante de SAÍDA (quando o P&L se realiza); sem hora, aproxima e avisa.
 
-import { DEFAULT_USER_TIME_ZONE, isValidTimeZone, addDays, legacySessionType, toLocal, tradingDay, type TimeValue } from "../domain/time.ts"
+import { DEFAULT_ANALYSIS_TIME_ZONE, isValidTimeZone, addDays, legacySessionType, toLocal, tradingDay, type TimeValue } from "../domain/time.ts"
 import { toCents, toRScaled } from "./exact.ts"
 import {
   MetricsInputError,
@@ -16,7 +16,7 @@ import {
 import type { CanonicalTrade } from "../domain/canonical.ts"
 
 /** Análise do trader: America/Sao_Paulo (padrão do MeuTrade). Sessão (AM/PM/OVERNIGHT) segue em ET e dia de pregão no calendário CME, independente deste fuso. */
-export const DEFAULT_TIME_ZONE = DEFAULT_USER_TIME_ZONE
+export const DEFAULT_TIME_ZONE = DEFAULT_ANALYSIS_TIME_ZONE
 
 export function resolveOptions(o: AnalysisOptions = {}): ResolvedOptions {
   const timeZone = o.timeZone ?? DEFAULT_TIME_ZONE

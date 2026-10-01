@@ -203,4 +203,36 @@ Hora/dia/dia da semana mudam com `timeZone` (ecoado). **Sessão** (ET) e **dia d
 - **P&L:** soma das pernas/linhas (centavos exatos); "Acu lucro líquido" é só **oráculo de integridade** (`CONSISTENT|BROKEN|UNAVAILABLE`), nunca P&L. Base NET só quando todas as linhas concordam.
 - **MAE/MFE:** nunca somados. Reconstruídos de extremos absolutos (máx high / mín low) relativos à entrada média ponderada; `origin = RECONSTRUCTED_NT8_ROWS`; divergência entre linhas ⇒ `EXCURSION_CONFLICT` (INFO).
 - **Ambiguidades:** `SAME_SECOND_BOUNDARY`, `REVERSAL_CANDIDATE` (INFO), `OVERLAP_OPPOSITE_DIRECTION`, `CROSS_KEY_OVERLAP`, `ACCUMULATED_MISMATCH`, `ROWS_REJECTED_IN_FILE`, `EXCURSION_CONFLICT`. Ciclos LOW e com bordas não verificadas (`UNVERIFIED_HEAD|TAIL|BOTH`) **entram nas métricas, sinalizados** (`W_RECONSTRUCTION_LOW_CONFIDENCE`, `W_RECONSTRUCTION_UNVERIFIED_EDGES`, `W_MIXED_GRANULARITY`).
-- **Fuso:** análise padrão `America/Sao_Paulo` (`DEFAULT_USER_TIME_ZONE`); armazenamento UTC; sessão/dia CME em `America/New_York`. `settings.sourceTzOrigin` (`USER|DEFAULT`) registra se o fuso de origem foi informado; se defaulted ⇒ `W_SOURCE_TZ_DEFAULTED`.
+- **Fuso:** ver §13 (quatro conceitos independentes).
+
+## 13. Timezone universal
+
+O MeuTrade não assume onde o usuário mora. Quatro conceitos **independentes**:
+
+| Conceito | Papel | Onde vive |
+|---|---|---|
+| **storage** | Instante canônico: sempre **UTC** (`instantUtc`, ISO com `Z`). Fonte de verdade, imutável. | `TimeValue.instantUtc` |
+| **source** | Interpreta timestamps **sem offset** do arquivo/plataforma. Metadado do import. | `ImportContext.sourceTz` → `source.settings.sourceTz` / `sourceTzOrigin`; `TimeValue.sourceTz` |
+| **analysis** | Preferência do usuário para agrupar/exibir (hora, dia, semana, mês, dia da semana). **Nunca é gravado no `CanonicalTrade`.** | opção `AnalysisOptions.timeZone` (ecoada no resultado); futuramente `User.timezone` |
+| **market** | Pertence ao instrumento/calendário, independe do usuário: dia de pregão CME em `America/Chicago` (17:00 CT), sessão AM/PM/OVERNIGHT em `America/New_York`. | `tradingDay()`, `legacySessionType()`, `instruments.ts` |
+
+**Defaults.** `DEFAULT_SOURCE_TIME_ZONE` e `DEFAULT_ANALYSIS_TIME_ZONE` são constantes separadas; hoje ambas valem `America/Sao_Paulo` por **compatibilidade**, não por regra do produto, e podem divergir. A fonte só cai no default se o chamador não informar nenhum fuso, e isso é registrado (`sourceTzOrigin = DEFAULT`) e avisado (`W_SOURCE_TZ_DEFAULTED`, mensagem neutra com o fuso usado). Virar bloqueio fica para o fluxo de importação.
+
+**`sourceTzOrigin`:**
+
+| Valor | Significado |
+|---|---|
+| `USER` | O usuário/chamador informou o fuso explicitamente. |
+| `FILE_OFFSET` | Todos os horários com hora traziam offset explícito; o offset é a autoridade e `sourceTz` fica `null` (nunca parece ter sido interpretado pelo default). |
+| `FILE_DECLARED` | O formato do arquivo declara o fuso. **Reservado**: nenhum parser real emite ainda; só o contrato o aceita. |
+| `DEFAULT` | Assumido pelo default configurado (`DEFAULT_SOURCE_TIME_ZONE`). |
+
+Regras de proveniência: o offset explícito já é representado por `TimeValue.explicitOffset = true` + `sourceTz = null` (sem campo novo). Se o chamador informa `sourceTz` e o texto traz offset, vale o offset no instante e a origem do import segue `USER`. Por linha, `source.settings.sourceTzOrigin` reflete o que **aquela** linha usou; no resultado do arquivo, `FILE_OFFSET` só aparece se todas as linhas se bastaram com o offset.
+
+**Invariantes:**
+- `analysisTimezone` **não altera** P&L, quantidade, sequência financeira (ordem por UTC) nem o instante UTC; só altera agrupamentos temporais (`hour`, `day`, `week`, `month`, `dayOfWeek`). `session` e `tradingDay` são de mercado e não mudam com ele. Ex.: um trade às 23:30 UTC é 12/01 em SP/NY e 13/01 em Berlim/Tóquio.
+- `DATE_ONLY` não tem instante: dia/semana/mês vêm da data da fonte e **não** são convertidos pelo fuso de análise; hora e sessão ficam indisponíveis.
+- Fuso é **sempre IANA** (`America/New_York`, `Europe/Berlin`…). Offsets fixos (`UTC-3`) não são aceitos como configuração (`E_TZ_INVALID`).
+- DST segue as regras IANA: hora inexistente → `E_TIME_GAP`; hora repetida → `FOLD_*_ASSUMED` registrado.
+- Nunca converter silenciosamente com fuso desconhecido; heurísticas (ex.: janela de pregão) podem no máximo **sugerir**.
+- `User.timezone` (Prisma legado, default `America/Sao_Paulo`) é candidato a `analysisTimezone`; não foi alterado nesta etapa.

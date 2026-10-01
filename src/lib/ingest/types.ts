@@ -18,9 +18,9 @@ import type { ExitReasonRule } from "./exit-reason.ts"
 /** O que o USUÁRIO/JOB sabe sobre o arquivo e a máquina da qual ele veio. Nada aqui é adivinhado pelo sistema. */
 export interface ImportContext {
   /**
-   * Fuso IANA em que os horários do arquivo foram gerados (ex.: "America/Sao_Paulo" = fuso do PC que exportou).
-   * Se omitido, vale o PADRÃO do MeuTrade (America/Sao_Paulo) — registrado em `settings.sourceTzOrigin = "DEFAULT"` e avisado
-   * (W_SOURCE_TZ_DEFAULTED): é metadado auditável, não uma suposição silenciosa.
+   * Fuso IANA em que os horários SEM offset do arquivo foram gerados (o do computador/plataforma que exportou).
+   * Se omitido, vale `DEFAULT_SOURCE_TIME_ZONE` — registrado em `settings.sourceTzOrigin = "DEFAULT"` e avisado
+   * (W_SOURCE_TZ_DEFAULTED): é metadado auditável, não uma suposição silenciosa. Timestamps com offset explícito ignoram este valor.
    */
   sourceTz?: string | null
   dateOrder?: DateOrder

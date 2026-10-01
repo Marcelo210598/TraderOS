@@ -9,11 +9,20 @@
 // Sem dependências externas.
 
 /**
- * Fuso padrão do MeuTrade (análise do trader E fuso de origem de import quando o usuário não informa outro).
- * Armazenamento interno é sempre UTC. Sessão/calendário CME usam America/New_York (ver `legacySessionType`).
- * Quando este padrão é usado como fuso de ORIGEM, o import registra `sourceTzOrigin = "DEFAULT"` e avisa — não é silencioso.
+ * Quatro conceitos de fuso, INDEPENDENTES (docs/ai-partner/data-contract.md §13):
+ *   - storage  : sempre UTC;
+ *   - source   : interpreta horários SEM offset do arquivo (metadado do import);
+ *   - analysis : preferência do usuário p/ agrupar/exibir (nunca vai no CanonicalTrade);
+ *   - market   : pertence ao instrumento/calendário (CME: Chicago p/ dia de pregão, New_York p/ sessão) — ver `tradingDay`/`legacySessionType`.
+ * Os dois padrões abaixo são só VALORES INICIAIS (compatibilidade), não regra do produto; podem divergir a qualquer momento.
  */
-export const DEFAULT_USER_TIME_ZONE = "America/Sao_Paulo"
+/** Fuso de ORIGEM assumido só quando o chamador não informa nenhum. O import registra `sourceTzOrigin = "DEFAULT"` e avisa. */
+export const DEFAULT_SOURCE_TIME_ZONE = "America/Sao_Paulo"
+/** Fuso de ANÁLISE usado quando o chamador não passa `timeZone`. Valor inicial da preferência do usuário. */
+export const DEFAULT_ANALYSIS_TIME_ZONE = "America/Sao_Paulo"
+
+/** Quem definiu o fuso de origem de um import. */
+export type SourceTzOrigin = "USER" | "FILE_OFFSET" | "FILE_DECLARED" | "DEFAULT"
 
 export type DateOrder = "MDY" | "DMY" | "YMD"
 export type TimePrecision = "DATETIME" | "DATE_ONLY" | "UNKNOWN"
@@ -28,7 +37,7 @@ export interface TimeValue {
   instantUtc: string | null
   /** Data civil "YYYY-MM-DD" na ORIGEM (para DATE_ONLY é a única informação temporal). */
   localDate: string | null
-  /** Fuso de origem usado na conversão; null se o texto já trazia offset explícito ou não há hora. */
+  /** Fuso de origem usado na conversão; null se o texto já trazia offset explícito (então `explicitOffset` = true) ou não há hora. */
   sourceTz: string | null
   explicitOffset: boolean
   ambiguity: FoldAmbiguity

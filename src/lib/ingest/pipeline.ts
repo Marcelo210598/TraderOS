@@ -6,7 +6,7 @@
 // CICLOS DE POSIÇÃO 0→0 (ver reconstruct.ts). `rowTrades` guarda as linhas ANTES da reconstrução (auditoria e comparação).
 
 import { CanonicalTradeSchema, issue, type CanonicalTrade, type Issue } from "../domain/canonical.ts"
-import { DEFAULT_USER_TIME_ZONE, inferDateOrder, type DateOrder } from "../domain/time.ts"
+import { DEFAULT_SOURCE_TIME_ZONE, inferDateOrder, type DateOrder, type SourceTzOrigin } from "../domain/time.ts"
 import { buildCanonicalTrade } from "./build-trade.ts"
 import { parseDelimited } from "./csv.ts"
 import { ExitReasonMapError, validateExitReasonMap } from "./exit-reason.ts"
@@ -19,7 +19,26 @@ import { validateTrade } from "./validator.ts"
 const EMPTY_STATS = { rowsRead: 0, accepted: 0, rejected: 0, trades: 0, warnings: 0 }
 
 interface Resolved extends EffectiveSettings {
-  sourceTzOrigin: "USER" | "DEFAULT"
+  sourceTzOrigin: SourceTzOrigin
+}
+
+/**
+ * Origem do fuso de UMA linha. Offset explícito no texto é a autoridade do instante (o `sourceTz` não participa),
+ * então nunca pode parecer que foi interpretado pelo padrão: sem fuso usado e com offset ⇒ FILE_OFFSET.
+ */
+function rowSourceTzOrigin(resolved: SourceTzOrigin, t: CanonicalTrade): SourceTzOrigin {
+  if (resolved === "USER") return "USER"
+  const usedTz = t.entry.at.sourceTz !== null || t.exit.at.sourceTz !== null
+  if (usedTz) return resolved
+  const usedOffset = t.entry.at.explicitOffset || t.exit.at.explicitOffset
+  return usedOffset ? "FILE_OFFSET" : resolved
+}
+
+/** Origem do ARQUIVO: DEFAULT se alguma linha dependeu do padrão; FILE_OFFSET só se TODAS as linhas se bastaram com o offset. */
+function fileSourceTzOrigin(resolved: SourceTzOrigin, rows: CanonicalTrade[]): SourceTzOrigin {
+  const origins = rows.map((t) => t.source.settings.sourceTzOrigin ?? resolved)
+  if (origins.length > 0 && origins.every((o) => o === "FILE_OFFSET")) return "FILE_OFFSET"
+  return resolved
 }
 
 function resolveSettings(ctx: ImportContext, d: ParserDescriptor, records: SourceRecord[]): Resolved {
@@ -32,7 +51,7 @@ function resolveSettings(ctx: ImportContext, d: ParserDescriptor, records: Sourc
   }
   const userTz = ctx.sourceTz ?? null
   return {
-    sourceTz: userTz ?? DEFAULT_USER_TIME_ZONE,
+    sourceTz: userTz ?? DEFAULT_SOURCE_TIME_ZONE,
     sourceTzOrigin: userTz ? "USER" : "DEFAULT",
     dateOrder,
     numberLocale: ctx.numberLocale ?? d.defaults.numberLocale,
@@ -91,7 +110,11 @@ export function runImportPipeline(text: string, ctx: ImportContext = {}, parsers
     }
     const built = buildCanonicalTrade(n.draft)
     // registra a ORIGEM do fuso no metadado da própria linha (auditável)
-    built.source = { ...built.source, settings: { ...built.source.settings, sourceTzOrigin: settings.sourceTzOrigin } }
+    const rowOrigin = rowSourceTzOrigin(settings.sourceTzOrigin, built)
+    built.source = {
+      ...built.source,
+      settings: { ...built.source.settings, sourceTz: rowOrigin === "FILE_OFFSET" ? null : built.source.settings.sourceTz, sourceTzOrigin: rowOrigin },
+    }
     const v = validateTrade(built)
     const all = [...n.issues, ...v.issues]
     const candidate: CanonicalTrade = { ...built, dataQuality: v.dataQuality, issues: all }
@@ -150,8 +173,9 @@ export function runImportPipeline(text: string, ctx: ImportContext = {}, parsers
   }
 
   // Fuso de origem: se foi o PADRÃO (não informado), isso é DITO — metadado auditável, nunca silencioso.
+  const fileOrigin = fileSourceTzOrigin(settings.sourceTzOrigin, rowTrades)
   if (settings.sourceTzOrigin === "DEFAULT" && rowTrades.some((t) => t.entry.at.sourceTz !== null || t.exit.at.sourceTz !== null)) {
-    fileIssues.push(issue("WARNING", "W_SOURCE_TZ_DEFAULTED", `Fuso de origem não informado: usado o padrão do MeuTrade (${DEFAULT_USER_TIME_ZONE}). Se o arquivo veio de uma máquina em outro fuso, informe-o — os horários mudam.`))
+    fileIssues.push(issue("WARNING", "W_SOURCE_TZ_DEFAULTED", `Fuso de origem não informado: usado o fuso padrão configurado (${DEFAULT_SOURCE_TIME_ZONE}). Se o arquivo foi gerado em outro fuso, informe-o — os horários mudam.`))
   }
   if (rejected.length > 0 && rejected.every((r) => r.issues.some((i) => i.code === "E_DATE_ORDER_REQUIRED"))) {
     fileIssues.push(issue("ERROR", "E_DATE_ORDER_REQUIRED", "Não foi possível saber se as datas são dia/mês ou mês/dia. Informe a ordem do arquivo."))
@@ -161,8 +185,8 @@ export function runImportPipeline(text: string, ctx: ImportContext = {}, parsers
   return {
     parser: { id: parser.id, version: parser.version, platform: parser.platform, confidence: sel.confidence },
     settings: {
-      sourceTz: settings.sourceTz,
-      sourceTzOrigin: settings.sourceTzOrigin,
+      sourceTz: fileOrigin === "FILE_OFFSET" ? null : settings.sourceTz,
+      sourceTzOrigin: fileOrigin,
       dateOrder: settings.dateOrder,
       numberLocale: settings.numberLocale,
       excursionUnit: settings.excursionUnit,

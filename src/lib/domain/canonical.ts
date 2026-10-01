@@ -47,8 +47,11 @@ export const TimeValueSchema = z.object({
 
 export const ImportSettingsSchema = z.object({
   sourceTz: z.string().nullable(),
-  /** Quem definiu o fuso de origem: o USUÁRIO ou o PADRÃO do MeuTrade (America/Sao_Paulo). Nunca é uma suposição silenciosa. */
-  sourceTzOrigin: z.enum(["USER", "DEFAULT"]).optional(),
+  /**
+   * Quem definiu o fuso de origem: USER (chamador informou) · FILE_OFFSET (os timestamps traziam offset; `sourceTz` fica null)
+   * · FILE_DECLARED (o formato declara o fuso — reservado, nenhum parser real emite ainda) · DEFAULT (assumido; avisado).
+   */
+  sourceTzOrigin: z.enum(["USER", "FILE_OFFSET", "FILE_DECLARED", "DEFAULT"]).optional(),
   dateOrder: z.enum(["MDY", "DMY", "YMD"]).nullable(),
   numberLocale: z.enum(["US", "BR", "AUTO"]),
   excursionUnit: z.enum(["POINTS_PER_CONTRACT", "USD_TOTAL", "USD_PER_CONTRACT"]).nullable(),

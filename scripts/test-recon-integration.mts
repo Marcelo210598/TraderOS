@@ -6,7 +6,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { CanonicalTradeSchema, SCHEMA_EXECUTION, type CanonicalExecution, type CanonicalTrade, type SourceMetadata } from "../src/lib/domain/canonical.ts"
-import { DEFAULT_USER_TIME_ZONE, parseLocalDateTime, type TimeValue } from "../src/lib/domain/time.ts"
+import { DEFAULT_ANALYSIS_TIME_ZONE, DEFAULT_SOURCE_TIME_ZONE, parseLocalDateTime, type TimeValue } from "../src/lib/domain/time.ts"
 import { aggregateExecutions } from "../src/lib/ingest/executions.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
 import { reconstructCycles } from "../src/lib/ingest/reconstruct.ts"
@@ -192,7 +192,8 @@ test("mapa de rótulos do usuário via contexto (Zerar → UNKNOWN); mapa invál
 test("TIMEZONE: padrão de ANÁLISE = America/Sao_Paulo (ecoado); armazenamento UTC; hora dos ciclos no fuso do trader", () => {
   const m = calculateMetrics(toAnalyticsTrades(imp.trades))
   assert.equal(m.query.options.timeZone, "America/Sao_Paulo")
-  assert.equal(DEFAULT_USER_TIME_ZONE, "America/Sao_Paulo")
+  assert.equal(DEFAULT_ANALYSIS_TIME_ZONE, "America/Sao_Paulo")
+  assert.equal(DEFAULT_SOURCE_TIME_ZONE, "America/Sao_Paulo") // valor inicial de compatibilidade (constantes independentes)
   assert.deepEqual(aggregateTrades(toAnalyticsTrades(imp.trades), { groupBy: "hour" }).groups.map((g) => g.key[0]), ["10", "21"]) // = horário do arquivo (BRT)
   assert.deepEqual(aggregateTrades(toAnalyticsTrades(imp.trades), { groupBy: "hour", timeZone: NY }).groups.map((g) => g.key[0]), ["08", "19"]) // EST = BRT − 2 h
   assert.match(mgc.entry.at.instantUtc!, /Z$/) // armazenamento em UTC
