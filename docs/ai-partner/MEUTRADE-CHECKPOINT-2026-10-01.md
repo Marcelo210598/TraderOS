@@ -4,7 +4,9 @@
 > Idioma com o usuário (Marcelo): **sempre português brasileiro**, direto, sem enrolação, avisando riscos. Na dúvida, perguntar antes.
 > Este documento é público (repositório público): **sem P&L real, sem nomes de conta/estratégia, sem dados do usuário**.
 
-## PRÓXIMA SESSÃO → continuar a partir de **E1**
+> ⚠️ **ATUALIZADO em 08/10:** E1–E4 já foram feitos. Ler primeiro `MEUTRADE-CHECKPOINT-2026-10-08.md`. Este arquivo continua válido para o contexto, as decisões de fundação e o que NÃO fazer.
+
+## (histórico, 01/10) PRÓXIMA SESSÃO → continuar a partir de **E1**
 
 R1, R2 e R3 estão **concluídos** (ver §7). Não há pendência bloqueante antes do E1. Antes de escrever código do E1: reler §4 (decisões aprovadas), §5 (não fazer) e a especificação em `data-contract.md` §14, e **apresentar um plano curto de E1 ao usuário para aprovação** (o usuário trabalha em passos pequenos e aprovados).
 

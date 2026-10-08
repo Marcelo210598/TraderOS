@@ -1,5 +1,14 @@
 # TraderOS — Progresso
 
+## ✅ 08/10/2026 — AI Partner: Evidence E1 a E4 (só local, sem push)
+Fundação de rastreabilidade do AI Partner, tudo puro (sem banco/Prisma/UI). Detalhe em `historico/2026-10-08.md` e `docs/ai-partner/MEUTRADE-CHECKPOINT-2026-10-08.md`.
+- **E1 identidade** (`fa19969`): `importId`, `rowHash`, `tradeId` determinísticos, `account.ref`, `ImportRecord`, SHA-256 em `src/lib/infra/hash.ts`.
+- **E2 schema** (`26674d0`): `evidence/1` estrito, `tradeSetHash` SHA-256 (hash53 removido), `evidenceHash` do bundle.
+- **E3 `explainTrade`** (`272a0be`, `d0b1813`): trade → linha → import, lista branca, privacidade de conta fail-closed, `fileName` só com lista completa de contas.
+- **E4 `explainMetric`** (`c77ddbb`): trace dos contribuintes saído do próprio motor (18 papéis), `HASH_ONLY` acima de 500, filtros/grupos por conta em `accountRef`. Motor idêntico ao commit anterior.
+- Testes: `test:domain` PASS (16 suítes), tsc/eslint PASS. Fixtures reais: 17 ciclos + 34 linhas, 0 divergências.
+- **Próximo:** plano do E5 (`verifyEvidence`) → aprovação → implementação. Depois E6; Prisma só com contrato validado. 11 commits locais à frente do origin.
+
 ## ✅ 29/09/2026 — 4ª e 5ª mesas: Tradeify e Bulenox, NO AR
 Pesquisa das mesas que mais valem entrar → **Tradeify** (commit `aed0c8c`) e **Bulenox** (`8fb7ea3`), ambas no ar em `meutrade.app`. Detalhe em `historico/2026-09-29.md`.
 - **Tradeify:** Growth, Select Flex, Select Daily, Lightning. Help Center atrás de Cloudflare → lido pelo Chrome; monitoramento manual + lembrete mensal.
