@@ -66,6 +66,8 @@ export const SourceMetadataSchema = z.object({
   fileHash: z.string().nullable(),
   /** Linha física no arquivo (cabeçalho = 1). */
   rowNo: z.number().int().nullable(),
+  /** SHA-256 do conteúdo da linha (E1/E3). Só nos trades SOURCE_ROW — num ciclo cada linha tem o seu em `sourceRows[].rowHash`. */
+  rowHash: z.string().optional(),
   externalId: z.string().nullable(),
   /** Cópia das configurações EFETIVAS usadas na leitura (auditoria: "por que esse horário?"). */
   settings: ImportSettingsSchema,

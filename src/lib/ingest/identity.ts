@@ -122,6 +122,10 @@ export function assignIdentity(trades: CanonicalTrade[], ctx: { importId: string
   return prepared.map((p, i) => ({
     ...p.t,
     ...(p.sourceRows ? { sourceRows: p.sourceRows } : {}),
+    // trade-linha: o rowHash viaja no próprio trade (sem `sourceRows`, senão a Evidence perderia o elo até a linha)
+    ...(p.t.granularity !== "POSITION_CYCLE" && p.t.source.rowNo !== null && ctx.rowHashByRowNo.has(p.t.source.rowNo)
+      ? { source: { ...p.t.source, rowHash: ctx.rowHashByRowNo.get(p.t.source.rowNo) } }
+      : {}),
     account: { ...p.t.account, ref: accountRef(p.t.account.sourceName, salt) },
     importId: ctx.importId,
     tradeId: `trd_${hashCanonical({ base: p.base, ordinal: ordinal.get(i) }).slice(0, 32)}`,

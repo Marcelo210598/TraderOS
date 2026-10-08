@@ -5,7 +5,6 @@
 
 import { z } from "zod"
 import {
-  AmbiguitySchema,
   EntryLegSchema,
   ExitLegSchema,
   ExitSummarySchema,
@@ -13,7 +12,6 @@ import {
   IssueSchema,
   PnlSchema,
   ReconstructionSchema,
-  SourceRowSchema,
   TimeValueSchema,
 } from "../domain/canonical.ts"
 import { EVIDENCE_SCHEMA } from "./hash.ts"
@@ -24,8 +22,36 @@ export { EVIDENCE_SCHEMA }
 export const ImportRefSchema = ImportRecordSchema.extend({ importedAt: z.string().nullable().optional() }).strict()
 export type ImportRef = z.infer<typeof ImportRefSchema>
 
-/** Referência à linha da fonte: identifica (importId + rowNo + rowHash) e traz os valores crus que a conta usa. Nada além. */
-export const SourceRowRefSchema = SourceRowSchema.extend({ importId: z.string(), rowHash: z.string() }).strict()
+/**
+ * Referência à linha da fonte: (importId, rowNo, rowHash) a identifica e prova o conteúdo; o resto são os valores que a conta usa.
+ * `detail`: FULL = linha de ciclo (valores crus completos, vindos de `sourceRows`) · TRADE_VALUES = trade-linha, onde só existem
+ * os valores do próprio trade (rótulos, MAE/MFE/ETD crus e acumulado ficam null — não foram guardados, não são inventados).
+ * `rowHash` null = linha sem hash (proveniência INCOMPLETE).
+ */
+export const SourceRowRefSchema = z
+  .object({
+    importId: z.string(),
+    rowNo: z.number().int(),
+    rowHash: z.string().nullable(),
+    detail: z.enum(["FULL", "TRADE_VALUES"]),
+    entryLeg: z.number().int().nullable(),
+    exitLeg: z.number().int().nullable(),
+    quantity: z.number(),
+    entryLabel: z.string().nullable(),
+    exitLabel: z.string().nullable(),
+    entryPrice: z.number(),
+    exitPrice: z.number(),
+    reportedProfit: z.number().nullable(),
+    commission: z.number().nullable(),
+    fees: z.number().nullable(),
+    /** MAE/MFE/ETD CRUS da linha (US$ total da linha). NÃO somar. */
+    maeUsd: z.number().nullable(),
+    mfeUsd: z.number().nullable(),
+    etdUsd: z.number().nullable(),
+    bars: z.number().nullable(),
+    cumulativeNetReported: z.number().nullable(),
+  })
+  .strict()
 export type SourceRowRef = z.infer<typeof SourceRowRefSchema>
 
 /**
@@ -33,9 +59,28 @@ export type SourceRowRef = z.infer<typeof SourceRowRefSchema>
  * em claro; aqui vira `accountRef`. Sem isso o nome vazaria por dentro da reconstrução.
  */
 export const ReconstructionEvidenceSchema = ReconstructionSchema.extend({
+  /** Versão do algoritmo que reconstruiu o ciclo (do ImportRecord). */
+  version: z.string(),
   cycleKey: z.object({ accountRef: z.string().nullable(), contract: z.string(), strategy: z.string().nullable(), direction: z.enum(["LONG", "SHORT"]) }).strict(),
 }).strict()
 export type ReconstructionEvidence = z.infer<typeof ReconstructionEvidenceSchema>
+
+const ExcursionReasonSchema = z.enum(["NOT_PROVIDED", "UNIT_UNKNOWN", "POINT_VALUE_UNKNOWN", "NOT_A_NUMBER"])
+
+/** Excursões como estão no Canonical (nada reinterpretado, nada somado). `null` = ausente na origem. `origin` diz se é nativo ou INFERIDO. */
+export const ExcursionsEvidenceSchema = z
+  .object({
+    mfePoints: z.number().nullable(),
+    maePoints: z.number().nullable(),
+    mfeReason: ExcursionReasonSchema.nullable(),
+    maeReason: ExcursionReasonSchema.nullable(),
+    highPrice: z.number().nullable(),
+    lowPrice: z.number().nullable(),
+    conflict: z.boolean().nullable(),
+    origin: z.enum(["SOURCE_ROW", "RECONSTRUCTED_NT8_ROWS", "NONE"]).nullable(),
+  })
+  .strict()
+export type ExcursionsEvidence = z.infer<typeof ExcursionsEvidenceSchema>
 
 /** Proveniência do trade: completa (tradeId + importId + rowHash) ou não. Trade sem identidade NUNCA se passa por rastreável. */
 export const ProvenanceSchema = z.enum(["COMPLETE", "INCOMPLETE"])
@@ -59,8 +104,7 @@ export const TradeEvidenceSchema = z
     exitLegs: z.array(ExitLegSchema).nullable(),
     exitSummary: ExitSummarySchema.nullable(),
     reconstruction: ReconstructionEvidenceSchema.nullable(),
-    ambiguities: z.array(AmbiguitySchema),
-    excursions: z.record(z.string(), z.unknown()),
+    excursions: ExcursionsEvidenceSchema,
     issues: z.array(IssueSchema),
     fieldProvenance: z.record(z.string(), z.enum(["FILE", "INFERRED", "DERIVED", "ABSENT"])),
     sourceRows: z.array(SourceRowRefSchema),

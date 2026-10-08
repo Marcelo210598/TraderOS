@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import type { CanonicalTrade } from "../src/lib/domain/canonical.ts"
 import { computeEvidenceHash, EVIDENCE_SCHEMA, sealEvidence, tradeFingerprint, tradeSetHash } from "../src/lib/evidence/hash.ts"
-import { redactReconstruction } from "../src/lib/evidence/redact.ts"
+import { explainTrades } from "../src/lib/evidence/explain-trade.ts"
 import { EvidenceBundleSchema, MetricEvidenceSchema, TradeEvidenceSchema, type EvidenceBundle, type MetricEvidence, type TradeEvidence } from "../src/lib/evidence/schema.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
 import { aggregateTrades, calculateMetrics, toAnalyticsTrades } from "../src/lib/metrics/index.ts"
@@ -27,32 +27,11 @@ const reverseKeys = (x: unknown): unknown =>
 
 // ── montagem de um bundle de teste ───────────────────────────────────────────
 
-function tradeEvidenceOf(t: CanonicalTrade): TradeEvidence {
-  const importId = imp.importRecord!.importId
-  return {
-    tradeId: t.tradeId as string,
-    importId,
-    provenance: t.tradeId && t.importId ? "COMPLETE" : "INCOMPLETE",
-    granularity: t.granularity === "POSITION_CYCLE" ? "POSITION_CYCLE" : "SOURCE_ROW",
-    accountRef: t.account.ref ?? null,
-    instrument: { raw: t.instrument.raw, root: t.instrument.root },
-    direction: t.direction,
-    quantity: t.quantity,
-    peakQuantity: t.peakQuantity ?? null,
-    entry: t.entry,
-    exit: t.exit,
-    pnl: t.pnl,
-    entryLegs: t.entryLegs ?? null,
-    exitLegs: t.exitLegs ?? null,
-    exitSummary: t.exitSummary ?? null,
-    reconstruction: t.reconstruction ? redactReconstruction(t.reconstruction) : null,
-    ambiguities: t.reconstruction?.ambiguities ?? [],
-    excursions: t.excursions,
-    issues: t.issues,
-    fieldProvenance: t.fieldProvenance,
-    sourceRows: (t.sourceRows ?? []).map((r) => ({ ...r, importId, rowHash: r.rowHash as string })),
-  }
-}
+const explained = explainTrades(trades, imp.importRecord!).map((r) => {
+  assert.equal(r.ok, true)
+  return r as Extract<(typeof explainTrades extends (...a: never[]) => (infer R)[] ? R : never), { ok: true }>
+})
+const tradeEvidenceOf = (t: CanonicalTrade): TradeEvidence => explained[trades.indexOf(t)].tradeEvidence
 
 function metricEvidenceOf(metricId: string, computedAt: string | null = null): MetricEvidence {
   const r = calculateMetrics(toAnalyticsTrades(trades))
@@ -80,7 +59,7 @@ const unsealed = (importedAt: string | null = null, computedAt: string | null = 
   schema: EVIDENCE_SCHEMA,
   claim: { kind: "METRIC", statement: "net P&L total" },
   subject: { type: "METRIC", id: "netPnl" },
-  evidence: { imports: [{ ...imp.importRecord!, importedAt }], trades: trades.map(tradeEvidenceOf), metrics: [metricEvidenceOf("netPnl", computedAt)] },
+  evidence: { imports: [{ ...explained[0].importRef, importedAt }], trades: trades.map(tradeEvidenceOf), metrics: [metricEvidenceOf("netPnl", computedAt)] },
 })
 const sealed = () => sealEvidence(unsealed())
 
@@ -175,7 +154,7 @@ test("SCHEMA: bundle montado a partir do pipeline e das métricas é válido (ev
   assert.equal(parsed.success, true, parsed.success ? "" : JSON.stringify(parsed.error.issues.slice(0, 3)))
   assert.equal(b.schema, "evidence/1")
   assert.ok(b.evidence.trades.every((t) => t.provenance === "COMPLETE" && /^acc_/.test(t.accountRef ?? "")))
-  assert.ok(b.evidence.trades.every((t) => t.sourceRows.every((r) => r.importId === b.evidence.imports[0].importId && r.rowHash.length === 64)))
+  assert.ok(b.evidence.trades.every((t) => t.sourceRows.every((r) => r.importId === b.evidence.imports[0].importId && r.rowHash?.length === 64)))
 })
 
 test("PRIVACIDADE: TradeEvidence só tem accountRef — `sourceName` é rejeitado em qualquer nível e o nome da conta não aparece no bundle", () => {

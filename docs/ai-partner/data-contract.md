@@ -294,3 +294,21 @@ Entrada de cada trade no fingerprint: `id` do motor · `tradeId` · `importId` �
 **Privacidade:** `TradeEvidence` só tem `accountRef`; **não existe** `sourceName`. Atenção: no Canonical o nome da conta também aparece em `reconstruction.cycleKey.account` — na Evidence esse campo vira `cycleKey.accountRef` (`redactReconstruction` em `redact.ts`; o schema recusa a forma não redigida). **Pendente para o E4:** `MetricEvidence.query.filters.account` e `groupKey` (dimensão `account`) podem carregar o nome da conta quando a consulta filtra/agrupa por conta — o gerador precisa trocá-los por `accountRef`.
 
 `MetricEvidence.contributors` existe só como formato opcional (G5): quem preenche é o E4.
+
+### 14.3 E3 — `explainTrade` (IMPLEMENTADO em 2026-10-08)
+
+Código: `src/lib/evidence/explain-trade.ts` (`explainTrade`, `explainTrades`) · `redact.ts` · testes `scripts/test-evidence-explain-trade.mts` (+ gerador sintético `scripts/_evidence-fixtures.mts`).
+
+```text
+explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, { accountRefSalt?, knownAccountNames? })
+  → { ok: true, tradeEvidence, importRef, notes[] } | { ok: false, code, message }
+```
+Cópia fiel, **projeção por lista branca** (nunca `...trade`/`...source`; um teste varre o código-fonte). Nada é recalculado (P&L, R, MAE/MFE, reconstrução), o CSV não é relido, não há relógio/random/banco e **não existe hash por trade** (a integridade é do `evidenceHash` do bundle; a identidade é o `tradeId` do E1).
+
+Erros (retorno, nunca exceção): `E_IDENTITY_MISSING` (sem `tradeId`/`importId` — **nunca se fabrica id**) · `E_IMPORT_MISMATCH` (importId ou método de reconstrução ≠ do ImportRecord) · `E_ACCOUNT_KEY_MISMATCH` · `E_ROWREF_DANGLING` (perna aponta para linha fora de `sourceRows`) · `E_ACCOUNT_NAME_LEAK` · `E_SCHEMA`. Notas (não são erro): `N_ROWHASH_MISSING`/`N_SOURCE_ROWS_MISSING` ⇒ `provenance: "INCOMPLETE"`; `N_FILENAME_REDACTED`.
+
+Rastreabilidade: `TradeEvidence.sourceRows[]{importId, rowNo, rowHash}` → `ImportRef` (arquivo, SHA-256, parser, versão da reconstrução). Ciclo: `detail: "FULL"` (valores crus por linha, MAE/MFE/ETD **nunca somados**). Trade-linha (`SOURCE_ROW`): `source.rowHash` (campo **novo, opcional, aditivo** do Canonical, preenchido no pipeline só nesses trades) alimenta um ref `detail: "TRADE_VALUES"`; o que só o pipeline conhecia (rótulos, MAE/MFE/ETD crus, acumulado) fica `null` — declarado, não inventado.
+
+Ajustes no schema do E2: removido `TradeEvidence.ambiguities` (única fonte: `reconstruction.ambiguities`); `excursions` estrito (`mfe/maePoints`, `*Reason`, `high/lowPrice`, `conflict`, `origin` — `undefined` do canonical vira `null`); `reconstruction.version` (do `ImportRecord.reconstructionVersion`); `SourceRowRef` ganhou `detail` e `rowHash` nullable.
+
+**Privacidade (fail-closed):** `account.sourceName` e `reconstruction.cycleKey.account` viram `accountRef`; `labels.notes/tags` e `source.fileName/fileHash` não entram. O **`fileName` é mantido** como proveniência, mas nomes de conta conhecidos dentro dele são trocados pelo `accountRef` (nome com ≥ 4 caracteres: por substring; menores: só como token inteiro; sem distinguir caixa). O original continua só no `ImportRecord`. Trava final varre todo valor/chave da saída; achou nome de conta ⇒ `E_ACCOUNT_NAME_LEAK` e nada é devolvido. Limite conhecido: a redação só conhece as contas **informadas**; por isso `explainTrades` reúne as contas do import inteiro (o `ImportRef` fica idêntico em todos os trades). Quem chamar `explainTrade` avulso num import multi-conta deve passar `knownAccountNames`.
