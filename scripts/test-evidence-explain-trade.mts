@@ -291,21 +291,72 @@ test("PRIVACIDADE (conta): nenhum nome de conta em NENHUM valor/chave de TradeEv
   assert.equal(findAccountNameLeak({ x: "olha Sim101 aqui" }, NAMES), "$.x") // a trava funciona
 })
 
-test("PRIVACIDADE (fileName): 'Sim101_Sim102-fevereiro.csv' vira refs das contas; ImportRef IGUAL em todos os trades do import (explainTrades)", () => {
+test("PRIVACIDADE (fileName, lista COMPLETA): explainTrades troca as contas do arquivo por accountRef; ImportRef IGUAL em todos os trades", () => {
   const r1 = accountRef("Sim101") as string
   const r2 = accountRef("Sim102") as string
+  assert.equal(rec.accountCount, 2) // só a contagem fica no ImportRecord (nunca os nomes)
   assert.equal(eA.importRef.fileName, `${r1}_${r2}-fevereiro.csv`)
+  assert.equal(eA.importRef.accountCount, 2)
   assert.ok(all.every((r) => canonicalJson(r.importRef) === canonicalJson(eA.importRef)))
   assert.ok(eA.notes.some((n) => n.code === "N_FILENAME_REDACTED"))
   assert.equal(rec.fileName, FILE) // o original continua só no ImportRecord (proveniência interna)
-  // nome de arquivo sem conta: preservado (informação útil de origem)
+  // nome de arquivo sem conta: preservado (informação útil de origem), com a lista completa
   const plain = runImportPipeline(CSV, { sourceTz: BRT, fileName: "exportacao-fevereiro.csv" })
-  const ep = ok(explainTrade(plain.trades[0], plain.importRecord as ImportRecord))
-  assert.equal(ep.importRef.fileName, "exportacao-fevereiro.csv")
-  assert.ok(!ep.notes.some((n) => n.code === "N_FILENAME_REDACTED"))
-  // sem arquivo ⇒ null
+  const ep = explainTrades(plain.trades, plain.importRecord as ImportRecord).map(ok)
+  assert.ok(ep.every((r) => r.importRef.fileName === "exportacao-fevereiro.csv"))
+  assert.ok(!ep[0].notes.some((n) => n.code === "N_FILENAME_REDACTED" || n.code === "N_FILENAME_OMITTED"))
+  // sem arquivo ⇒ null (e sem nota: não havia nada a omitir)
   const anon = runImportPipeline(CSV, { sourceTz: BRT })
-  assert.equal(ok(explainTrade(anon.trades[0], anon.importRecord as ImportRecord)).importRef.fileName, null)
+  const ea = ok(explainTrades(anon.trades, anon.importRecord as ImportRecord)[0] as ExplainTradeResult)
+  assert.equal(ea.importRef.fileName, null)
+  assert.ok(!ea.notes.some((n) => n.code === "N_FILENAME_OMITTED"))
+})
+
+test("PRIVACIDADE (fileName, explainTrade AVULSO): sem a lista completa de contas o fileName é NULL — nunca expõe outra conta", () => {
+  // trade da conta Sim101 num arquivo que se chama 'Sim101_Sim102-…': o nome da OUTRA conta (Sim102) estaria no fileName
+  for (const r of [explainTrade(A, rec), explainTrade(A, rec, { knownAccountNames: [] }), explainTrade(A, rec, { knownAccountNames: ["Sim101"] })]) {
+    const e = ok(r)
+    assert.equal(e.importRef.fileName, null)
+    assert.ok(e.notes.some((n) => n.code === "N_FILENAME_OMITTED"))
+    assert.equal(findAccountNameLeak(e, NAMES), null)
+    assert.ok(!JSON.stringify(e).includes("fevereiro"))
+  }
+  assert.equal(rec.fileName, FILE) // o original segue só no ImportRecord
+  // lista completa informada explicitamente ⇒ fileName exposto, redigido
+  const full = ok(explainTrade(A, rec, { knownAccountNames: ["Sim101", "Sim102"] }))
+  assert.equal(full.importRef.fileName, eA.importRef.fileName)
+  // lista com a conta do trade mas de TAMANHO errado (conta a mais ou a menos) não vale
+  assert.equal(ok(explainTrade(A, rec, { knownAccountNames: ["Sim101", "Sim102", "Sim103"] })).importRef.fileName, null)
+  // lista completa em número mas sem a conta do próprio trade não vale
+  assert.equal(ok(explainTrade(A, rec, { knownAccountNames: ["Sim102", "Sim103"] })).importRef.fileName, null)
+})
+
+test("PRIVACIDADE (fileName, subconjunto): explainTrades com SÓ ALGUNS trades de um arquivo multi-conta não conhece todas as contas ⇒ fileName null", () => {
+  const onlyFirstAccount = explainTrades([A, B, C, D], rec).map(ok)
+  assert.ok(onlyFirstAccount.every((r) => r.importRef.fileName === null))
+  assert.ok(onlyFirstAccount.every((r) => r.notes.some((n) => n.code === "N_FILENAME_OMITTED")))
+  assert.ok(onlyFirstAccount.every((r) => !JSON.stringify(r).includes("Sim102")))
+  // completando a lista à mão, volta a expor
+  assert.equal(explainTrades([A, B], rec, { knownAccountNames: ["Sim102"] }).map(ok)[0].importRef.fileName, eA.importRef.fileName)
+})
+
+test("PRIVACIDADE (fileName, arquivo sem coluna de conta): accountCount=0 ⇒ nada a vazar, fileName preservado mesmo no avulso com lista vazia", () => {
+  const noAcc = runImportPipeline(synthCsv(ROWS.slice(0, 2).map((r) => ({ ...r, account: "" }))), { sourceTz: BRT, fileName: "so-estrategia.csv" })
+  const nr = noAcc.importRecord as ImportRecord
+  assert.equal(nr.accountCount, 0)
+  assert.equal(noAcc.trades[0].account.sourceName, null)
+  assert.equal(ok(explainTrade(noAcc.trades[0], nr, { knownAccountNames: [] })).importRef.fileName, "so-estrategia.csv")
+  assert.equal(ok(explainTrade(noAcc.trades[0], nr)).importRef.fileName, null) // sem informar a lista, continua fail-closed
+})
+
+test("accountCount: conta linhas rejeitadas também (a conta de uma linha rejeitada pode estar no nome do arquivo)", () => {
+  const lines = CSV.trimEnd().split("\n")
+  lines[lines.length - 1] = lines[lines.length - 1].replace("Comprada", "DIRECAO_INVALIDA") // linha da Sim102 rejeitada
+  const rej = runImportPipeline(lines.join("\n") + "\n", { sourceTz: BRT, fileName: FILE })
+  assert.equal(rej.stats.rejected, 1)
+  assert.equal((rej.importRecord as ImportRecord).accountCount, 2) // Sim102 só aparece numa linha rejeitada
+  // os trades aceitos só conhecem a Sim101 ⇒ lista incompleta ⇒ fileName omitido (fail-closed)
+  assert.ok(explainTrades(rej.trades, rej.importRecord as ImportRecord).map(ok).every((r) => r.importRef.fileName === null))
 })
 
 test("redactFileName: sem distinguir caixa; nome curto só como token inteiro; mais longo primeiro", () => {

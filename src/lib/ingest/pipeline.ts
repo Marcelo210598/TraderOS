@@ -200,6 +200,7 @@ export function runImportPipeline(text: string, ctx: ImportContext = {}, parsers
     reconstruction: summary,
     reconstructionEnabled: summary !== null,
     stats: { rowsRead: parsed.records.length, accepted: rowTrades.length, rejected: rejected.length },
+    accountCount: new Set(parsed.records.map((r) => r.account?.trim()).filter((a): a is string => !!a)).size,
   })
   const salt = ctx.accountRefSalt ?? ""
   const rowHashByRowNo = new Map(lots.map((l) => [l.rowNo, rowHashOf(l, salt)]))

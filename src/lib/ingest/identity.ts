@@ -47,6 +47,7 @@ export function buildImportRecord(args: {
   reconstruction: ReconstructionSummary | null
   reconstructionEnabled: boolean
   stats: { rowsRead: number; accepted: number; rejected: number }
+  accountCount: number
 }): ImportRecord {
   const file = describeText(args.text)
   const importId = `imp_${hashCanonical({
@@ -67,6 +68,7 @@ export function buildImportRecord(args: {
     rowsRead: args.stats.rowsRead,
     rowsAccepted: args.stats.accepted,
     rowsRejected: args.stats.rejected,
+    accountCount: args.accountCount,
     settings: args.settings,
   }
 }

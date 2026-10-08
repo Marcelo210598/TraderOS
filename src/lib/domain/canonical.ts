@@ -214,6 +214,11 @@ export const ImportRecordSchema = z.object({
   rowsRead: z.number().int(),
   rowsAccepted: z.number().int(),
   rowsRejected: z.number().int(),
+  /**
+   * Quantas contas DISTINTAS o arquivo tem (todas as linhas lidas, inclusive rejeitadas). Só a contagem, nunca os nomes:
+   * serve para a Evidence saber se uma lista de contas conhecidas está COMPLETA antes de expor o `fileName`.
+   */
+  accountCount: z.number().int().nonnegative(),
   settings: ImportSettingsSchema,
 })
 export type ImportRecord = z.infer<typeof ImportRecordSchema>

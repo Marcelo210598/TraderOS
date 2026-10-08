@@ -18,7 +18,7 @@ export type ExplainErrorCode =
   | "E_SCHEMA"
 
 export interface ExplainNote {
-  code: "N_ROWHASH_MISSING" | "N_SOURCE_ROWS_MISSING" | "N_FILENAME_REDACTED"
+  code: "N_ROWHASH_MISSING" | "N_SOURCE_ROWS_MISSING" | "N_FILENAME_REDACTED" | "N_FILENAME_OMITTED"
   message: string
 }
 
@@ -30,8 +30,9 @@ export interface ExplainOptions {
   /** Só usado se o trade não trouxer `account.ref` (precisa ser o MESMO sal do import). */
   accountRefSalt?: string
   /**
-   * TODAS as contas do import (nomes). Redigem o `fileName` e entram na trava de vazamento. O `ImportRef` precisa ser igual para
-   * todos os trades do mesmo import: use `explainTrades`, que reúne as contas, em vez de chamar `explainTrade` com listas diferentes.
+   * TODAS as contas do import (nomes). Só com a lista COMPLETA o `fileName` é exposto (redigido); sem ela — ou incompleta — o
+   * `ImportRef.fileName` é null. "Completa" = os nomes distintos somam `importRecord.accountCount` e incluem a conta do trade.
+   * Nunca se tenta adivinhar contas pelo nome do arquivo. `explainTrades` monta a lista a partir dos trades do import.
    */
   knownAccountNames?: string[]
 }
@@ -208,15 +209,20 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
   const parsed = TradeEvidenceSchema.safeParse(projected)
   if (!parsed.success) return fail("E_SCHEMA", `TradeEvidence fora do schema evidence/1: ${parsed.error.issues[0]?.path.join(".")} — ${parsed.error.issues[0]?.message}`)
 
-  // 5) ImportRef (o ImportRecord do E1, sem CSV) com o fileName redigido
-  const accounts: KnownAccount[] = [...new Set([...(accountName ? [accountName] : []), ...(opts.knownAccountNames ?? [])])].map((name) => ({ name, ref: makeAccountRef(name, opts.accountRefSalt ?? "") ?? "acc_?" }))
-  // o ref do PRÓPRIO trade é o que está no trade (pode ter sal diferente do default): prevalece para o nome dele
-  if (accountName && accountRef) {
-    const own = accounts.find((a) => a.name === accountName)
-    if (own) own.ref = accountRef
+  // 5) ImportRef (o ImportRecord do E1, sem CSV). fileName: só sai com a lista COMPLETA de contas; senão null (sem heurística).
+  const salt = opts.accountRefSalt ?? ""
+  const known = [...new Set([...(accountName ? [accountName.trim()] : []), ...(opts.knownAccountNames ?? []).map((n) => n.trim())].filter((n) => n !== ""))]
+  const accounts: KnownAccount[] = known.map((name) => ({ name, ref: (name === accountName?.trim() ? accountRef : null) ?? makeAccountRef(name, salt) ?? "acc_?" }))
+  const listIsComplete = opts.knownAccountNames !== undefined && known.length === importRecord.accountCount && (accountName === null || known.includes(accountName.trim()))
+  let fileName: string | null = null
+  if (importRecord.fileName !== null) {
+    if (listIsComplete) {
+      fileName = redactFileName(importRecord.fileName, accounts)
+      if (fileName !== importRecord.fileName) notes.push({ code: "N_FILENAME_REDACTED", message: "O nome do arquivo continha nome de conta e foi redigido para accountRef." })
+    } else {
+      notes.push({ code: "N_FILENAME_OMITTED", message: "Lista completa de contas do import não informada: o nome do arquivo foi omitido para não expor outra conta (use explainTrades ou knownAccountNames)." })
+    }
   }
-  const fileName = redactFileName(importRecord.fileName, accounts)
-  if (fileName !== importRecord.fileName) notes.push({ code: "N_FILENAME_REDACTED", message: "O nome do arquivo continha nome de conta e foi redigido para accountRef." })
   const importRefParsed = ImportRefSchema.safeParse({
     importId: importRecord.importId,
     fileSha256: importRecord.fileSha256,
@@ -232,6 +238,7 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
     rowsRead: importRecord.rowsRead,
     rowsAccepted: importRecord.rowsAccepted,
     rowsRejected: importRecord.rowsRejected,
+    accountCount: importRecord.accountCount,
     settings: {
       sourceTz: importRecord.settings.sourceTz,
       sourceTzOrigin: importRecord.settings.sourceTzOrigin,
