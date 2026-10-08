@@ -191,7 +191,8 @@ export function sequenceOrder<T extends TradeRow>(rows: T[]): T[] {
 export function toAnalyticsTrades(trades: CanonicalTrade[], extras: Array<Partial<Omit<AnalyticsTrade, "id" | "trade">>> = []): AnalyticsTrade[] {
   const used = new Map<string, number>()
   return trades.map((trade, i) => {
-    const base = `${trade.source.fileHash ?? "file"}:${trade.source.rowNo ?? i}`
+    // tradeId determinístico (Evidence E1) tem prioridade; o id posicional é só o fallback para trades sem identidade.
+    const base = trade.tradeId ?? `${trade.source.fileHash ?? "file"}:${trade.source.rowNo ?? i}`
     const n = (used.get(base) ?? 0) + 1
     used.set(base, n)
     return { id: n === 1 ? base : `${base}#${n}`, trade, ...(extras[i] ?? {}) }

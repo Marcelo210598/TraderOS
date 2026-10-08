@@ -188,7 +188,33 @@ export const SourceRowSchema = z.object({
   bars: z.number().nullable(),
   /** "Acu lucro líquido" cru — só para checagem de integridade, nunca como P&L. */
   cumulativeNetReported: z.number().nullable(),
+  /** SHA-256 do CONTEÚDO da linha (sem número de linha nem acumulado, que dependem da ordem). Opcional: E1. */
+  rowHash: z.string().optional(),
 })
+
+// ── Import (proveniência do arquivo; E1) ─────────────────────────────────────
+
+/** O que se sabe do arquivo importado. Sem relógio: `importedAt` é responsabilidade de quem persiste e fica FORA do hash. */
+export const ImportRecordSchema = z.object({
+  /** Determinístico: arquivo + parser + configurações efetivas. Mesmo arquivo e mesma leitura ⇒ mesmo id. */
+  importId: z.string(),
+  /** SHA-256 do texto recebido, em UTF-8 (`hashBasis`). Não é hash dos bytes originais se o chamador já decodificou. */
+  fileSha256: z.string(),
+  hashBasis: z.literal("UTF8_TEXT"),
+  fileBytes: z.number().int().nonnegative(),
+  hasBom: z.boolean(),
+  lineEnding: z.enum(["LF", "CRLF", "CR", "MIXED", "NONE"]),
+  fileName: z.string().nullable(),
+  parserId: z.string(),
+  parserVersion: z.string(),
+  reconstructionMethod: z.string().nullable(),
+  reconstructionVersion: z.string().nullable(),
+  rowsRead: z.number().int(),
+  rowsAccepted: z.number().int(),
+  rowsRejected: z.number().int(),
+  settings: ImportSettingsSchema,
+})
+export type ImportRecord = z.infer<typeof ImportRecordSchema>
 
 // ── Trade canônico ───────────────────────────────────────────────────────────
 
@@ -196,7 +222,11 @@ const Price = z.number().finite().positive()
 
 export const CanonicalTradeSchema = z.object({
   schemaVersion: z.union([z.literal(SCHEMA_TRADE_V1), z.literal(SCHEMA_TRADE)]),
-  account: z.object({ sourceName: z.string().nullable() }),
+  account: z.object({
+    sourceName: z.string().nullable(),
+    /** Fingerprint não reversível do nome da conta (E1). É o que a Evidence exposta usa; `sourceName` fica só interno. */
+    ref: z.string().nullable().optional(),
+  }),
   instrument: z.object({
     raw: z.string(),
     /** Raiz reconhecida ou null. Nunca um palpite. */
@@ -254,6 +284,10 @@ export const CanonicalTradeSchema = z.object({
   issues: z.array(IssueSchema),
 
   // ── canonical-trade/2 (todos opcionais ⇒ objetos v1 continuam válidos) ──
+  /** Identidade determinística (E1): import + linhas de origem + identidade da reconstrução. Sem UUID/random. */
+  tradeId: z.string().optional(),
+  /** Id do import que originou este trade (ver ImportRecord). */
+  importId: z.string().optional(),
   /** Unidade factual deste "trade": POSITION_CYCLE (ciclo 0→0 reconstruído) · SOURCE_ROW (a linha da fonte tratada como trade, sem ciclo verificado). Ausente = SOURCE_ROW. */
   granularity: z.enum(["POSITION_CYCLE", "SOURCE_ROW"]).optional(),
   /** Maior posição aberta durante o ciclo (empate no mesmo segundo: entradas antes das saídas). */

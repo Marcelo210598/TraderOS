@@ -11,6 +11,7 @@ import { buildCanonicalTrade } from "./build-trade.ts"
 import { parseDelimited } from "./csv.ts"
 import { ExitReasonMapError, validateExitReasonMap } from "./exit-reason.ts"
 import { normalizeRecord, type EffectiveSettings } from "./normalizer.ts"
+import { assignIdentity, buildImportRecord, rowHashOf } from "./identity.ts"
 import { checkAccumulatedIntegrity, reconstructCycles, type LotRow } from "./reconstruct.ts"
 import { DEFAULT_PARSERS, selectParser } from "./registry.ts"
 import type { ImportContext, ParserDescriptor, PipelineResult, ReconstructionSummary, RejectedRow, SourceRecord } from "./types.ts"
@@ -64,6 +65,7 @@ function resolveSettings(ctx: ImportContext, d: ParserDescriptor, records: Sourc
 export function runImportPipeline(text: string, ctx: ImportContext = {}, parsers: ParserDescriptor[] = DEFAULT_PARSERS): PipelineResult {
   const fileIssues: Issue[] = []
   const fail = (extra: Issue[]): PipelineResult => ({
+    importRecord: null,
     parser: null,
     settings: null,
     trades: [],
@@ -181,19 +183,37 @@ export function runImportPipeline(text: string, ctx: ImportContext = {}, parsers
     fileIssues.push(issue("ERROR", "E_DATE_ORDER_REQUIRED", "Não foi possível saber se as datas são dia/mês ou mês/dia. Informe a ordem do arquivo."))
   }
 
+  // 7) Identidade determinística (Evidence E1): importId, rowHash, tradeId, account.ref. Só ADICIONA campos; valores intactos.
+  const publicSettings = {
+    sourceTz: fileOrigin === "FILE_OFFSET" ? null : settings.sourceTz,
+    sourceTzOrigin: fileOrigin,
+    dateOrder: settings.dateOrder,
+    numberLocale: settings.numberLocale,
+    excursionUnit: settings.excursionUnit,
+    declaredPnlBasis: settings.declaredPnlBasis,
+  }
+  const importRecord = buildImportRecord({
+    text,
+    fileName: ctx.fileName ?? null,
+    parser: { id: parser.id, version: parser.version },
+    settings: publicSettings,
+    reconstruction: summary,
+    reconstructionEnabled: summary !== null,
+    stats: { rowsRead: parsed.records.length, accepted: rowTrades.length, rejected: rejected.length },
+  })
+  const salt = ctx.accountRefSalt ?? ""
+  const rowHashByRowNo = new Map(lots.map((l) => [l.rowNo, rowHashOf(l, salt)]))
+  const identity = { importId: importRecord.importId, rowHashByRowNo, salt }
+  trades = assignIdentity(trades, identity)
+  const identifiedRows = assignIdentity(rowTrades, identity)
+
   const warnings = trades.reduce((acc, t) => acc + t.issues.filter((i) => i.severity === "WARNING").length, 0)
   return {
+    importRecord,
     parser: { id: parser.id, version: parser.version, platform: parser.platform, confidence: sel.confidence },
-    settings: {
-      sourceTz: fileOrigin === "FILE_OFFSET" ? null : settings.sourceTz,
-      sourceTzOrigin: fileOrigin,
-      dateOrder: settings.dateOrder,
-      numberLocale: settings.numberLocale,
-      excursionUnit: settings.excursionUnit,
-      declaredPnlBasis: settings.declaredPnlBasis,
-    },
+    settings: publicSettings,
     trades,
-    rowTrades,
+    rowTrades: identifiedRows,
     reconstruction: summary,
     rejected,
     issues: fileIssues,

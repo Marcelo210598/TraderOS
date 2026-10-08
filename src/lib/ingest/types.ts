@@ -8,7 +8,7 @@
 // Adicionar um formato = escrever um ParserDescriptor (só o mapeamento de colunas/vocabulário) + registrar + fixtures.
 // O Normalizer, o Validator e o domínio NÃO mudam.
 
-import type { CanonicalTrade, Issue, Platform } from "../domain/canonical.ts"
+import type { CanonicalTrade, ImportRecord, Issue, Platform } from "../domain/canonical.ts"
 import type { PnlBasis } from "../domain/pnl.ts"
 import type { ExcursionUnit } from "../domain/risk.ts"
 import type { DateOrder, FoldPolicy } from "../domain/time.ts"
@@ -40,6 +40,8 @@ export interface ImportContext {
   reconstructCycles?: boolean
   /** Mapa de rótulo de saída → motivo (prioridade sobre as regras padrão). */
   exitReasonMap?: ExitReasonRule[]
+  /** Sal do `account.ref` (ex.: id do usuário). Sem sal, o ref é igual para o mesmo nome de conta em qualquer import. */
+  accountRefSalt?: string
 }
 
 /** Uma linha de plataforma já traduzida para nomes neutros, mas ainda em TEXTO. */
@@ -137,6 +139,8 @@ export interface ReconstructionSummary {
 }
 
 export interface PipelineResult {
+  /** Proveniência do arquivo (E1). null quando nem o formato foi reconhecido. */
+  importRecord: ImportRecord | null
   parser: { id: string; version: string; platform: Platform; confidence: number } | null
   settings: CanonicalTrade["source"]["settings"] | null
   /** Trades analíticos finais: ciclos de posição (quando reconstruídos) ou linhas. */

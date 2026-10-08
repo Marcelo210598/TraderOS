@@ -259,3 +259,22 @@ Decisões aprovadas:
 Campos mínimos: **ImportRef** (importId, platform, parserId/Version, reconstructionMethod/Version, fileName, fileSha256, fileBytes, encoding, lineEnding, rowsRead/Accepted/Rejected, sourceTz, sourceTzOrigin, dateOrder, numberLocale, excursionUnit, declaredPnlBasis, resumo da reconstrução, importedAt) · **SourceRowRef** (importId, rowNo, rowHash, reportedProfit, commission, fees, quantity, preços, rótulos, MAE/MFE/ETD crus) · **TradeEvidence** (tradeId, importId, instrumento, direção, qty, pico, entradas/saídas, pnl{net,gross,commission,fees,basis,basisSource}, legs+rowRefs+label+reasonRule, reconstruction, excursions, issues, fieldProvenance, sourceRows) · **MetricEvidence** (metricId, definitionVersion, engineVersion, value, unit, basis, sampleSize, coverage, reason, query/filtros/opções/timeZone/groupKey, period, population{inputTrades, afterFilters, tradeSetHash, tradeIds, filterReport}, contributors, dataQuality, warnings) · **EvidenceBundle** (`evidence/1`, claim, subject, evidence, evidenceHash).
 
 Lacunas conhecidas (G1–G9): id posicional; sem ImportRecord/SHA-256/encoding/importId/versão do motor; sem `rowHash`; `tradeSetHash` = hash53 e fingerprint incompleto; sem mapa de contribuintes; sem dimensão/métrica por motivo de saída (P&L por motivo existe só por perna, `exitLegs[].pnl`); confiança/ambiguidade/completude não sobem para a Evidence individual; sem claim nem schema versionado; privacidade de `account.sourceName`. Plano E1–E6 e retomada: `MEUTRADE-CHECKPOINT-2026-10-01.md`.
+
+### 14.1 E1 — identidade e import (IMPLEMENTADO em 2026-10-08)
+
+Código: `src/lib/infra/hash.ts` (único ponto com `node:crypto`: `sha256Hex`, `canonicalJson`, `hashCanonical`) · `src/lib/ingest/identity.ts` · testes `scripts/test-evidence-identity.mts`. Tudo **aditivo e opcional** no `canonical-trade/2` (v1 continua válido). Fecha G1, G2, G3 e G9 (parcial: `account.ref`; `sourceName` ainda existe no trade, só não entra em hash/Evidence).
+
+| Campo | Definição |
+|---|---|
+| `PipelineResult.importRecord` | `ImportRecord`: `importId`, `fileSha256` (**do texto UTF-8 recebido**, `hashBasis: "UTF8_TEXT"` — não dos bytes originais), `fileBytes`, `hasBom`, `lineEnding`, parser, `reconstructionMethod/Version`, contagens, `settings`. **Sem `importedAt`** (quem persiste grava; fora do hash) |
+| `importId` | `imp_` + H(fileSha256 + parserId/Version + settings efetivas). Fora: `fileName`, `ctx.fileHash`, `accountRefSalt` |
+| `rowHash` (em `sourceRows[]`) | H(conteúdo da linha: conta via ref, estratégia, ativo, direção, qtd, horário **cru** + UTC, preços, rótulos, P&L declarado, comissão, taxas, MAE/MFE/ETD, barras). **Sem** nº da linha e **sem** acumulado (dependem da ordem) |
+| `tradeId` | `trd_` + H(importId + granularidade + identidade da reconstrução [método + `RECONSTRUCTION_VERSION`, só p/ ciclos] + `rowHash`es ordenados + ordinal de duplicata). Sem UUID/random |
+| `account.ref` | `acc_` + 24 hex de H(domínio + sal + nome aparado). **Pseudônimo, não segredo**; passar `accountRefSalt` (ex.: id do usuário) para não ser igual entre usuários |
+
+Decisões tomadas no E1 (revisáveis):
+- **O id é por import.** Reordenar as linhas do arquivo (ou qualquer byte novo) gera outro `importId` e portanto outros `tradeId`; o que permanece invariante é o `rowHash` e a composição dos ciclos. Dedupe do mesmo trade entre exports diferentes/sobrepostos **não** foi decidido (usar `rowHash` quando chegar a hora).
+- `exitReasonMap` do usuário **não** entra no `tradeId` (reclassificar rótulo não troca o trade); `RECONSTRUCTION_VERSION` (em `reconstruct.ts`) **deve subir** quando o algoritmo de ciclos mudar de resultado.
+- Linhas idênticas (mesmo conteúdo, mesmo import) ganham ordinal pelo nº da linha: não colidem e são determinísticas.
+- `toAnalyticsTrades` passou a preferir `trade.tradeId` (fallback posicional continua para trades sem identidade).
+- `tradeSetHash` (hash53) **não** mudou — vai para SHA-256 no E2.

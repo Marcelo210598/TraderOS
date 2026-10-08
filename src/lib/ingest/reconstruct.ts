@@ -125,6 +125,9 @@ export function checkAccumulatedIntegrity(rows: LotRow[]): { status: Integrity; 
 
 // ── reconstrução ─────────────────────────────────────────────────────────────
 
+/** Versão do algoritmo de ciclos. Entra na identidade do trade: mudou o resultado do algoritmo ⇒ subir aqui. */
+export const RECONSTRUCTION_VERSION = "1"
+
 export function reconstructCycles(rows: LotRow[], opts: ReconstructOptions = {}): ReconstructResult {
   const passthrough: CanonicalTrade[] = []
   const usable: Item[] = []
