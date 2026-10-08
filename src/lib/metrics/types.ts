@@ -155,10 +155,12 @@ export interface DataQuality {
 export interface Population {
   inputTrades: number
   afterFilters: number
-  /** Hash determinístico do conjunto (ids + valores relevantes), independente da ordem de entrada. */
+  /** SHA-256 (hex, 64) do conjunto COMPLETO: identidade, linhas de origem (rowHash), reconstrução e valores. Independe da ordem e do limite de `tradeIds`. */
   tradeSetHash: string
   /** Ids (ordenados) quando afterFilters ≤ tradeIdsLimit; senão null (use o hash). */
   tradeIds: string[] | null
+  /** Quantos trades da população têm identidade determinística (tradeId + importId). Sem ela a proveniência é incompleta. */
+  provenance: { withIdentity: number; withoutIdentity: number }
   filterReport: FilterReport
 }
 

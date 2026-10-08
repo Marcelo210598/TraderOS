@@ -258,7 +258,7 @@ Decisões aprovadas:
 
 Campos mínimos: **ImportRef** (importId, platform, parserId/Version, reconstructionMethod/Version, fileName, fileSha256, fileBytes, encoding, lineEnding, rowsRead/Accepted/Rejected, sourceTz, sourceTzOrigin, dateOrder, numberLocale, excursionUnit, declaredPnlBasis, resumo da reconstrução, importedAt) · **SourceRowRef** (importId, rowNo, rowHash, reportedProfit, commission, fees, quantity, preços, rótulos, MAE/MFE/ETD crus) · **TradeEvidence** (tradeId, importId, instrumento, direção, qty, pico, entradas/saídas, pnl{net,gross,commission,fees,basis,basisSource}, legs+rowRefs+label+reasonRule, reconstruction, excursions, issues, fieldProvenance, sourceRows) · **MetricEvidence** (metricId, definitionVersion, engineVersion, value, unit, basis, sampleSize, coverage, reason, query/filtros/opções/timeZone/groupKey, period, population{inputTrades, afterFilters, tradeSetHash, tradeIds, filterReport}, contributors, dataQuality, warnings) · **EvidenceBundle** (`evidence/1`, claim, subject, evidence, evidenceHash).
 
-Lacunas conhecidas (G1–G9): id posicional; sem ImportRecord/SHA-256/encoding/importId/versão do motor; sem `rowHash`; `tradeSetHash` = hash53 e fingerprint incompleto; sem mapa de contribuintes; sem dimensão/métrica por motivo de saída (P&L por motivo existe só por perna, `exitLegs[].pnl`); confiança/ambiguidade/completude não sobem para a Evidence individual; sem claim nem schema versionado; privacidade de `account.sourceName`. Plano E1–E6 e retomada: `MEUTRADE-CHECKPOINT-2026-10-01.md`.
+Lacunas conhecidas (G1–G9): id posicional; sem ImportRecord/SHA-256/encoding/importId/versão do motor; sem `rowHash`; `tradeSetHash` = hash53 e fingerprint incompleto (**fechado no E2**); sem mapa de contribuintes; sem dimensão/métrica por motivo de saída (P&L por motivo existe só por perna, `exitLegs[].pnl`); confiança/ambiguidade/completude não sobem para a Evidence individual; sem claim nem schema versionado; privacidade de `account.sourceName`. Plano E1–E6 e retomada: `MEUTRADE-CHECKPOINT-2026-10-01.md`.
 
 ### 14.1 E1 — identidade e import (IMPLEMENTADO em 2026-10-08)
 
@@ -277,4 +277,20 @@ Decisões tomadas no E1 (revisáveis):
 - `exitReasonMap` do usuário **não** entra no `tradeId` (reclassificar rótulo não troca o trade); `RECONSTRUCTION_VERSION` (em `reconstruct.ts`) **deve subir** quando o algoritmo de ciclos mudar de resultado.
 - Linhas idênticas (mesmo conteúdo, mesmo import) ganham ordinal pelo nº da linha: não colidem e são determinísticas.
 - `toAnalyticsTrades` passou a preferir `trade.tradeId` (fallback posicional continua para trades sem identidade).
-- `tradeSetHash` (hash53) **não** mudou — vai para SHA-256 no E2.
+- `tradeSetHash` ainda era hash53 no E1 — trocado no E2 (§14.2).
+
+### 14.2 E2 — schema `evidence/1` e hashes (IMPLEMENTADO em 2026-10-08)
+
+Código: `src/lib/evidence/` (`schema.ts`, `hash.ts`, `redact.ts`) · testes `scripts/test-evidence-schema.mts`. **Só o formato e os hashes**: ainda não há geradores (E3 `explainTrade`, E4 `explainMetric`, E5 `verifyEvidence`). Fecha G4 e G8 (formato).
+
+**`tradeSetHash` agora é SHA-256 (hex, 64)** em `MetricsResult.population` e em cada `GroupResult` — um único hash canônico; `hash53` foi **removido** (`exact.ts`). Nenhum consumidor fora de testes/docs existia (busca no projeto). Cobre a população **completa**; `tradeIds` continua limitado a `tradeIdsLimit` (500) só para listagem — acima disso `tradeIds = null` e vale o hash. Independe da ordem dos trades e do limite.
+
+Entrada de cada trade no fingerprint: `id` do motor · `tradeId` · `importId` · granularidade · `rowHash`es (ordenados) · identidade da reconstrução (método, confiança, completude, integridade, códigos de ambiguidade) · valores (net, gross, comissão, taxas, R, instantes). Entradas ordenadas pelo JSON canônico antes do hash.
+
+**Fallback sem identidade:** trade sem `tradeId`/`importId` continua entrando (id posicional `<fileHash|file>:<linha>`), mas `Population.provenance = { withIdentity, withoutIdentity }` e o aviso `W_TRADE_IDENTITY_MISSING` (INFO) sinalizam a proveniência incompleta. Os números das métricas não mudam.
+
+**`evidence/1`** (`EvidenceBundle`: `schema, claim, subject, evidence{imports, trades, metrics}, evidenceHash`): todos os objetos são `strict` (campo não previsto é rejeitado). Reaproveita `ImportRecord`, `SourceRow` (+`importId`, `rowHash` obrigatório), `Pnl`, legs etc. do canonical. `evidenceHash` = SHA-256 do JSON canônico do bundle **sem** `evidenceHash`, `imports[].importedAt` e `metrics[].computedAt`, com `imports` (por importId), `trades` (por tradeId) e `metrics` (por JSON canônico) em ordem canônica.
+
+**Privacidade:** `TradeEvidence` só tem `accountRef`; **não existe** `sourceName`. Atenção: no Canonical o nome da conta também aparece em `reconstruction.cycleKey.account` — na Evidence esse campo vira `cycleKey.accountRef` (`redactReconstruction` em `redact.ts`; o schema recusa a forma não redigida). **Pendente para o E4:** `MetricEvidence.query.filters.account` e `groupKey` (dimensão `account`) podem carregar o nome da conta quando a consulta filtra/agrupa por conta — o gerador precisa trocá-los por `accountRef`.
+
+`MetricEvidence.contributors` existe só como formato opcional (G5): quem preenche é o E4.

@@ -3,7 +3,6 @@ import assert from "node:assert/strict"
 import {
   fromCents,
   fromRScaled,
-  hash53,
   meanScaled,
   medianScaled,
   percent,
@@ -82,12 +81,6 @@ test("percent e ratio: por inteiros (57,4% de 143 trades…), null sem denominad
   assert.equal(percent(0, 0), null)
   assert.equal(ratio(18900, 8600), 2.1977)
   assert.equal(ratio(1, 0), null)
-})
-
-test("hash53: determinístico e sensível a qualquer mudança", () => {
-  assert.equal(hash53("abc"), hash53("abc"))
-  assert.notEqual(hash53("abc"), hash53("abd"))
-  assert.equal(hash53("").length, 14)
 })
 
 // ── drawdown ─────────────────────────────────────────────────────────────────

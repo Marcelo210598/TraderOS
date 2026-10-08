@@ -2,12 +2,12 @@
 // Nenhuma métrica "inventa": sem dado ⇒ value = null + reason, com cobertura explícita (used/total).
 // Fórmulas e unidades: catalog.ts e docs/ai-partner/data-contract.md §Métricas.
 
+import { hasIdentity, tradeFingerprint, tradeSetHash } from "../evidence/hash.ts"
 import { DEFINITION_VERSION, METRIC_IDS } from "./catalog.ts"
 import {
   fromCents,
   fromRScaled,
   fromScaled,
-  hash53,
   meanScaled,
   medianScaled,
   percent,
@@ -263,7 +263,7 @@ function dataQualityOf(rows: TradeRow[]): DataQuality {
   }
 }
 
-function warningsOf(q: DataQuality, o: ResolvedOptions, report: FilterReport, afterFilters: number, classified: number): MetricWarning[] {
+function warningsOf(q: DataQuality, o: ResolvedOptions, report: FilterReport, afterFilters: number, classified: number, withoutIdentity = 0): MetricWarning[] {
   const w: MetricWarning[] = []
   const total = q.pnl.total
   const w_ = (code: string, message: string, metric?: string, severity: MetricWarning["severity"] = "WARNING") => w.push({ code, severity, message, ...(metric ? { metric } : {}) })
@@ -288,6 +288,7 @@ function warningsOf(q: DataQuality, o: ResolvedOptions, report: FilterReport, af
   }
   if (q.reconstruction.lowConfidence > 0) w_("W_RECONSTRUCTION_LOW_CONFIDENCE", `${q.reconstruction.lowConfidence} de ${g.positionCycles} ciclos têm reconstrução de baixa confiança (ambiguidade registrada no próprio ciclo); entram nas métricas, sinalizados.`, "totalTrades")
   if (q.reconstruction.unverifiedEdges > 0) w_("W_RECONSTRUCTION_UNVERIFIED_EDGES", `${q.reconstruction.unverifiedEdges} de ${g.positionCycles} ciclos têm borda não verificável (podem ter começado antes do período ou continuar abertos); entram nas métricas, sinalizados.`, "totalTrades", "INFO")
+  if (withoutIdentity > 0) w_("W_TRADE_IDENTITY_MISSING", `${withoutIdentity} de ${afterFilters} trades não têm identidade determinística (tradeId/importId): a proveniência até a linha do arquivo está incompleta e o id usado é posicional.`, undefined, "INFO")
   const unknownExcluded = Object.values(report.excluded).reduce((a, e) => a + (e?.unknown ?? 0), 0)
   if (unknownExcluded > 0) w_("W_FILTER_EXCLUDED_UNKNOWN", `${unknownExcluded} trades foram excluídos pelos filtros por terem o atributo filtrado desconhecido.`, undefined, "INFO")
   return w
@@ -297,18 +298,16 @@ function warningsOf(q: DataQuality, o: ResolvedOptions, report: FilterReport, af
 
 function populationOf(kept: TradeRow[], inputCount: number, report: FilterReport, o: ResolvedOptions): Population {
   const ids = kept.map((r) => r.id).sort()
-  const fingerprint = [...kept]
-    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((r) => {
-      const t = r.src.trade
-      return [r.id, t.pnl.net, t.pnl.gross, t.pnl.commission, t.pnl.fees, t.r.net, t.r.points, t.entry.at.instantUtc ?? t.entry.at.localDate, t.exit.at.instantUtc].join("|")
-    })
-    .join("\n")
+  // O hash cobre a população COMPLETA (nunca é truncado pelo limite de `tradeIds`) e é SHA-256 (evidence/hash.ts):
+  // identidade (tradeId/importId), linhas de origem (rowHash), reconstrução e os valores que alimentam as métricas.
+  const fingerprints = kept.map((r) => tradeFingerprint(r.id, r.src.trade))
+  const withIdentity = fingerprints.filter(hasIdentity).length
   return {
     inputTrades: inputCount,
     afterFilters: kept.length,
-    tradeSetHash: hash53(fingerprint),
+    tradeSetHash: tradeSetHash(fingerprints),
     tradeIds: kept.length <= o.tradeIdsLimit ? ids : null,
+    provenance: { withIdentity, withoutIdentity: kept.length - withIdentity },
     filterReport: report,
   }
 }
@@ -327,15 +326,16 @@ function periodOf(rows: TradeRow[]): Period {
 function buildResult(kept: TradeRow[], inputCount: number, report: FilterReport, f: TradeFilters, o: ResolvedOptions): MetricsResult {
   const metrics = computeMetricSet(kept, o)
   const quality = dataQualityOf(kept)
+  const population = populationOf(kept, inputCount, report, o)
   return {
     schema: RESULT_SCHEMA,
     engineVersion: ENGINE_VERSION,
     query: { filters: f, options: o },
-    population: populationOf(kept, inputCount, report, o),
+    population,
     period: periodOf(kept),
     metrics,
     dataQuality: quality,
-    warnings: warningsOf(quality, o, report, kept.length, metrics.classifiedTrades.value ?? 0),
+    warnings: warningsOf(quality, o, report, kept.length, metrics.classifiedTrades.value ?? 0, population.provenance.withoutIdentity),
   }
 }
 

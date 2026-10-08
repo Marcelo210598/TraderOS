@@ -306,7 +306,8 @@ test("EVIDÊNCIA: cada número carrega métrica, valor, amostra, cobertura, base
   assert.deepEqual(r.period, { fromLocalDate: "2026-01-12", toLocalDate: "2026-01-14", fromInstantUtc: "2026-01-12T15:10:00.000Z", toInstantUtc: "2026-01-15T00:00:00.000Z" })
   assert.equal(r.population.inputTrades, 10)
   assert.equal(r.population.afterFilters, 4)
-  assert.equal(r.population.tradeSetHash.length, 14)
+  assert.match(r.population.tradeSetHash, /^[0-9a-f]{64}$/)
+  assert.deepEqual(r.population.provenance, { withIdentity: 0, withoutIdentity: 4 }) // trades sintéticos sem identidade do pipeline
 })
 
 test("EVIDÊNCIA: acima do limite só o hash (sem a lista de ids); o hash identifica o MESMO conjunto", () => {
