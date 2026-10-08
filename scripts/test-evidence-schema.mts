@@ -5,10 +5,11 @@ import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import type { CanonicalTrade } from "../src/lib/domain/canonical.ts"
 import { computeEvidenceHash, EVIDENCE_SCHEMA, sealEvidence, tradeFingerprint, tradeSetHash } from "../src/lib/evidence/hash.ts"
+import { explainMetric, type ExplainMetricOk } from "../src/lib/evidence/explain-metric.ts"
 import { explainTrades } from "../src/lib/evidence/explain-trade.ts"
 import { EvidenceBundleSchema, MetricEvidenceSchema, TradeEvidenceSchema, type EvidenceBundle, type MetricEvidence, type TradeEvidence } from "../src/lib/evidence/schema.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
-import { aggregateTrades, calculateMetrics, toAnalyticsTrades } from "../src/lib/metrics/index.ts"
+import { aggregateTrades, calculateMetrics, calculateMetricsTraced, toAnalyticsTrades } from "../src/lib/metrics/index.ts"
 
 const CSV = readFileSync(fileURLToPath(new URL("../fixtures/_synthetic/ninjatrader-ptbr-cycles.csv", import.meta.url)), "utf8")
 const imp = runImportPipeline(CSV, { sourceTz: "America/Sao_Paulo", fileName: "cycles.csv" })
@@ -34,25 +35,11 @@ const explained = explainTrades(trades, imp.importRecord!).map((r) => {
 const tradeEvidenceOf = (t: CanonicalTrade): TradeEvidence => explained[trades.indexOf(t)].tradeEvidence
 
 function metricEvidenceOf(metricId: string, computedAt: string | null = null): MetricEvidence {
-  const r = calculateMetrics(toAnalyticsTrades(trades))
-  const m = r.metrics[metricId]
-  return {
-    metricId,
-    definitionVersion: m.definitionVersion,
-    engineVersion: r.engineVersion,
-    value: m.value,
-    unit: m.unit,
-    basis: m.basis,
-    sampleSize: m.sampleSize,
-    coverage: m.coverage,
-    reason: m.reason,
-    query: { filters: r.query.filters as Record<string, unknown>, options: r.query.options as unknown as Record<string, unknown>, timeZone: r.query.options.timeZone, groupKey: null },
-    period: r.period,
-    population: { ...r.population, filterReport: r.population.filterReport as unknown as Record<string, unknown> },
-    dataQuality: r.dataQuality as unknown as Record<string, unknown>,
-    warnings: r.warnings,
-    computedAt,
-  }
+  const analytics = toAnalyticsTrades(trades)
+  const { result, trace } = calculateMetricsTraced(analytics)
+  const r = explainMetric({ metricId, source: { kind: "METRICS", result, trace }, trades: analytics, importRecords: [imp.importRecord!] })
+  assert.equal(r.ok, true, r.ok ? "" : r.message)
+  return { ...(r as ExplainMetricOk).metricEvidence, computedAt }
 }
 
 const unsealed = (importedAt: string | null = null, computedAt: string | null = null): Omit<EvidenceBundle, "evidenceHash"> => ({

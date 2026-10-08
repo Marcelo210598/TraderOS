@@ -3,6 +3,7 @@
 // Fórmulas e unidades: catalog.ts e docs/ai-partner/data-contract.md §Métricas.
 
 import { hasIdentity, tradeFingerprint, tradeSetHash } from "../evidence/hash.ts"
+import { TraceBuilder, type AggregateTrace, type MetricsTrace, type TraceItem } from "./trace.ts"
 import { DEFINITION_VERSION, METRIC_IDS } from "./catalog.ts"
 import {
   fromCents,
@@ -45,9 +46,12 @@ type Basis = MetricValue["basis"]
 
 // ── conjunto de métricas sobre linhas já filtradas ───────────────────────────
 
-export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<string, MetricValue> {
+export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions, trace?: TraceBuilder): Record<string, MetricValue> {
   const total = rows.length
   const out: Record<string, MetricValue> = {}
+  // Trace (G5): REGISTRA os mesmos conjuntos que as fórmulas abaixo já usam; não calcula nada. Sem `trace` é no-op.
+  const ids = (xs: Array<{ id: string }>): TraceItem[] => xs.map((x) => ({ id: x.id }))
+  const ranked = (xs: Array<{ id: string }>, first = 1): TraceItem[] => xs.map((x, i) => ({ id: x.id, rank: first + i }))
   const mk = (
     metric: string,
     unit: MetricUnit,
@@ -83,6 +87,7 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<s
   const noPnl = "NO_PNL_DATA"
 
   mk("totalTrades", "count", total, total, null)
+  trace?.notApplicable("totalTrades")
   mk("classifiedTrades", "count", n, n, pb)
   mk("winners", "count", n === 0 ? null : wins.length, n, pb, noPnl)
   mk("losers", "count", n === 0 ? null : losses.length, n, pb, noPnl)
@@ -90,11 +95,34 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<s
   mk("winRate", "percent", percent(wins.length, n), n, pb, noPnl)
   mk("lossRate", "percent", percent(losses.length, n), n, pb, noPnl)
   mk("breakevenRate", "percent", percent(bes.length, n), n, pb, noPnl)
+  if (trace) {
+    const inCls = new Set<TradeRow>(cls)
+    const noPnlRows = rows.filter((r) => !inCls.has(r))
+    for (const metric of ["classifiedTrades", "winRate", "lossRate", "breakevenRate"]) {
+      trace.add(metric, "WINNER", ids(wins))
+      trace.add(metric, "LOSER", ids(losses))
+      trace.add(metric, "BREAKEVEN", ids(bes))
+      trace.add(metric, "EXCLUDED_NO_PNL", ids(noPnlRows))
+    }
+    trace.add("winners", "WINNER", ids(wins))
+    trace.add("losers", "LOSER", ids(losses))
+    trace.add("breakeven", "BREAKEVEN", ids(bes))
+  }
 
   // ── totais por componente (cada um só sobre quem tem aquele dado) ──────────
   const known = (get: (r: TradeRow) => number | null) => {
-    const xs = rows.map(get).filter((x): x is number => x !== null)
-    return { n: xs.length, sum: sum(xs) }
+    const xs: number[] = []
+    const inc: TradeRow[] = []
+    const exc: TradeRow[] = []
+    for (const r of rows) {
+      const v = get(r)
+      if (v === null) exc.push(r)
+      else {
+        xs.push(v)
+        inc.push(r)
+      }
+    }
+    return { n: xs.length, sum: sum(xs), inc, exc }
   }
   const g = known((r) => r.grossC)
   const nt = known((r) => r.netC)
@@ -104,6 +132,12 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<s
   mk("netPnl", "usd", nt.n ? fromCents(nt.sum) : null, nt.n, "NET", "NO_NET_PNL")
   mk("commission", "usd", cm.n ? fromCents(cm.sum) : null, cm.n, null, "NO_COMMISSION_DATA")
   mk("fees", "usd", fe.n ? fromCents(fe.sum) : null, fe.n, null, "NO_FEES_DATA")
+  if (trace) {
+    for (const [metric, k] of [["grossPnl", g], ["netPnl", nt], ["commission", cm], ["fees", fe]] as const) {
+      trace.add(metric, "INCLUDED", ids(k.inc))
+      trace.add(metric, "EXCLUDED_UNKNOWN", ids(k.exc))
+    }
+  }
 
   // ── P&L da base escolhida ──────────────────────────────────────────────────
   const sumW = sum(wins.map((r) => r.pnlC))
@@ -116,6 +150,13 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<s
   const avgL = meanScaled(losses.map((r) => r.pnlC))
   mk("averageWinner", "usd", avgW === null ? null : fromCents(avgW), wins.length, pb, "NO_WINNERS")
   mk("averageLoser", "usd", avgL === null ? null : fromCents(avgL), losses.length, pb, "NO_LOSERS")
+  if (trace) {
+    trace.add("winnersTotal", "WINNER", ids(wins))
+    trace.add("averageWinner", "WINNER", ids(wins))
+    trace.add("losersTotal", "LOSER", ids(losses))
+    trace.add("averageLoser", "LOSER", ids(losses))
+    trace.add("averageTrade", "INCLUDED", ids(cls))
+  }
 
   // Empates entre extremos desempatam por id (independe da ordem de entrada dos dados).
   const byIdAsc = (a: TradeRow, b: TradeRow) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
@@ -131,6 +172,18 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<s
   const top3 = rankedWins.slice(0, 3)
   mk("largestWinnerSharePct", "percent", best ? percent(best.pnlC, sumW) : null, wins.length, pb, "NO_WINNERS")
   mk("top3WinnersSharePct", "percent", best ? percent(sum(top3.map((r) => r.pnlC)), sumW) : null, wins.length, pb, "NO_WINNERS", best ? { tradeIds: top3.map((r) => r.id) } : undefined)
+  if (trace) {
+    trace.add("largestWinner", "LARGEST_WINNER", best ? ranked([best]) : [])
+    trace.add("largestLoser", "LARGEST_LOSER", worst ? ranked([worst]) : [])
+    for (const metric of ["payoffRatio", "profitFactor"]) {
+      trace.add(metric, "WINNER", ids(wins))
+      trace.add(metric, "LOSER", ids(losses))
+    }
+    trace.add("largestWinnerSharePct", "LARGEST_WINNER", best ? ranked([best]) : [])
+    trace.add("largestWinnerSharePct", "WINNER", ids(wins))
+    trace.add("top3WinnersSharePct", "TOP_WINNER", ranked(top3))
+    trace.add("top3WinnersSharePct", "WINNER", ids(wins))
+  }
 
   // ── R (somente trades com R conhecido — nunca inferido) ────────────────────
   const rRows = rows.filter((r): r is TradeRow & { rS: number } => r.rS !== null)
@@ -153,6 +206,21 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<s
   const avgLR = meanScaled(rNeg)
   mk("averageWinnerR", "R", avgWR === null ? null : fromRScaled(avgWR), rPos.length, rb, m ? "NO_WINNING_R" : noR)
   mk("averageLoserR", "R", avgLR === null ? null : fromRScaled(avgLR), rNeg.length, rb, m ? "NO_LOSING_R" : noR)
+  if (trace) {
+    const rZero = rRows.filter((r) => r.rS === 0)
+    const rPosRows = rRows.filter((r) => r.rS > 0)
+    const rNegRows = rRows.filter((r) => r.rS < 0)
+    const rUnknown = rows.filter((r) => r.rS === null)
+    for (const metric of ["totalR", "averageR", "winRateR", "expectancyR"]) {
+      trace.add(metric, "R_POSITIVE", ids(rPosRows))
+      trace.add(metric, "R_NEGATIVE", ids(rNegRows))
+      trace.add(metric, "R_ZERO", ids(rZero))
+      trace.add(metric, "EXCLUDED_R_UNKNOWN", ids(rUnknown))
+    }
+    trace.add("averageWinnerR", "R_POSITIVE", ids(rPosRows))
+    trace.add("averageLoserR", "R_NEGATIVE", ids(rNegRows))
+    trace.notApplicable("medianR")
+  }
   // expectancy = pW·avgWinnerR + pL·avgLoserR ≡ Σ R / m (identidade; calculada pela soma exata p/ não acumular erro)
   mk(
     "expectancyR",
@@ -181,6 +249,17 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<s
   mk("maxDrawdown", "usd", n ? fromCents(dd.maxDrawdown) : null, n, pb, noPnl, ddDetails)
   mk("currentDrawdown", "usd", n ? fromCents(dd.currentDrawdown) : null, n, pb, noPnl)
   mk("recoveryFactor", "ratio", n && dd.maxDrawdown > 0 ? ratio(dd.finalEquity, dd.maxDrawdown) : null, n, pb, n ? "NO_DRAWDOWN" : noPnl)
+  /** Pico / janela (exclusiva) / vale / recuperação do MAIOR drawdown, pelos mesmos índices que `drawdown()` devolveu. Rank = posição na sequência de saída. */
+  const traceDrawdown = (metric: string, seqItems: Array<{ id: string }>, d: ReturnType<typeof drawdown>): void => {
+    if (!trace) return
+    trace.add(metric, "DRAWDOWN_PEAK", d.maxDrawdown > 0 && d.peakIndex >= 0 ? ranked([seqItems[d.peakIndex]], d.peakIndex + 1) : [])
+    trace.add(metric, "DRAWDOWN_WINDOW", d.maxDrawdown > 0 ? ranked(seqItems.slice(d.peakIndex + 1, d.troughIndex), d.peakIndex + 2) : [])
+    trace.add(metric, "DRAWDOWN_TROUGH", d.maxDrawdown > 0 ? ranked([seqItems[d.troughIndex]], d.troughIndex + 1) : [])
+    trace.add(metric, "DRAWDOWN_RECOVERY", d.maxDrawdown > 0 && d.recoveredIndex !== null ? ranked([seqItems[d.recoveredIndex]], d.recoveredIndex + 1) : [])
+  }
+  traceDrawdown("maxDrawdown", seq, dd)
+  trace?.notApplicable("currentDrawdown")
+  trace?.notApplicable("recoveryFactor")
 
   const rSeq = sequenceOrder(rRows).map((r) => ({ id: r.id, v: r.rS }))
   const ddR = drawdown(rSeq)
@@ -196,7 +275,15 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<s
       : rDetails,
   )
 
+  traceDrawdown("maxDrawdownR", rSeq, ddR)
+
   const st = streaks(seq)
+  if (trace) {
+    trace.add("maxConsecutiveWins", "STREAK_RUN", st.maxWins ? ranked(seq.slice(st.maxWinsStart, st.maxWinsStart + st.maxWins), st.maxWinsStart + 1) : [])
+    trace.add("maxConsecutiveLosses", "STREAK_RUN", st.maxLosses ? ranked(seq.slice(st.maxLossesStart, st.maxLossesStart + st.maxLosses), st.maxLossesStart + 1) : [])
+    const curFrom = seq.length - st.currentLength
+    trace.add("currentStreak", "STREAK_RUN", st.currentType !== null && st.currentLength > 0 ? ranked(seq.slice(curFrom), curFrom + 1) : [])
+  }
   mk("maxConsecutiveWins", "count", n ? st.maxWins : null, n, pb, noPnl, st.maxWins ? { startTradeId: seq[st.maxWinsStart].id } : undefined)
   mk("maxConsecutiveLosses", "count", n ? st.maxLosses : null, n, pb, noPnl, st.maxLosses ? { startTradeId: seq[st.maxLossesStart].id } : undefined)
   mk(
@@ -221,6 +308,9 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions): Record<s
   mk("totalPoints", "points", pointsReason ? null : fromScaled(sum(pts), 6), pointsReason ? 0 : total, null, pointsReason ?? undefined, ptsDetails)
   const avgPts = pointsReason ? null : meanScaled(pts)
   mk("averagePoints", "points", avgPts === null ? null : fromScaled(avgPts, 6), pointsReason ? 0 : total, null, pointsReason ?? undefined, ptsDetails)
+  if (trace) {
+    for (const metric of ["totalPoints", "averagePoints"]) trace.add(metric, pointsReason ? "EXCLUDED_UNKNOWN" : "INCLUDED", ids(rows))
+  }
 
   return out
 }
@@ -323,8 +413,8 @@ function periodOf(rows: TradeRow[]): Period {
   }
 }
 
-function buildResult(kept: TradeRow[], inputCount: number, report: FilterReport, f: TradeFilters, o: ResolvedOptions): MetricsResult {
-  const metrics = computeMetricSet(kept, o)
+function buildResult(kept: TradeRow[], inputCount: number, report: FilterReport, f: TradeFilters, o: ResolvedOptions, trace?: TraceBuilder): MetricsResult {
+  const metrics = computeMetricSet(kept, o, trace)
   const quality = dataQualityOf(kept)
   const population = populationOf(kept, inputCount, report, o)
   return {
@@ -341,12 +431,27 @@ function buildResult(kept: TradeRow[], inputCount: number, report: FilterReport,
 
 /** calculateMetrics(trades, { filters?, ...opções }) → MetricsResult (auditável: filtros, período, amostra, cobertura, qualidade). */
 export function calculateMetrics(trades: AnalyticsTrade[], args: { filters?: TradeFilters } & AnalysisOptions = {}): MetricsResult {
+  return runMetrics(trades, args, false).result
+}
+
+/**
+ * Mesmo cálculo de `calculateMetrics` (MESMO caminho de código) + o trace dos contribuintes registrado na mesma passada.
+ * `result` é idêntico ao de `calculateMetrics`; o trace só ALIMENTA a Evidence (explainMetric), não participa de nenhuma conta.
+ */
+export function calculateMetricsTraced(trades: AnalyticsTrade[], args: { filters?: TradeFilters } & AnalysisOptions = {}): { result: MetricsResult; trace: MetricsTrace } {
+  const r = runMetrics(trades, args, true)
+  return { result: r.result, trace: r.trace as MetricsTrace }
+}
+
+function runMetrics(trades: AnalyticsTrade[], args: { filters?: TradeFilters } & AnalysisOptions, traced: boolean): { result: MetricsResult; trace: MetricsTrace | null } {
   const { filters, ...opts } = args
   const o = resolveOptions(opts)
   const f = normalizeFilters(filters)
   const rows = prepareTrades(trades, o)
   const { rows: kept, report } = applyFilters(rows, f)
-  return buildResult(kept, rows.length, report, f, o)
+  const builder = traced ? new TraceBuilder(o.tradeIdsLimit, kept.length) : undefined
+  const result = buildResult(kept, rows.length, report, f, o, builder)
+  return { result, trace: builder ? builder.build() : null }
 }
 
 // ── agrupamento ──────────────────────────────────────────────────────────────
@@ -399,6 +504,23 @@ export function aggregateTrades(
   trades: AnalyticsTrade[],
   args: { groupBy: Dimension | Dimension[]; filters?: TradeFilters; metrics?: string[] } & AnalysisOptions,
 ): AggregateResult {
+  return runAggregate(trades, args, false).result
+}
+
+/** Mesmo cálculo de `aggregateTrades` (mesmo caminho) + trace do total e de cada grupo. `result` é idêntico ao de `aggregateTrades`. */
+export function aggregateTradesTraced(
+  trades: AnalyticsTrade[],
+  args: { groupBy: Dimension | Dimension[]; filters?: TradeFilters; metrics?: string[] } & AnalysisOptions,
+): { result: AggregateResult; trace: AggregateTrace } {
+  const r = runAggregate(trades, args, true)
+  return { result: r.result, trace: r.trace as AggregateTrace }
+}
+
+function runAggregate(
+  trades: AnalyticsTrade[],
+  args: { groupBy: Dimension | Dimension[]; filters?: TradeFilters; metrics?: string[] } & AnalysisOptions,
+  traced: boolean,
+): { result: AggregateResult; trace: AggregateTrace | null } {
   const { groupBy, filters, metrics: metricIds, ...opts } = args
   const dims = Array.isArray(groupBy) ? groupBy : [groupBy]
   if (dims.length === 0) throw new MetricsInputError("E_GROUPBY_INVALID", "groupBy vazio.")
@@ -409,7 +531,9 @@ export function aggregateTrades(
   const f = normalizeFilters(filters)
   const rows = prepareTrades(trades, o)
   const { rows: kept, report } = applyFilters(rows, f)
-  const total = buildResult(kept, rows.length, report, f, o)
+  const totalBuilder = traced ? new TraceBuilder(o.tradeIdsLimit, kept.length) : undefined
+  const total = buildResult(kept, rows.length, report, f, o, totalBuilder)
+  const groupTraces: AggregateTrace["groups"] = []
 
   const buckets = new Map<string, { key: Array<string | null>; rows: TradeRow[] }>()
   for (const r of kept) {
@@ -423,15 +547,18 @@ export function aggregateTrades(
   const groups: GroupResult[] = [...buckets.values()]
     .sort((a, b) => compareKeys(a.key, b.key))
     .map((b) => {
-      const all = computeMetricSet(b.rows, o)
+      const groupBuilder = traced ? new TraceBuilder(o.tradeIdsLimit, b.rows.length) : undefined
+      const all = computeMetricSet(b.rows, o, groupBuilder)
       const picked = metricIds ? Object.fromEntries(metricIds.map((id) => [id, all[id]])) : all
       const size = b.rows.length
+      const groupPopulation = populationOf(b.rows, size, { input: size, kept: size, excluded: {} }, o)
+      if (groupBuilder) groupTraces.push({ trace: groupBuilder.build(), population: groupPopulation })
       return {
         key: b.key,
         label: b.key.map((k, i) => DIMENSIONS[dims[i]].label(k)).join(" · "),
         sampleSize: size,
         sampleFlag: size < MIN_BUCKET ? "TINY" : size < o.minSample ? "LOW" : "OK",
-        tradeSetHash: populationOf(b.rows, size, { input: size, kept: size, excluded: {} }, o).tradeSetHash,
+        tradeSetHash: groupPopulation.tradeSetHash,
         metrics: picked,
       }
     })
@@ -450,7 +577,7 @@ export function aggregateTrades(
     warnings.push({ code: "W_LOW_SAMPLE_GROUPS", severity: "INFO", message: `${lowGroups} de ${groups.length} grupos têm amostra pequena (< ${o.minSample}); grupos com < ${MIN_BUCKET} trades são só ilustrativos.` })
   }
 
-  return {
+  const result: AggregateResult = {
     schema: AGGREGATE_SCHEMA,
     engineVersion: ENGINE_VERSION,
     query: { filters: f, options: o, groupBy: dims, metricIds: metricIds ?? null },
@@ -458,6 +585,7 @@ export function aggregateTrades(
     groups,
     warnings,
   }
+  return { result, trace: totalBuilder ? { total: totalBuilder.build(), groups: groupTraces } : null }
 }
 
 /** R por trade (auditável): quais trades têm R, qual valor e, se não têm, POR QUÊ. Nunca estima. */

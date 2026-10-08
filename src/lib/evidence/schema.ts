@@ -14,6 +14,7 @@ import {
   ReconstructionSchema,
   TimeValueSchema,
 } from "../domain/canonical.ts"
+import { CONTRIBUTOR_ROLES } from "../metrics/trace.ts"
 import { EVIDENCE_SCHEMA } from "./hash.ts"
 
 export { EVIDENCE_SCHEMA }
@@ -125,23 +126,58 @@ const MetricPopulationSchema = z
   })
   .strict()
 
+export const ContributorRoleSchema = z.enum(CONTRIBUTOR_ROLES)
+
+export const ContributorSchema = z.object({ tradeId: z.string(), role: ContributorRoleSchema, rank: z.number().int().optional() }).strict()
+
+/**
+ * Quem contribuiu para o número, EXATAMENTE como o trace do motor registrou (nada reinterpretado).
+ * `applicable: false` = a métrica não tem conjunto natural de contribuintes (totalTrades, medianR…); `complete: false` = população acima
+ * do limite: `items` traz só as âncoras e `roleCounts` continua completo.
+ */
+export const ContributorsEvidenceSchema = z
+  .object({
+    applicable: z.boolean(),
+    complete: z.boolean(),
+    roleCounts: z.partialRecord(ContributorRoleSchema, z.number().int()),
+    items: z.array(ContributorSchema),
+  })
+  .strict()
+export type ContributorsEvidence = z.infer<typeof ContributorsEvidenceSchema>
+
 export const MetricEvidenceSchema = z
   .object({
     metricId: z.string(),
     definitionVersion: z.string(),
     engineVersion: z.string(),
+    /** TOTAL = a população inteira do resultado · GROUP = um grupo do AggregateResult (ver query.groupBy / groupKey). */
+    scope: z.enum(["TOTAL", "GROUP"]),
     value: z.number().nullable(),
     unit: z.string(),
     basis: z.string().nullable(),
     sampleSize: z.number().int(),
     coverage: z.object({ used: z.number().int(), total: z.number().int(), ratio: z.number() }).strict(),
     reason: z.string().nullable(),
-    query: z.object({ filters: z.record(z.string(), z.unknown()), options: z.record(z.string(), z.unknown()), timeZone: z.string(), groupKey: z.array(z.string().nullable()).nullable() }).strict(),
-    period: z.object({ fromLocalDate: z.string().nullable(), toLocalDate: z.string().nullable(), fromInstantUtc: z.string().nullable(), toInstantUtc: z.string().nullable() }).strict(),
+    /** Só em GROUP (OK ≥ minSample · LOW · TINY). */
+    sampleFlag: z.enum(["OK", "LOW", "TINY"]).nullable(),
+    query: z
+      .object({
+        /** Filtros normalizados do motor; `account` (nome) NUNCA aparece: vira `accountRefs`. */
+        filters: z.record(z.string(), z.unknown()),
+        options: z.record(z.string(), z.unknown()),
+        timeZone: z.string(),
+        groupBy: z.array(z.string()).nullable(),
+        /** Valores da chave do grupo na ordem de `groupBy`; dimensão `account` ⇒ accountRef. */
+        groupKey: z.array(z.string().nullable()).nullable(),
+      })
+      .strict(),
+    /** O motor só calcula período/qualidade/avisos para a população TOTAL; em GROUP ficam null (não se inventa). */
+    period: z.object({ fromLocalDate: z.string().nullable(), toLocalDate: z.string().nullable(), fromInstantUtc: z.string().nullable(), toInstantUtc: z.string().nullable() }).strict().nullable(),
     population: MetricPopulationSchema,
-    /** Quem contribuiu (G5). O formato existe; QUEM preenche é o E4. Ausente = ainda não calculado. */
-    contributors: z.array(z.object({ tradeId: z.string(), role: z.string() }).strict()).optional(),
-    dataQuality: z.record(z.string(), z.unknown()),
+    /** FULL = a população está listada (≤ limite) e o bundle traz os TradeEvidence · HASH_ONLY = acima do limite: só o tradeSetHash prova a população. */
+    verifiability: z.enum(["FULL", "HASH_ONLY"]),
+    contributors: ContributorsEvidenceSchema,
+    dataQuality: z.record(z.string(), z.unknown()).nullable(),
     warnings: z.array(z.object({ code: z.string(), severity: z.enum(["WARNING", "INFO"]), message: z.string(), metric: z.string().optional() }).strict()),
     /** Relógio de quem calculou. FORA do hash. */
     computedAt: z.string().nullable().optional(),
