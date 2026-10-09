@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url"
 import type { CanonicalTrade, ImportRecord } from "../src/lib/domain/canonical.ts"
 import { explainMetric, metricEvidenceBundle, type ExplainMetricOk, type ExplainMetricResult, type MetricSource } from "../src/lib/evidence/explain-metric.ts"
 import { explainTrades } from "../src/lib/evidence/explain-trade.ts"
-import { tradeFingerprintFromEvidence, tradeSetHash } from "../src/lib/evidence/hash.ts"
+import { computeEvidenceHash, tradeFingerprint, tradeFingerprintFromEvidence, tradeSetHash } from "../src/lib/evidence/hash.ts"
 import { findAccountNameLeak } from "../src/lib/evidence/redact.ts"
 import { EvidenceBundleSchema, MetricEvidenceSchema } from "../src/lib/evidence/schema.ts"
 import { canonicalJson, sha256Hex } from "../src/lib/infra/hash.ts"
@@ -615,6 +615,80 @@ test("ESTABILIDADE (E5.0): tradeSetHash, resultado do motor e agregado por conta
   assert.equal(sha256Hex(canonicalJson(g)), "f84abf4949a25d6804a2e689350eeb0f5446c8e67103f74f3ff4df0d62edec54")
   // e traced ≡ normal continua valendo
   assert.equal(canonicalJson(calculateMetricsTraced(A).result), canonicalJson(r))
+})
+
+// ── rowHash no fingerprint dos trades SOURCE_ROW (ajuste pós-E5.0) ───────────────────────────────────────────────
+
+test("ROWHASH NO FINGERPRINT (SOURCE_ROW): entra no tradeSetHash nos DOIS caminhos; trocar o rowHash muda o hash; ciclos e métricas ficam idênticos", () => {
+  const rowsImp = runImportPipeline(synthCsv(rowsOf(SPEC)), { sourceTz: BRT, fileName: FILE, reconstructCycles: false })
+  const rowTrades = rowsImp.trades
+  assert.ok(rowTrades.every((t) => t.granularity === "SOURCE_ROW" && typeof t.source.rowHash === "string" && t.source.rowHash.length === 64))
+  const evs = explainTrades(rowTrades, rowsImp.importRecord as ImportRecord).map((r) => ok2(r).tradeEvidence)
+  // canônico: o rowHash do trade-linha entra; evidência: o da única linha TRADE_VALUES — o MESMO
+  rowTrades.forEach((t, i) => {
+    const fp = tradeFingerprint(t.tradeId as string, t)
+    assert.deepEqual(fp.rowHashes, [t.source.rowHash])
+    assert.deepEqual(tradeFingerprintFromEvidence(evs[i]).rowHashes, [t.source.rowHash])
+    assert.equal(canonicalJson(tradeFingerprintFromEvidence(evs[i])), canonicalJson(fp))
+  })
+  // trocar o rowHash (só ele) muda o fingerprint e o tradeSetHash — antes do ajuste isso passava despercebido
+  const base = tradeSetHash(rowTrades.map((t) => tradeFingerprint(t.tradeId as string, t)))
+  const changed = rowTrades.map((t, i) => (i === 3 ? ({ ...t, source: { ...t.source, rowHash: "0".repeat(64) } } as CanonicalTrade) : t))
+  assert.notEqual(tradeSetHash(changed.map((t) => tradeFingerprint(t.tradeId as string, t))), base)
+  // ciclo: fingerprint idêntico ao anterior (os rowHashes já vinham de sourceRows)
+  T.forEach((t) => assert.deepEqual(tradeFingerprint(t.tradeId as string, t).rowHashes, (t.sourceRows ?? []).map((r) => r.rowHash).sort()))
+  // pinado: a população de ciclos NÃO mudou; a de linhas mudou SÓ no hash (metricsSha/valuesSha/groupMetricsSha idênticos aos do commit anterior)
+  assert.equal(calculateMetrics(A).population.tradeSetHash, "7125463aaf3d57b775ab431a76ed5f7660ebd6c30c1a0bf1319cd08f4e178e7a")
+  const Ar = toAnalyticsTrades(rowTrades)
+  const rr = calculateMetrics(Ar)
+  const gr = aggregateTrades(Ar, { groupBy: "account" })
+  assert.equal(rr.population.tradeSetHash, "f6e990c2dea8955b2474fa37e1e2b3ee03884145b5dc6258481a0a3c74ec43b0") // era aba84302… antes do ajuste
+  assert.equal(sha256Hex(canonicalJson(rr.metrics)), "a1f4f77d1a8612db3cee4f7801bf3f9ed5ce9efd2f06e813c1f32f0243a6b765") // valores das métricas: IGUAIS
+  assert.equal(sha256Hex(canonicalJson({ ...rr, population: { ...rr.population, tradeSetHash: null } })), "2e0da9bbdd6dae242a6b286e1b3b6e8bbb17e2749b071be86bd8000db6db134a") // resultado inteiro menos o hash: IGUAL
+  assert.equal(sha256Hex(canonicalJson(gr.groups.map((x) => ({ key: x.key, metrics: x.metrics })))), "f69e0b71717bf29a2c0cb7bff854f43449a7d05cfa5b3cccc5df0579490d9292")
+  assert.deepEqual(gr.groups.map((x) => x.tradeSetHash), ["0f5b2d826a1d1e9bb3512974d19fa4f30d1b98500e191643f6f81a3eec664ca5", "0c177784938c102a52877417ba3d9f51acc38f7e23c0df86dc479b3c053cc3a5"])
+  assert.equal(canonicalJson(calculateMetricsTraced(Ar).result), canonicalJson(rr)) // traced ≡ normal
+})
+
+/**
+ * Adulteração do rowHash (E5.0+): o atacante troca o rowHash na Evidence e RECALCULA o evidenceHash (selo válido); não mexe no `tradeSetHash`
+ * declarado. A única coisa que acusa é refazer o tradeSetHash a partir dos TradeEvidence e comparar com o declarado — é o que o E5 fará (V3);
+ * aqui se prova só o PRIMITIVO (fingerprint da Evidence), sem verifyEvidence.
+ */
+function tamperRowHashCase(granularity: "SOURCE_ROW" | "POSITION_CYCLE") {
+  const cycles = granularity === "POSITION_CYCLE"
+  const run = runImportPipeline(synthCsv(rowsOf(SPEC)), { sourceTz: BRT, fileName: FILE, ...(cycles ? {} : { reconstructCycles: false }) })
+  const An = toAnalyticsTrades(run.trades)
+  const t = total(An)
+  const e = ok(explain("netPnl", t.source, An, [run.importRecord as ImportRecord]))
+  const bundle = metricEvidenceBundle(e)
+  const declared = bundle.evidence.metrics[0].population.tradeSetHash
+  const recompute = (b: typeof bundle) => tradeSetHash(b.evidence.trades.map(tradeFingerprintFromEvidence))
+  assert.equal(recompute(bundle), declared, "bundle íntegro: o hash refeito da Evidence = o declarado")
+  // adultera o rowHash de UM trade e recalcula o selo
+  const forged = clone(bundle)
+  forged.evidence.trades[2].sourceRows[0].rowHash = "f".repeat(64)
+  forged.evidenceHash = computeEvidenceHash(forged)
+  assert.notEqual(forged.evidenceHash, bundle.evidenceHash)
+  assert.equal(computeEvidenceHash(forged), forged.evidenceHash, "o selo (evidenceHash) recalculado é VÁLIDO: o selo sozinho não acusa")
+  assert.equal(forged.evidence.metrics[0].population.tradeSetHash, declared, "o tradeSetHash declarado ficou inalterado")
+  return { mismatch: recompute(forged) !== declared }
+}
+
+test("ADULTERAÇÃO do rowHash (SOURCE_ROW): evidenceHash recalculado e tradeSetHash declarado inalterado ⇒ o hash refeito da Evidence DIVERGE (detecta o mismatch)", () => {
+  assert.equal(tamperRowHashCase("SOURCE_ROW").mismatch, true)
+  assert.equal(tamperRowHashCase("POSITION_CYCLE").mismatch, true) // ciclo já detectava; segue detectando
+})
+
+test("ADULTERAÇÃO do rowHash: sem o rowHash no fingerprint (comportamento ANTERIOR) o trade-linha passaria despercebido — o teste acima depende do ajuste", () => {
+  const run = runImportPipeline(synthCsv(rowsOf(SPEC)), { sourceTz: BRT, fileName: FILE, reconstructCycles: false })
+  const evs = explainTrades(run.trades, run.importRecord as ImportRecord).map((r) => ok2(r).tradeEvidence)
+  const old = (e: ReturnType<typeof tradeFingerprintFromEvidence>) => ({ ...e, rowHashes: [] as string[] }) // fingerprint de trade-linha como era antes (rowHashes vazio)
+  const before = tradeSetHash(evs.map((e) => old(tradeFingerprintFromEvidence(e))))
+  const forged = clone(evs)
+  forged[2].sourceRows[0].rowHash = "f".repeat(64)
+  assert.equal(tradeSetHash(forged.map((e) => old(tradeFingerprintFromEvidence(e)))), before, "no desenho antigo o rowHash adulterado não mudava o hash")
+  assert.notEqual(tradeSetHash(forged.map(tradeFingerprintFromEvidence)), tradeSetHash(evs.map(tradeFingerprintFromEvidence)), "agora muda")
 })
 
 // ── determinismo ─────────────────────────────────────────────────────────────

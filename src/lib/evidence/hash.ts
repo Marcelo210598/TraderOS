@@ -25,7 +25,7 @@ interface FingerprintParts {
   tradeId: string | null
   importId: string | null
   granularity: "POSITION_CYCLE" | "SOURCE_ROW"
-  /** rowHash das linhas guardadas em `sourceRows` do Canonical (ciclos); trade-linha não tem `sourceRows`, logo vazio. */
+  /** rowHash das linhas de origem: as de `sourceRows` (ciclo) ou o `source.rowHash` do próprio trade (trade-linha). Sem ele a referência à linha não entra no hash. */
   rowHashes: Array<string | null | undefined>
   reconstruction: { method: string; confidence: string; completeness: string; integrity: string; ambiguities: Array<{ code: string }> } | null
   pnl: { net: number | null; gross: number | null; commission: number | null; fees: number | null }
@@ -53,7 +53,8 @@ export function tradeFingerprint(id: string, t: CanonicalTrade): TradeFingerprin
     tradeId: t.tradeId ?? null,
     importId: t.importId ?? null,
     granularity: t.granularity === "POSITION_CYCLE" ? "POSITION_CYCLE" : "SOURCE_ROW",
-    rowHashes: (t.sourceRows ?? []).map((r) => r.rowHash),
+    // ciclo: as linhas de `sourceRows`; trade-linha (SOURCE_ROW): o próprio `source.rowHash` (a referência à linha entra no tradeSetHash)
+    rowHashes: t.granularity === "POSITION_CYCLE" ? (t.sourceRows ?? []).map((r) => r.rowHash) : [t.source.rowHash],
     reconstruction: t.reconstruction ?? null,
     pnl: t.pnl,
     r: t.r,
@@ -63,16 +64,16 @@ export function tradeFingerprint(id: string, t: CanonicalTrade): TradeFingerprin
 }
 
 /**
- * O MESMO fingerprint a partir de um `TradeEvidence` (E5.0: a Evidence agora carrega `r`). O id do motor = `tradeId` (o E4 recusa o contrário).
- * `rowHashes` vêm só das linhas `detail: "FULL"` (as de `sourceRows` do Canonical); o `TRADE_VALUES` do trade-linha NÃO entra, porque
- * o fingerprint do motor nunca o incluiu (a identidade do trade-linha já está no `tradeId`, que deriva do rowHash). Mudar isso mudaria o `tradeSetHash`.
+ * O MESMO fingerprint a partir de um `TradeEvidence` (E5.0: a Evidence carrega `r`). O id do motor = `tradeId` (o E4 recusa o contrário).
+ * `rowHashes` = o `rowHash` de TODAS as linhas de origem do trade: no ciclo, as `FULL` (= `sourceRows` do Canonical); no trade-linha, a
+ * única `TRADE_VALUES` (= `source.rowHash`). Assim a referência à linha de origem de qualquer granularidade entra no `tradeSetHash`.
  */
 export function tradeFingerprintFromEvidence(e: TradeEvidence): TradeFingerprint {
   return fingerprintOf(e.tradeId, {
     tradeId: e.tradeId,
     importId: e.importId,
     granularity: e.granularity,
-    rowHashes: e.sourceRows.filter((r) => r.detail === "FULL").map((r) => r.rowHash),
+    rowHashes: e.sourceRows.map((r) => r.rowHash),
     reconstruction: e.reconstruction,
     pnl: e.pnl,
     r: e.r,

@@ -6,7 +6,8 @@ Preparação do `verifyEvidence`; **E5.1 NÃO começou** (aguarda revisão). Det
 - `tradeFingerprintFromEvidence` ≡ `tradeFingerprint` (mesma `fingerprintOf`); `tradeSetHash` refeito da Evidence = o do motor.
 - `explainMetric`: novo `E_DUPLICATE_TRADE_ID` (mesmo arquivo importado 2×); motor intacto.
 - Estabilidade: `tradeSetHash`/resultado do motor idênticos ao commit `88cdad3` (golden pinado). Só o `evidenceHash` dos bundles muda, de propósito.
-- **Próximo:** revisão do usuário → E5.1 (V0–V2).
+- **Ajuste pós-revisão** (commit separado): `rowHash` entra no fingerprint dos trades `SOURCE_ROW`; métricas e `tradeSetHash` de ciclos idênticos (§14.6).
+- **Próximo:** revisão do usuário do ajuste → E5.1 (V0–V2).
 
 ## ✅ 08/10/2026 — AI Partner: Evidence E1 a E4 (só local, sem push)
 Fundação de rastreabilidade do AI Partner, tudo puro (sem banco/Prisma/UI). Detalhe em `historico/2026-10-08.md` e `docs/ai-partner/MEUTRADE-CHECKPOINT-2026-10-08.md`.

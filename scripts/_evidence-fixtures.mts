@@ -93,7 +93,9 @@ export function probeFromEvidence(e: TradeEvidence): AnalyticsTrade {
     labels: { strategyName: null },
     sessionHint: null,
     reconstruction: e.reconstruction,
-    sourceRows: e.sourceRows.filter((r) => r.detail === "FULL").map((r) => ({ rowNo: r.rowNo, rowHash: r.rowHash })),
+    // ciclo: as linhas FULL em `sourceRows`; trade-linha: o `source.rowHash` (a referência à linha entra no fingerprint nos dois casos)
+    sourceRows: e.granularity === "POSITION_CYCLE" ? e.sourceRows.map((r) => ({ rowNo: r.rowNo, rowHash: r.rowHash })) : undefined,
+    source: { rowNo: e.sourceRows[0]?.rowNo ?? null, rowHash: e.granularity === "POSITION_CYCLE" ? undefined : (e.sourceRows[0]?.rowHash ?? undefined) },
   }
   return { id: e.tradeId, trade: probe as unknown as CanonicalTrade }
 }
