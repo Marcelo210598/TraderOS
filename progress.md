@@ -1,5 +1,12 @@
 # TraderOS — Progresso
 
+## ✅ 09/10/2026 — AI Partner: E5.1 `verifyEvidence` V0–V2 — só local, sem push
+Primeira versão do verificador: **V0 formato, V1 selo, V2 referências** (V3/V4 = E5.2, não existem). Status do bundle limpo: **`UNVERIFIABLE`** (nunca `VALID` nesta etapa). Detalhe: `data-contract.md` §14.7, `historico/2026-10-09.md`.
+- `src/lib/evidence/verify.ts` + `scripts/test-evidence-verify.mts` (26 testes; no `test:domain`). 21 checks fixos, códigos `V_*`/`S_*`.
+- Achado: o schema `evidence/1` descartava em silêncio campo extra (inclusive `sourceName`) em sub-objetos reaproveitados do Canonical → `V0.unknown-fields` cobre sem alterar o schema.
+- Fixtures reais: 1.034 bundles limpos sem FAIL; 857 ataques detectados, 0 perdidos.
+- **Próximo:** revisão do usuário → E5.2 (V3 `tradeSetHash` + V4 métricas, `maxDrawdownR`).
+
 ## ✅ 09/10/2026 — AI Partner: E5.0 (dados para verificar + `E_DUPLICATE_TRADE_ID`) — só local, sem push
 Preparação do `verifyEvidence`; **E5.1 NÃO começou** (aguarda revisão). Detalhe: `docs/ai-partner/data-contract.md` §14.5 e `historico/2026-10-09.md`.
 - `TradeEvidence` ganhou (aditivo, obrigatório, estrito, cópia fiel): `r{net,netReason,points}`, `risk.reason`, `pointsPerContract`. Continua `evidence/1`.

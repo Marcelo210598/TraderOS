@@ -379,3 +379,47 @@ Os enums vêm de **uma fonte só** (`RiskReasonSchema`/`RNetReasonSchema`, expor
 - **Evolução futura:** possível (ex.: referência não reversível de estratégia/sessão, como já é o `accountRef`), mas **fora do escopo agora**.
 
 **E5b (verificação contra o CSV original) — fica para depois:** reexecuta a ingestão sobre o arquivo e compara `fileSha256`, `importId`, `rowHash` e `tradeId`. O E5 atual verifica a **consistência interna** do bundle e os cálculos sobre a população declarada; **não afirma provar a origem dos dados**.
+
+### 14.7 E5.1 — `verifyEvidence`: V0 formato · V1 selo · V2 referências (IMPLEMENTADO em 2026-10-09)
+
+Código: `src/lib/evidence/verify.ts` · testes `scripts/test-evidence-verify.mts`. **Só V0, V1 e V2.** V3 (população: `tradeSetHash` refeito dos `TradeEvidence`) e V4 (métricas recalculadas pelo motor) **não existem ainda** (E5.2). Puro (sem relógio, random, banco, CSV, rede), nunca lança para dado malformado e **não é segundo motor nem segunda implementação de hash**: o selo usa `computeEvidenceHash` (JSON canônico + SHA-256 do E2); um teste varre o código-fonte (imports permitidos, sem `node:crypto`, sem cálculo com P&L/R/pontos, sem `VALID`).
+
+```text
+verifyEvidence(input: unknown) → { schema: "verify/1", status, checks: [{ id, level, status: PASS|FAIL|SKIPPED, code, detail }] }
+status: INVALID_FORMAT | TAMPERED | UNVERIFIABLE      (VALID existe no tipo, mas NUNCA é produzido no E5.1)
+```
+
+**Status geral (E5.1):** V0 falhou → `INVALID_FORMAT` · V1 ou V2 falhou → `TAMPERED` · V0+V1+V2 passaram → **`UNVERIFIABLE`** (V3/V4 `SKIPPED` com `S_NOT_IMPLEMENTED`). Ausência de implementação **não** é aprovação nem adulteração: nunca vira PASS, nunca vira FAIL. Os 21 checks aparecem sempre, na mesma ordem; PASS ⇔ sem código; FAIL tem código `V_*`; SKIPPED tem motivo `S_*` (`S_NOT_IMPLEMENTED`, `S_FORMAT_INVALID` — V1/V2 não rodam sobre formato inválido —, `S_NO_METRICS`).
+
+| Nível | Check (`id`) | Falha (`code`) |
+|---|---|---|
+| V0 | `V0.structure` — schema `evidence/1` estrito | `V_FORMAT_INVALID` (caminho do problema) |
+| V0 | `V0.schema-id` — `schema == "evidence/1"` | `V_SCHEMA_UNKNOWN` |
+| V0 | `V0.seal-format` — `evidenceHash` com 64 hex minúsculos (ausente/truncado/maiúsculas/tipo errado) | `V_SEAL_MALFORMED` |
+| V0 | `V0.canonical-json` — bundle é JSON puro (a estrutura aceita `NaN` em campos livres) | `V_FORMAT_NOT_CANONICAL` |
+| V0 | `V0.unknown-fields` — nenhum campo fora do contrato em NENHUM nível | `V_FORMAT_UNKNOWN_FIELD` |
+| V1 | `V1.seal` — `evidenceHash` recalculado = declarado | `V_SEAL_MISMATCH` |
+| V2 | `V2.trade-ids-unique` · `V2.import-ids-unique` | `V_DUP_TRADE_ID` · `V_DUP_IMPORT_ID` |
+| V2 | `V2.import-refs` (todo trade tem seu `ImportRef`) · `V2.import-unreferenced` (nenhum `ImportRef` sem trade) | `V_REF_IMPORT_MISSING` · `V_IMPORT_UNREFERENCED` |
+| V2 | `V2.row-import` (`sourceRows[].importId` = `importId` do trade) · `V2.row-dangling` (`rowRefs` das pernas ∈ `sourceRows`) · `V2.row-unique` | `V_ROWREF_IMPORT_MISMATCH` · `V_ROWREF_DANGLING` · `V_ROWREF_DUPLICATE` |
+| V2 | `V2.population-shape` (`tradeIds` × `verifiability` × `afterFilters` × `contributors.complete`; id repetido) · `V2.population-refs` | `V_POPULATION_MISMATCH` · `V_REF_TRADE_MISSING` |
+| V2 | `V2.contributor-refs` · `V2.contributor-counts` (`roleCounts` × `items`) | `V_REF_TRADE_MISSING` · `V_CONTRIBUTORS_MISMATCH` |
+| V2 | `V2.unreferenced-trades` (trade fora de população/contributors/subject) · `V2.subject` | `V_TRADE_UNREFERENCED` · `V_SUBJECT_UNRESOLVED` |
+| V3 | `V3.population` | `SKIPPED` — `S_NOT_IMPLEMENTED` |
+| V4 | `V4.metrics` | `SKIPPED` — `S_NOT_IMPLEMENTED` |
+
+**Regras que valem a pena registrar**
+- **V0 e os sub-schemas não-`strict`.** O `evidence/1` reaproveita sub-schemas do Canonical que **não** são `strict` (`entry.at`, pernas, `exitLegs[].pnl`, `exitSummary`, `issues`…): um campo extra ali (inclusive `sourceName`) era **descartado em silêncio** no parse. O E5.1 **não** altera o schema: `V0.unknown-fields` compara o bundle de entrada com a saída do schema e acusa a primeira chave descartada (caminho completo). Tornar esses sub-schemas `strict` é melhoria possível, fora do escopo.
+- **Malformado × adulterado.** Hash truncado/malformado é `INVALID_FORMAT` (V0); hash bem formado porém diferente do recalculado é `TAMPERED` (V1). V1/V2 não rodam sobre formato inválido.
+- **`contributors`:** completos (`complete=true`) ⇒ igualdade `roleCounts` × `items` por papel; incompletos (`HASH_ONLY`) ⇒ só papéis âncora e `items` ≤ `roleCounts`; sem contribuintes (`applicable=false`) ⇒ `roleCounts` e `items` vazios. Id repetido (mesmo papel + trade + rank) não é aceito.
+- **Bundle sem métricas** (ex.: de trade): os checks que dependem da população/contributors ficam `SKIPPED` (`S_NO_METRICS`).
+- **Nada é deduplicado nem alterado:** o verificador só descreve; o bundle de entrada fica intacto.
+
+**Limites desta etapa (leia antes de confiar no resultado)**
+- **O selo não é assinatura digital.** Quem altera o conteúdo e **recalcula** o `evidenceHash` passa em V0 e V1 (teste explícito: valor, P&L, `r` e até o `tradeSetHash` declarado alterados com novo selo ⇒ V1 PASS, status `UNVERIFIABLE`). Detectar isso é trabalho de V3/V4 (E5.2) — e só quando a edição é **inconsistente**; uma alteração **coordenada** de tudo é consistente e só se prova contra o CSV original (E5b).
+- **V2 prova coerência estrutural, não verdade.** Garante que as referências do bundle fecham entre si; não prova que os valores dos trades estão certos nem que as métricas conferem (V3/V4) nem a origem dos dados (E5b).
+- **`UNVERIFIABLE` não é "quase válido".** Significa apenas que nada acusou adulteração nos níveis implementados e que V3/V4 não rodaram.
+- Agrupamentos por estratégia/sessão e verificação contra o CSV original seguem como decidido em §14.6.
+
+**Resultados (sintético + 2 fixtures reais locais):** 1.034 bundles verificados (ciclos e linhas × todas as métricas × total/grupos/`HASH_ONLY`), 0 `FAIL` em bundles limpos, todos `UNVERIFIABLE`; 857 ataques em amostra (trade removido/extra, `ImportRef` removido, `sourceRows[].importId`, `roleCounts`, valor sem novo selo): 857 detectados, 0 perdidos; 16 mutações no próprio verificador, todas pegas pelos testes.
+
