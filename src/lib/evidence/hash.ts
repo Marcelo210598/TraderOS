@@ -3,7 +3,7 @@
 
 import { canonicalJson, sha256Hex } from "../infra/hash.ts"
 import type { CanonicalTrade } from "../domain/canonical.ts"
-import type { EvidenceBundle } from "./schema.ts"
+import type { EvidenceBundle, TradeEvidence } from "./schema.ts"
 
 export const EVIDENCE_SCHEMA = "evidence/1" as const
 const TRADE_SET_DOMAIN = "meutrade/tradeSet/1"
@@ -20,20 +20,65 @@ export interface TradeFingerprint {
   values: Array<number | string | null>
 }
 
-/** `id` = o id que o motor usa para o trade (tradeId real, ou o posicional de fallback). */
-export function tradeFingerprint(id: string, t: CanonicalTrade): TradeFingerprint {
-  const rec = t.reconstruction
+/** Os campos (já extraídos) de que o fingerprint precisa — comuns ao CanonicalTrade e ao TradeEvidence. A fórmula vive só em `fingerprintOf`. */
+interface FingerprintParts {
+  tradeId: string | null
+  importId: string | null
+  granularity: "POSITION_CYCLE" | "SOURCE_ROW"
+  /** rowHash das linhas guardadas em `sourceRows` do Canonical (ciclos); trade-linha não tem `sourceRows`, logo vazio. */
+  rowHashes: Array<string | null | undefined>
+  reconstruction: { method: string; confidence: string; completeness: string; integrity: string; ambiguities: Array<{ code: string }> } | null
+  pnl: { net: number | null; gross: number | null; commission: number | null; fees: number | null }
+  r: { net: number | null; points: number | null }
+  entryAt: { instantUtc: string | null; localDate: string | null }
+  exitAt: { instantUtc: string | null }
+}
+
+function fingerprintOf(id: string, p: FingerprintParts): TradeFingerprint {
+  const rec = p.reconstruction
   return {
     id,
+    tradeId: p.tradeId,
+    importId: p.importId,
+    granularity: p.granularity,
+    rowHashes: p.rowHashes.filter((h): h is string => typeof h === "string").sort(),
+    reconstruction: rec ? { method: rec.method, confidence: rec.confidence, completeness: rec.completeness, integrity: rec.integrity, ambiguities: rec.ambiguities.map((a) => a.code).sort() } : null,
+    values: [p.pnl.net, p.pnl.gross, p.pnl.commission, p.pnl.fees, p.r.net, p.r.points, p.entryAt.instantUtc ?? p.entryAt.localDate, p.exitAt.instantUtc],
+  }
+}
+
+/** `id` = o id que o motor usa para o trade (tradeId real, ou o posicional de fallback). */
+export function tradeFingerprint(id: string, t: CanonicalTrade): TradeFingerprint {
+  return fingerprintOf(id, {
     tradeId: t.tradeId ?? null,
     importId: t.importId ?? null,
     granularity: t.granularity === "POSITION_CYCLE" ? "POSITION_CYCLE" : "SOURCE_ROW",
-    rowHashes: (t.sourceRows ?? []).map((r) => r.rowHash).filter((h): h is string => typeof h === "string").sort(),
-    reconstruction: rec
-      ? { method: rec.method, confidence: rec.confidence, completeness: rec.completeness, integrity: rec.integrity, ambiguities: rec.ambiguities.map((a) => a.code).sort() }
-      : null,
-    values: [t.pnl.net, t.pnl.gross, t.pnl.commission, t.pnl.fees, t.r.net, t.r.points, t.entry.at.instantUtc ?? t.entry.at.localDate, t.exit.at.instantUtc],
-  }
+    rowHashes: (t.sourceRows ?? []).map((r) => r.rowHash),
+    reconstruction: t.reconstruction ?? null,
+    pnl: t.pnl,
+    r: t.r,
+    entryAt: t.entry.at,
+    exitAt: t.exit.at,
+  })
+}
+
+/**
+ * O MESMO fingerprint a partir de um `TradeEvidence` (E5.0: a Evidence agora carrega `r`). O id do motor = `tradeId` (o E4 recusa o contrário).
+ * `rowHashes` vêm só das linhas `detail: "FULL"` (as de `sourceRows` do Canonical); o `TRADE_VALUES` do trade-linha NÃO entra, porque
+ * o fingerprint do motor nunca o incluiu (a identidade do trade-linha já está no `tradeId`, que deriva do rowHash). Mudar isso mudaria o `tradeSetHash`.
+ */
+export function tradeFingerprintFromEvidence(e: TradeEvidence): TradeFingerprint {
+  return fingerprintOf(e.tradeId, {
+    tradeId: e.tradeId,
+    importId: e.importId,
+    granularity: e.granularity,
+    rowHashes: e.sourceRows.filter((r) => r.detail === "FULL").map((r) => r.rowHash),
+    reconstruction: e.reconstruction,
+    pnl: e.pnl,
+    r: e.r,
+    entryAt: e.entry.at,
+    exitAt: e.exit.at,
+  })
 }
 
 /** Trade com identidade completa (tradeId + importId) — sem isso a proveniência está incompleta. */

@@ -6,15 +6,16 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import type { CanonicalTrade, ImportRecord } from "../src/lib/domain/canonical.ts"
 import { explainTrade, explainTrades, type ExplainTradeResult } from "../src/lib/evidence/explain-trade.ts"
-import { EVIDENCE_SCHEMA, sealEvidence } from "../src/lib/evidence/hash.ts"
+import { EVIDENCE_SCHEMA, sealEvidence, tradeFingerprint, tradeFingerprintFromEvidence, tradeSetHash } from "../src/lib/evidence/hash.ts"
 import { findAccountNameLeak, redactFileName } from "../src/lib/evidence/redact.ts"
 import { EvidenceBundleSchema, ImportRefSchema, TradeEvidenceSchema } from "../src/lib/evidence/schema.ts"
 import { canonicalJson } from "../src/lib/infra/hash.ts"
 import { parseDelimited } from "../src/lib/ingest/csv.ts"
 import { accountRef } from "../src/lib/ingest/identity.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
+import { calculateMetrics, toAnalyticsTrades } from "../src/lib/metrics/index.ts"
 import type { ImportContext } from "../src/lib/ingest/types.ts"
-import { synthCsv, type SynthRow } from "./_evidence-fixtures.mts"
+import { synthCsv, withRisk, type SynthRow } from "./_evidence-fixtures.mts"
 
 const BRT = "America/Sao_Paulo"
 let passed = 0
@@ -402,6 +403,65 @@ test("LISTA BRANCA (código): explain-trade.ts e redact.ts não usam spread de t
   }
 })
 
+// ── E5.0: r, risk.reason e pointsPerContract (cópia fiel) + fingerprint a partir da Evidence ──────────────────────────
+
+/** Para cada trade: os 3 campos novos são CÓPIA do Canonical; o fingerprint refeito da Evidence é idêntico ao do motor; o tradeSetHash também. */
+function checkE50(trades: CanonicalTrade[], record: ImportRecord, label: string): { reasons: Set<string>; rValues: number } {
+  const evs = explainTrades(trades, record).map(ok).map((r) => r.tradeEvidence)
+  const reasons = new Set<string>()
+  let rValues = 0
+  trades.forEach((t, i) => {
+    const e = evs[i]
+    assert.deepEqual(e.r, { net: t.r.net, netReason: t.r.netReason, points: t.r.points }, `${label}[${i}] r`)
+    assert.deepEqual(e.risk, { reason: t.risk.reason }, `${label}[${i}] risk`)
+    assert.deepEqual(Object.keys(e.risk), ["reason"], `${label}[${i}]: stop/alvo/risco em US$ não entram na Evidence`)
+    assert.equal(e.pointsPerContract, t.pointsPerContract, `${label}[${i}] pointsPerContract`)
+    assert.equal(canonicalJson(tradeFingerprintFromEvidence(e)), canonicalJson(tradeFingerprint(t.tradeId as string, t)), `${label}[${i}] fingerprint`)
+    reasons.add(String(t.risk.reason))
+    if (t.r.net !== null) rValues += 1
+  })
+  const fromEvidence = tradeSetHash(evs.map(tradeFingerprintFromEvidence))
+  assert.equal(fromEvidence, tradeSetHash(trades.map((t) => tradeFingerprint(t.tradeId as string, t))), `${label}: tradeSetHash (Evidence × Canonical)`)
+  assert.equal(fromEvidence, calculateMetrics(toAnalyticsTrades(trades)).population.tradeSetHash, `${label}: tradeSetHash (Evidence × motor)`)
+  return { reasons, rValues }
+}
+
+test("E5.0 CAMPOS NOVOS: r{net,netReason,points}, risk.reason e pointsPerContract = cópia fiel do Canonical (ciclos e linhas; stops variados e sem stop)", () => {
+  const raw = checkE50(imp.trades, rec, "ciclos sem stop")
+  assert.deepEqual([...raw.reasons], ["STOP_MISSING"]) // o pipeline do NT8 nunca traz stop: o motivo é copiado, não inventado
+  assert.equal(raw.rValues, 0)
+  const enriched = withRisk(imp.trades)
+  const e = checkE50(enriched, rec, "ciclos com stop")
+  assert.deepEqual([...e.reasons].sort(), ["STOP_EQUALS_ENTRY", "STOP_MISSING", "STOP_WRONG_SIDE", "null"]) // fixture exercita R válido + os 3 motivos
+  assert.ok(e.rValues >= 1)
+  assert.ok(enriched.some((t) => t.r.points !== null) && enriched.some((t) => t.r.netReason === "RISK_UNKNOWN"))
+  const rows = runImportPipeline(CSV, { sourceTz: BRT, fileName: FILE, reconstructCycles: false })
+  checkE50(withRisk(rows.trades), rows.importRecord as ImportRecord, "linhas com stop")
+})
+
+test("E5.0 SCHEMA: r, risk e pointsPerContract são OBRIGATÓRIOS e estritos (campo ausente, extra, enum fora do contrato ou NaN ⇒ rejeita)", () => {
+  const good = clone(eA.tradeEvidence)
+  assert.equal(TradeEvidenceSchema.safeParse(good).success, true)
+  for (const k of ["r", "risk", "pointsPerContract"] as const) {
+    const bad = clone(good) as Record<string, unknown>
+    delete bad[k]
+    assert.equal(TradeEvidenceSchema.safeParse(bad).success, false, `sem ${k}`)
+  }
+  assert.equal(TradeEvidenceSchema.safeParse({ ...good, r: { ...good.r, extra: 1 } }).success, false)
+  assert.equal(TradeEvidenceSchema.safeParse({ ...good, r: { net: 1, points: 1 } }).success, false) // sem netReason
+  assert.equal(TradeEvidenceSchema.safeParse({ ...good, r: { ...good.r, netReason: "QUALQUER" } }).success, false)
+  assert.equal(TradeEvidenceSchema.safeParse({ ...good, risk: { reason: "STOP_MISSING", stopPrice: 1990 } }).success, false) // stop não entra
+  assert.equal(TradeEvidenceSchema.safeParse({ ...good, risk: { reason: "QUALQUER" } }).success, false)
+  assert.equal(TradeEvidenceSchema.safeParse({ ...good, pointsPerContract: Number.NaN }).success, false)
+  assert.equal(TradeEvidenceSchema.safeParse({ ...good, pointsPerContract: "4" }).success, false)
+  assert.equal(TradeEvidenceSchema.safeParse({ ...good, risk: { reason: null }, r: { net: 1.5, netReason: null, points: 2 } }).success, true)
+})
+
+test("E5.0 NADA RECALCULADO: explain-trade.ts não importa nem usa as contas de risco/R do domínio (só copia)", () => {
+  const src = readFileSync(fileURLToPath(new URL("../src/lib/evidence/explain-trade.ts", import.meta.url)), "utf8").replace(/\/\/.*$/gm, "")
+  assert.ok(!/computeRisk|rMultipleNet|rMultiplePoints|domain\/risk/.test(src))
+})
+
 // ── ImportRef ────────────────────────────────────────────────────────────────
 
 test("IMPORTREF: reaproveita o ImportRecord do E1 (mesmos campos) sem o conteúdo do CSV; importedAt vazio (fora do hash)", () => {
@@ -466,6 +526,8 @@ for (const name of names) {
         assert.equal(e.accountRef, t.account.ref)
       })
       const evid = results.map((r) => ok(r))
+      checkE50(run.trades, record, `${tag} ${label} (sem stop)`)
+      checkE50(withRisk(run.trades), record, `${tag} ${label} (com stop)`)
       assert.equal(findAccountNameLeak(evid.map((r) => [r.tradeEvidence, r.importRef]), accounts), null, `${label}: nome de conta vazou`)
       assert.ok(evid.every((r) => canonicalJson(r.importRef) === canonicalJson(evid[0].importRef)))
       for (const f of ["net", "gross", "commission", "fees"] as const) assert.equal(cents(evid.map((r) => r.tradeEvidence.pnl[f])), cents(run.trades.map((t) => t.pnl[f])), `${label} ${f}`)

@@ -7,15 +7,17 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import type { CanonicalTrade, ImportRecord } from "../src/lib/domain/canonical.ts"
 import { explainMetric, metricEvidenceBundle, type ExplainMetricOk, type ExplainMetricResult, type MetricSource } from "../src/lib/evidence/explain-metric.ts"
+import { explainTrades } from "../src/lib/evidence/explain-trade.ts"
+import { tradeFingerprintFromEvidence, tradeSetHash } from "../src/lib/evidence/hash.ts"
 import { findAccountNameLeak } from "../src/lib/evidence/redact.ts"
 import { EvidenceBundleSchema, MetricEvidenceSchema } from "../src/lib/evidence/schema.ts"
-import { canonicalJson } from "../src/lib/infra/hash.ts"
+import { canonicalJson, sha256Hex } from "../src/lib/infra/hash.ts"
 import { parseDelimited } from "../src/lib/ingest/csv.ts"
 import { accountRef } from "../src/lib/ingest/identity.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
 import type { ImportContext } from "../src/lib/ingest/types.ts"
 import { ANCHOR_ROLES, METRIC_IDS, aggregateTrades, aggregateTradesTraced, calculateMetrics, calculateMetricsTraced, toAnalyticsTrades, type AnalyticsTrade, type ContributorRole } from "../src/lib/metrics/index.ts"
-import { synthCsv, type SynthRow } from "./_evidence-fixtures.mts"
+import { probeFromEvidence, synthCsv, withRisk, type SynthRow } from "./_evidence-fixtures.mts"
 
 const BRT = "America/Sao_Paulo"
 let passed = 0
@@ -513,6 +515,108 @@ test("ERROS: E_TRADE_UNRESOLVED, E_IMPORT_UNRESOLVED, E_METRIC_UNKNOWN, E_SCOPE_
   err(explain("netPnl", total(renamed).source, renamed), "E_TRADE_UNRESOLVED")
 })
 
+// ── E5.0: E_DUPLICATE_TRADE_ID ───────────────────────────────────────────────
+
+test("E_DUPLICATE_TRADE_ID: o MESMO arquivo importado 2× ⇒ recusa explícita com a causa real (não E_TRADE_UNRESOLVED), sem dedupe silencioso e sem tratar '#2' como identidade", () => {
+  const again = runImportPipeline(synthCsv(rowsOf(SPEC)), { sourceTz: BRT, fileName: "reimportado.csv" })
+  assert.equal(again.importRecord?.importId, rec.importId) // mesmo conteúdo + mesmas configurações ⇒ mesmo importId ⇒ mesmos tradeId
+  const dup = toAnalyticsTrades([...T, ...again.trades])
+  assert.equal(dup.length, 28)
+  assert.ok(dup.some((a) => a.id.endsWith("#2")), "o motor desambigua com sufixo (comportamento do motor, inalterado)")
+  const engine = total(dup)
+  assert.equal(engine.result.metrics.totalTrades.value, 28) // o motor continua calculando e contando cada ocorrência
+  const r = explain("netPnl", engine.source, dup)
+  err(r, "E_DUPLICATE_TRADE_ID")
+  const m = (r as { message: string }).message
+  assert.match(m, /mais de uma vez/)
+  assert.match(m, /mesmo arquivo importado duas vezes/)
+  assert.match(m, new RegExp(`importId ${rec.importId}`))
+  assert.match(m, /14 tradeId\(s\)/)
+  assert.ok(/(trd_[0-9a-f]{32}) ×2/.test(m))
+  assert.ok(!m.includes("Sim10")) // sem nome de conta
+  assert.equal((r as { message: string }).message, (explain("netPnl", engine.source, dup) as { message: string }).message) // determinístico
+  // o id do motor com '#2' NÃO vira identidade: nada de Evidence parcial
+  assert.equal(explain("netPnl", engine.source, dup).ok, false)
+})
+
+test("E_DUPLICATE_TRADE_ID: vale para QUALQUER repetição no conjunto (um trade 2×, população filtrada que exclui a cópia, limite baixo/HASH_ONLY); conjunto sem repetição segue ok", () => {
+  const one = toAnalyticsTrades([...T, T[0]])
+  err(explain("netPnl", total(one).source, one), "E_DUPLICATE_TRADE_ID")
+  assert.match((explain("netPnl", total(one).source, one) as { message: string }).message, new RegExp(`${TID[0]} ×2`))
+  // o filtro deixa a cópia FORA da população, mas o conjunto de entrada continua ambíguo ⇒ recusa
+  const filtered = total(toAnalyticsTrades([...T, T[0]]), { filters: { account: "Sim102" } })
+  err(explain("netPnl", filtered.source, one), "E_DUPLICATE_TRADE_ID")
+  const low = total(one, { tradeIdsLimit: 3 })
+  err(explain("netPnl", low.source, one), "E_DUPLICATE_TRADE_ID")
+  // vários repetidos: a mensagem é determinística e cita o menor id
+  const two = toAnalyticsTrades([...T, T[5], T[1]])
+  const msg = (explain("netPnl", total(two).source, two) as { message: string }).message
+  assert.match(msg, /2 tradeId\(s\)/)
+  assert.match(msg, new RegExp(`${[TID[1], TID[5]].sort()[0]} ×2`))
+  // sem repetição: continua ok (inclusive com trades de dois imports diferentes)
+  ok(explain("netPnl", total().source))
+  const other = runImportPipeline(synthCsv(rowsOf(SPEC.slice(0, 5))), { sourceTz: "America/New_York", fileName: "outro.csv" }) // outro import (outra config) ⇒ outros tradeId
+  assert.notEqual(other.importRecord?.importId, rec.importId)
+  const mixed = toAnalyticsTrades([...T, ...other.trades])
+  ok(explain("netPnl", total(mixed).source, mixed, [rec, other.importRecord as ImportRecord]))
+  // sem tradeId (fallback posicional) o erro correto continua sendo o de identidade ausente
+  const Am = toAnalyticsTrades(T.map((t) => { const { tradeId: _t, importId: _i, ...rest } = t; void _t; void _i; return rest as CanonicalTrade }))
+  err(explain("netPnl", total(Am).source, Am), "E_POPULATION_IDENTITY_MISSING")
+})
+
+// ── E5.0: a Evidence tem tudo para refazer fingerprint, tradeSetHash e métricas (inclusive R e pontos) ─────────────
+
+/** Sem verifyEvidence (E5.1+): só PROVA que, partindo dos TradeEvidence, o MESMO motor chega ao mesmo resultado (R e pontos incluídos). */
+function roundTrip(trades: CanonicalTrade[], record: ImportRecord, label: string): { rKnown: number } {
+  const enriched = withRisk(trades)
+  const An = toAnalyticsTrades(enriched)
+  const evs = explainTrades(enriched, record).map((r) => ok2(r)).map((r) => r.tradeEvidence)
+  const probes = evs.map(probeFromEvidence)
+  assert.equal(tradeSetHash(evs.map(tradeFingerprintFromEvidence)), calculateMetrics(An).population.tradeSetHash, `${label}: tradeSetHash refeito da Evidence`)
+  let rKnown = 0
+  const optSets: Array<Parameters<typeof calculateMetricsTraced>[1]> = [{}, { rBasis: "POINTS" }, { pnlBasis: "GROSS" }, { timeZone: "America/New_York", timeAnchor: "EXIT" }, { tradeIdsLimit: 3 }, { minSample: 2 }]
+  for (const opts of optSets) {
+    const a = calculateMetricsTraced(An, opts)
+    const b = calculateMetricsTraced(probes, opts)
+    assert.equal(canonicalJson(b.result), canonicalJson(a.result), `${label} ${JSON.stringify(opts)}: resultado completo (métricas, população, qualidade, avisos)`)
+    assert.equal(canonicalJson(b.trace), canonicalJson(a.trace), `${label} ${JSON.stringify(opts)}: trace`)
+    if (opts && opts.rBasis === "POINTS") assert.ok(a.result.metrics.totalR.sampleSize === 0 || a.result.metrics.totalR.basis !== null)
+    rKnown = Math.max(rKnown, a.result.metrics.totalR.sampleSize)
+  }
+  for (const by of ["hour", "direction", "dayOfWeek"] as const) {
+    assert.equal(canonicalJson(aggregateTrades(probes, { groupBy: by })), canonicalJson(aggregateTrades(An, { groupBy: by })), `${label} groupBy ${by}`)
+  }
+  return { rKnown }
+}
+const ok2 = (r: { ok: boolean }): { tradeEvidence: import("../src/lib/evidence/schema.ts").TradeEvidence } => {
+  assert.equal(r.ok, true)
+  return r as never
+}
+
+test("E5.0 RECONSTRUÇÃO: só com os TradeEvidence o MESMO motor reproduz o resultado inteiro (R líquido e em pontos, pontos, P&L bruto/líquido, fusos, limite, grupos) e o tradeSetHash", () => {
+  const { rKnown } = roundTrip(T, rec, "sintético ciclos")
+  assert.ok(rKnown >= 5, "o teste exercita R de verdade (não só nulos)")
+  const g = calculateMetrics(toAnalyticsTrades(withRisk(T)), { rBasis: "POINTS" })
+  assert.ok(g.metrics.totalR.value !== null && g.metrics.averageR.value !== null)
+  assert.ok(calculateMetrics(toAnalyticsTrades(withRisk(T))).metrics.totalPoints.value !== null)
+  const rows = runImportPipeline(synthCsv(rowsOf(SPEC)), { sourceTz: BRT, fileName: FILE, reconstructCycles: false })
+  roundTrip(rows.trades, rows.importRecord as ImportRecord, "sintético linhas")
+})
+
+// ── E5.0: estabilidade (golden calculado no commit ANTERIOR ao E5.0, 88cdad3) ────────────────────────────────────
+
+test("ESTABILIDADE (E5.0): tradeSetHash, resultado do motor e agregado por conta idênticos aos do commit anterior (valores pinados; as métricas não mudaram)", () => {
+  const r = calculateMetrics(A)
+  assert.equal(rec.importId, "imp_b6208386baa51db36221fdd120140405")
+  assert.equal(r.population.tradeSetHash, "7125463aaf3d57b775ab431a76ed5f7660ebd6c30c1a0bf1319cd08f4e178e7a")
+  assert.equal(sha256Hex(canonicalJson(r)), "f1517292df68b2026455f428458acd2c9aaccd5ef19205e3aaae7ab63adde394")
+  const g = aggregateTrades(A, { groupBy: "account" })
+  assert.deepEqual(g.groups.map((x) => x.tradeSetHash), ["27c00f752dd603be2bbd3e71ef22b43021d1da98c51f89ca68a41dc886cdd69c", "d1e5bc1e646bbf3e10af930b0a60ed5a723342c2d9960e0aed9a3b30fdd3c7b3"])
+  assert.equal(sha256Hex(canonicalJson(g)), "f84abf4949a25d6804a2e689350eeb0f5446c8e67103f74f3ff4df0d62edec54")
+  // e traced ≡ normal continua valendo
+  assert.equal(canonicalJson(calculateMetricsTraced(A).result), canonicalJson(r))
+})
+
 // ── determinismo ─────────────────────────────────────────────────────────────
 
 test("DETERMINISMO: mesma entrada ⇒ mesma Evidence byte a byte e mesmo evidenceHash; ordem dos trades de entrada irrelevante; computedAt null", () => {
@@ -535,7 +639,7 @@ test("DETERMINISMO: mesma entrada ⇒ mesma Evidence byte a byte e mesmo evidenc
 
 const DIR = fileURLToPath(new URL("../fixtures/ninjatrader/trade-performance", import.meta.url))
 const names = existsSync(DIR) ? readdirSync(DIR).filter((n) => n.endsWith(".csv") && existsSync(join(DIR, n.replace(/\.csv$/, ".context.json")))).sort() : []
-const C = { imports: 0, ciclos: 0, linhas: 0, metrics: 0, groups: 0, tradeRefs: 0, contributors: 0, hashOnly: 0, identityMissing: 0, resultDiv: 0, hashDiv: 0 }
+const C = { imports: 0, ciclos: 0, linhas: 0, metrics: 0, groups: 0, tradeRefs: 0, contributors: 0, hashOnly: 0, roundTrips: 0, identityMissing: 0, resultDiv: 0, hashDiv: 0 }
 const cents = (xs: Array<number | null>) => xs.reduce((a: number, b) => a + Math.round((b ?? 0) * 100), 0)
 for (const name of names) {
   const tag = name.replace(/\.csv$/, "")
@@ -555,6 +659,8 @@ for (const name of names) {
       const normal = calculateMetrics(An)
       if (canonicalJson(tm.result) !== canonicalJson(normal)) C.resultDiv += 1
       if (tm.result.population.tradeSetHash !== normal.population.tradeSetHash) C.hashDiv += 1
+      assert.ok(roundTrip(run.trades, record, `${tag} ${label}`).rKnown >= 0)
+      C.roundTrips += 1
       const call = (id: string, source: MetricSource, trades = An) => {
         const r = explainMetric({ metricId: id, source, trades, importRecords: [record] })
         if (!r.ok && r.code === "E_POPULATION_IDENTITY_MISSING") C.identityMissing += 1
@@ -609,7 +715,7 @@ for (const name of names) {
   })
 }
 if (names.length) {
-  console.log(`  → fixtures reais: ${C.imports} imports · ${C.ciclos} ciclos + ${C.linhas} trades-linha · ${C.metrics} métricas explicadas (ok=true) em ${C.groups} grupos + totais · ${C.tradeRefs} TradeEvidence referenciados · ${C.contributors} contribuintes · ${C.hashOnly} HASH_ONLY · ${C.identityMissing} E_POPULATION_IDENTITY_MISSING · divergências result normal×traced: ${C.resultDiv} · divergências de tradeSetHash: ${C.hashDiv}`)
+  console.log(`  → fixtures reais: ${C.imports} imports · ${C.ciclos} ciclos + ${C.linhas} trades-linha · ${C.metrics} métricas explicadas (ok=true) em ${C.groups} grupos + totais · ${C.tradeRefs} TradeEvidence referenciados · ${C.contributors} contribuintes · ${C.hashOnly} HASH_ONLY · ${C.identityMissing} E_POPULATION_IDENTITY_MISSING · divergências result normal×traced: ${C.resultDiv} · divergências de tradeSetHash: ${C.hashDiv} · reconstruções R/pontos a partir da Evidence: ${C.roundTrips}`)
 }
 
 console.log(`\n${passed} testes ok`)

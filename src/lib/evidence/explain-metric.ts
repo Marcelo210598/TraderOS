@@ -2,7 +2,8 @@
 // NÃO é um segundo motor: nenhum P&L, drawdown, PF, win rate ou filtro é recalculado nem reclassificado. Valor, população, período,
 // qualidade e avisos são COPIADOS do resultado; os contribuintes são COPIADOS do trace que o próprio motor registrou na mesma passada
 // (`calculateMetricsTraced` / `aggregateTradesTraced`). O `tradeSetHash` é o do motor (SHA-256 do E2): aqui só se confere, não se recalcula.
-// Evidence não fabrica identidade: população com trade sem tradeId/importId ⇒ E_POPULATION_IDENTITY_MISSING.
+// Evidence não fabrica identidade: população com trade sem tradeId/importId ⇒ E_POPULATION_IDENTITY_MISSING; tradeId repetido no conjunto
+// (ex.: o mesmo arquivo importado 2×) ⇒ E_DUPLICATE_TRADE_ID — o sufixo "#n" do `toAnalyticsTrades` só garante unicidade ao motor, NÃO é identidade.
 // Puro: sem relógio, sem random, sem banco; projeção por lista branca; contas sempre como accountRef.
 
 import type { ImportRecord } from "../domain/canonical.ts"
@@ -19,6 +20,7 @@ export type ExplainMetricErrorCode =
   | "E_SCOPE_INVALID"
   | "E_RESULT_TRACE_MISMATCH"
   | "E_POPULATION_IDENTITY_MISSING"
+  | "E_DUPLICATE_TRADE_ID"
   | "E_TRADE_UNRESOLVED"
   | "E_IMPORT_UNRESOLVED"
   | "E_TRADE_EXPLAIN_FAILED"
@@ -146,6 +148,25 @@ export function explainMetric(input: ExplainMetricInput): ExplainMetricResult {
   // 2) Evidence não fabrica identidade
   if (v.population.provenance.withoutIdentity > 0) {
     return fail("E_POPULATION_IDENTITY_MISSING", `${v.population.provenance.withoutIdentity} de ${v.population.afterFilters} trades da população não têm tradeId/importId: não há como apontar para a origem.`)
+  }
+
+  // 2b) identidade ÚNICA: o mesmo tradeId duas vezes (mesmo import lido 2×) não tem identidade canônica. Nada de deduplicar em silêncio
+  //     nem de aceitar o sufixo "#n" do motor como se fosse id: recusa, dizendo a causa. (O motor continua calculando; só não se emite Evidence.)
+  const occurrences = new Map<string, { n: number; importId: string | null }>()
+  for (const t of trades) {
+    const id = t.trade.tradeId
+    if (!id) continue
+    const cur = occurrences.get(id)
+    if (cur) cur.n += 1
+    else occurrences.set(id, { n: 1, importId: t.trade.importId ?? null })
+  }
+  const repeated = [...occurrences].filter(([, o]) => o.n > 1).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  if (repeated.length > 0) {
+    const [firstId, first] = repeated[0]
+    return fail(
+      "E_DUPLICATE_TRADE_ID",
+      `${repeated.length} tradeId(s) aparecem mais de uma vez em \`trades\` (ex.: ${firstId} ×${first.n}, importId ${first.importId ?? "?"}). Causa provável: o mesmo arquivo importado duas vezes (mesmo importId ⇒ mesmos tradeId). O motor aceita e conta cada ocorrência (o sufixo "#n" só garante unicidade a ele), mas isso não é identidade canônica: remova a duplicata ou decida o dedupe antes de pedir Evidence.`,
+    )
   }
 
   // 3) trades referenciados: população (≤ limite) ∪ contribuintes/âncoras do trace

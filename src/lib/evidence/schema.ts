@@ -12,6 +12,8 @@ import {
   IssueSchema,
   PnlSchema,
   ReconstructionSchema,
+  RiskReasonSchema,
+  RNetReasonSchema,
   TimeValueSchema,
 } from "../domain/canonical.ts"
 import { CONTRIBUTOR_ROLES } from "../metrics/trace.ts"
@@ -101,6 +103,15 @@ export const TradeEvidenceSchema = z
     entry: z.object({ at: TimeValueSchema, price: z.number() }).strict(),
     exit: z.object({ at: TimeValueSchema, price: z.number() }).strict(),
     pnl: PnlSchema.strict(),
+    /**
+     * R do Canonical, COPIADO (nunca recalculado): `net` = P&L líquido ÷ risco em US$; `points` = R em pontos, sem custos.
+     * `netReason` = por que `net` é null. Existe para a verificação (E5) poder reconstruir o fingerprint e as métricas de R.
+     */
+    r: z.object({ net: z.number().nullable(), netReason: RNetReasonSchema.nullable(), points: z.number().nullable() }).strict(),
+    /** Só o motivo pelo qual o risco não existe (STOP_MISSING…), copiado do Canonical. Stop/alvo/risco em si NÃO entram na Evidence. */
+    risk: z.object({ reason: RiskReasonSchema.nullable() }).strict(),
+    /** Pontos POR CONTRATO, com sinal (+ = a favor), copiado do Canonical. Base de totalPoints/averagePoints. */
+    pointsPerContract: z.number().finite(),
     entryLegs: z.array(EntryLegSchema).nullable(),
     exitLegs: z.array(ExitLegSchema).nullable(),
     exitSummary: ExitSummarySchema.nullable(),

@@ -227,6 +227,10 @@ export type ImportRecord = z.infer<typeof ImportRecordSchema>
 
 const Price = z.number().finite().positive()
 
+/** Motivos (fechados) pelos quais risco/R não existem. Fonte única: o Canonical e a Evidence (`TradeEvidence.risk.reason`, `.r.netReason`) usam estes mesmos enums. */
+export const RiskReasonSchema = z.enum(["STOP_MISSING", "STOP_WRONG_SIDE", "STOP_EQUALS_ENTRY"])
+export const RNetReasonSchema = z.enum(["NET_PNL_UNAVAILABLE", "RISK_UNKNOWN", "RISK_USD_UNAVAILABLE"])
+
 export const CanonicalTradeSchema = z.object({
   schemaVersion: z.union([z.literal(SCHEMA_TRADE_V1), z.literal(SCHEMA_TRADE)]),
   account: z.object({
@@ -255,12 +259,12 @@ export const CanonicalTradeSchema = z.object({
     riskPoints: z.number().nullable(),
     riskUsd: z.number().nullable(),
     riskSource: z.enum(["SOURCE", "USER", "NONE"]),
-    reason: z.enum(["STOP_MISSING", "STOP_WRONG_SIDE", "STOP_EQUALS_ENTRY"]).nullable(),
+    reason: RiskReasonSchema.nullable(),
   }),
   r: z.object({
     /** R canônico = P&L líquido / risco em dólar. */
     net: z.number().nullable(),
-    netReason: z.enum(["NET_PNL_UNAVAILABLE", "RISK_UNKNOWN", "RISK_USD_UNAVAILABLE"]).nullable(),
+    netReason: RNetReasonSchema.nullable(),
     /** R em pontos (sem custos) — rótulo próprio, nunca misturado com `net`. */
     points: z.number().nullable(),
   }),

@@ -1,5 +1,13 @@
 # TraderOS — Progresso
 
+## ✅ 09/10/2026 — AI Partner: E5.0 (dados para verificar + `E_DUPLICATE_TRADE_ID`) — só local, sem push
+Preparação do `verifyEvidence`; **E5.1 NÃO começou** (aguarda revisão). Detalhe: `docs/ai-partner/data-contract.md` §14.5 e `historico/2026-10-09.md`.
+- `TradeEvidence` ganhou (aditivo, obrigatório, estrito, cópia fiel): `r{net,netReason,points}`, `risk.reason`, `pointsPerContract`. Continua `evidence/1`.
+- `tradeFingerprintFromEvidence` ≡ `tradeFingerprint` (mesma `fingerprintOf`); `tradeSetHash` refeito da Evidence = o do motor.
+- `explainMetric`: novo `E_DUPLICATE_TRADE_ID` (mesmo arquivo importado 2×); motor intacto.
+- Estabilidade: `tradeSetHash`/resultado do motor idênticos ao commit `88cdad3` (golden pinado). Só o `evidenceHash` dos bundles muda, de propósito.
+- **Próximo:** revisão do usuário → E5.1 (V0–V2).
+
 ## ✅ 08/10/2026 — AI Partner: Evidence E1 a E4 (só local, sem push)
 Fundação de rastreabilidade do AI Partner, tudo puro (sem banco/Prisma/UI). Detalhe em `historico/2026-10-08.md` e `docs/ai-partner/MEUTRADE-CHECKPOINT-2026-10-08.md`.
 - **E1 identidade** (`fa19969`): `importId`, `rowHash`, `tradeId` determinísticos, `account.ref`, `ImportRecord`, SHA-256 em `src/lib/infra/hash.ts`.

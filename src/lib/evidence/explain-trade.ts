@@ -186,6 +186,10 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
     entry: { at: timeOf(trade.entry.at), price: trade.entry.price },
     exit: { at: timeOf(trade.exit.at), price: trade.exit.price },
     pnl: pnlOf(trade.pnl),
+    // cópia fiel (E5.0): o que a verificação precisa para refazer o fingerprint e as métricas de R e de pontos
+    r: { net: trade.r.net, netReason: trade.r.netReason, points: trade.r.points },
+    risk: { reason: trade.risk.reason },
+    pointsPerContract: trade.pointsPerContract,
     entryLegs: trade.entryLegs ? trade.entryLegs.map(entryLegOf) : null,
     exitLegs: trade.exitLegs ? trade.exitLegs.map(exitLegOf) : null,
     exitSummary: trade.exitSummary
