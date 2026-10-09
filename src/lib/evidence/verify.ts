@@ -97,8 +97,8 @@ export const FAIL_CODES = {
   "V4.anchors": "V_ANCHOR_MISMATCH",
 } as const
 
-/** Ordem FIXA dos checks do relatório (determinismo). */
-const CHECKS: ReadonlyArray<{ id: string; level: CheckLevel; title: string }> = [
+/** Ordem FIXA dos checks do relatório (determinismo). Exportada só para a documentação/inspeção (Evidence Lab) listar títulos. */
+export const CHECK_CATALOG: ReadonlyArray<{ id: string; level: CheckLevel; title: string }> = [
   { id: "V0.structure", level: "V0", title: "estrutura evidence/1 (schema strict)" },
   { id: "V0.schema-id", level: "V0", title: "identificador de schema" },
   { id: "V0.seal-format", level: "V0", title: "formato do evidenceHash" },
@@ -223,7 +223,7 @@ function v2(bundle: EvidenceBundle): Map<string, Outcome> {
   // checks que dependem de métricas
   const noMetrics = (what: string): Outcome => skip(SKIP_NO_METRICS, `bundle sem métricas: ${what} não se aplica`)
   if (metrics.length === 0) {
-    for (const id of ["V2.population-shape", "V2.population-refs", "V2.contributor-refs", "V2.contributor-counts", "V2.unreferenced-trades"]) out.set(id, noMetrics(CHECKS.find((c) => c.id === id)?.title ?? id))
+    for (const id of ["V2.population-shape", "V2.population-refs", "V2.contributor-refs", "V2.contributor-counts", "V2.unreferenced-trades"]) out.set(id, noMetrics(CHECK_CATALOG.find((c) => c.id === id)?.title ?? id))
   } else {
     const label = (i: number) => `${metrics[i].metricId}#${i}`
     // forma da população
@@ -668,10 +668,10 @@ export function verifyEvidence(input: unknown): VerifyReport {
     outcomes.set("V0.unknown-fields", skip(SKIP_FORMAT, "estrutura inválida"))
   }
 
-  const v0Failed = CHECKS.filter((c) => c.level === "V0").some((c) => outcomes.get(c.id)?.status === "FAIL")
+  const v0Failed = CHECK_CATALOG.filter((c) => c.level === "V0").some((c) => outcomes.get(c.id)?.status === "FAIL")
 
   if (v0Failed || bundle === null) {
-    for (const c of CHECKS) if (c.level !== "V0") outcomes.set(c.id, skip(SKIP_FORMAT, "não executado: o formato (V0) é inválido, então selo, referências, população e métricas não são confiáveis de ler"))
+    for (const c of CHECK_CATALOG) if (c.level !== "V0") outcomes.set(c.id, skip(SKIP_FORMAT, "não executado: o formato (V0) é inválido, então selo, referências, população e métricas não são confiáveis de ler"))
   } else {
     // V1 — selo (a MESMA implementação do contrato: JSON canônico + SHA-256, sem `evidenceHash`/`importedAt`/`computedAt`)
     const recomputed = computeEvidenceHash(bundle)
@@ -682,7 +682,7 @@ export function verifyEvidence(input: unknown): VerifyReport {
     for (const [id, o] of v34(bundle)) outcomes.set(id, o)
   }
 
-  const checks: VerifyCheck[] = CHECKS.map((c) => {
+  const checks: VerifyCheck[] = CHECK_CATALOG.map((c) => {
     const o = outcomes.get(c.id) as Outcome
     return { id: c.id, level: c.level, status: o.status, code: o.status === "PASS" ? null : (o.code ?? null), detail: o.detail }
   })

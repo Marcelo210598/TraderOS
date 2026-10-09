@@ -1,5 +1,10 @@
 # TraderOS — Progresso
 
+## ✅ 09/10/2026 — Evidence Lab (localhost) — só local, sem push
+`/dev/evidence-lab`: inspeção visual da fundação (camadas, trilha do trade, métricas, bundle, verificador, 18 cenários de adulteração). Só `NODE_ENV=development`, sem banco/API/fixtures reais. Detalhe: `docs/ai-partner/evidence-lab.md`.
+- Única mexida em arquivo de auth: `src/proxy.ts` (exceção de login SÓ com guard aberto; em produção nada muda). Validado com `next build` + `next start`.
+- 901 conferências HTML × domínio no dev server; `scripts/test-evidence-lab.mts` (8 testes).
+
 ## ✅ 09/10/2026 — AI Partner: E5.2 `verifyEvidence` V3 + V4 — só local, sem push
 Verificador completo: **V3** (fingerprint → `tradeSetHash`) e **V4** (MESMO motor sobre os `TradeEvidence`; value, campos, contribuintes, qualidade, associação, versões). `VALID` agora existe (zero FAIL + nenhum SKIPPED bloqueante); `limitations` sempre no relatório. Detalhe: `data-contract.md` §14.8.
 - 5.274 bundles reais sem falso positivo; 6.303 ataques detectados. `maxDrawdownR` com oráculo à mão.
