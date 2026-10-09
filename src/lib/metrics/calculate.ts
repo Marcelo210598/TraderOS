@@ -483,6 +483,9 @@ const DIMENSIONS: Record<Dimension, DimDef> = {
 
 export const DIMENSION_IDS = Object.keys(DIMENSIONS) as Dimension[]
 
+/** Classificação de amostra de um grupo (OK ≥ minSample · LOW < minSample · TINY < MIN_BUCKET). Exportada para o verificador reutilizar a MESMA regra. */
+export const sampleFlagOf = (size: number, minSample: number): GroupResult["sampleFlag"] => (size < MIN_BUCKET ? "TINY" : size < minSample ? "LOW" : "OK")
+
 const SEP = "\u0001"
 const NULL_TOKEN = "\u0000"
 
@@ -557,7 +560,7 @@ function runAggregate(
         key: b.key,
         label: b.key.map((k, i) => DIMENSIONS[dims[i]].label(k)).join(" · "),
         sampleSize: size,
-        sampleFlag: size < MIN_BUCKET ? "TINY" : size < o.minSample ? "LOW" : "OK",
+        sampleFlag: sampleFlagOf(size, o.minSample),
         tradeSetHash: groupPopulation.tradeSetHash,
         metrics: picked,
       }

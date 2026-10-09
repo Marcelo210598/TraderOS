@@ -1,5 +1,11 @@
 # TraderOS — Progresso
 
+## ✅ 09/10/2026 — AI Partner: E5.2 `verifyEvidence` V3 + V4 — só local, sem push
+Verificador completo: **V3** (fingerprint → `tradeSetHash`) e **V4** (MESMO motor sobre os `TradeEvidence`; value, campos, contribuintes, qualidade, associação, versões). `VALID` agora existe (zero FAIL + nenhum SKIPPED bloqueante); `limitations` sempre no relatório. Detalhe: `data-contract.md` §14.8.
+- 5.274 bundles reais sem falso positivo; 6.303 ataques detectados. `maxDrawdownR` com oráculo à mão.
+- Achado: nos trades-linha com saída empatada, `maxDrawdown`/`maxConsecutiveWins`/`Losses` dependem da ordem de entrada (não registrada) ⇒ `S_ORDER_AMBIGUOUS`. Correção no motor exige decisão.
+- **Próximo:** revisão → Evidence Lab (localhost); E5.3 só depois.
+
 ## ✅ 09/10/2026 — AI Partner: E5.1 `verifyEvidence` V0–V2 — só local, sem push
 Primeira versão do verificador: **V0 formato, V1 selo, V2 referências** (V3/V4 = E5.2, não existem). Status do bundle limpo: **`UNVERIFIABLE`** (nunca `VALID` nesta etapa). Detalhe: `data-contract.md` §14.7, `historico/2026-10-09.md`.
 - `src/lib/evidence/verify.ts` + `scripts/test-evidence-verify.mts` (26 testes; no `test:domain`). 21 checks fixos, códigos `V_*`/`S_*`.

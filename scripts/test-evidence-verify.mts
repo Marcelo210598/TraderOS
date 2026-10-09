@@ -1,5 +1,6 @@
-// Evidence E5.1 — verifyEvidence: V0 formato · V1 selo · V2 referências.   node scripts/test-evidence-verify.mts
-// V3 (população) e V4 (métricas) NÃO existem ainda: aparecem como SKIPPED e o status geral NUNCA é VALID nesta etapa.
+// Evidence E5.1 (+ ajustes do E5.2) — verifyEvidence: V0 formato · V1 selo · V2 referências.   node scripts/test-evidence-verify.mts
+// Este arquivo isola V0–V2 (os ataques estruturais); V3/V4 (população e métricas) têm testes próprios em test-evidence-verify-math.mts.
+// Aqui os asserts de isolamento olham só os checks V0–V2 (`failedIds`), porque desde o E5.2 uma adulteração também pode acender V3/V4.
 // Sintético versionado + (se existirem) as fixtures reais LOCAIS, sem números embutidos e sem nada real no repositório.
 import assert from "node:assert/strict"
 import { existsSync, readdirSync, readFileSync } from "node:fs"
@@ -71,7 +72,8 @@ const check = (rep: VerifyReport, id: string) => {
   assert.ok(c, `check ${id} ausente`)
   return c
 }
-const failedIds = (rep: VerifyReport) => rep.checks.filter((c) => c.status === "FAIL").map((c) => c.id)
+/** Checks V0–V2 que falharam (isolamento do ataque estrutural; V3/V4 podem acusar além disso desde o E5.2). */
+const failedIds = (rep: VerifyReport) => rep.checks.filter((c) => c.status === "FAIL" && (c.level === "V0" || c.level === "V1" || c.level === "V2")).map((c) => c.id)
 /** Exatamente os checks `ids` falham (isolamento do ataque), com o status geral e o código esperados. */
 function expectFail(rep: VerifyReport, status: VerifyReport["status"], ids: string[], codes?: string[]) {
   assert.equal(rep.status, status, `${rep.status} ≠ ${status}: ${JSON.stringify(rep.checks.filter((c) => c.status === "FAIL").map((c) => [c.id, c.code, c.detail]))}`)
@@ -86,29 +88,30 @@ const edit = (b: EvidenceBundle, fn: (x: Any) => void, sealed = true): Any => {
 
 // ── bundle limpo ─────────────────────────────────────────────────────────────
 
-test("BUNDLE LIMPO: V0, V1 e V2 passam; V3/V4 SKIPPED (S_NOT_IMPLEMENTED); status UNVERIFIABLE — NUNCA VALID nesta etapa", () => {
-  for (const b of [WIN, NETPNL, TOTAL, HASH_ONLY, MIX]) {
+test("BUNDLE LIMPO: V0, V1 e V2 passam; população FULL ⇒ VALID (V3/V4 PASS ou NOT_APPLICABLE); acima do limite ⇒ UNVERIFIABLE (V3/V4 SKIPPED com motivo, nunca PASS)", () => {
+  for (const b of [WIN, NETPNL, TOTAL, MIX]) {
     const rep = verifyEvidence(b)
-    assert.equal(rep.status, "UNVERIFIABLE")
-    assert.notEqual(rep.status, "VALID")
+    assert.equal(rep.status, "VALID", JSON.stringify(rep.checks.filter((c) => c.status !== "PASS").map((c) => [c.id, c.code])))
     for (const c of rep.checks.filter((x) => x.level === "V0" || x.level === "V1" || x.level === "V2")) assert.equal(c.status, "PASS", `${c.id}: ${c.detail}`)
-    for (const id of ["V3.population", "V4.metrics"]) {
-      const c = check(rep, id)
-      assert.equal(c.status, "SKIPPED")
-      assert.equal(c.code, "S_NOT_IMPLEMENTED")
-      assert.match(c.detail, /não é aprovação nem adulteração/)
-    }
+    // o único SKIPPED permitido num VALID é "não se aplica"
+    assert.ok(rep.checks.every((c) => c.status !== "SKIPPED" || c.code === "S_NOT_APPLICABLE"))
     assert.equal(rep.schema, "verify/1")
+    assert.deepEqual(rep.limitations.map((l) => l.code), ["L_SEAL_NOT_SIGNATURE", "L_SELECTION_NOT_PROVEN", "L_ORIGIN_NOT_PROVEN"]) // o que nem VALID afirma
   }
+  const h = verifyEvidence(HASH_ONLY)
+  assert.equal(h.status, "UNVERIFIABLE")
+  for (const c of h.checks.filter((x) => x.level === "V0" || x.level === "V1" || x.level === "V2")) assert.equal(c.status, "PASS")
+  assert.equal(check(h, "V3.population").status, "SKIPPED")
+  assert.equal(check(h, "V3.population").code, "S_HASH_ONLY")
   const ids = verifyEvidence(WIN).checks.map((c) => c.id)
   assert.equal(new Set(ids).size, ids.length)
-  assert.equal(ids.length, 21)
-  assert.deepEqual(verifyEvidence(WIN).checks.map((c) => c.level), ["V0", "V0", "V0", "V0", "V0", "V1", ...Array(13).fill("V2"), "V3", "V4"])
+  assert.equal(ids.length, 30)
+  assert.deepEqual(verifyEvidence(WIN).checks.map((c) => c.level), ["V0", "V0", "V0", "V0", "V0", "V1", ...Array(13).fill("V2"), "V3", "V3", ...Array(9).fill("V4")])
 })
 
 // ── V0: formato ──────────────────────────────────────────────────────────────
 
-test("V0 campo extra: no topo, no trade, no ImportRef, na métrica e dentro de sub-objetos reaproveitados do Canonical — INVALID_FORMAT; V1/V2 SKIPPED (não FAIL)", () => {
+test("V0 campo extra: no topo, no trade, no ImportRef, na métrica e dentro de sub-objetos reaproveitados do Canonical — INVALID_FORMAT; V1–V4 SKIPPED (não FAIL)", () => {
   const cases: Array<[string, (x: Any) => void, string]> = [
     ["topo", (x) => (x.extra = 1), "V0.structure"],
     ["trade.sourceName", (x) => (x.evidence.trades[0].sourceName = "Sim101"), "V0.structure"],
@@ -127,7 +130,7 @@ test("V0 campo extra: no topo, no trade, no ImportRef, na métrica e dentro de s
     assert.equal(rep.status, "INVALID_FORMAT", name)
     assert.equal(check(rep, which).status, "FAIL", `${name}: ${which}`)
     assert.equal(check(rep, which).code, FAIL_CODES[which as keyof typeof FAIL_CODES])
-    for (const c of rep.checks.filter((x) => x.level === "V1" || x.level === "V2")) {
+    for (const c of rep.checks.filter((x) => x.level !== "V0")) {
       assert.equal(c.status, "SKIPPED", `${name}: ${c.id}`)
       assert.equal(c.code, "S_FORMAT_INVALID")
     }
@@ -204,9 +207,9 @@ test("V0 entradas que não são bundle (null, undefined, array, string, número,
     const rep = verifyEvidence(v as unknown)
     assert.equal(rep.status, "INVALID_FORMAT")
     assert.equal(check(rep, "V0.structure").status, "FAIL")
-    assert.equal(rep.checks.length, 21)
+    assert.equal(rep.checks.length, 30)
     assert.ok(rep.checks.every((c) => c.status !== "PASS" || c.level === "V0"))
-    assert.equal(check(rep, "V3.population").code, "S_NOT_IMPLEMENTED")
+    assert.equal(check(rep, "V3.population").code, "S_FORMAT_INVALID")
   }
 })
 
@@ -243,19 +246,19 @@ test("V1 evidenceHash trocado por outro hash BEM FORMADO ⇒ TAMPERED (V_SEAL_MI
   assert.equal(verifyEvidence({ ...clone(NETPNL), evidenceHash: NETPNL.evidenceHash.slice(0, 63) }).status, "INVALID_FORMAT")
 })
 
-test("V1 conteúdo alterado COM selo recalculado: V1 PASSA — recalcular o selo NÃO torna o bundle confiável; o status segue UNVERIFIABLE (nunca VALID) e a inconsistência é trabalho de V3/V4 (E5.2)", () => {
-  for (const fn of [
-    (x: Any) => (x.evidence.metrics[0].value += 1),
-    (x: Any) => (x.evidence.trades[0].pnl.net += 100),
-    (x: Any) => (x.evidence.trades[0].r.net = 9),
-    (x: Any) => (x.evidence.metrics[0].population.tradeSetHash = "a".repeat(64)),
-  ]) {
+test("V1 conteúdo alterado COM selo recalculado: V1 PASSA — recalcular o selo NÃO torna o bundle confiável; V3/V4 (E5.2) acusam a inconsistência ⇒ TAMPERED", () => {
+  const cases: Array<[string, (x: Any) => void, string[]]> = [
+    ["value", (x) => (x.evidence.metrics[0].value += 1), ["V4.metric-value"]],
+    ["pnl.net", (x) => (x.evidence.trades[0].pnl.net += 100), ["V3.population", "V4.population"]],
+    ["r.net", (x) => (x.evidence.trades[0].r.net = 9), ["V3.population", "V4.population"]],
+    ["tradeSetHash declarado", (x) => (x.evidence.metrics[0].population.tradeSetHash = "a".repeat(64)), ["V3.population", "V4.population"]],
+  ]
+  for (const [name, fn, caught] of cases) {
     const rep = verifyEvidence(edit(NETPNL, fn))
-    assert.equal(check(rep, "V1.seal").status, "PASS")
-    assert.equal(rep.status, "UNVERIFIABLE")
-    assert.notEqual(rep.status, "VALID")
-    assert.equal(check(rep, "V3.population").status, "SKIPPED")
-    assert.equal(check(rep, "V4.metrics").status, "SKIPPED")
+    assert.equal(check(rep, "V1.seal").status, "PASS", name)
+    assert.deepEqual(failedIds(rep), [], `${name}: V0–V2 não acusam`)
+    assert.equal(rep.status, "TAMPERED", name)
+    for (const id of caught) assert.equal(check(rep, id).status, "FAIL", `${name}: ${id}`)
   }
 })
 
@@ -304,7 +307,8 @@ test("V2 trade extra (sem referência): V_TRADE_UNREFERENCED; trade duplicado: V
   const nm = verifyEvidence(noMetrics)
   assert.equal(check(nm, "V2.unreferenced-trades").status, "SKIPPED")
   assert.equal(check(nm, "V2.unreferenced-trades").code, "S_NO_METRICS")
-  assert.equal(nm.status === "TAMPERED", true) // subject METRIC já não resolve
+  assert.equal(nm.status, "TAMPERED") // subject METRIC já não resolve
+  assert.equal(check(nm, "V3.population").code, "S_NO_METRICS") // sem métricas V3/V4 não têm o que conferir (SKIPPED bloqueante, nunca PASS)
   assert.equal(check(nm, "V2.subject").code, "V_SUBJECT_UNRESOLVED")
 })
 
@@ -395,42 +399,44 @@ test("DETERMINISMO: mesmo bundle ⇒ mesmo relatório byte a byte (sem relógio/
   assert.ok(!/Sim10\d/.test(text)) // sem nome de conta
 })
 
-test("HONESTIDADE: ausência de V3/V4 nunca vira PASS nem FAIL; formato inválido não vira TAMPERED; só adulteração vira TAMPERED; VALID não existe nesta etapa", () => {
+test("HONESTIDADE: SKIPPED nunca vira PASS; formato inválido não vira TAMPERED; só inconsistência vira TAMPERED; VALID exige zero FAIL e zero SKIPPED bloqueante", () => {
   const seen = new Set<string>()
   const inputs: unknown[] = [WIN, NETPNL, TOTAL, HASH_ONLY, MIX, null, {}, edit(WIN, (x) => x.evidence.trades.shift()), edit(WIN, (x) => (x.extra = 1)), edit(WIN, (x) => (x.evidence.metrics[0].value += 1), false)]
   for (const b of inputs) {
     const rep = verifyEvidence(b)
     seen.add(rep.status)
-    for (const id of ["V3.population", "V4.metrics"]) assert.equal(check(rep, id).status, "SKIPPED")
-    if (rep.status === "INVALID_FORMAT") assert.ok(rep.checks.some((c) => c.level === "V0" && c.status === "FAIL") && rep.checks.every((c) => c.level === "V0" || c.status !== "FAIL"))
-    if (rep.status === "TAMPERED") assert.ok(rep.checks.every((c) => c.level !== "V0" || c.status === "PASS"))
-    if (rep.status === "UNVERIFIABLE") assert.ok(rep.checks.every((c) => c.status !== "FAIL"))
+    if (rep.status === "INVALID_FORMAT") assert.ok(rep.checks.some((c) => c.level === "V0" && c.status === "FAIL") && rep.checks.every((c) => c.level === "V0" || c.status === "SKIPPED"))
+    if (rep.status === "TAMPERED") assert.ok(rep.checks.every((c) => c.level !== "V0" || c.status === "PASS") && rep.checks.some((c) => c.status === "FAIL"))
+    if (rep.status === "UNVERIFIABLE") assert.ok(rep.checks.every((c) => c.status !== "FAIL") && rep.checks.some((c) => c.status === "SKIPPED" && c.code !== "S_NOT_APPLICABLE"))
+    if (rep.status === "VALID") assert.ok(rep.checks.every((c) => c.status === "PASS" || (c.status === "SKIPPED" && c.code === "S_NOT_APPLICABLE")))
+    for (const c of rep.checks) assert.ok(c.status !== "SKIPPED" || (c.code ?? "").startsWith("S_"), `${c.id}: SKIPPED sem motivo`)
   }
-  assert.deepEqual([...seen].sort(), ["INVALID_FORMAT", "TAMPERED", "UNVERIFIABLE"])
+  assert.deepEqual([...seen].sort(), ["INVALID_FORMAT", "TAMPERED", "UNVERIFIABLE", "VALID"])
 })
 
-test("ARQUITETURA (código): verify.ts não é segundo motor nem segunda implementação de hash — só importa trace.ts (papéis), hash.ts, infra/hash.ts e schema.ts; sem node:crypto, relógio, random ou conta com P&L", () => {
+test("ARQUITETURA (código): verify.ts não é segundo motor nem segunda implementação de hash — só chama o motor existente (traced/aggregate/prepare), os hashes de hash.ts e a conversão mecânica; sem node:crypto, relógio, random nem conta com valores financeiros", () => {
   const src = readFileSync(fileURLToPath(new URL("../src/lib/evidence/verify.ts", import.meta.url)), "utf8").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
   const imports = [...src.matchAll(/from\s+"([^"]+)"/g)].map((m) => m[1]).sort()
-  assert.deepEqual(imports, ["../infra/hash.ts", "../metrics/trace.ts", "./hash.ts", "./schema.ts"])
-  const code = src.replace(/"(?:[^"\\\n]|\\.)*"/g, '""').replace(/`(?:[^`\\]|\\.)*`/g, "``") // só código: mensagens e títulos podem citar termos (tradeSetHash…)
-  assert.ok(!/node:crypto|createHash|sha256Hex|hashCanonical/.test(code), "o hash vem de computeEvidenceHash")
+  assert.deepEqual(imports, ["../infra/hash.ts", "../metrics/calculate.ts", "../metrics/catalog.ts", "../metrics/prepare.ts", "../metrics/trace.ts", "../metrics/types.ts", "./hash.ts", "./schema.ts", "./to-analytics.ts"])
+  const code = src.replace(/"(?:[^"\\\n]|\\.)*"/g, '""').replace(/`(?:[^`\\]|\\.)*`/g, "``") // só código: mensagens e títulos podem citar termos
+  assert.ok(!/node:crypto|createHash|sha256Hex|hashCanonical/.test(code), "o hash vem de computeEvidenceHash/tradeSetHash")
   assert.ok(!/Date\.now|new Date|Math\.random|randomUUID/.test(code))
-  assert.ok(!/calculateMetrics|aggregateTrades|prepareTrades|applyFilters|computeMetricSet|tradeSetHash|tradeFingerprint/.test(code), "V3/V4 não existem nesta etapa")
-  assert.ok(!/\.pnl\.(net|gross)|\.r\.(net|points)|pointsPerContract/.test(code), "nenhuma conta com valores financeiros")
-  assert.ok(!/status\s*=\s*"VALID"|return\s*\{[^}]*status:\s*"VALID"/.test(code), "VALID nunca é produzido nesta etapa")
+  // o motor é chamado, nunca reimplementado: nenhuma conta com P&L/R/pontos e nenhuma fórmula de métrica
+  assert.ok(!/\.pnl\.(net|gross|commission|fees)\s*[-+*/]|\.r\.(net|points)\s*[-+*/]|pointsPerContract\s*[-+*/]/.test(code))
+  assert.ok(!/Math\.(max|min|sqrt|abs|round)|\.reduce\(/.test(code), "nenhuma agregação numérica própria")
+  assert.ok(/calculateMetricsTraced\(/.test(code) && /aggregateTradesTraced\(/.test(code))
 })
 
 // ── fixtures reais (locais; sem números embutidos) ───────────────────────────
 
 const DIR = fileURLToPath(new URL("../fixtures/ninjatrader/trade-performance", import.meta.url))
 const names = existsSync(DIR) ? readdirSync(DIR).filter((n) => n.endsWith(".csv") && existsSync(join(DIR, n.replace(/\.csv$/, ".context.json")))).sort() : []
-const C = { bundles: 0, hashOnly: 0, groups: 0, attacks: 0, detected: 0, missed: 0, fails: 0 }
+const C = { valid: 0, unverifiable: 0, bundles: 0, hashOnly: 0, groups: 0, attacks: 0, detected: 0, missed: 0, fails: 0 }
 for (const name of names) {
   const tag = name.replace(/\.csv$/, "")
   const text = readFileSync(join(DIR, name), "utf8")
   const ctx = JSON.parse(readFileSync(join(DIR, `${tag}.context.json`), "utf8")) as ImportContext
-  test(`REAL ${tag}: bundles limpos (ciclos e linhas × todas as métricas × total/grupos/HASH_ONLY) ⇒ UNVERIFIABLE sem nenhum FAIL; ataques de referência/selo sempre detectados`, () => {
+  test(`REAL ${tag}: bundles limpos (ciclos e linhas × todas as métricas × total/grupos/HASH_ONLY) ⇒ nenhum FAIL (VALID ou UNVERIFIABLE com motivo); ataques de referência/selo sempre detectados`, () => {
     for (const label of ["ciclos", "linhas"] as const) {
       const run = runImportPipeline(text, { ...ctx, fileName: `conta-${tag}.csv`, ...(label === "linhas" ? { reconstructCycles: false } : {}) })
       const record = run.importRecord as ImportRecord
@@ -460,7 +466,9 @@ for (const name of names) {
         const bad = rep.checks.filter((c) => c.status === "FAIL")
         C.fails += bad.length
         assert.deepEqual(bad.map((c) => [c.id, c.detail]), [], `${label} #${n} ${b.subject.id}`)
-        assert.equal(rep.status, "UNVERIFIABLE")
+        assert.ok(rep.status === "VALID" || rep.status === "UNVERIFIABLE", rep.status)
+        if (rep.status === "UNVERIFIABLE") assert.ok(rep.checks.some((c) => c.status === "SKIPPED" && c.code !== "S_NOT_APPLICABLE"))
+        C[rep.status === "VALID" ? "valid" : "unverifiable"] += 1
         assert.equal(canonicalJson(rep), canonicalJson(verifyEvidence(clone(b))))
         if (n % 7 !== 0) return // ataques em amostra (cada 7º bundle) para manter o teste rápido
         const attacks: Array<[string, (x: Any) => void, string, boolean]> = [
@@ -485,6 +493,6 @@ for (const name of names) {
     }
   })
 }
-if (names.length) console.log(`  → fixtures reais: ${C.bundles} bundles verificados (${C.groups} grupos; ${C.hashOnly} HASH_ONLY) · ${C.fails} FAIL em bundles limpos · ${C.attacks} ataques em amostra: ${C.detected} detectados, ${C.missed} não detectados`)
+if (names.length) console.log(`  → fixtures reais: ${C.bundles} bundles verificados (${C.groups} grupos; ${C.hashOnly} HASH_ONLY) · ${C.valid} VALID, ${C.unverifiable} UNVERIFIABLE · ${C.fails} FAIL em bundles limpos · ${C.attacks} ataques em amostra: ${C.detected} detectados, ${C.missed} não detectados`)
 
 console.log(`\n${passed} testes ok`)
