@@ -5,6 +5,9 @@
 - Única mexida em arquivo de auth: `src/proxy.ts` (exceção de login SÓ com guard aberto; em produção nada muda). Validado com `next build` + `next start`.
 - 901 conferências HTML × domínio no dev server; `scripts/test-evidence-lab.mts` (8 testes).
 
+## ✅ 10/10/2026 — AI Partner: contexto reproduzível das importações (`ImportRecord.reproducibility`) — só local, sem push
+Importações **novas** registram versões das funções de identidade, `foldPolicy` efetivo, `exitReasonMap` normalizado (na ordem) e `accountRefSalted` (nunca o sal). Bloco **opcional e fora do `importId`**: `importId`/`rowHash`/`tradeId`/`tradeSetHash` idênticos aos do commit anterior (pinados em teste); imports antigos não são retro-preenchidos. E5b usa o registrado (e continua `UNVERIFIABLE` quando falta sal/versão). Detalhe: `data-contract.md` §14.12; `scripts/test-evidence-import-context.mts` (7 testes).
+
 ## ✅ 10/10/2026 — AI Partner: E5b `verifyEvidenceSource` (proveniência contra o CSV original) — só local, sem push
 Liga o bundle ao **arquivo**: bytes do CSV → SHA-256 → reingestão (mesmo pipeline) → `importId`, `rowHash`, `tradeId` e valores derivados do arquivo. Função isolada; `verifyEvidence`, motor e schema `evidence/1` **intactos**. Detalhe: `data-contract.md` §14.11; checkpoint: `MEUTRADE-CHECKPOINT-2026-10-10b.md`.
 - Estados: `SOURCE_VERIFIED` · `SOURCE_VERIFIED_PARTIAL` (HASH_ONLY) · `UNVERIFIABLE` · `SOURCE_MISMATCH` · `INVALID_FORMAT`. Indisponibilidade de arquivo/contexto/versão nunca vira adulteração.

@@ -21,7 +21,7 @@
 import type { ImportRecord } from "../domain/canonical.ts"
 import { DEFAULT_SOURCE_TIME_ZONE } from "../domain/time.ts"
 import { canonicalJson, sha256Hex } from "../infra/hash.ts"
-import { describeText } from "../ingest/identity.ts"
+import { describeText, IDENTITY_VERSIONS } from "../ingest/identity.ts"
 import { runImportPipeline } from "../ingest/pipeline.ts"
 import { RECONSTRUCTION_VERSION } from "../ingest/reconstruct.ts"
 import { DEFAULT_PARSERS } from "../ingest/registry.ts"
@@ -43,7 +43,7 @@ export interface SourceCheck {
 }
 
 export interface SourceCoverage {
-  imports: { declared: number; sourceProvided: number; fileVerified: number; reingested: number }
+  imports: { declared: number; sourceProvided: number; fileVerified: number; reingested: number; contextRecorded: number }
   /** Linhas do arquivo citadas pelo bundle (únicas) e quantas conferem rowNo+rowHash com a reingestão. */
   rows: { referenced: number; verified: number }
   /** TradeEvidence do bundle (únicos) e quantos conferem identidade, estrutura e valores com a reingestão. */
@@ -75,7 +75,7 @@ export const SOURCE_LIMITATIONS: ReadonlyArray<SourceLimitation> = [
   { code: "L_SELECTION_NOT_PROVEN", text: "Confere que as linhas e trades CITADOS vêm do arquivo. Não prova que a seleção original (filtros sobre o conjunto de entrada) foi a correta nem a completa." },
   { code: "L_SEQUENCE_ORIGINAL_ORDER_NOT_PROVEN", text: "A ordem registrada em population.sequence reproduz o resultado do motor (V4.sequence), mas a ordem do array de entrada do motor depende de quem o chamou, não do CSV: a ordem original não é provada contra o arquivo." },
   { code: "L_USER_ENRICHMENT_NOT_PROVEN", text: "R, risco, stop, issues e fieldProvenance podem ter sido acrescentados depois da importação (não derivam do arquivo) e ficam fora da comparação de valores." },
-  { code: "L_CONTEXT_FROM_BUNDLE_AND_CALLER", text: "O contexto da reingestão vem do ImportRef; accountRefSalt, foldPolicy e exitReasonMap não estão registrados no bundle e são os informados pelo chamador (ou o padrão). As versões internas das funções de hash (rowHash/tradeId) também não são registradas: uma mudança nelas apareceria como divergência total." },
+  { code: "L_CONTEXT_FROM_BUNDLE_AND_CALLER", text: "O contexto da reingestão vem do ImportRef. Imports com `reproducibility` registram as versões das funções de identidade, foldPolicy, exitReasonMap e se houve sal; imports ANTERIORES não têm esse bloco (nunca é inferido) e dependem de foldPolicy/exitReasonMap/versões informados ou padrão — uma diferença aparece como divergência. O VALOR do accountRefSalt nunca é gravado: quem verifica precisa tê-lo." },
   { code: "L_BUNDLE_INTEGRITY_NOT_CHECKED", text: "O selo e a consistência interna do bundle (V0–V4) são do verifyEvidence; esta verificação só liga o bundle à fonte." },
 ]
 
@@ -175,9 +175,14 @@ function differing(a: TradeEvidence, b: TradeEvidence, fields: readonly (keyof T
   return fields.filter((f) => canonicalJson(a[f] ?? null) !== canonicalJson(b[f] ?? null)).map(String)
 }
 
-/** O contexto da reingestão sai do ImportRef; o que ele não registra vem do chamador (ver limitations). */
+/**
+ * O contexto da reingestão sai do ImportRef. Quando o registro tem `reproducibility`, ele MANDA (foldPolicy, exitReasonMap, sal sim/não);
+ * a opção do chamador só vale para o que o registro não cobre (registros anteriores) e para o VALOR do sal, que nunca é gravado.
+ */
 function contextOf(imp: ImportRef, opts: VerifySourceOptions): ImportContext {
   const s = imp.settings
+  const rep = imp.reproducibility
+  const salt = rep ? (rep.accountRefSalted ? opts.accountRefSalt : undefined) : opts.accountRefSalt
   return {
     forceParserId: imp.parserId,
     ...(s.sourceTzOrigin === "USER" && s.sourceTz ? { sourceTz: s.sourceTz } : {}),
@@ -186,9 +191,11 @@ function contextOf(imp: ImportRef, opts: VerifySourceOptions): ImportContext {
     excursionUnit: s.excursionUnit,
     declaredPnlBasis: s.declaredPnlBasis,
     reconstructCycles: imp.reconstructionMethod !== null,
-    ...(opts.accountRefSalt !== undefined ? { accountRefSalt: opts.accountRefSalt } : {}),
-    ...(opts.foldPolicy !== undefined ? { foldPolicy: opts.foldPolicy } : {}),
-    ...(opts.exitReasonMap !== undefined ? { exitReasonMap: opts.exitReasonMap } : {}),
+    ...(salt !== undefined ? { accountRefSalt: salt } : {}),
+    ...(rep ? { foldPolicy: rep.foldPolicy, exitReasonMap: rep.exitReasonMap.map((r) => ({ pattern: r.pattern, reason: r.reason })) } : {
+      ...(opts.foldPolicy !== undefined ? { foldPolicy: opts.foldPolicy } : {}),
+      ...(opts.exitReasonMap !== undefined ? { exitReasonMap: opts.exitReasonMap } : {}),
+    }),
   }
 }
 
@@ -200,6 +207,9 @@ function contextProblem(imp: ImportRef, parsers: ParserDescriptor[]): Outcome | 
     if (imp.reconstructionMethod !== "NT8_ROW_INTERVALS_V1") return skip(S_CONTEXT, `método de reconstrução "${imp.reconstructionMethod}" desconhecido`)
     if (imp.reconstructionVersion !== RECONSTRUCTION_VERSION) return skip(S_VERSION, `reconstrução: o import usou a versão "${imp.reconstructionVersion}", a atual é "${RECONSTRUCTION_VERSION}" (não é adulteração)`)
   }
+  if (imp.reproducibility && canonicalJson(imp.reproducibility.identity) !== canonicalJson(IDENTITY_VERSIONS)) {
+    return skip(S_VERSION, `funções de identidade: o import usou ${canonicalJson(imp.reproducibility.identity)}, o código atual tem ${canonicalJson(IDENTITY_VERSIONS)} — rowHash/tradeId não podem ser reproduzidos com outras versões (não é adulteração)`)
+  }
   const s = imp.settings
   if (s.sourceTzOrigin === undefined) return skip(S_CONTEXT, "settings.sourceTzOrigin ausente: não se sabe se o fuso foi informado ou assumido")
   if (s.sourceTzOrigin === "FILE_DECLARED") return skip(S_CONTEXT, "sourceTzOrigin FILE_DECLARED: nenhum parser atual reproduz fuso declarado pelo formato")
@@ -208,7 +218,7 @@ function contextProblem(imp: ImportRef, parsers: ParserDescriptor[]): Outcome | 
   return null
 }
 
-function recordDiffs(re: ImportRecord, imp: ImportRef): string[] {
+function recordDiffs(re: ImportRecord, imp: ImportRef, saltSupplied: boolean): string[] {
   const d: string[] = []
   const cmp = (name: string, a: unknown, b: unknown) => { if (canonicalJson(a ?? null) !== canonicalJson(b ?? null)) d.push(name) }
   cmp("parserId", re.parserId, imp.parserId)
@@ -220,6 +230,9 @@ function recordDiffs(re: ImportRecord, imp: ImportRef): string[] {
   cmp("rowsRejected", re.rowsRejected, imp.rowsRejected)
   cmp("accountCount", re.accountCount, imp.accountCount)
   for (const k of ["sourceTz", "sourceTzOrigin", "dateOrder", "numberLocale", "excursionUnit", "declaredPnlBasis"] as const) cmp(`settings.${k}`, re.settings[k], imp.settings[k])
+  // registros anteriores não têm `reproducibility` (não é divergência); se o registro tem, a reingestão precisa reproduzi-lo
+  // `accountRefSalted` da reingestão só é verdadeiro se o chamador informou o sal: sem ele a bandeira não é reproduzível (é UNVERIFIABLE em V5.4+, não divergência)
+  if (imp.reproducibility) cmp("reproducibility", re.reproducibility, { ...imp.reproducibility, accountRefSalted: imp.reproducibility.accountRefSalted && saltSupplied })
   return d
 }
 
@@ -299,11 +312,15 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
     return out
   }
   out.reingested = true
-  out.context = pass(`${label}: parser ${imp.parserId}@${imp.parserVersion}${imp.reconstructionMethod ? `, reconstrução ${imp.reconstructionMethod}@${imp.reconstructionVersion}` : ", sem reconstrução"}, fuso ${imp.settings.sourceTzOrigin}; foldPolicy/exitReasonMap/accountRefSalt: ${opts.foldPolicy !== undefined || opts.exitReasonMap !== undefined || opts.accountRefSalt !== undefined ? "informados pelo chamador" : "padrão"}`)
+  const rep = imp.reproducibility
+  const ctxNote = rep
+    ? `contexto REGISTRADO no import (identidade v${rep.identity.importId}/${rep.identity.rowHash}/${rep.identity.tradeId}, foldPolicy ${rep.foldPolicy}, ${rep.exitReasonMap.length} regra(s) de saída${rep.accountRefSalted ? ", sal exigido" : ", sem sal"})${!rep.accountRefSalted && opts.accountRefSalt ? "; o sal informado foi ignorado: o import não usou sal" : ""}`
+    : `import ANTERIOR ao contexto reproduzível: foldPolicy/exitReasonMap/sal ${opts.foldPolicy !== undefined || opts.exitReasonMap !== undefined || opts.accountRefSalt !== undefined ? "informados pelo chamador" : "padrão"} (não registrados no import)`
+  out.context = pass(`${label}: parser ${imp.parserId}@${imp.parserVersion}${imp.reconstructionMethod ? `, reconstrução ${imp.reconstructionMethod}@${imp.reconstructionVersion}` : ", sem reconstrução"}, fuso ${imp.settings.sourceTzOrigin}; ${ctxNote}`)
 
   // V5.3 — importId e registro
   const re = run.importRecord
-  const recDiffs = recordDiffs(re, imp)
+  const recDiffs = recordDiffs(re, imp, !!opts.accountRefSalt)
   if (re.importId !== imp.importId) out.importId = fail(FAIL.IMPORT_ID, `${label}: o importId reconstruído (${short(re.importId)}) ≠ o registrado${recDiffs.length ? ` (campos do registro que também divergem: ${recDiffs.join(", ")})` : ""}`)
   else if (recDiffs.length > 0) out.importId = fail(FAIL.IMPORT_RECORD, `${label}: importId igual, mas o registro do import diverge da reingestão em: ${recDiffs.join(", ")}`)
   else out.importId = pass(`${label}: importId ${short(re.importId)} e registro (parser, linhas lidas/aceitas/rejeitadas, contas, configurações) = reingestão`)
@@ -319,6 +336,14 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
   const accountNames = [...new Set(run.rowTrades.map((t) => t.account.sourceName?.trim()).filter((n): n is string => !!n))].sort()
   const mine = tradesOf.filter((t) => t.importId === imp.importId)
 
+  // sal exigido pelo registro e não informado: sem ele rowHash/tradeId não são comparáveis (o arquivo e o importId já foram conferidos)
+  if (rep?.accountRefSalted && !opts.accountRefSalt) {
+    const why = skip(S_ACCOUNT_REF, `${label}: o import usou accountRefSalt (registrado em reproducibility.accountRefSalted) e nenhum foi informado; o valor do sal não é gravado no bundle`)
+    out.rows = [why]
+    out.trades = [why]
+    out.values = [why]
+    return out
+  }
   // sal do accountRef: se TODAS as contas citadas divergem, o problema é o contexto (sal), não adulteração seletiva
   const withRows = mine.filter((t) => t.sourceRows.length > 0)
   if (withRows.length > 0 && withRows.every((t) => reRowAccount.has(t.sourceRows[0].rowNo) && reRowAccount.get(t.sourceRows[0].rowNo) !== t.accountRef)) {
@@ -474,6 +499,8 @@ export function verifyEvidenceSource(input: unknown, files: SourceFiles, options
       sourceProvided: imports.filter((i) => filesGet(files, i.importId) !== undefined).length,
       fileVerified: all.filter((p) => p.file.status === "PASS").length,
       reingested: all.filter((p) => p.reingested).length,
+      /** Imports cujo ImportRef traz o contexto reproduzível (foldPolicy, exitReasonMap, versões de identidade); os demais usam o do chamador/padrão. */
+      contextRecorded: imports.filter((i) => i.reproducibility !== undefined).length,
     },
     rows: { referenced: refRows, verified: all.reduce((n, p) => n + p.verifiedRows.size, 0) },
     trades: { referenced: new Set(trades.map((t) => t.tradeId)).size, verified: all.reduce((n, p) => n + p.verifiedTrades.size, 0) },

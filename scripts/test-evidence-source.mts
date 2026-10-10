@@ -97,7 +97,7 @@ test("1. ARQUIVO ORIGINAL CORRETO: ciclos e trades-linha ⇒ SOURCE_VERIFIED, to
       assert.deepEqual(rep.checks.map((c) => c.id), SOURCE_CHECK_CATALOG.map((c) => c.id))
       assert.ok(rep.checks.every((c) => c.status === "PASS"), `${name}/${id}`)
       assert.equal(rep.evidenceHash, bundle.evidenceHash)
-      assert.deepEqual(rep.coverage?.imports, { declared: 1, sourceProvided: 1, fileVerified: 1, reingested: 1 })
+      assert.deepEqual(rep.coverage?.imports, { declared: 1, sourceProvided: 1, fileVerified: 1, reingested: 1, contextRecorded: 1 })
       assert.equal(rep.coverage?.trades.referenced, rep.coverage?.trades.verified)
       assert.equal(rep.coverage?.rows.referenced, rep.coverage?.rows.verified)
       assert.equal(rep.coverage?.populations.complete, true)

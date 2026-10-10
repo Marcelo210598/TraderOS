@@ -6,7 +6,8 @@
 //   tradeId   = H(importId + granularidade + identidade da reconstrução + rowHashes ordenados + ordinal de duplicata)
 // Fora de qualquer hash: nome do arquivo, `importedAt`/`computedAt`, nº da linha, `account.sourceName` em claro.
 
-import type { CanonicalTrade, ImportRecord } from "../domain/canonical.ts"
+import type { CanonicalTrade, ImportRecord, Reproducibility } from "../domain/canonical.ts"
+import type { ExitReasonRule } from "./exit-reason.ts"
 import { hashCanonical, sha256Hex } from "../infra/hash.ts"
 import type { LotRow } from "./reconstruct.ts"
 import { RECONSTRUCTION_VERSION } from "./reconstruct.ts"
@@ -16,6 +17,20 @@ const ACCOUNT_REF_DOMAIN = "meutrade/accountRef/1"
 const ROW_HASH_VERSION = 1
 const TRADE_ID_VERSION = 1
 const IMPORT_ID_VERSION = 1
+
+/** Versões das funções de identidade em uso. Gravadas no `ImportRecord.reproducibility`; o E5b compara com estas. */
+export const IDENTITY_VERSIONS = { importId: IMPORT_ID_VERSION, rowHash: ROW_HASH_VERSION, tradeId: TRADE_ID_VERSION, accountRef: ACCOUNT_REF_DOMAIN } as const
+
+/** Contexto efetivo reproduzível. `exitReasonMap` é copiado na ORDEM recebida (a primeira regra que casa vence); sem o valor do sal. */
+export function buildReproducibility(args: { foldPolicy: "EARLIER" | "LATER"; exitReasonMap: ExitReasonRule[] | undefined; accountRefSalt: string | undefined }): Reproducibility {
+  return {
+    version: 1,
+    identity: { ...IDENTITY_VERSIONS },
+    foldPolicy: args.foldPolicy,
+    exitReasonMap: (args.exitReasonMap ?? []).map((r) => ({ pattern: r.pattern, reason: r.reason })),
+    accountRefSalted: (args.accountRefSalt ?? "") !== "",
+  }
+}
 
 /** Fingerprint não reversível da conta. É um pseudônimo, não um segredo: sem `salt` é igual entre imports. */
 export function accountRef(sourceName: string | null, salt = ""): string | null {
@@ -48,6 +63,7 @@ export function buildImportRecord(args: {
   reconstructionEnabled: boolean
   stats: { rowsRead: number; accepted: number; rejected: number }
   accountCount: number
+  reproducibility?: Reproducibility
 }): ImportRecord {
   const file = describeText(args.text)
   const importId = `imp_${hashCanonical({
@@ -70,6 +86,8 @@ export function buildImportRecord(args: {
     rowsRejected: args.stats.rejected,
     accountCount: args.accountCount,
     settings: args.settings,
+    // fora do importId (hash acima): o id de imports já existentes e dos novos fica igual
+    ...(args.reproducibility ? { reproducibility: args.reproducibility } : {}),
   }
 }
 

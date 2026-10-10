@@ -197,6 +197,25 @@ export const SourceRowSchema = z.object({
 // ── Import (proveniência do arquivo; E1) ─────────────────────────────────────
 
 /** O que se sabe do arquivo importado. Sem relógio: `importedAt` é responsabilidade de quem persiste e fica FORA do hash. */
+/**
+ * Contexto efetivo da importação que NÃO entra no `importId` e é necessário para reproduzi-la (E5b). Opcional: registros anteriores não o têm
+ * e nunca são retro-preenchidos. Nenhum segredo: o sal do `accountRef` NÃO é gravado, só se houve sal (`accountRefSalted`).
+ */
+export const ReproducibilitySchema = z
+  .object({
+    version: z.literal(1),
+    /** Versões das funções de identidade usadas (`ingest/identity.ts`). Mudou ⇒ a identidade não é reproduzível com o código atual. */
+    identity: z.object({ importId: z.number().int(), rowHash: z.number().int(), tradeId: z.number().int(), accountRef: z.string() }).strict(),
+    /** Política de horário ambíguo (virada de horário de verão) EFETIVA. Afeta o instante UTC e, por isso, o `rowHash`. */
+    foldPolicy: z.enum(["EARLIER", "LATER"]),
+    /** Mapa de motivos de saída do usuário, na ORDEM aplicada (a primeira regra que casa vence); [] = só as regras padrão. */
+    exitReasonMap: z.array(z.object({ pattern: z.string(), reason: ExitReasonSchema }).strict()),
+    /** Houve `accountRefSalt`? (o valor nunca é gravado: quem verifica precisa tê-lo). */
+    accountRefSalted: z.boolean(),
+  })
+  .strict()
+export type Reproducibility = z.infer<typeof ReproducibilitySchema>
+
 export const ImportRecordSchema = z.object({
   /** Determinístico: arquivo + parser + configurações efetivas. Mesmo arquivo e mesma leitura ⇒ mesmo id. */
   importId: z.string(),
@@ -220,6 +239,8 @@ export const ImportRecordSchema = z.object({
    */
   accountCount: z.number().int().nonnegative(),
   settings: ImportSettingsSchema,
+  /** Contexto efetivo para reproduzir a importação (fora do `importId`). Ausente em registros anteriores: não é inventado. */
+  reproducibility: ReproducibilitySchema.optional(),
 })
 export type ImportRecord = z.infer<typeof ImportRecordSchema>
 

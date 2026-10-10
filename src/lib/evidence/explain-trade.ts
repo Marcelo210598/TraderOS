@@ -251,6 +251,18 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
       excursionUnit: importRecord.settings.excursionUnit,
       declaredPnlBasis: importRecord.settings.declaredPnlBasis,
     },
+    // contexto reproduzível: cópia profunda e explícita (sem segredo: o sal nunca está no registro)
+    ...(importRecord.reproducibility
+      ? {
+          reproducibility: {
+            version: importRecord.reproducibility.version,
+            identity: { ...importRecord.reproducibility.identity },
+            foldPolicy: importRecord.reproducibility.foldPolicy,
+            exitReasonMap: importRecord.reproducibility.exitReasonMap.map((r) => ({ pattern: r.pattern, reason: r.reason })),
+            accountRefSalted: importRecord.reproducibility.accountRefSalted,
+          },
+        }
+      : {}),
     importedAt: null,
   })
   if (!importRefParsed.success) return fail("E_SCHEMA", `ImportRef fora do schema evidence/1: ${importRefParsed.error.issues[0]?.path.join(".")} — ${importRefParsed.error.issues[0]?.message}`)

@@ -11,7 +11,7 @@ import { buildCanonicalTrade } from "./build-trade.ts"
 import { parseDelimited } from "./csv.ts"
 import { ExitReasonMapError, validateExitReasonMap } from "./exit-reason.ts"
 import { normalizeRecord, type EffectiveSettings } from "./normalizer.ts"
-import { assignIdentity, buildImportRecord, rowHashOf } from "./identity.ts"
+import { assignIdentity, buildImportRecord, buildReproducibility, rowHashOf } from "./identity.ts"
 import { checkAccumulatedIntegrity, reconstructCycles, type LotRow } from "./reconstruct.ts"
 import { DEFAULT_PARSERS, selectParser } from "./registry.ts"
 import type { ImportContext, ParserDescriptor, PipelineResult, ReconstructionSummary, RejectedRow, SourceRecord } from "./types.ts"
@@ -201,6 +201,7 @@ export function runImportPipeline(text: string, ctx: ImportContext = {}, parsers
     reconstructionEnabled: summary !== null,
     stats: { rowsRead: parsed.records.length, accepted: rowTrades.length, rejected: rejected.length },
     accountCount: new Set(parsed.records.map((r) => r.account?.trim()).filter((a): a is string => !!a)).size,
+    reproducibility: buildReproducibility({ foldPolicy: settings.foldPolicy, exitReasonMap: ctx.exitReasonMap, accountRefSalt: ctx.accountRefSalt }),
   })
   const salt = ctx.accountRefSalt ?? ""
   const rowHashByRowNo = new Map(lots.map((l) => [l.rowNo, rowHashOf(l, salt)]))
