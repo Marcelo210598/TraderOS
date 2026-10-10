@@ -16,7 +16,7 @@
 ## Estado técnico
 | Item | Valor |
 |---|---|
-| Repo | `Desktop/Projetos AI/TraderOS` (público), `main`, commits locais à frente do `origin/main`, árvore limpa |
+| Repo | `Desktop/Projetos AI/TraderOS` (público), `main`, 23 commits locais à frente do `origin/main`, árvore limpa |
 | Commits | E5b (commit exclusivo) · `9776251`/`8e893a2` E5.3 · `83d4408` ordem da sequência · anteriores no checkpoint 10/10 |
 | Testes | `npm run test:domain` PASS (+ `test-evidence-source.mts` 25) · `tsc --noEmit` PASS · tipos dos `.mts` PASS · ESLint do escopo PASS |
 | Motor / V0–V4 | 120 hashes de referência idênticos; V0–V4 com os mesmos resultados (5.238 VALID / 36 UNVERIFIABLE; 7.536 ataques detectados) |
