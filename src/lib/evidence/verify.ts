@@ -145,6 +145,8 @@ const SKIP_ASSOCIATION = "S_ASSOCIATION_UNVERIFIABLE"
 const SKIP_ORDER = "S_ORDER_NOT_RECORDED"
 const SKIP_NO_ANCHOR = "S_NO_ANCHOR_CHECK"
 const SKIP_QUERY = "S_QUERY_INVALID"
+/** Rede de segurança: um caminho que esqueça de preencher um check NUNCA vira "não se aplica"/PASS; fica SKIPPED bloqueante (⇒ UNVERIFIABLE). */
+const SKIP_NOT_EXECUTED = "S_CHECK_NOT_EXECUTED"
 
 const SEAL_RE = /^[0-9a-f]{64}$/
 const MAX_LISTED = 5
@@ -622,7 +624,7 @@ function v34(bundle: EvidenceBundle): Map<string, Outcome> {
   let duplicated = false
   for (const t of trades) { if (byId.has(t.tradeId)) duplicated = true; byId.set(t.tradeId, t) }
   const per = metrics.map((m, i) => ({ label: `${m.metricId}#${i}`, r: perMetric(m, `${m.metricId}#${i}`, { byId, duplicated }) }))
-  for (const id of ids) out.set(id, combine(id as keyof typeof FAIL_CODES, per.map((p) => ({ label: p.label, o: p.r[id] ?? NA("não se aplica") }))))
+  for (const id of ids) out.set(id, combine(id as keyof typeof FAIL_CODES, per.map((p) => ({ label: p.label, o: p.r[id] ?? skip(SKIP_NOT_EXECUTED, "check não executado para esta métrica (falha interna do verificador): não conta como aprovado") }))))
   return out
 }
 

@@ -524,7 +524,7 @@ test("RELATÓRIO: determinístico, 31 checks fixos, limitations sempre presentes
 
 const DIR = fileURLToPath(new URL("../fixtures/ninjatrader/trade-performance", import.meta.url))
 const names = existsSync(DIR) ? readdirSync(DIR).filter((n) => n.endsWith(".csv") && existsSync(join(DIR, n.replace(/\.csv$/, ".context.json")))).sort() : []
-const C = { bundles: 0, valid: 0, unverifiable: 0, fails: 0, ambiguous: 0, hashOnly: 0, attacks: 0, detected: 0, missed: 0, tamperedStatus: 0 }
+const C = { bundles: 0, valid: 0, unverifiable: 0, fails: 0, ambiguous: 0, hashOnly: 0, attacks: 0, detected: 0, missed: 0, tamperedStatus: 0, atkStatus: {} as Record<string, number>, seqAttacks: 0 }
 const bump = (v: number | null) => (v === null ? 1 : v + 1)
 for (const name of names) {
   const tag = name.replace(/\.csv$/, "")
@@ -580,6 +580,8 @@ for (const name of names) {
           ["value", (x) => (x.evidence.metrics[0].value = bump(x.evidence.metrics[0].value)), (r) => check(r, "V4.metric-value").status === "FAIL", full && rep.checks.find((c) => c.id === "V4.metric-value")?.status === "PASS"],
           ["value (âncora)", (x) => (x.evidence.metrics[0].value = bump(x.evidence.metrics[0].value)), (r) => check(r, "V4.anchors").status === "FAIL", !full && (me.metricId === "largestWinner" || me.metricId === "largestLoser") && check(rep, "V4.anchors").status === "PASS"],
           ["engineVersion", (x) => (x.evidence.metrics[0].engineVersion = "metrics/0.0.1"), (r) => r.status === "UNVERIFIABLE" && !fails(r).length, true],
+          ["campo extra (formato)", (x) => (x.evidence.metrics[0].population.sequence.account = "Sim101"), (r) => r.status === "INVALID_FORMAT", true],
+          ["ordem da sequência trocada", (x) => { const o = x.evidence.metrics[0].population.sequence.order; [o[0], o[o.length - 1]] = [o[o.length - 1], o[0]] }, (r) => r.status === "TAMPERED" || (r.status === "VALID" && check(r, "V4.sequence").status === "PASS"), me.population.sequence.order !== null && me.population.sequence.order.length > 1],
           ["trade removido", (x) => x.evidence.trades.shift(), (r) => r.status === "TAMPERED" && check(r, "V3.population").status !== "PASS", hasTrades],
         ]
         for (const [what, fn, detected, applicable] of attacks) {
@@ -587,6 +589,8 @@ for (const name of names) {
           C.attacks += 1
           const r = verifyEvidence(edit(b, fn))
           if (r.status === "TAMPERED") C.tamperedStatus += 1
+          C.atkStatus[r.status] = (C.atkStatus[r.status] ?? 0) + 1
+          if (what === "ordem da sequência trocada") C.seqAttacks += 1
           if (detected(r)) C.detected += 1
           else C.missed += 1
           assert.ok(detected(r), `${label}/${risk} #${n} ${b.subject.id}: ataque "${what}" não detectado como esperado (${r.status}: ${JSON.stringify(r.checks.filter((c) => c.status !== "PASS").map((c) => `${c.id}:${c.code}`))})`)
@@ -595,6 +599,6 @@ for (const name of names) {
     }
   })
 }
-if (names.length) console.log(`  → fixtures reais: ${C.bundles} bundles verificados · ${C.valid} VALID, ${C.unverifiable} UNVERIFIABLE (${C.hashOnly} HASH_ONLY, ${C.ambiguous} com ordem não registrada) · ${C.fails} FAIL em bundles limpos · ${C.attacks} ataques em amostra: ${C.detected} detectados, ${C.missed} não detectados (${C.tamperedStatus} TAMPERED)`)
+if (names.length) console.log(`  → fixtures reais: ${C.bundles} bundles verificados · ${C.valid} VALID, ${C.unverifiable} UNVERIFIABLE (${C.hashOnly} HASH_ONLY, ${C.ambiguous} com ordem não registrada) · ${C.fails} FAIL em bundles limpos · ${C.attacks} ataques em amostra: ${C.detected} detectados, ${C.missed} não detectados (${C.tamperedStatus} TAMPERED)\n  → status por ataque: ${JSON.stringify(C.atkStatus)} · ataques à ordem da sequência: ${C.seqAttacks}`)
 
 console.log(`\n${passed} testes ok`)

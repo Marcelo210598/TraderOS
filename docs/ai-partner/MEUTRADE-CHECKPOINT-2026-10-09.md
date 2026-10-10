@@ -1,5 +1,7 @@
 # MeuTrade — CHECKPOINT 2026-10-09
 
+> **ATUALIZAÇÃO 10/10/2026 — este arquivo é histórico; ler `MEUTRADE-CHECKPOINT-2026-10-10.md` primeiro.** A pendência 1 abaixo (*ordem em empates de saída / `S_ORDER_AMBIGUOUS`*) foi **resolvida pelo commit `83d4408`** (opção 3: a Evidence registra a ordem usada pelo motor, sem mudar resultados) e o E5.3 foi concluído. O texto abaixo foi mantido como estava no fim de 09/10.
+
 > **Para o próximo Claude Code:** leia este arquivo inteiro antes de qualquer ação. Complementa `MEUTRADE-CHECKPOINT-2026-10-08.md` e `-10-01.md` (as decisões e o "NÃO fazer" deles continuam valendo).
 > Idioma com o Marcelo: **sempre português brasileiro**, direto, avisando riscos. Na dúvida, perguntar antes. Trabalha em passos pequenos: plano → aprovação → implementação → relatório → revisão.
 > Documento público (repo público): **sem P&L real, sem nomes de conta/estratégia, sem dados do usuário**.

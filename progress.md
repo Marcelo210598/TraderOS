@@ -5,6 +5,14 @@
 - Única mexida em arquivo de auth: `src/proxy.ts` (exceção de login SÓ com guard aberto; em produção nada muda). Validado com `next build` + `next start`.
 - 901 conferências HTML × domínio no dev server; `scripts/test-evidence-lab.mts` (8 testes).
 
+## ✅ 10/10/2026 — AI Partner: E5.3 auditoria final do verificador — só local, sem push
+Fecha o contrato do `verifyEvidence` (V0–V4 + sequência). **Sem mudar motor, schema ou resultados.** Detalhe: `data-contract.md` §14.10; checkpoint: `MEUTRADE-CHECKPOINT-2026-10-10.md`.
+- Auditoria: `SKIPPED` nunca vira `PASS`; achado e correção de um default latente (`?? NA` ⇒ `S_CHECK_NOT_EXECUTED`, bloqueante); `S_ORDER_AMBIGUOUS` não existe mais.
+- `scripts/test-evidence-audit.mts` (7 testes): ~1.050 bundles íntegros + ~2.265 mutações; 4 estados alcançados.
+- Reais: 5.274 bundles → 5.238 VALID / 36 UNVERIFIABLE (HASH_ONLY); 7.536 ataques, 7.536 detectados; motor com 120 hashes idênticos.
+- Documentado: ordem registrada ≠ ordem original; trocar empatados com selo refeito só é detectável se mudar value/contribuintes.
+- **Próximo:** decisão do usuário sobre o **E5b** (proveniência contra o CSV original). E6/G6, Prisma, UI e agente seguem fora.
+
 ## ✅ 10/10/2026 — AI Partner: ordem da sequência registrada na Evidence — só local, sem push
 Decisão do usuário (opção 3 dos empates de saída): a Evidence registra a ordem EXATA que o motor usou, **sem mudar nenhum resultado** nem criar desempate. `population.sequence = { dependent, order }` (só tradeIds; `null` em `HASH_ONLY`/métrica não sequencial), vem do trace do próprio cálculo; novo check `V4.sequence` (31 checks); `S_ORDER_AMBIGUOUS` → `S_ORDER_NOT_RECORDED` (só ordem ausente com empate). Detalhe: `data-contract.md` §14.9.
 - Motor idêntico (baseline congelado de 120 hashes); fixtures reais: 5.274 bundles, 0 FAIL, 5.238 VALID (os 141 "ordem ambígua" viraram VALID), 36 HASH_ONLY. `scripts/test-evidence-sequence.mts` (13 testes).
