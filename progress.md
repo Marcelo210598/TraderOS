@@ -5,10 +5,15 @@
 - Única mexida em arquivo de auth: `src/proxy.ts` (exceção de login SÓ com guard aberto; em produção nada muda). Validado com `next build` + `next start`.
 - 901 conferências HTML × domínio no dev server; `scripts/test-evidence-lab.mts` (8 testes).
 
+## ✅ 10/10/2026 — AI Partner: ordem da sequência registrada na Evidence — só local, sem push
+Decisão do usuário (opção 3 dos empates de saída): a Evidence registra a ordem EXATA que o motor usou, **sem mudar nenhum resultado** nem criar desempate. `population.sequence = { dependent, order }` (só tradeIds; `null` em `HASH_ONLY`/métrica não sequencial), vem do trace do próprio cálculo; novo check `V4.sequence` (31 checks); `S_ORDER_AMBIGUOUS` → `S_ORDER_NOT_RECORDED` (só ordem ausente com empate). Detalhe: `data-contract.md` §14.9.
+- Motor idêntico (baseline congelado de 120 hashes); fixtures reais: 5.274 bundles, 0 FAIL, 5.238 VALID (os 141 "ordem ambígua" viraram VALID), 36 HASH_ONLY. `scripts/test-evidence-sequence.mts` (13 testes).
+- **Próximo:** revisão do relatório → E5.3; depois E5b, E6/G6 (commits separados).
+
 ## ✅ 09/10/2026 — AI Partner: E5.2 `verifyEvidence` V3 + V4 — só local, sem push
 Verificador completo: **V3** (fingerprint → `tradeSetHash`) e **V4** (MESMO motor sobre os `TradeEvidence`; value, campos, contribuintes, qualidade, associação, versões). `VALID` agora existe (zero FAIL + nenhum SKIPPED bloqueante); `limitations` sempre no relatório. Detalhe: `data-contract.md` §14.8.
 - 5.274 bundles reais sem falso positivo; 6.303 ataques detectados. `maxDrawdownR` com oráculo à mão.
-- Achado: nos trades-linha com saída empatada, `maxDrawdown`/`maxConsecutiveWins`/`Losses` dependem da ordem de entrada (não registrada) ⇒ `S_ORDER_AMBIGUOUS`. Correção no motor exige decisão.
+- Achado: nos trades-linha com saída empatada, `maxDrawdown`/`maxConsecutiveWins`/`Losses` dependem da ordem de entrada (não registrada) ⇒ `S_ORDER_AMBIGUOUS`. **Resolvido em 10/10** (ver abaixo).
 - **Próximo:** revisão → Evidence Lab (localhost); E5.3 só depois.
 
 ## ✅ 09/10/2026 — AI Partner: E5.1 `verifyEvidence` V0–V2 — só local, sem push

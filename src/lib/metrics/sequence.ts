@@ -10,6 +10,9 @@
 //   recuperado = 1º índice depois do fundo cuja equity ≥ pico do maxDrawdown (senão: ainda não recuperado)
 // Pico novo exige equity ESTRITAMENTE maior (empate não zera o drawdown).
 
+/** Métricas cujo resultado depende da ORDEM dos trades (todas usam `sequenceOrder`). Única lista: o trace e a Evidence leem daqui. */
+export const SEQUENCE_METRICS = ["maxDrawdown", "currentDrawdown", "recoveryFactor", "maxDrawdownR", "maxConsecutiveWins", "maxConsecutiveLosses", "currentStreak"] as const
+
 export interface SeqItem {
   id: string
   v: number

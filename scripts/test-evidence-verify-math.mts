@@ -395,29 +395,26 @@ test("FILTROS: conta por accountRef, símbolo/direção/hora/dia derivados pelo 
   assert.deepEqual(verifyEvidence(dir).limitations.map((l) => l.code), ["L_SEAL_NOT_SIGNATURE", "L_SELECTION_NOT_PROVEN", "L_ORIGIN_NOT_PROVEN"])
 })
 
-// ── ordem ambígua (descoberta do E5.2) ───────────────────────────────────────
+// ── ordem em empates de saída (E5.2 → resolvido pelo registro da ordem; testes completos em test-evidence-sequence.mts) ──
 
-test("ORDEM AMBÍGUA: saídas empatadas + métrica sensível à ordem de entrada ⇒ S_ORDER_AMBIGUOUS (nem confirma nem acusa); métricas independentes da ordem seguem VALID", () => {
-  // 4 trades-linha saindo no MESMO instante, em sequência vencedor/perdedor/vencedor/vencedor
+test("EMPATE DE SAÍDA: a Evidence registra a ordem do motor ⇒ métrica sequencial VALID (antes: UNVERIFIABLE); sem a ordem registrada ⇒ UNVERIFIABLE com motivo explícito", () => {
   const tie = runImportPipeline(synthCsv(rowsOf([2, -3, 4, 1], { exitSame: true, account: () => "Sim101" })), { sourceTz: BRT, fileName: "empate.csv", reconstructCycles: false })
   const T = toAnalyticsTrades(withRisk(tie.trades))
   const R = tie.importRecord as ImportRecord
-  const orderKeys = new Set(T.map((t) => t.trade.exit.at.instantUtc))
-  assert.equal(orderKeys.size, 1, "todas as saídas empatam")
-  // o motor confirma a dependência: ordens diferentes de entrada ⇒ resultados diferentes
+  assert.equal(new Set(T.map((t) => t.trade.exit.at.instantUtc)).size, 1, "todas as saídas empatam")
   const winsA = calculateMetrics(T).metrics.maxConsecutiveWins.value
-  const winsB = calculateMetrics([...T].reverse()).metrics.maxConsecutiveWins.value
   const winsC = calculateMetrics([T[1], T[0], T[2], T[3]]).metrics.maxConsecutiveWins.value
-  assert.ok(new Set([winsA, winsB, winsC]).size > 1, `a métrica precisa depender da ordem (${winsA}, ${winsB}, ${winsC})`)
-  const amb = verifyEvidence(bundle("maxConsecutiveWins", T, [R]))
-  assert.equal(amb.status, "UNVERIFIABLE")
-  assert.deepEqual(fails(amb), [])
-  for (const cid of ["V4.metric-value", "V4.metric-fields", "V4.contributors"]) assert.equal(check(amb, cid).code, "S_ORDER_AMBIGUOUS")
-  assert.match(check(amb, "V4.metric-value").detail, /não registra essa ordem/)
-  assert.equal(check(amb, "V3.population").status, "PASS") // a população continua verificada
-  // LIMITE assumido: adulterar uma métrica ambígua não é detectável por V4 (continua UNVERIFIABLE, sem afirmar)
-  assert.equal(verifyEvidence(edit(bundle("maxConsecutiveWins", T, [R]), (x) => (x.evidence.metrics[0].value += 1))).status, "UNVERIFIABLE")
-  // métricas que não dependem da ordem: verificadas normalmente, mesmo com empates
+  assert.notEqual(winsA, winsC, "a métrica depende da ordem de entrada")
+  const ok = bundle("maxConsecutiveWins", T, [R])
+  assert.equal(ok.evidence.metrics[0].population.sequence.dependent, true)
+  assert.deepEqual(ok.evidence.metrics[0].population.sequence.order, T.map((t) => t.id)) // a ordem de entrada dos dados = a que o motor usou
+  assert.equal(verifyEvidence(ok).status, "VALID")
+  // tirar a ordem registrada (com selo refeito) NÃO vira VALID: UNVERIFIABLE com motivo explícito
+  const stripped = verifyEvidence(edit(ok, (x) => (x.evidence.metrics[0].population.sequence.order = null)))
+  assert.equal(stripped.status, "UNVERIFIABLE")
+  assert.deepEqual(fails(stripped), [])
+  for (const cid of ["V4.sequence", "V4.metric-value", "V4.metric-fields", "V4.contributors"]) assert.equal(check(stripped, cid).code, "S_ORDER_NOT_RECORDED")
+  assert.match(check(stripped, "V4.sequence").detail, /não registra a ordem/)
   for (const id of ["netPnl", "winRate", "profitFactor", "totalR"]) assert.equal(verifyEvidence(bundle(id, T, [R])).status, "VALID", id)
   assert.equal(check(verifyEvidence(edit(bundle("netPnl", T, [R]), (x) => (x.evidence.metrics[0].value += 1))), "V4.metric-value").status, "FAIL")
 })
@@ -513,11 +510,11 @@ test("LIMITE CONHECIDO (documentado, não escondido): campo do TradeEvidence que
 
 // ── relatório ────────────────────────────────────────────────────────────────
 
-test("RELATÓRIO: determinístico, 30 checks fixos, limitations sempre presentes; V3/V4 não vazam nome de conta", () => {
+test("RELATÓRIO: determinístico, 31 checks fixos, limitations sempre presentes; V3/V4 não vazam nome de conta", () => {
   for (const b of [bundle("netPnl"), groupBundle("account", 0, "netPnl"), bundle("netPnl", A, [rec], { tradeIdsLimit: 3 }), edit(bundle("netPnl"), (x) => (x.evidence.metrics[0].value += 1))]) {
     const a = verifyEvidence(b)
     assert.equal(canonicalJson(a), canonicalJson(verifyEvidence(clone(b))))
-    assert.equal(a.checks.length, 30)
+    assert.equal(a.checks.length, 31)
     assert.equal(a.limitations.length, 3)
     assert.ok(!/Sim10\d/.test(JSON.stringify(a)))
   }
@@ -568,8 +565,8 @@ for (const name of names) {
           const why = blockingSkips(rep)
           assert.ok(why.length > 0)
           // só os motivos conhecidos podem impedir VALID em dado limpo
-          for (const w of why) assert.ok(/S_HASH_ONLY|S_ORDER_AMBIGUOUS|S_NO_ANCHOR_CHECK|S_ASSOCIATION_UNVERIFIABLE/.test(w), `${label} #${n} ${b.subject.id}: ${w}`)
-          if (why.some((w) => w.includes("S_ORDER_AMBIGUOUS"))) C.ambiguous += 1
+          for (const w of why) assert.ok(/S_HASH_ONLY|S_ORDER_NOT_RECORDED|S_NO_ANCHOR_CHECK|S_ASSOCIATION_UNVERIFIABLE/.test(w), `${label} #${n} ${b.subject.id}: ${w}`)
+          if (why.some((w) => w.includes("S_ORDER_NOT_RECORDED"))) C.ambiguous += 1
           if (why.some((w) => w.includes("S_HASH_ONLY"))) C.hashOnly += 1
         }
         if (n % 5 !== 0) return // ataques em amostra
@@ -598,6 +595,6 @@ for (const name of names) {
     }
   })
 }
-if (names.length) console.log(`  → fixtures reais: ${C.bundles} bundles verificados · ${C.valid} VALID, ${C.unverifiable} UNVERIFIABLE (${C.hashOnly} HASH_ONLY, ${C.ambiguous} com ordem ambígua) · ${C.fails} FAIL em bundles limpos · ${C.attacks} ataques em amostra: ${C.detected} detectados, ${C.missed} não detectados (${C.tamperedStatus} TAMPERED)`)
+if (names.length) console.log(`  → fixtures reais: ${C.bundles} bundles verificados · ${C.valid} VALID, ${C.unverifiable} UNVERIFIABLE (${C.hashOnly} HASH_ONLY, ${C.ambiguous} com ordem não registrada) · ${C.fails} FAIL em bundles limpos · ${C.attacks} ataques em amostra: ${C.detected} detectados, ${C.missed} não detectados (${C.tamperedStatus} TAMPERED)`)
 
 console.log(`\n${passed} testes ok`)

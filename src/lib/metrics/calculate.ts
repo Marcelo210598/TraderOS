@@ -18,7 +18,7 @@ import {
 } from "./exact.ts"
 import { applyFilters, normalizeFilters } from "./filter.ts"
 import { prepareTrades, resolveOptions, sequenceOrder, type TradeRow } from "./prepare.ts"
-import { drawdown, streaks } from "./sequence.ts"
+import { drawdown, SEQUENCE_METRICS, streaks } from "./sequence.ts"
 import {
   AGGREGATE_SCHEMA,
   ENGINE_VERSION,
@@ -279,6 +279,13 @@ export function computeMetricSet(rows: TradeRow[], o: ResolvedOptions, trace?: T
 
   const st = streaks(seq)
   if (trace) {
+    // Ordem EFETIVAMENTE usada acima (mesma função e comparador: instante de saída; empate → ordem de entrada dos dados), registrada como
+    // subproduto. Invariante: as sequências de P&L e de R são subsequências dela — se não forem, a Evidence mentiria sobre a ordem.
+    const ordered = sequenceOrder(rows)
+    const inSeq = (sub: Array<{ id: string }>, members: Set<TradeRow>) => ordered.filter((r) => members.has(r)).map((r) => r.id).join("\0") === sub.map((s) => s.id).join("\0")
+    if (!inSeq(seq, new Set(cls)) || !inSeq(rSeq, new Set(rRows))) throw new Error("invariante do trace: a ordem registrada não contém as sequências usadas pelas métricas")
+    trace.setSequence(ordered.map((r) => r.id))
+    trace.sequenceDependent(SEQUENCE_METRICS)
     trace.add("maxConsecutiveWins", "STREAK_RUN", st.maxWins ? ranked(seq.slice(st.maxWinsStart, st.maxWinsStart + st.maxWins), st.maxWinsStart + 1) : [])
     trace.add("maxConsecutiveLosses", "STREAK_RUN", st.maxLosses ? ranked(seq.slice(st.maxLossesStart, st.maxLossesStart + st.maxLosses), st.maxLossesStart + 1) : [])
     const curFrom = seq.length - st.currentLength

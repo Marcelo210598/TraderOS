@@ -46,6 +46,8 @@ export interface Contributor {
 }
 
 export interface MetricTrace {
+  /** true = o valor/contribuintes dependem da ORDEM dos trades (curva de capital, drawdown, sequências): ver `MetricsTrace.sequence`. */
+  sequenceDependent: boolean
   /** false = a métrica não tem conjunto natural de contribuintes (sem papel inventado). */
   applicable: boolean
   /** Contagem por papel — SEMPRE completa, mesmo acima do limite. */
@@ -60,6 +62,12 @@ export interface MetricsTrace {
   /** Mesmo limite de `population.tradeIds` (tradeIdsLimit). */
   limit: number
   populationSize: number
+  /**
+   * A ordem EFETIVAMENTE usada pelo motor nas métricas sequenciais: ids de TODA a população (pós-filtros), na ordem de `sequenceOrder`
+   * (instante de saída; empate → ordem de entrada dos dados). As sequências de P&L e de R são subsequências dela. Registrada pela mesma
+   * passada que calcula — nunca reordenada por quem consome o trace.
+   */
+  sequence: string[]
   metrics: Record<string, MetricTrace>
 }
 
@@ -79,6 +87,8 @@ const ROLE_ORDER = new Map<ContributorRole, number>(CONTRIBUTOR_ROLES.map((r, i)
 export class TraceBuilder {
   private readonly entries = new Map<string, Contributor[]>()
   private readonly nothing = new Set<string>()
+  private readonly sequenced = new Set<string>()
+  private sequence: string[] = []
   private readonly limit: number
   private readonly populationSize: number
   constructor(limit: number, populationSize: number) {
@@ -93,6 +103,16 @@ export class TraceBuilder {
     this.entries.set(metric, list)
   }
 
+  /** Registra a ordem que o motor usou (ids da população inteira, já ordenados por `sequenceOrder`). */
+  setSequence(ids: string[]): void {
+    this.sequence = [...ids]
+  }
+
+  /** Marca as métricas cujo resultado depende da ordem dos trades. */
+  sequenceDependent(metrics: readonly string[]): void {
+    for (const m of metrics) this.sequenced.add(m)
+  }
+
   /** Marca explicitamente "sem conjunto natural" (documenta a decisão no próprio motor). */
   notApplicable(metric: string): void {
     this.nothing.add(metric)
@@ -103,7 +123,7 @@ export class TraceBuilder {
     for (const id of METRIC_IDS) {
       const list = this.entries.get(id)
       if (!list || this.nothing.has(id)) {
-        metrics[id] = { applicable: false, roleCounts: {}, contributors: null, anchors: [] }
+        metrics[id] = { sequenceDependent: this.sequenced.has(id), applicable: false, roleCounts: {}, contributors: null, anchors: [] }
         continue
       }
       const sorted = [...list].sort(
@@ -112,12 +132,13 @@ export class TraceBuilder {
       const roleCounts: Partial<Record<ContributorRole, number>> = {}
       for (const c of sorted) roleCounts[c.role] = (roleCounts[c.role] ?? 0) + 1
       metrics[id] = {
+        sequenceDependent: this.sequenced.has(id),
         applicable: true,
         roleCounts,
         contributors: this.populationSize <= this.limit ? sorted : null,
         anchors: sorted.filter((c) => ANCHOR_ROLES.has(c.role)),
       }
     }
-    return { limit: this.limit, populationSize: this.populationSize, metrics }
+    return { limit: this.limit, populationSize: this.populationSize, sequence: [...this.sequence], metrics }
   }
 }

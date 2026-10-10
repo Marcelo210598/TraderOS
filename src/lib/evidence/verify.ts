@@ -9,7 +9,7 @@
 // Status geral:
 //   V0 falhou                                              → INVALID_FORMAT
 //   algum FAIL em V1–V4 (selo, referências, população, cálculos) → TAMPERED
-//   sem FAIL, mas algo obrigatório ficou SKIPPED (HASH_ONLY, versão incompatível, proveniência incompleta, ordem ambígua,
+//   sem FAIL, mas algo obrigatório ficou SKIPPED (HASH_ONLY, versão incompatível, proveniência incompleta, ordem da sequência não registrada,
 //   associação impossível…)                                → UNVERIFIABLE
 //   tudo o que é aplicável passou e nada bloqueante foi pulado → VALID
 // SKIPPED nunca vira PASS. `S_NOT_APPLICABLE` (o check não se aplica àquele bundle) é o único SKIPPED que não impede VALID.
@@ -89,6 +89,7 @@ export const FAIL_CODES = {
   "V4.versions": "V_METRIC_UNKNOWN",
   "V4.query": "V_QUERY_INVALID",
   "V4.population": "V_TRADESET_HASH_MISMATCH",
+  "V4.sequence": "V_SEQUENCE_MISMATCH",
   "V4.metric-value": "V_METRIC_VALUE_MISMATCH",
   "V4.metric-fields": "V_METRIC_FIELD_MISMATCH",
   "V4.contributors": "V_CONTRIBUTORS_MISMATCH",
@@ -123,6 +124,7 @@ export const CHECK_CATALOG: ReadonlyArray<{ id: string; level: CheckLevel; title
   { id: "V4.versions", level: "V4", title: "engineVersion/definitionVersion compatíveis com o motor atual" },
   { id: "V4.query", level: "V4", title: "opções da consulta válidas" },
   { id: "V4.population", level: "V4", title: "tradeSetHash segundo o próprio motor" },
+  { id: "V4.sequence", level: "V4", title: "ordem da sequência (drawdown, sequências) registrada e reproduzida pelo motor" },
   { id: "V4.metric-value", level: "V4", title: "value recalculado pelo motor" },
   { id: "V4.metric-fields", level: "V4", title: "unit, basis, sampleSize, coverage e reason recalculados" },
   { id: "V4.contributors", level: "V4", title: "contribuintes, papéis e roleCounts segundo o trace do motor" },
@@ -140,7 +142,7 @@ const SKIP_REFS = "S_REFS_BROKEN"
 const SKIP_VERSION = "S_VERSION_INCOMPATIBLE"
 const SKIP_PROVENANCE = "S_PROVENANCE_INCOMPLETE"
 const SKIP_ASSOCIATION = "S_ASSOCIATION_UNVERIFIABLE"
-const SKIP_ORDER = "S_ORDER_AMBIGUOUS"
+const SKIP_ORDER = "S_ORDER_NOT_RECORDED"
 const SKIP_NO_ANCHOR = "S_NO_ANCHOR_CHECK"
 const SKIP_QUERY = "S_QUERY_INVALID"
 
@@ -231,6 +233,7 @@ function v2(bundle: EvidenceBundle): Map<string, Outcome> {
     metrics.forEach((m, i) => {
       const ids = m.population.tradeIds
       const c = m.contributors
+      if (m.population.sequence.order !== null && (ids === null || !m.population.sequence.dependent)) shape.push(`${label(i)}: ordem de sequência registrada ${ids === null ? "sem a população listada (HASH_ONLY)" : "numa métrica que não depende da ordem"}`)
       if (ids === null) {
         if (m.verifiability !== "HASH_ONLY") shape.push(`${label(i)}: tradeIds null mas verifiability ${m.verifiability}`)
         if (c.applicable && c.complete) shape.push(`${label(i)}: contributors completos sem lista da população`)
@@ -343,30 +346,20 @@ const same = (a: unknown, b: unknown): boolean => canonicalJson(a) === canonical
 const cmpId = (a: AnalyticsTrade, b: AnalyticsTrade) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 
 /**
- * Empate de instante de saída ⇒ o motor desempata pela ORDEM DE ENTRADA dos dados (documentado), que a Evidence não registra.
- * Se o resultado da métrica muda conforme a ordem (testamos 4 ordens globais), ela é AMBÍGUA: nem confirma nem acusa.
+ * Há empate de instante de ordenação na população? Então a ordem da sequência depende do desempate do motor (ordem de entrada dos dados),
+ * que só `population.sequence.order` registra. Conservador: qualquer empate conta (em erro, assume empate).
  */
-function orderSensitive(probes: AnalyticsTrade[], options: AnalysisOptions, metricId: string): boolean {
-  const rows = prepareTrades(probes, resolveOptions(options))
-  const keys = new Set<number>()
-  let tie = false
-  for (const r of rows) {
-    if (keys.has(r.orderKey)) tie = true
-    keys.add(r.orderKey)
+function hasOrderTie(probes: AnalyticsTrade[], options: AnalysisOptions): boolean {
+  try {
+    const keys = new Set<number>()
+    for (const r of prepareTrades(probes, resolveOptions(options))) {
+      if (keys.has(r.orderKey)) return true
+      keys.add(r.orderKey)
+    }
+    return false
+  } catch {
+    return true
   }
-  if (!tie) return false
-  const net = (a: AnalyticsTrade) => a.trade.pnl.net ?? 0
-  const orders: AnalyticsTrade[][] = [
-    [...probes].sort(cmpId),
-    [...probes].sort((a, b) => cmpId(b, a)),
-    [...probes].sort((a, b) => net(a) - net(b) || cmpId(a, b)),
-    [...probes].sort((a, b) => net(b) - net(a) || cmpId(a, b)),
-  ]
-  const sigs = orders.map((o) => {
-    const { result, trace } = calculateMetricsTraced(o, options)
-    return canonicalJson({ v: result.metrics[metricId], t: trace.metrics[metricId] })
-  })
-  return new Set(sigs).size > 1
 }
 
 interface Ctx {
@@ -380,7 +373,7 @@ function perMetric(m: MetricEvidence, label: string, ctx: Ctx): Record<string, O
   const full = ids !== null
   const set = (id: string, o: Outcome) => (out[id] = o)
   const skipAll = (ids_: string[], code: string, detail: string) => ids_.forEach((id) => set(id, skip(code, detail)))
-  const V4 = ["V4.population", "V4.metric-value", "V4.metric-fields", "V4.contributors", "V4.quality", "V4.association"]
+  const V4 = ["V4.population", "V4.sequence", "V4.metric-value", "V4.metric-fields", "V4.contributors", "V4.quality", "V4.association"]
 
   // referências quebradas (V2 já acusa): sem os trades não há como refazer nada
   const trades: TradeEvidence[] = []
@@ -431,7 +424,7 @@ function perMetric(m: MetricEvidence, label: string, ctx: Ctx): Record<string, O
 
   // HASH_ONLY: só âncoras
   if (!full) {
-    skipAll(["V3.population", ...V4], SKIP_HASH_ONLY, `população acima do limite (${options.tradeIdsLimit}): os trades não estão no bundle, só o tradeSetHash e as âncoras — a população completa não pode ser refeita nem as métricas recalculadas`)
+    skipAll(["V3.population", ...V4], SKIP_HASH_ONLY, `população acima do limite (${options.tradeIdsLimit}): os trades não estão no bundle, só o tradeSetHash e as âncoras — a população completa não pode ser refeita nem as métricas recalculadas, e a sequência completa (a ordem dos trades) não está no bundle: não se alega tê-la verificado`)
     const anchorMetric = m.metricId === "largestWinner" || m.metricId === "largestLoser"
     if (!anchorMetric) {
       set("V4.anchors", skip(SKIP_NO_ANCHOR, `${m.metricId} não é igual ao P&L de um único trade: as âncoras (${[...new Set(m.contributors.items.map((c) => c.role))].join(", ") || "nenhuma"}) não bastam para conferir o valor`))
@@ -461,8 +454,22 @@ function perMetric(m: MetricEvidence, label: string, ctx: Ctx): Record<string, O
     return out
   }
 
-  // V4: o MESMO motor sobre os trades reconstruídos (ordem canônica por tradeId)
-  const probes = trades.map(analyticsTradeFromEvidence).sort(cmpId)
+  // V4: o MESMO motor sobre os trades reconstruídos. Ordem de alimentação = a REGISTRADA (population.sequence.order) quando é uma permutação
+  // válida da população; senão a canônica por tradeId. O motor ordena como sempre (instante de saída; empate → ordem em que recebe os trades):
+  // nada é reordenado aqui, a ordem registrada só diz ao motor como desempatar, e V4.sequence confere que ele a reproduz.
+  const canonical = trades.map(analyticsTradeFromEvidence).sort(cmpId)
+  const declaredSeq = pop.sequence
+  let probes = canonical
+  let seqProblem: string | null = null
+  if (declaredSeq.order !== null) {
+    const probeById = new Map(canonical.map((p) => [p.id, p]))
+    const seen = new Set<string>()
+    const unknown = declaredSeq.order.filter((id) => !probeById.has(id))
+    const repeated = declaredSeq.order.filter((id) => (seen.has(id) ? true : (seen.add(id), false)))
+    if (declaredSeq.order.length !== canonical.length || unknown.length > 0 || repeated.length > 0) {
+      seqProblem = `a ordem registrada não é uma permutação da população (${declaredSeq.order.length} id(s) para ${canonical.length} trade(s); ${unknown.length} desconhecido(s), ${repeated.length} repetido(s))`
+    } else probes = declaredSeq.order.map((id) => probeById.get(id) as AnalyticsTrade)
+  }
   let run: ReturnType<typeof calculateMetricsTraced>
   try {
     run = calculateMetricsTraced(probes, options)
@@ -482,12 +489,27 @@ function perMetric(m: MetricEvidence, label: string, ctx: Ctx): Record<string, O
 
   set("V4.population", result.population.tradeSetHash === pop.tradeSetHash ? pass("tradeSetHash segundo o próprio motor (sobre os trades reconstruídos) = declarado") : failWith("V4.population", `declarado ${pop.tradeSetHash.slice(0, 12)}… ≠ do motor ${result.population.tradeSetHash.slice(0, 12)}…`))
 
-  // empate de saída + métrica sensível à ordem ⇒ ambígua
-  let ambiguous = false
-  try { ambiguous = orderSensitive(probes, options, m.metricId) } catch { ambiguous = false }
-  const orderNote = `${m.metricId} depende da ordem de entrada dos dados quando saídas empatam no mesmo instante, e a Evidence não registra essa ordem: o resultado varia com a ordem (testadas 4); o bundle não pode ser confirmado nem acusado por este check`
-  if (ambiguous) {
-    for (const id of ["V4.metric-value", "V4.metric-fields", "V4.contributors"]) set(id, skip(SKIP_ORDER, orderNote))
+  // V4.sequence: a dependência da ordem é do MOTOR (o bundle só a declara); a ordem registrada tem de ser a que o motor reproduz
+  let sequenceUnproven = false
+  if (declaredSeq.dependent !== mt.sequenceDependent) {
+    set("V4.sequence", failWith("V4.sequence", `${m.metricId}: o bundle declara dependent=${declaredSeq.dependent}, o motor diz ${mt.sequenceDependent}`))
+  } else if (seqProblem) {
+    set("V4.sequence", failWith("V4.sequence", seqProblem))
+  } else if (!mt.sequenceDependent) {
+    set("V4.sequence", declaredSeq.order === null ? NA(`${m.metricId} não depende da ordem dos trades`) : failWith("V4.sequence", `${m.metricId} não depende da ordem, mas o bundle registra uma`))
+  } else if (declaredSeq.order === null) {
+    if (hasOrderTie(canonical, options)) {
+      sequenceUnproven = true
+      set("V4.sequence", skip(SKIP_ORDER, `${m.metricId} depende da ordem, há trades com o mesmo instante de ordenação e o bundle não registra a ordem usada pelo motor: não dá para reproduzir a sequência, então o resultado não é confirmado nem acusado`))
+    } else set("V4.sequence", pass("sem empate de instante: a ordem é determinada só pelos instantes de saída (o bundle não precisa registrá-la)"))
+  } else if (same(trace.sequence, declaredSeq.order)) {
+    set("V4.sequence", pass(`ordem registrada (${declaredSeq.order.length} trade(s)) reproduzida pelo motor${hasOrderTie(canonical, options) ? ", incluindo o desempate dos instantes iguais" : ""}`))
+  } else {
+    set("V4.sequence", failWith("V4.sequence", "a ordem registrada contradiz o motor: alimentado com ela, o motor produz outra sequência (instantes de saída fora de ordem)"))
+  }
+
+  if (sequenceUnproven) {
+    for (const id of ["V4.metric-value", "V4.metric-fields", "V4.contributors"]) set(id, skip(SKIP_ORDER, `${m.metricId} depende de uma ordem que o bundle não registra (ver V4.sequence)`))
   } else {
     set("V4.metric-value", same(rm.value, m.value) ? pass(`value ${m.value} reproduzido pelo motor`) : failWith("V4.metric-value", `value declarado ${JSON.stringify(m.value)} ≠ motor ${JSON.stringify(rm.value)}`))
     const diffs: string[] = []
@@ -590,7 +612,7 @@ function association(m: MetricEvidence, trades: TradeEvidence[], probes: Analyti
 
 function v34(bundle: EvidenceBundle): Map<string, Outcome> {
   const out = new Map<string, Outcome>()
-  const ids = ["V3.population", "V3.provenance", "V4.versions", "V4.query", "V4.population", "V4.metric-value", "V4.metric-fields", "V4.contributors", "V4.quality", "V4.association", "V4.anchors"]
+  const ids = ["V3.population", "V3.provenance", "V4.versions", "V4.query", "V4.population", "V4.sequence", "V4.metric-value", "V4.metric-fields", "V4.contributors", "V4.quality", "V4.association", "V4.anchors"]
   const { metrics, trades } = bundle.evidence
   if (metrics.length === 0) {
     for (const id of ids) out.set(id, skip(SKIP_NO_METRICS, "bundle sem métricas: não há população nem valor a conferir"))

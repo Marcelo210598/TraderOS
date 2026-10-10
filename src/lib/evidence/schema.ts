@@ -134,6 +134,13 @@ const MetricPopulationSchema = z
     tradeIds: z.array(z.string()).nullable(),
     filterReport: z.record(z.string(), z.unknown()),
     provenance: z.object({ withIdentity: z.number().int(), withoutIdentity: z.number().int() }).strict(),
+    /**
+     * Ordem em que o motor percorreu a população nas métricas sequenciais (drawdown, sequências), COPIADA do trace — nunca recalculada.
+     * `dependent` = a métrica depende da ordem · `order` = tradeIds da população INTEIRA nessa ordem (instante de saída; empate → ordem
+     * de entrada dos dados, que só esta lista registra). `order` é null quando a métrica não é sequencial OU a população é HASH_ONLY
+     * (a ordem completa não está no bundle e não se alega tê-la verificado). O `tradeSetHash` continua independente da ordem.
+     */
+    sequence: z.object({ dependent: z.boolean(), order: z.array(z.string()).nullable() }).strict(),
   })
   .strict()
 

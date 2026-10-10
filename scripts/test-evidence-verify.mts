@@ -105,8 +105,8 @@ test("BUNDLE LIMPO: V0, V1 e V2 passam; população FULL ⇒ VALID (V3/V4 PASS o
   assert.equal(check(h, "V3.population").code, "S_HASH_ONLY")
   const ids = verifyEvidence(WIN).checks.map((c) => c.id)
   assert.equal(new Set(ids).size, ids.length)
-  assert.equal(ids.length, 30)
-  assert.deepEqual(verifyEvidence(WIN).checks.map((c) => c.level), ["V0", "V0", "V0", "V0", "V0", "V1", ...Array(13).fill("V2"), "V3", "V3", ...Array(9).fill("V4")])
+  assert.equal(ids.length, 31)
+  assert.deepEqual(verifyEvidence(WIN).checks.map((c) => c.level), ["V0", "V0", "V0", "V0", "V0", "V1", ...Array(13).fill("V2"), "V3", "V3", ...Array(10).fill("V4")])
 })
 
 // ── V0: formato ──────────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ test("V0 entradas que não são bundle (null, undefined, array, string, número,
     const rep = verifyEvidence(v as unknown)
     assert.equal(rep.status, "INVALID_FORMAT")
     assert.equal(check(rep, "V0.structure").status, "FAIL")
-    assert.equal(rep.checks.length, 30)
+    assert.equal(rep.checks.length, 31)
     assert.ok(rep.checks.every((c) => c.status !== "PASS" || c.level === "V0"))
     assert.equal(check(rep, "V3.population").code, "S_FORMAT_INVALID")
   }

@@ -259,6 +259,8 @@ export function explainMetric(input: ExplainMetricInput): ExplainMetricResult {
       tradeIds: pop.tradeIds ? [...pop.tradeIds] : null,
       filterReport: JSON.parse(JSON.stringify(pop.filterReport)) as Record<string, unknown>,
       provenance: { withIdentity: pop.provenance.withIdentity, withoutIdentity: pop.provenance.withoutIdentity },
+      // a ordem que o MOTOR usou (trace), copiada; só com a população listada (FULL) e só para métrica sequencial
+      sequence: { dependent: metricTrace.sequenceDependent, order: metricTrace.sequenceDependent && pop.tradeIds !== null ? [...v.trace.sequence] : null },
     },
     verifiability: pop.tradeIds === null ? ("HASH_ONLY" as const) : ("FULL" as const),
     contributors: {
@@ -273,6 +275,12 @@ export function explainMetric(input: ExplainMetricInput): ExplainMetricResult {
   }
   const parsed = MetricEvidenceSchema.safeParse(metricEvidence)
   if (!parsed.success) return fail("E_SCHEMA", `MetricEvidence fora do schema evidence/1: ${parsed.error.issues[0]?.path.join(".")} — ${parsed.error.issues[0]?.message}`)
+
+  // 6b) a ordem do trace tem de ser uma permutação da população listada (mesma chamada)
+  const seqOrder = parsed.data.population.sequence.order
+  if (seqOrder !== null && JSON.stringify([...seqOrder].sort()) !== JSON.stringify([...(pop.tradeIds ?? [])].sort())) {
+    return fail("E_RESULT_TRACE_MISMATCH", "A ordem registrada no trace não é uma permutação da população do resultado: não vieram da mesma chamada.")
+  }
 
   // 7) o hash da população é o do motor — só se confere
   if (parsed.data.population.tradeSetHash !== pop.tradeSetHash) return fail("E_RESULT_TRACE_MISMATCH", "tradeSetHash da Evidence ≠ o do motor.")

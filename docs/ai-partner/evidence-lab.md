@@ -16,7 +16,7 @@ Sem login e sem banco. Tudo é calculado **agora** pelas funções reais do dom�
 | Trilha do trade | `TradeEvidence → SourceRowRef → ImportRef` de cada um dos 14 ciclos: ids, rowHash, preços, componentes financeiros, R, reconstrução (confiança, borda, ambiguidades), pernas, linhas de origem, origem de cada campo. |
 | Métricas | As 39 métricas do motor (NET/GROSS, R líquido/pontos), contribuintes por papel, agrupamentos (conta, hora, direção, dia da semana, estratégia). |
 | EvidenceBundle | Gera o bundle de qualquer métrica (total ou grupo; população completa `FULL` ou acima do limite `HASH_ONLY`): `evidenceHash`, `tradeSetHash`, `MetricEvidence`, trades, imports, JSON. |
-| Verificador | O relatório REAL de `verifyEvidence` (30 checks: nível, id, status, código, explicação) e os 4 veredictos (`VALID`, `TAMPERED`, `UNVERIFIABLE`, `INVALID_FORMAT`). `SKIPPED` nunca aparece como aprovado. |
+| Verificador | O relatório REAL de `verifyEvidence` (31 checks: nível, id, status, código, explicação) e os 4 veredictos (`VALID`, `TAMPERED`, `UNVERIFIABLE`, `INVALID_FORMAT`). `SKIPPED` nunca aparece como aprovado. |
 | Adulteração | 18 cenários executados de verdade (computeEvidenceHash + verifyEvidence), com o JSON alterado, selo antes/depois e o que acusou. Inclui o cenário **coordenado**: `VALID`, que é o limite documentado (o selo não é assinatura; só o CSV original — E5b — denuncia). |
 
 ## Proteção de produção (no servidor, 4 camadas)
