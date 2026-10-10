@@ -1,5 +1,7 @@
 # MeuTrade — CHECKPOINT 2026-10-10b (E5b)
 
+> **ATUALIZAÇÃO (mesmo dia, depois):** as decisões abertas abaixo foram tratadas — contexto reproduzível (`233d887`), aba do E5b no Lab (`f5ab85f`) e plano E6/G6. Ver `MEUTRADE-CHECKPOINT-2026-10-10c.md`. O texto abaixo foi mantido como estava.
+
 > **Para o próximo Claude Code:** leia este arquivo inteiro antes de qualquer ação. Substitui o `-10-10` como ponto de retomada (ele e o `-10-09` ficam como histórico; as decisões e o "NÃO fazer" dos anteriores continuam valendo).
 > Idioma com o Marcelo: **sempre português brasileiro**, direto, avisando riscos. Na dúvida, perguntar antes. Passos pequenos: plano → aprovação → implementação → relatório → revisão.
 > Documento público (repo público): **sem P&L real, sem nomes de conta/estratégia, sem dados do usuário**.

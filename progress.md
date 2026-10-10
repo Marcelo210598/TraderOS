@@ -5,6 +5,9 @@
 - Única mexida em arquivo de auth: `src/proxy.ts` (exceção de login SÓ com guard aberto; em produção nada muda). Validado com `next build` + `next start`.
 - 901 conferências HTML × domínio no dev server; `scripts/test-evidence-lab.mts` (8 testes).
 
+## 📝 10/10/2026 — Plano E6/G6 (SÓ PLANO, nada implementado)
+`docs/ai-partner/E6-G6-plano.md`: dimensão `exitReason` (trade) + `exitBreakdown` (perna) + ranking/contribuição/comparação + Evidence dos derivados (aditiva) + desenho das capacidades para o agente. 6 decisões pendentes (§3). **Aguardando revisão do usuário.** Checkpoint: `MEUTRADE-CHECKPOINT-2026-10-10c.md`.
+
 ## ✅ 10/10/2026 — Evidence Lab: aba "Origem (E5b)" — só local, sem push
 Nova aba em `/dev/evidence-lab?tab=source`: 11 cenários sintéticos executados com `verifyEvidenceSource` + `verifyEvidence` reais (íntegro, 1 byte, célula financeira, hash de arquivo, importId, rowHash, tradeId, **bundle forjado VALID no V0–V4 e SOURCE_MISMATCH no E5b**, HASH_ONLY, arquivo ausente, versão do parser), com 9 passos e legenda dos estados (parcial nunca é "completo"). Visão geral atualizada (9 camadas; E5b/E5.3/ordem deixam de ser pendências). Mesmo guard em 4 camadas; validado em `next build --webpack` + `next start` numa cópia isolada (anônimo → login/401; logado → 404 em tudo). `scripts/test-evidence-lab-source.mts` (8). Achado pré-existente: `cycleKey.strategy` expõe o nome da estratégia (E3). Detalhe: `docs/ai-partner/evidence-lab.md`.
 
