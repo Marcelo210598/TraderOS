@@ -5,6 +5,13 @@
 - Única mexida em arquivo de auth: `src/proxy.ts` (exceção de login SÓ com guard aberto; em produção nada muda). Validado com `next build` + `next start`.
 - 901 conferências HTML × domínio no dev server; `scripts/test-evidence-lab.mts` (8 testes).
 
+## ✅ 10/10/2026 — AI Partner: E5b `verifyEvidenceSource` (proveniência contra o CSV original) — só local, sem push
+Liga o bundle ao **arquivo**: bytes do CSV → SHA-256 → reingestão (mesmo pipeline) → `importId`, `rowHash`, `tradeId` e valores derivados do arquivo. Função isolada; `verifyEvidence`, motor e schema `evidence/1` **intactos**. Detalhe: `data-contract.md` §14.11; checkpoint: `MEUTRADE-CHECKPOINT-2026-10-10b.md`.
+- Estados: `SOURCE_VERIFIED` · `SOURCE_VERIFIED_PARTIAL` (HASH_ONLY) · `UNVERIFIABLE` · `SOURCE_MISMATCH` · `INVALID_FORMAT`. Indisponibilidade de arquivo/contexto/versão nunca vira adulteração.
+- Achados: `fileSha256` é hash do texto UTF-8 (bytes exatos via UTF-8 estrito + BOM preservado); `accountRefSalt`/`foldPolicy`/`exitReasonMap` não estão no bundle; só comparar ids não pega a forja "coordenada" ⇒ compara também os valores (via `explainTrades` da reingestão).
+- `scripts/test-evidence-source.mts` (25 testes). Reais: 17 ciclos + 34 trades-linha, 34 linhas, 288 bundles → 273 verificados · 7 parciais · 8 sem referência · 0 divergências; 552/552 ataques.
+- **Próximo:** revisão do E5b → decidir E6/G6 e a integração do agente. Nada disso foi iniciado.
+
 ## ✅ 10/10/2026 — AI Partner: E5.3 auditoria final do verificador — só local, sem push
 Fecha o contrato do `verifyEvidence` (V0–V4 + sequência). **Sem mudar motor, schema ou resultados.** Detalhe: `data-contract.md` §14.10; checkpoint: `MEUTRADE-CHECKPOINT-2026-10-10.md`.
 - Auditoria: `SKIPPED` nunca vira `PASS`; achado e correção de um default latente (`?? NA` ⇒ `S_CHECK_NOT_EXECUTED`, bloqueante); `S_ORDER_AMBIGUOUS` não existe mais.

@@ -1,5 +1,7 @@
 # MeuTrade — CHECKPOINT 2026-10-10
 
+> **ATUALIZAÇÃO (mesmo dia, depois):** o **E5b foi implementado** (commit local próprio) — ver `MEUTRADE-CHECKPOINT-2026-10-10b.md`. A seção "PRÓXIMA SESSÃO → o usuário decide o E5b" abaixo descreve o estado antes dele e foi mantida como estava.
+
 > **Para o próximo Claude Code:** leia este arquivo inteiro antes de qualquer ação. Substitui o `-10-09` como ponto de retomada (o de 09/10 fica como histórico; as decisões e o "NÃO fazer" dos anteriores continuam valendo).
 > Idioma com o Marcelo: **sempre português brasileiro**, direto, avisando riscos. Na dúvida, perguntar antes. Passos pequenos: plano → aprovação → implementação → relatório → revisão.
 > Documento público (repo público): **sem P&L real, sem nomes de conta/estratégia, sem dados do usuário**.
