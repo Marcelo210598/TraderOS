@@ -14,7 +14,7 @@
 ## Estado técnico
 | Item | Valor |
 |---|---|
-| Repo | `Desktop/Projetos AI/TraderOS` (público), `main`, **local à frente do `origin/main`** (19 commits após o E5.3), árvore limpa |
+| Repo | `Desktop/Projetos AI/TraderOS` (público), `main`, **20 commits locais à frente do `origin/main`**, árvore limpa |
 | Commits | `83d4408` ordem da sequência · E5.3 (auditoria/docs/checkpoint) · antes: `a3ce35e` checkpoint 09/10, `b9e7359` Evidence Lab, `b0392bb` E5.2, `49d6a1c` E5.1, `74f2351` rowHash, `8a190e1` E5.0 |
 | Testes | `npm run test:domain` PASS (inclui `test-evidence-sequence.mts` 13, `test-evidence-audit.mts` 7) · `tsc --noEmit` PASS · tipos dos `.mts` PASS · ESLint do escopo (`src/lib/metrics`, `evidence`, `dev` + scripts novos) PASS |
 | Motor | 120 hashes de referência (`fixtures/_synthetic/engine-baseline-pre-sequence.json`) idênticos aos de antes da mudança |
