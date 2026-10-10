@@ -2,6 +2,7 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
 import type { CheckStatus, VerifyStatus } from "@/lib/evidence/verify"
+import type { SourceStatus } from "@/lib/evidence/verify-source"
 
 export type Tone = "ok" | "bad" | "warn" | "mute" | "info"
 
@@ -23,6 +24,8 @@ export function Badge({ tone = "mute", children, title }: { tone?: Tone; childre
 
 export const checkTone = (s: CheckStatus): Tone => (s === "PASS" ? "ok" : s === "FAIL" ? "bad" : "warn")
 export const statusTone = (s: VerifyStatus): Tone => (s === "VALID" ? "ok" : s === "TAMPERED" ? "bad" : s === "UNVERIFIABLE" ? "warn" : "info")
+
+export const sourceStatusTone = (s: SourceStatus): Tone => (s === "SOURCE_VERIFIED" ? "ok" : s === "SOURCE_MISMATCH" ? "bad" : s === "UNVERIFIABLE" || s === "SOURCE_VERIFIED_PARTIAL" ? "warn" : "info")
 
 export function Section({ id, title, subtitle, children }: { id?: string; title: string; subtitle?: ReactNode; children: ReactNode }) {
   return (

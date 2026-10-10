@@ -3,11 +3,13 @@ import { notFound } from "next/navigation"
 import { isEvidenceLabEnabled } from "@/lib/dev/evidence-lab/guard"
 import { layerViews } from "@/lib/dev/evidence-lab/layers"
 import { SCENARIOS, buildBundle, buildDemo, runAllScenarios, runScenario, scenarioContext } from "@/lib/dev/evidence-lab/model"
+import { SOURCE_SCENARIOS, runAllSourceScenarios, runSourceScenario, sourceContext } from "@/lib/dev/evidence-lab/source"
 import { verifyEvidence } from "@/lib/evidence/verify"
 import { BundlePanel, HASH_ONLY_LIMIT } from "./_components/bundle-panel"
 import { MetricsPanel } from "./_components/metrics-panel"
 import { Overview } from "./_components/overview"
 import { TABS, href, parseParams } from "./_components/params"
+import { SourcePanel } from "./_components/source-panel"
 import { TamperPanel } from "./_components/tamper-panel"
 import { TradeTrail } from "./_components/trade-trail"
 import { Badge, Callout, QLink, Section } from "./_components/ui"
@@ -50,6 +52,7 @@ export default async function EvidenceLabPage({ searchParams }: { searchParams: 
       {p.tab === "metrics" ? <MetricsPanel demo={demo} p={p} /> : null}
       {p.tab === "bundle" ? <BundlePanel demo={demo} p={p} /> : null}
       {p.tab === "verify" ? <VerifyTab demo={demo} ctx={ctx} p={p} /> : null}
+      {p.tab === "source" ? <SourceTab demo={demo} p={p} /> : null}
       {p.tab === "tamper" ? <TamperPanel runs={runAllScenarios(ctx)} selected={runScenario(ctx, SCENARIOS.find((s) => s.id === p.scenario) ?? SCENARIOS[0])} p={p} /> : null}
     </div>
   )
@@ -72,4 +75,12 @@ function VerifyTab({ demo, ctx, p }: { demo: ReturnType<typeof buildDemo>; ctx: 
   }
   const run = runScenario(ctx, SCENARIOS.find((s) => s.id === p.scenario) ?? SCENARIOS[0])
   return <VerifierPanel title={`Relatório — ${run.scenario.title}`} report={run.report} extra={picker} />
+}
+
+function SourceTab({ demo, p }: { demo: ReturnType<typeof buildDemo>; p: ReturnType<typeof parseParams> }) {
+  // só calcula quando a aba está aberta (cada cenário reexecuta a ingestão); tudo sintético, nada é persistido
+  const sctx = sourceContext(demo)
+  const runs = runAllSourceScenarios(sctx)
+  const selected = runSourceScenario(sctx, SOURCE_SCENARIOS.find((s) => s.id === p.src) ?? SOURCE_SCENARIOS[0])
+  return <SourcePanel runs={runs} selected={selected} p={p} />
 }

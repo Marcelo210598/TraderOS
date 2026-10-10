@@ -4,7 +4,7 @@ import { Badge, Callout, Panel, Section, Table, Td, checkTone, statusTone } from
 export const STATUS_EXPLAIN: Record<VerifyStatus, string> = {
   VALID: "Todos os checks que se aplicam passaram e nada bloqueante foi pulado: os números do bundle são reproduzíveis pelo motor a partir dos trades declarados. NÃO prova a origem, a seleção original nem é assinatura.",
   TAMPERED: "Pelo menos um check FALHOU: selo, referência, população ou cálculo está inconsistente. Algo foi alterado (ou gerado de forma incoerente).",
-  UNVERIFIABLE: "Nada acusou adulteração, mas algo obrigatório NÃO pôde ser verificado (população acima do limite, versão incompatível, associação sem referência, proveniência incompleta, ordem ambígua). Não é aprovação.",
+  UNVERIFIABLE: "Nada acusou adulteração, mas algo obrigatório NÃO pôde ser verificado (população acima do limite, versão incompatível, associação sem referência, proveniência incompleta, ordem da sequência não registradaa). Não é aprovação.",
   INVALID_FORMAT: "O bundle não tem a forma do contrato (evidence/1 estrito): nem dá para ler selo e referências com segurança. Os checks seguintes ficam SKIPPED.",
 }
 

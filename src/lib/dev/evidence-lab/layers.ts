@@ -10,6 +10,7 @@ import { RECONSTRUCTION_VERSION } from "../../ingest/reconstruct.ts"
 import { DEFINITION_VERSION, ENGINE_VERSION, METRIC_IDS, calculateMetrics } from "../../metrics/index.ts"
 import { verifyEvidence } from "../../evidence/verify.ts"
 import { runAllScenarios, type Demo, type ScenarioContext } from "./model.ts"
+import { SOURCE_SCENARIOS, runAllSourceScenarios, sourceContext } from "./source.ts"
 
 export type LayerStatus = "concluido" | "parcial" | "pendente" | "fora"
 
@@ -86,13 +87,13 @@ export const LAYERS: Layer[] = [
     status: "concluido",
     summary: "Motor puro, sem banco: aritmética em inteiros escalados, população/cobertura/qualidade em cada número, filtros, grupos e trace dos contribuintes.",
     basis: ["src/lib/metrics/", "scripts/test-metrics-*.mts (oráculo à mão)", "scripts/test-real-nt8-metrics.mts"],
-    limits: ["Com saídas empatadas no mesmo instante, maxDrawdown e as sequências dependem da ORDEM de entrada dos dados (achado do E5.2; correção exigiria mudar resultados)."],
+    limits: ["Com saídas empatadas no mesmo instante, maxDrawdown e as sequências dependem da posição do trade no array de entrada (o motor não mudou); a Evidence REGISTRA essa ordem (population.sequence). Provar que é a ordem original dos dados não é possível só com o CSV."],
   },
   {
     id: "identidade",
     title: "6. Identidade e provenance",
     status: "concluido",
-    summary: "importId, rowHash, tradeId determinísticos (sem UUID) e accountRef não reversível; do trade até a linha do arquivo.",
+    summary: "importId, rowHash, tradeId determinísticos (sem UUID) e accountRef não reversível; do trade até a linha do arquivo. Imports novos registram o contexto reproduzível (versões de identidade, foldPolicy, exitReasonMap, bandeira de sal; nunca o sal).",
     basis: ["src/lib/ingest/identity.ts", "src/lib/infra/hash.ts", "scripts/test-evidence-identity.mts"],
     limits: ["O id é por import: mesmo arquivo importado 2× gera ids repetidos (Evidence recusa: E_DUPLICATE_TRADE_ID). Dedupe entre exports NÃO decidido."],
   },
@@ -111,8 +112,19 @@ export const LAYERS: Layer[] = [
     summary: "verifyEvidence: formato, selo, referências, população (tradeSetHash) e métricas recalculadas pelo MESMO motor. VALID só quando tudo que se aplica passa.",
     basis: ["src/lib/evidence/verify.ts", "scripts/test-evidence-verify.mts, test-evidence-verify-math.mts", "5.274 bundles reais locais sem falso positivo"],
     limits: [
-      "VALID NÃO prova a origem dos dados (CSV original = E5b), nem que a seleção de trades foi correta, e o selo NÃO é assinatura: alteração coordenada de tudo é consistente (cenário \"coordenada\").",
-      "População acima do limite (HASH_ONLY), estratégia/sessão e métricas dependentes de ordem em empates ficam UNVERIFIABLE.",
+      "VALID NÃO prova a origem dos dados (isso é a camada 9, aba Origem), nem que a seleção de trades foi correta, e o selo NÃO é assinatura: alteração coordenada de tudo é consistente (cenário \"coordenada\").",
+      "População acima do limite (HASH_ONLY) e estratégia/sessão ficam UNVERIFIABLE; métricas sequenciais precisam da ordem registrada.",
+    ],
+  },
+  {
+    id: "origem",
+    title: "9. Verificação de origem (E5b)",
+    status: "parcial",
+    summary: "verifyEvidenceSource: bytes do CSV → SHA-256 → reexecução da ingestão (contexto do ImportRef) → importId, rowHash, tradeId e valores derivados do arquivo. Indisponibilidade nunca vira adulteração; população parcial nunca vira 'completa'.",
+    basis: ["src/lib/evidence/verify-source.ts", "scripts/test-evidence-source.mts, test-evidence-import-context.mts", "2 exports NT8 reais locais: 17 ciclos + 34 trades-linha conferidos, 0 divergências"],
+    limits: [
+      "Não prova a seleção original, a ordem original da sequência nem o R/stop do usuário (acrescentados depois da importação).",
+      "HASH_ONLY: só as âncoras são conferidas (SOURCE_VERIFIED_PARTIAL). Imports anteriores ao contexto reproduzível dependem de foldPolicy/exitReasonMap/sal informados.",
     ],
   },
 ]
@@ -125,13 +137,11 @@ export interface Pending {
 }
 
 export const PENDING: Pending[] = [
-  { id: "e5b", title: "E5b — verificação contra o CSV original", status: "pendente", why: "Reexecutar a ingestão e comparar fileSha256, importId, rowHash e tradeId: única prova de origem. Aprovado para depois." },
-  { id: "e53", title: "E5.3 — validação final e documentação do verificador", status: "pendente", why: "Aguarda a revisão do E5.2 e do Lab." },
-  { id: "e6", title: "E6 — grupos/comparações e motivo de saída (G6)", status: "pendente", why: "Depois do E5." },
+  { id: "e6", title: "E6 — grupos/comparações e motivo de saída (G6)", status: "pendente", why: "Plano a ser aprovado antes de implementar; o E5/E5b estão fechados." },
+  { id: "selecao", title: "Provar a SELEÇÃO original (E5c, a decidir)", status: "pendente", why: "O E5b confere os trades CITADOS contra o arquivo; reaplicar os filtros declarados ao conjunto reingerido provaria que a seleção foi a correta. Não feito." },
   { id: "persistencia", title: "Persistência (Prisma/banco)", status: "pendente", why: "Só com o contrato de dados validado. O Lab não usa banco." },
   { id: "parser-en", title: "Parser NT8 em inglês validado", status: "pendente", why: "Falta um export real em inglês." },
   { id: "dedupe", title: "Dedupe entre exports sobrepostos", status: "pendente", why: "Decisão adiada (usaria rowHash)." },
-  { id: "ordem", title: "Desempate determinístico de saídas empatadas", status: "pendente", why: "Mudaria resultados de maxDrawdown/sequências em trades-linha; exige decisão (ou registrar a ordem na Evidence)." },
   { id: "ref-estrategia", title: "Referência não reversível de estratégia/sessão na Evidence", status: "pendente", why: "Permitiria verificar a associação a grupos por estratégia/sessão. Evolução futura, fora desta etapa." },
   { id: "legado", title: "Migrar o app legado (UI) para o domínio novo", status: "pendente", why: "UI/legado ainda com America/Sao_Paulo fixo e cálculos próprios." },
   { id: "ui-produto", title: "Interface de produto do MeuTrade para Evidence", status: "fora", why: "O Evidence Lab é ferramenta de desenvolvimento, não a interface pública." },
@@ -164,6 +174,18 @@ const probes: Record<string, (demo: Demo, ctx: ScenarioContext) => Probe> = {
     const parsed = EvidenceBundleSchema.safeParse(ctx.base)
     const sealOk = computeEvidenceHash(ctx.base) === ctx.base.evidenceHash
     return { ok: parsed.success && sealOk, text: `${EVIDENCE_SCHEMA}: bundle de "${ctx.base.subject.id}" ${parsed.success ? "passa no schema estrito" : "FORA do schema"} · selo recalculado ${sealOk ? "confere" : "NÃO confere"} · ${ctx.base.evidence.trades.length} TradeEvidence` }
+  },
+  origem: (demo) => {
+    const sctx = sourceContext(demo)
+    const runs = runAllSourceScenarios(sctx)
+    const ok = runs.filter((r) => r.matchesContract).length
+    const find = (id: string) => runs.find((r) => r.scenario.id === id)
+    const intact = find("intact")
+    const forged = find("forged")
+    return {
+      ok: intact?.report.status === "SOURCE_VERIFIED" && forged?.report.status === "SOURCE_MISMATCH" && ok === runs.length && runs.length === SOURCE_SCENARIOS.length,
+      text: `arquivo íntegro → ${intact?.report.status} · bundle forjado (${forged?.verify.status} no V0–V4) → ${forged?.report.status} · ${ok}/${runs.length} cenários com o estado previsto pelo contrato`,
+    }
   },
   verificacao: (_demo, ctx) => {
     const intact = verifyEvidence(ctx.base)

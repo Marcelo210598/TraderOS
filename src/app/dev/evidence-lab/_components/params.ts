@@ -1,6 +1,7 @@
 // Parâmetros da URL do Lab (a página é toda renderizada no servidor; trocar de aba/cenário é só trocar a URL).
 import { EVIDENCE_LAB_BASE_PATH } from "@/lib/dev/evidence-lab/guard"
 import { GROUP_DIMENSIONS, SCENARIOS, type GroupDimension } from "@/lib/dev/evidence-lab/model"
+import { SOURCE_SCENARIOS } from "@/lib/dev/evidence-lab/source"
 import { METRIC_IDS } from "@/lib/metrics"
 
 export const TABS = [
@@ -10,6 +11,7 @@ export const TABS = [
   { id: "bundle", label: "EvidenceBundle" },
   { id: "verify", label: "Verificador" },
   { id: "tamper", label: "Adulteração" },
+  { id: "source", label: "Origem (E5b)" },
 ] as const
 export type Tab = (typeof TABS)[number]["id"]
 
@@ -17,6 +19,8 @@ export interface LabParams {
   tab: Tab
   /** id de cenário ("intact"…), ou "bundle" = o bundle montado na aba EvidenceBundle. */
   scenario: string
+  /** cenário da aba Origem (E5b). */
+  src: string
   trade: number
   metric: string
   by: GroupDimension | null
@@ -30,16 +34,18 @@ type Raw = Record<string, string | string[] | undefined>
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)
 const int = (v: string | undefined, d: number) => (v !== undefined && /^\d{1,4}$/.test(v) ? Number(v) : d)
 
-export const DEFAULTS: LabParams = { tab: "overview", scenario: "intact", trade: 0, metric: "netPnl", by: null, group: 0, mode: "full", pnl: "NET", r: "NET" }
+export const DEFAULTS: LabParams = { tab: "overview", scenario: "intact", src: "intact", trade: 0, metric: "netPnl", by: null, group: 0, mode: "full", pnl: "NET", r: "NET" }
 
 export function parseParams(raw: Raw): LabParams {
   const tab = one(raw.tab)
   const scenario = one(raw.scenario)
+  const src = one(raw.src)
   const metric = one(raw.metric)
   const by = one(raw.by)
   return {
     tab: (TABS.some((t) => t.id === tab) ? tab : DEFAULTS.tab) as Tab,
     scenario: scenario === "bundle" || SCENARIOS.some((s) => s.id === scenario) ? (scenario as string) : DEFAULTS.scenario,
+    src: SOURCE_SCENARIOS.some((x) => x.id === src) ? (src as string) : DEFAULTS.src,
     trade: int(one(raw.trade), DEFAULTS.trade),
     metric: metric && METRIC_IDS.includes(metric) ? metric : DEFAULTS.metric,
     by: by && (GROUP_DIMENSIONS as readonly string[]).includes(by) ? (by as GroupDimension) : null,

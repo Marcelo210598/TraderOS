@@ -179,7 +179,7 @@ function differing(a: TradeEvidence, b: TradeEvidence, fields: readonly (keyof T
  * O contexto da reingestão sai do ImportRef. Quando o registro tem `reproducibility`, ele MANDA (foldPolicy, exitReasonMap, sal sim/não);
  * a opção do chamador só vale para o que o registro não cobre (registros anteriores) e para o VALOR do sal, que nunca é gravado.
  */
-function contextOf(imp: ImportRef, opts: VerifySourceOptions): ImportContext {
+export function sourceContextOf(imp: ImportRef, opts: VerifySourceOptions): ImportContext {
   const s = imp.settings
   const rep = imp.reproducibility
   const salt = rep ? (rep.accountRefSalted ? opts.accountRefSalt : undefined) : opts.accountRefSalt
@@ -236,6 +236,15 @@ function recordDiffs(re: ImportRecord, imp: ImportRef, saltSupplied: boolean): s
   return d
 }
 
+/** UTF-8 ESTRITO preservando o BOM (U+FEFF fica no texto): para UTF-8 válido o round-trip é exato. Inválido ⇒ null. */
+export function decodeSourceBytes(bytes: Uint8Array): string | null {
+  try {
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes)
+  } catch {
+    return null
+  }
+}
+
 function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Array | undefined, opts: VerifySourceOptions, parsers: ParserDescriptor[]): PerImport {
   const blocked = (why: string): Outcome => skip(S_FILE_FIRST, why)
   const out: PerImport = {
@@ -261,10 +270,9 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
     downstream(out.context)
     return out
   }
-  let text: string
-  try {
-    text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes)
-  } catch {
+  const decoded = decodeSourceBytes(bytes)
+  const text = decoded as string
+  if (decoded === null) {
     out.file = skip(S_ENCODING, `${label}: o arquivo não é UTF-8 válido; o import foi registrado sobre texto UTF-8 (hashBasis ${imp.hashBasis}) e não pode ser reproduzido a partir destes bytes`)
     downstream(out.file)
     out.context = out.file
@@ -304,7 +312,7 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
     downstream(out.importId)
     return out
   }
-  const run: PipelineResult = runImportPipeline(text, contextOf(imp, opts), parsers)
+  const run: PipelineResult = runImportPipeline(text, sourceContextOf(imp, opts), parsers)
   if (!run.importRecord) {
     out.context = skip(S_REINGEST, `${label}: a reingestão não produziu um import (${[...new Set(run.issues.map((i) => i.code))].join(", ") || "sem detalhe"})`)
     out.importId = out.context

@@ -5,6 +5,9 @@
 - Única mexida em arquivo de auth: `src/proxy.ts` (exceção de login SÓ com guard aberto; em produção nada muda). Validado com `next build` + `next start`.
 - 901 conferências HTML × domínio no dev server; `scripts/test-evidence-lab.mts` (8 testes).
 
+## ✅ 10/10/2026 — Evidence Lab: aba "Origem (E5b)" — só local, sem push
+Nova aba em `/dev/evidence-lab?tab=source`: 11 cenários sintéticos executados com `verifyEvidenceSource` + `verifyEvidence` reais (íntegro, 1 byte, célula financeira, hash de arquivo, importId, rowHash, tradeId, **bundle forjado VALID no V0–V4 e SOURCE_MISMATCH no E5b**, HASH_ONLY, arquivo ausente, versão do parser), com 9 passos e legenda dos estados (parcial nunca é "completo"). Visão geral atualizada (9 camadas; E5b/E5.3/ordem deixam de ser pendências). Mesmo guard em 4 camadas; validado em `next build --webpack` + `next start` numa cópia isolada (anônimo → login/401; logado → 404 em tudo). `scripts/test-evidence-lab-source.mts` (8). Achado pré-existente: `cycleKey.strategy` expõe o nome da estratégia (E3). Detalhe: `docs/ai-partner/evidence-lab.md`.
+
 ## ✅ 10/10/2026 — AI Partner: contexto reproduzível das importações (`ImportRecord.reproducibility`) — só local, sem push
 Importações **novas** registram versões das funções de identidade, `foldPolicy` efetivo, `exitReasonMap` normalizado (na ordem) e `accountRefSalted` (nunca o sal). Bloco **opcional e fora do `importId`**: `importId`/`rowHash`/`tradeId`/`tradeSetHash` idênticos aos do commit anterior (pinados em teste); imports antigos não são retro-preenchidos. E5b usa o registrado (e continua `UNVERIFIABLE` quando falta sal/versão). Detalhe: `data-contract.md` §14.12; `scripts/test-evidence-import-context.mts` (7 testes).
 
