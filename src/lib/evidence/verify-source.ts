@@ -16,9 +16,13 @@
 //   UNVERIFIABLE             sem FAIL, mas algo bloqueante não pôde ser conferido (arquivo/contexto/versão ausentes ou incompatíveis…)
 //   SOURCE_VERIFIED_PARTIAL  tudo que está NO bundle confere, mas a população de alguma métrica é parcial (HASH_ONLY: só âncoras)
 //   SOURCE_VERIFIED          tudo que está no bundle confere e toda população declarada está listada
+// E6.3→E5b: a "população declarada" inclui a de cada DERIVADO (`evidence.derived[].population`): FULL = `tradeIds` listados e os TradeEvidence
+// no bundle (comparados com a fonte como qualquer outro trade; as referências de pernas do derivado também); HASH_ONLY ou ids ausentes do bundle
+// = população parcial. Verificar todos os trades de um derivado prova que os trades DECLARADOS vêm do arquivo — NÃO que os filtros originais
+// selecionaram a população correta nem que ela é a importação inteira (L_DERIVED_POPULATION_SCOPE).
 // `SOURCE_VERIFIED*` NÃO prova a seleção original, a ordem original da sequência nem o que o usuário acrescentou depois (R/stop): ver `limitations`.
 
-import type { ImportRecord } from "../domain/canonical.ts"
+import type { CanonicalTrade, ImportRecord } from "../domain/canonical.ts"
 import { DEFAULT_SOURCE_TIME_ZONE } from "../domain/time.ts"
 import { canonicalJson, sha256Hex } from "../infra/hash.ts"
 import { describeText, IDENTITY_VERSIONS } from "../ingest/identity.ts"
@@ -48,8 +52,25 @@ export interface SourceCoverage {
   rows: { referenced: number; verified: number }
   /** TradeEvidence do bundle (únicos) e quantos conferem identidade, estrutura e valores com a reingestão. */
   trades: { referenced: number; verified: number }
-  /** Métricas do bundle: população listada (FULL) × só hash e âncoras (HASH_ONLY). */
+  /**
+   * Métricas do bundle: população listada (FULL) × só hash e âncoras (HASH_ONLY). `complete` considera TAMBÉM os derivados (E6.3): verdadeiro só se há
+   * ao menos uma população declarada e nenhuma é HASH_ONLY nem parcial. `metrics/full/hashOnly` continuam sendo só das métricas (bundles antigos: iguais).
+   */
   populations: { metrics: number; full: number; hashOnly: number; complete: boolean }
+  /**
+   * Derivados (E6.3). `scope` é FIXO: a verificação cobre a população DECLARADA de cada derivado — não prova que os filtros originais a
+   * selecionaram corretamente nem que ela é a população completa da importação.
+   */
+  derived: {
+    total: number
+    full: number
+    hashOnly: number
+    /** FULL, mas com ids da população ausentes do bundle (não dá para conferir esses trades com a fonte). */
+    partial: number
+    trades: { declared: number; inBundle: number; verified: number }
+    legRefs: { declared: number; verified: number }
+    scope: "DECLARED_POPULATION"
+  }
   /** Fixos: o que a verificação de origem NÃO cobre (ver `limitations`). */
   selection: "NOT_VERIFIED"
   originalSequenceOrder: "NOT_VERIFIED"
@@ -79,6 +100,12 @@ export const SOURCE_LIMITATIONS: ReadonlyArray<SourceLimitation> = [
   { code: "L_BUNDLE_INTEGRITY_NOT_CHECKED", text: "O selo e a consistência interna do bundle (V0–V4) são do verifyEvidence; esta verificação só liga o bundle à fonte." },
 ]
 
+/** Só entra no relatório quando o bundle tem derivados (os bundles anteriores mantêm exatamente as 5 limitações). */
+const DERIVED_SCOPE_LIMITATION: SourceLimitation = {
+  code: "L_DERIVED_POPULATION_SCOPE",
+  text: "Para derivados, confere os trades DECLARADOS na população de cada análise (e as pernas que ela cita) contra o arquivo. Não prova que os filtros originais selecionaram essa população corretamente, nem que ela é a população completa da importação.",
+}
+
 const FAIL = {
   FILE: "V_FILE_MISMATCH",
   IMPORT_ID: "V_IMPORT_ID_MISMATCH",
@@ -90,6 +117,7 @@ const FAIL = {
   TRADE_ID: "V_TRADE_ID_MISMATCH",
   TRADE_STRUCTURE: "V_TRADE_STRUCTURE_MISMATCH",
   TRADE_VALUES: "V_TRADE_VALUES_MISMATCH",
+  DERIVED_LEG_REF: "V_DERIVED_LEG_REF_MISMATCH",
 } as const
 
 const S_NOT_PROVIDED = "S_SOURCE_NOT_PROVIDED"
@@ -105,6 +133,7 @@ const S_NOT_APPLICABLE = "S_NOT_APPLICABLE"
 const S_PARTIAL = "S_POPULATION_PARTIAL"
 const S_NOT_EXECUTED = "S_CHECK_NOT_EXECUTED"
 const S_NO_IMPORTS = "S_NO_IMPORTS"
+const S_DERIVED_UNVERIFIED = "S_DERIVED_TRADES_NOT_VERIFIED"
 
 export const SOURCE_CHECK_CATALOG: ReadonlyArray<{ id: string; title: string }> = [
   { id: "V5.format", title: "bundle evidence/1 legível (schema strict)" },
@@ -114,7 +143,8 @@ export const SOURCE_CHECK_CATALOG: ReadonlyArray<{ id: string; title: string }> 
   { id: "V5.rows", title: "V5.4 linhas citadas: existem e têm o rowHash registrado" },
   { id: "V5.trades", title: "V5.5 tradeId, granularidade e composição (linhas/reconstrução) conferem com a reingestão" },
   { id: "V5.values", title: "V5.5 valores derivados do arquivo (preços, P&L, horários, pernas) conferem com a reingestão" },
-  { id: "V5.coverage", title: "V5.6 cobertura: população listada × só âncoras" },
+  { id: "V5.derived", title: "V5.7 derivados: trades e pernas da população declarada conferem com a fonte (E6.3)" },
+  { id: "V5.coverage", title: "V5.6 cobertura: população listada × só âncoras (métricas e derivados)" },
 ]
 
 type Outcome = { status: SourceCheckStatus; code?: string; detail: string }
@@ -148,6 +178,8 @@ interface PerImport {
   values: Outcome[]
   verifiedRows: Set<number>
   verifiedTrades: Set<string>
+  /** Trades da REINGESTÃO por tradeId (para conferir as pernas citadas pelos derivados). Vazio se a reingestão não ocorreu. */
+  reTrades: Map<string, CanonicalTrade>
   referencedRows: Set<number>
   reingested: boolean
 }
@@ -256,6 +288,7 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
     values: [],
     verifiedRows: new Set(),
     verifiedTrades: new Set(),
+    reTrades: new Map(),
     referencedRows: new Set(tradesOf.flatMap((t) => t.sourceRows.map((r) => r.rowNo))),
     reingested: false,
   }
@@ -341,6 +374,7 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
     if (r.source.rowNo !== null) reRowAccount.set(r.source.rowNo, r.account.ref ?? null)
   }
   const reTradeById = new Map(run.trades.map((t) => [t.tradeId as string, t]))
+  out.reTrades = reTradeById
   const accountNames = [...new Set(run.rowTrades.map((t) => t.account.sourceName?.trim()).filter((n): n is string => !!n))].sort()
   const mine = tradesOf.filter((t) => t.importId === imp.importId)
 
@@ -441,6 +475,65 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
   return out
 }
 
+interface DerivedSourceResult {
+  outcomes: Outcome[]
+  summary: SourceCoverage["derived"]
+}
+
+/** V5.7 — cada derivado FULL: os trades da população estão no bundle e foram conferidos com a fonte; as pernas citadas batem com as da reingestão. */
+function verifyDerivedSource(bundle: EvidenceBundle, per: Map<string, PerImport>): DerivedSourceResult {
+  const derived = bundle.evidence.derived ?? []
+  const summary: SourceCoverage["derived"] = { total: derived.length, full: 0, hashOnly: 0, partial: 0, trades: { declared: 0, inBundle: 0, verified: 0 }, legRefs: { declared: 0, verified: 0 }, scope: "DECLARED_POPULATION" }
+  const inBundle = new Map(bundle.evidence.trades.map((t) => [t.tradeId, t]))
+  const verified = new Set<string>()
+  const reTrades = new Map<string, CanonicalTrade>()
+  for (const p of per.values()) {
+    for (const id of p.verifiedTrades) verified.add(id)
+    for (const [id, t] of p.reTrades) reTrades.set(id, t)
+  }
+  const parts: Outcome[] = []
+  derived.forEach((d, i) => {
+    const label = `${d.analysis.op}#${i}`
+    if (d.verifiability === "HASH_ONLY" || d.population.tradeIds === null) {
+      summary.hashOnly += 1
+      parts.push(skip(S_PARTIAL, `${label}: HASH_ONLY — só o tradeSetHash da população está no bundle (${d.population.afterFilters} trade(s)); como os trades não estão referenciados, a população NÃO pode ser conferida contra a fonte`))
+      return
+    }
+    summary.full += 1
+    const ids = d.population.tradeIds
+    const present = ids.filter((id) => inBundle.has(id))
+    summary.trades.declared += ids.length
+    summary.trades.inBundle += present.length
+    const ok = present.filter((id) => verified.has(id))
+    summary.trades.verified += ok.length
+    // pernas citadas × reingestão (só onde o trade foi reingerido; ausência é tratada pelos outros checks, nunca como adulteração aqui)
+    const legMismatch: string[] = []
+    for (const r of d.refs.legs.items ?? []) {
+      summary.legRefs.declared += 1
+      const re = reTrades.get(r.tradeId)
+      const leg = re?.exitLegs?.[r.legIndex]
+      if (!re || !verified.has(r.tradeId)) continue
+      if (!leg || JSON.stringify([...leg.rowRefs].sort((a, b) => a - b)) !== JSON.stringify(r.rowNos)) legMismatch.push(`${short(r.tradeId)}#${r.legIndex}`)
+      else summary.legRefs.verified += 1
+    }
+    if (legMismatch.length > 0) parts.push(fail(FAIL.DERIVED_LEG_REF, `${label}: ${legMismatch.length} perna(s) citada(s) não existem ou têm linhas de origem diferentes das da reingestão: ${listed(legMismatch)}`))
+    if (present.length < ids.length) {
+      summary.partial += 1
+      parts.push(skip(S_PARTIAL, `${label}: população PARCIAL — ${ids.length - present.length} de ${ids.length} trade(s) declarados não estão no bundle e não foram conferidos com a fonte`))
+    } else if (ids.length === 0) {
+      summary.partial += 1
+      parts.push(skip(S_PARTIAL, `${label}: população declarada vazia — nada a conferir contra a fonte`))
+    } else if (ok.length < present.length) {
+      parts.push(skip(S_DERIVED_UNVERIFIED, `${label}: ${present.length - ok.length} de ${present.length} trade(s) da população não puderam ser conferidos com a fonte (veja V5.file–V5.values)`))
+    } else if (legMismatch.length === 0) {
+      parts.push(pass(`${label}: ${ok.length} trade(s) da população DECLARADA conferem com a fonte${d.refs.legs.items ? ` e ${d.refs.legs.items.length} perna(s) citada(s) batem com a reingestão` : ""} (a seleção original e a completude da importação não são provadas)`))
+    }
+  })
+  // bloqueantes primeiro: `combine` usa o código do primeiro SKIPPED, e um bloqueio não pode ser escondido por "parcial"
+  const rank = (o: Outcome) => (o.status === "FAIL" ? 0 : o.status === "SKIPPED" && o.code !== S_PARTIAL ? 1 : o.status === "SKIPPED" ? 2 : 3)
+  return { outcomes: parts.sort((a, b) => rank(a) - rank(b)), summary }
+}
+
 function emptyReport(status: SourceStatus, detail: string): SourceVerifyReport {
   const checks: SourceCheck[] = SOURCE_CHECK_CATALOG.map((c) =>
     c.id === "V5.format"
@@ -483,17 +576,36 @@ export function verifyEvidenceSource(input: unknown, files: SourceFiles, options
     ["V5.values", combine(all.flatMap((p) => p.values))],
   ])
 
+  // derivados (E6.3): população declarada de cada um
+  const dsrc = verifyDerivedSource(bundle, per)
+  outcomes.set("V5.derived", dsrc.outcomes.length === 0 ? skip(S_NOT_APPLICABLE, "bundle sem derivados") : combine(dsrc.outcomes))
+
   const metrics = bundle.evidence.metrics
   const hashOnly = metrics.filter((m) => m.verifiability === "HASH_ONLY").length
   const full = metrics.length - hashOnly
-  outcomes.set(
-    "V5.coverage",
-    metrics.length === 0
-      ? skip(S_NOT_APPLICABLE, "bundle sem métricas: não há população declarada")
-      : hashOnly === 0
-        ? pass(`${full} métrica(s) com a população declarada INTEIRA listada: todos os trades da população foram comparados com a fonte (a seleção original continua não provada)`)
-        : skip(S_PARTIAL, `${hashOnly} de ${metrics.length} métrica(s) em HASH_ONLY: só o tradeSetHash e as âncoras estão no bundle; as referências presentes foram conferidas, a população completa NÃO pode ser conferida contra a fonte`),
-  )
+  const dHashOnly = dsrc.summary.hashOnly
+  const dPartial = dsrc.summary.partial
+  const dFull = dsrc.summary.full
+  const unlisted = hashOnly + dHashOnly + dPartial
+  if (dsrc.summary.total === 0) {
+    // bundles sem derivados: texto e comportamento exatamente os de antes
+    outcomes.set(
+      "V5.coverage",
+      metrics.length === 0
+        ? skip(S_NOT_APPLICABLE, "bundle sem métricas: não há população declarada")
+        : hashOnly === 0
+          ? pass(`${full} métrica(s) com a população declarada INTEIRA listada: todos os trades da população foram comparados com a fonte (a seleção original continua não provada)`)
+          : skip(S_PARTIAL, `${hashOnly} de ${metrics.length} métrica(s) em HASH_ONLY: só o tradeSetHash e as âncoras estão no bundle; as referências presentes foram conferidas, a população completa NÃO pode ser conferida contra a fonte`),
+    )
+  } else {
+    const what = [metrics.length > 0 ? `${metrics.length} métrica(s)` : null, `${dsrc.summary.total} derivado(s)`].filter(Boolean).join(" e ")
+    outcomes.set(
+      "V5.coverage",
+      unlisted === 0
+        ? pass(`${what} com a população declarada INTEIRA listada (${full} métrica(s), ${dFull} derivado(s) FULL): todos os trades DECLARADOS foram comparados com a fonte. É a população declarada de cada análise, não a importação inteira: a seleção original continua não provada`)
+        : skip(S_PARTIAL, `população declarada PARCIAL em ${what}: ${hashOnly} métrica(s) e ${dHashOnly} derivado(s) em HASH_ONLY, ${dPartial} derivado(s) FULL com trades fora do bundle — só o tradeSetHash/âncoras ou parte dos trades estão presentes; o que está presente foi conferido, o resto NÃO pode ser conferido contra a fonte`),
+    )
+  }
 
   const checks: SourceCheck[] = SOURCE_CHECK_CATALOG.map((c) => {
     const o = outcomes.get(c.id) ?? skip(S_NOT_EXECUTED, "check não executado")
@@ -512,7 +624,8 @@ export function verifyEvidenceSource(input: unknown, files: SourceFiles, options
     },
     rows: { referenced: refRows, verified: all.reduce((n, p) => n + p.verifiedRows.size, 0) },
     trades: { referenced: new Set(trades.map((t) => t.tradeId)).size, verified: all.reduce((n, p) => n + p.verifiedTrades.size, 0) },
-    populations: { metrics: metrics.length, full, hashOnly, complete: metrics.length > 0 && hashOnly === 0 },
+    populations: { metrics: metrics.length, full, hashOnly, complete: metrics.length + dsrc.summary.total > 0 && unlisted === 0 },
+    derived: dsrc.summary,
     selection: "NOT_VERIFIED",
     originalSequenceOrder: "NOT_VERIFIED",
     userEnrichment: "NOT_VERIFIED",
@@ -524,5 +637,6 @@ export function verifyEvidenceSource(input: unknown, files: SourceFiles, options
   else if (blocking) status = "UNVERIFIABLE"
   else if (checks.some((c) => c.code === S_PARTIAL)) status = "SOURCE_VERIFIED_PARTIAL"
   else status = "SOURCE_VERIFIED"
-  return { schema: VERIFY_SOURCE_SCHEMA, status, evidenceHash: bundle.evidenceHash, checks, coverage, limitations: SOURCE_LIMITATIONS.map((l) => ({ ...l })) }
+  const limitations = [...SOURCE_LIMITATIONS, ...(dsrc.summary.total > 0 ? [DERIVED_SCOPE_LIMITATION] : [])].map((l) => ({ ...l }))
+  return { schema: VERIFY_SOURCE_SCHEMA, status, evidenceHash: bundle.evidenceHash, checks, coverage, limitations }
 }

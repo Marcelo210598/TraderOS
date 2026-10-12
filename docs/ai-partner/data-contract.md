@@ -568,6 +568,16 @@ reproducibility?: { version: 1,
 
 
 
+### 14.13 E5b e derivados — população declarada de cada análise (IMPLEMENTADO em 2026-10-12)
+
+`verifyEvidenceSource` passa a considerar `evidence.derived[]` (E6.3), sem exigir `metrics[]`. **Contrato novo (aditivo):** check `V5.derived` (catálogo do E5b: 8 → 9 checks) e `coverage.derived` (`total/full/hashOnly/partial`, `trades {declared, inBundle, verified}`, `legRefs {declared, verified}`, `scope: "DECLARED_POPULATION"`). `coverage.populations.metrics/full/hashOnly` continuam **só das métricas** (bundles anteriores: idênticos); `populations.complete` agora vale também para derivados (derivado-only FULL ⇒ `true`; antes era sempre `false`).
+
+**O que `V5.derived` confere, por derivado:** (1) **FULL** — todos os `population.tradeIds` estão em `evidence.trades` **e** foram conferidos com a reingestão (`V5.trades`/`V5.values`: identidade, linhas+`rowHash`, valores derivados do arquivo); (2) as **pernas citadas** em `refs.legs.items` (`tradeId`, `legIndex`, `rowNos`) batem com `exitLegs[legIndex].rowRefs` da reingestão (`V_DERIVED_LEG_REF_MISMATCH` ⇒ `SOURCE_MISMATCH`). **Estados:** `PASS` (tudo da população declarada conferido); `S_POPULATION_PARTIAL` (não bloqueia; vira `SOURCE_VERIFIED_PARTIAL`): **HASH_ONLY** (só `tradeSetHash`, nenhum trade referenciado), **ids declarados fora do bundle** ou população vazia — o que está presente foi conferido, o resto **não** pode ser; `S_DERIVED_TRADES_NOT_VERIFIED` (bloqueia ⇒ `UNVERIFIABLE`): trades presentes que não puderam ser conferidos (arquivo/contexto/sal ausentes); `S_NOT_APPLICABLE` sem derivados (não é PASS vazio). Ausência de dado **nunca** é adulteração. Derivado HASH_ONLY sem trades no bundle fica `UNVERIFIABLE` (`V5.file: S_NO_IMPORTS`) com `V5.derived` explícito sobre o HASH_ONLY.
+
+**Escopo (distinção obrigatória).** Conferir **todos** os trades de um derivado prova que os trades **declarados** na população vêm do arquivo e que seus valores conferem; **não** prova que os filtros originais selecionaram a população correta, **nem** que ela é a população completa da importação, nem a ordem original ou o que o usuário acrescentou (R/stop). O relatório diz isso: `coverage.selection = NOT_VERIFIED` e, **só quando há derivados**, a limitação `L_DERIVED_POPULATION_SCOPE` (6ª; bundles sem derivados mantêm exatamente as 5 anteriores). `V5.coverage` descreve a população "declarada", não a importação.
+
+**Não muda:** `tradeSetHash`, métricas, fórmulas do E6.2, `verifyEvidence`/V6 (independentes: um derivado adulterado com selo refeito segue `SOURCE_VERIFIED` no E5b e `TAMPERED` no V6), o comportamento e os textos de bundles sem derivados (V5.coverage idêntico; os outros 8 checks continuam PASS). Teste: `scripts/test-evidence-source-derived.mts` (11) + fixtures reais; o `test-evidence-source.mts` ganhou só a exceção `V5.derived = S_NOT_APPLICABLE`.
+
 ## 15. E6 — motivo de saída, grupos e comparações (plano aprovado em 2026-10-12; só o E6.0 implementado)
 
 ### 15.1 E6.0 — dimensão/filtro `exitReason` (motivo de saída AGREGADO POR TRADE) e `strategyRef` (IMPLEMENTADO em 2026-10-12)
