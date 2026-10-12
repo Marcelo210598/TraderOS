@@ -16,7 +16,9 @@ import {
 } from "../src/lib/dev/evidence-lab/derived.ts"
 import { assertEvidenceLabEnabled } from "../src/lib/dev/evidence-lab/guard.ts"
 import { derivedDemoCsv } from "../src/lib/dev/evidence-lab/synthetic.ts"
-import { maskLabel } from "../src/lib/dev/evidence-lab/redact-view.ts"
+import { groupLabelView, maskLabel } from "../src/lib/dev/evidence-lab/redact-view.ts"
+import { buildDemo, groupsView } from "../src/lib/dev/evidence-lab/model.ts"
+import { accountRef, strategyRef } from "../src/lib/ingest/identity.ts"
 import { derivedEvidenceBundle, explainDerived } from "../src/lib/evidence/explain-derived.ts"
 import { computeEvidenceHash } from "../src/lib/evidence/hash.ts"
 import { CHECK_CATALOG, verifyEvidence } from "../src/lib/evidence/verify.ts"
@@ -237,6 +239,26 @@ test("REDAÇÃO EM TODAS AS ABAS (inclusive as antigas): o componente Json sempr
   }
   // todos os bundles do Lab principal (abas antigas), vistos pela interface, não mostram rótulo
   assert.equal(J(redactLabels(runs[0].bundle)).includes("Target1"), false)
+})
+
+test("MÉTRICAS POR CONTA/ESTRATÉGIA: o grupo do motor é mostrado como accountRef/strategyRef (nome em claro nunca); chave nula e outras dimensões mantêm o rótulo do motor; select do bundle usa o mesmo helper", () => {
+  const demo = buildDemo()
+  const acc = groupsView(demo, { pnl: "NET", r: "NET" }, "account").result.groups
+  assert.ok(acc.length >= 2 && acc.some((g) => g.label.includes("Conta Demo")), "premissa: o motor agrupa pelo nome")
+  const shown = acc.map((g) => groupLabelView("account", g))
+  assert.ok(shown.every((l) => /^acc_[0-9a-f]{24}$/.test(l)), J(shown))
+  assert.deepEqual(shown, acc.map((g) => accountRef(g.key[0] as string)))
+  const str = groupsView(demo, { pnl: "NET", r: "NET" }, "strategy").result.groups.map((g) => groupLabelView("strategy", g))
+  assert.ok(str.every((l) => /^str_[0-9a-f]{24}$/.test(l)))
+  assert.equal(str.some((l) => l.includes("Estratégia")), false)
+  assert.deepEqual(str, groupsView(demo, { pnl: "NET", r: "NET" }, "strategy").result.groups.map((g) => strategyRef(g.key[0] as string)))
+  assert.equal(groupLabelView("account", { key: [null], label: "(desconhecido)" }), "(desconhecido)")
+  assert.equal(groupLabelView("hour", { key: ["09"], label: "09:00" }), "09:00")
+  assert.equal(groupLabelView(null, { key: ["x"], label: "L" }), "L")
+  // nenhum cenário de adulteração injeta nome de conta de verdade (extra-field usa marcador neutro)
+  assert.equal(read("src/lib/dev/evidence-lab/model.ts").includes("Conta Demo"), false)
+  // nenhum painel renderiza g.label cru
+  for (const f of ["src/app/dev/evidence-lab/_components/metrics-panel.tsx", "src/app/dev/evidence-lab/_components/bundle-panel.tsx"]) assert.equal(/\bg\.label\b/.test(read(f).replace(/\/\/.*$/gm, "")), false, f)
 })
 
 if (ORIGINAL_ENV === undefined) delete env.NODE_ENV

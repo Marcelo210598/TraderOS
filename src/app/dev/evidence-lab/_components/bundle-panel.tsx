@@ -1,3 +1,4 @@
+import { groupLabelView } from "@/lib/dev/evidence-lab/redact-view"
 import { GROUP_DIMENSIONS, buildBundle, groupsView, type Demo } from "@/lib/dev/evidence-lab/model"
 import { verifyEvidence } from "@/lib/evidence/verify"
 import { METRIC_CATALOG } from "@/lib/metrics"
@@ -33,7 +34,7 @@ export function BundlePanel({ demo, p }: { demo: Demo; p: LabParams }) {
           <label className="flex flex-col gap-1 text-xs text-zinc-400">
             grupo
             <select name="group" defaultValue={String(p.group)} className="rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-100">
-              {groups.result.groups.map((g, i) => <option key={i} value={i}>{g.label} (n={g.sampleSize})</option>)}
+              {groups.result.groups.map((g, i) => <option key={i} value={i}>{groupLabelView(p.by, g)} (n={g.sampleSize})</option>)}
             </select>
           </label>
         ) : null}

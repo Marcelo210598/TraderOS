@@ -1,3 +1,4 @@
+import { groupLabelView } from "@/lib/dev/evidence-lab/redact-view"
 import { GROUP_DIMENSIONS, groupsView, metricsView, METRIC_DEFINITIONS, type Demo } from "@/lib/dev/evidence-lab/model"
 import type { MetricValue } from "@/lib/metrics"
 import { Badge, Callout, Num, Panel, QLink, Section, Table, Td } from "./ui"
@@ -85,7 +86,7 @@ export function MetricsPanel({ demo, p }: { demo: Demo; p: LabParams }) {
           <Table head={["grupo", "n", "amostra", "P&L líquido", "win rate", "profit factor", "max drawdown", "R total", "tradeSetHash"]}>
             {groups.result.groups.map((g, i) => (
               <tr key={i}>
-                <Td>{g.label}</Td><Td mono>{g.sampleSize}</Td>
+                <Td>{groupLabelView(p.by, g)}</Td><Td mono>{g.sampleSize}</Td>
                 <Td><Badge tone={g.sampleFlag === "OK" ? "ok" : g.sampleFlag === "LOW" ? "warn" : "mute"}>{g.sampleFlag}</Badge></Td>
                 <Td>{val(g.metrics.netPnl)}</Td><Td>{val(g.metrics.winRate)}</Td><Td>{val(g.metrics.profitFactor)}</Td><Td>{val(g.metrics.maxDrawdown)}</Td><Td>{val(g.metrics.totalR)}</Td>
                 <Td mono>{g.tradeSetHash.slice(0, 12)}…</Td>
