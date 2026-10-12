@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## 🟠 PENDÊNCIA RASTREADA (12/10/2026) — E5b não cobre bundles de LINHAS (`rowTrades`)
+Buraco de cobertura PRÉ-EXISTENTE no E5b (fora do escopo do sourceLabel): bundle gerado de `run.rowTrades` dá `SOURCE_MISMATCH`/`V_TRADE_ID_MISMATCH` porque a reingestão compara em ciclos. Achado no S4 (`scripts/test-evidence-sourcelabel-s4.mts`, fixtures reais). NÃO investigado ainda; decisão do Marcelo: olhar depois com calma. Hoje só V0–V6 cobrem esse bundle. Ver `verify-source.ts` (uso de `run.rowTrades` ~l.398).
+
 ## ✅ 09/10/2026 — Evidence Lab (localhost) — só local, sem push
 `/dev/evidence-lab`: inspeção visual da fundação (camadas, trilha do trade, métricas, bundle, verificador, 18 cenários de adulteração). Só `NODE_ENV=development`, sem banco/API/fixtures reais. Detalhe: `docs/ai-partner/evidence-lab.md`.
 - Única mexida em arquivo de auth: `src/proxy.ts` (exceção de login SÓ com guard aberto; em produção nada muda). Validado com `next build` + `next start`.

@@ -231,6 +231,13 @@ test("(3d) LACUNA CONHECIDA (decisão pendente do Marcelo) — esquecer o sal na
   assert.equal(forgot.status, "SOURCE_MISMATCH", "lacuna conhecida: falso positivo que lembra adulteração")
   assert.equal(forgot.checks.find((c) => c.id === "V5.trades")!.code, "V_TRADE_STRUCTURE_MISMATCH")
   assert.notEqual(forgot.status, "SOURCE_VERIFIED", "mas NUNCA verifica em falso")
+  // decisão do Marcelo: pista de diagnóstico no TEXTO, sem mudar veredito nem código
+  assert.match(forgot.checks.find((c) => c.id === "V5.trades")!.detail, /possível causa: o sal do import não foi propagado na geração/, "pista de diagnóstico presente")
+  // adulteração genuína (token/valor trocado, sal correto) NÃO recebe a pista de sal
+  const forged = JSON.parse(JSON.stringify(make({ accountRefSalt: SALT })))
+  forged.evidence.trades[0].netPnl = { ...forged.evidence.trades[0].netPnl, value: "999999" }
+  const fv = verify(forged)
+  assert.equal(JSON.stringify(fv.checks).includes("possível causa: o sal"), false, "sem pista quando o sal está certo")
   assert.equal(verifyEvidence(make()).status, "VALID", "o V0–V4 não enxerga o descasamento de sal")
 })
 

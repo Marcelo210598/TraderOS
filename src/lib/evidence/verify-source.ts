@@ -211,6 +211,12 @@ const filesGet = (files: SourceFiles, importId: string): Uint8Array | undefined 
 const rowsOf = (t: TradeEvidence): Array<{ rowNo: number; rowHash: string | null }> => t.sourceRows.map((r) => ({ rowNo: r.rowNo, rowHash: r.rowHash }))
 
 /** Campos do TradeEvidence comparados por check. Fora: r, risk, issues, fieldProvenance (não derivam só do arquivo: L_USER_ENRICHMENT_NOT_PROVEN). */
+/** Pista (só texto; NÃO muda o veredito): import salgado + sal informado + divergência em accountRef/strategyRef/labelRef ⇒ causa provável = sal não propagado na GERAÇÃO. */
+function saltHint(imp: { reproducibility?: { accountRefSalted?: boolean } }, struct: string[], values: string[], salt: string | undefined): string {
+  if (!imp.reproducibility?.accountRefSalted || !salt) return ""
+  const refs = [...struct, ...values].some((x) => /accountRef|strategyRef|labelRef|sourceLabel|reconstruction/.test(x))
+  return refs ? " [possível causa: o sal do import não foi propagado na geração da Evidence — não é prova de adulteração]" : ""
+}
 const STRUCTURE_FIELDS = ["importId", "provenance", "granularity", "accountRef", "reconstruction"] as const
 const VALUE_FIELDS = ["instrument", "direction", "quantity", "peakQuantity", "entry", "exit", "pnl", "pointsPerContract", "entryLegs", "exitLegs", "exitSummary", "excursions", "sourceRows"] as const
 
@@ -490,11 +496,11 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
     if (v.length > 0) valuesBad.push(`${short(p.t.tradeId)} (${v.join(", ")})`)
     if (s.length === 0 && v.length === 0 && wrong.length === 0) out.verifiedTrades.add(p.t.tradeId)
   })
-  if (structBad.length > 0) out.trades.push(fail(FAIL.TRADE_STRUCTURE, `${label}: ${structBad.length} trade(s) com granularidade/conta/reconstrução ≠ reingestão: ${listed(structBad)}`))
+  if (structBad.length > 0) out.trades.push(fail(FAIL.TRADE_STRUCTURE, `${label}: ${structBad.length} trade(s) com granularidade/conta/reconstrução ≠ reingestão: ${listed(structBad)}${saltHint(imp, structBad, valuesBad, effectiveSalt)}`))
   if (explainFailed > 0) out.trades.push(skip(S_REINGEST, `${label}: ${explainFailed} trade(s) da reingestão não puderam ser projetados (E3)`))
   if (out.trades.length === 0) out.trades.push(pass(`${label}: ${pending.length} trade(s): tradeId, granularidade, conta, reconstrução e composição de linhas = reingestão (SOURCE_ROW e ciclos)`))
   out.values = valuesBad.length > 0
-    ? [fail(FAIL.TRADE_VALUES, `${label}: ${valuesBad.length} trade(s) com valores derivados do arquivo diferentes da reingestão (só os campos, nunca os valores): ${listed(valuesBad)}`)]
+    ? [fail(FAIL.TRADE_VALUES, `${label}: ${valuesBad.length} trade(s) com valores derivados do arquivo diferentes da reingestão (só os campos, nunca os valores): ${listed(valuesBad)}${saltHint(imp, structBad, valuesBad, effectiveSalt)}`)]
     : pending.length === 0
       ? [skip(S_NOT_APPLICABLE, `${label}: nenhum trade comparável para conferir valores`)]
       : [pass(`${label}: ${pending.length} trade(s): instrumento, direção, quantidade, preços, horários, P&L, pernas, excursões e linhas de origem = reingestão (R, risco, issues e fieldProvenance ficam fora: L_USER_ENRICHMENT_NOT_PROVEN)`)]

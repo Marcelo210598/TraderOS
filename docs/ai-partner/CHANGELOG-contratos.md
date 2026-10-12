@@ -48,3 +48,6 @@ Registra **mudanças de contrato** observáveis por quem lê os tipos/relatório
 
 ## 2026-10-12 — E6.0 (`82a52c2`)
 - `reconstruction.cycleKey.strategy` → `cycleKey.strategyRef` (**muda o `evidenceHash` de bundles novos**); filtros `strategyId/strategyName` → `strategyIdRefs/strategyNameRefs`; chave de grupo `strategy` → ref; erro `E_STRATEGY_NAME_LEAK`.
+
+## 12/10/2026 — E5b: pista de diagnóstico de sal não propagado (só texto)
+`V_TRADE_STRUCTURE_MISMATCH`/`V_TRADE_VALUES_MISMATCH` ganham o sufixo "[possível causa: o sal do import não foi propagado na geração da Evidence — não é prova de adulteração]" quando o import é salgado, o sal foi informado e a divergência está em campo derivado de ref. Veredito, códigos e checks inalterados. Coberto em `test-evidence-salt-propagation` (3d).
