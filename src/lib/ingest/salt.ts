@@ -4,13 +4,14 @@
 //   D6 chaveiro versionado (s1, s2…): só o atual gera; antigos verificam; aposentar apaga o VALOR e mantém o registro.
 // O valor do sal NUNCA aparece em erro, JSON, inspect ou log deste módulo.
 
+import { SALT_CHECK_RE, SALT_ID_RE } from "../domain/canonical.ts"
 import { randomHex, sha256Hex } from "../infra/hash.ts"
+
+export { SALT_CHECK_RE, SALT_ID_RE } // fonte única dos formatos: domain/canonical.ts (o schema da Evidence os usa)
 
 export const SALT_MIN_BYTES = 32
 /** Sal de produto: hex minúsculo, ≥ 32 bytes (64 chars), tamanho par. */
 const STRONG_SALT_RE = /^(?:[0-9a-f]{2}){32,}$/
-export const SALT_ID_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/
-export const SALT_CHECK_RE = /^slt_[0-9a-f]{24}$/
 const SALT_CHECK_DOMAIN = "meutrade/saltCheck/1"
 
 export type SaltErrorCode = "E_SALT_WEAK" | "E_SALT_ID_INVALID" | "E_SALT_USER_INVALID" | "E_SALT_DUPLICATE" | "E_SALT_UNKNOWN_ID" | "E_SALT_CURRENT_CANNOT_RETIRE" | "E_SALT_NO_CURRENT"

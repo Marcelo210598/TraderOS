@@ -60,3 +60,7 @@ S4 (`7b4227a`): teste da matriz sal × rótulo × mapa × tipo de bundle e fixtu
 
 ## 12/10/2026 — Política de sal P1: `SaltProvider`, `generateSalt`, `saltCheck`, chaveiro (SEM mudança de contrato, não ligado)
 `src/lib/ingest/salt.ts` (funções puras, chaveiro em memória) + `randomHex` em `infra/hash.ts` (único arquivo que conhece `node:crypto`). Nenhum outro módulo importa o arquivo (travado por teste); nenhum hash, schema, verificador ou gerador muda. Regras fixadas: sal de produto = hex ≥ 32 bytes; `saltCheck` recusa sal fraco (E_SALT_WEAK) para nunca publicar check de palpite fraco; "só o último gera"; aposentar apaga o valor e mantém o registro; o atual não se aposenta. Teste: `test-salt-policy-p1.mts` (9).
+
+## 12/10/2026 — Política de sal P2: `saltId`/`saltCheck` opcionais no schema (aditivo; nenhum bundle existente muda)
+`ImportRecord.reproducibility` e `ImportRef.reproducibility` aceitam `saltId` (`^[a-z0-9][a-z0-9_-]{0,31}$`, rótulo não secreto) e `saltCheck` (`^slt_[0-9a-f]{24}$`), **juntos ou nenhum** (V0 ⇒ `INVALID_FORMAT` mesmo com selo refeito). `projectReproducibility` copia só se declarados ⇒ sem a declaração o objeto e o `evidenceHash` são idênticos aos de antes (prova dos 9 generalizada em 24 bundles: declarar muda o selo, remover reproduz o baseline). `importId/rowHash/tradeId` inalterados (O4 confirmado). Ainda **sem produtor** (P3) e **sem leitor** (P4): um bundle com os campos dá `SOURCE_MISMATCH` no E5b (transitório, documentado, travado por teste). Teste: `test-salt-policy-p2.mts` (7).
+

@@ -201,7 +201,13 @@ export const SourceRowSchema = z.object({
  * Contexto efetivo da importação que NÃO entra no `importId` e é necessário para reproduzi-la (E5b). Opcional: registros anteriores não o têm
  * e nunca são retro-preenchidos. Nenhum segredo: o sal do `accountRef` NÃO é gravado, só se houve sal (`accountRefSalted`).
  */
-export const ReproducibilitySchema = z
+/** Formatos da política de sal (P2, salt-policy-plano.md). `saltId`: rótulo NÃO secreto do sal do chaveiro; `saltCheck`: autodeclaração `slt_<24 hex>` (domínio meutrade/saltCheck/1). */
+export const SALT_ID_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/
+export const SALT_CHECK_RE = /^slt_[0-9a-f]{24}$/
+/** saltId e saltCheck andam JUNTOS: um sem o outro é formato inválido. */
+export const saltDeclarationIsPaired = (v: { saltId?: string; saltCheck?: string }): boolean => (v.saltId === undefined) === (v.saltCheck === undefined)
+
+export const ReproducibilityBase = z
   .object({
     version: z.literal(1),
     /** Versões das funções de identidade usadas (`ingest/identity.ts`). Mudou ⇒ a identidade não é reproduzível com o código atual. */
@@ -212,8 +218,12 @@ export const ReproducibilitySchema = z
     exitReasonMap: z.array(z.object({ pattern: z.string(), reason: ExitReasonSchema }).strict()),
     /** Houve `accountRefSalt`? (o valor nunca é gravado: quem verifica precisa tê-lo). */
     accountRefSalted: z.boolean(),
+    /** Política de sal (P2): qual sal do chaveiro foi usado (rótulo, nunca o valor) e a autodeclaração dele. Ausentes em imports anteriores à política (legado) e em imports sem sal. */
+    saltId: z.string().regex(SALT_ID_RE).optional(),
+    saltCheck: z.string().regex(SALT_CHECK_RE).optional(),
   })
   .strict()
+export const ReproducibilitySchema = ReproducibilityBase.refine(saltDeclarationIsPaired, { message: "saltId e saltCheck devem vir juntos (ou nenhum)" })
 export type Reproducibility = z.infer<typeof ReproducibilitySchema>
 
 export const ImportRecordSchema = z.object({

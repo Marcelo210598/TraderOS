@@ -1,6 +1,6 @@
 # Política de sal por usuário — plano (P0)
 
-> Status: **PLANO + EXPECTATIVAS** (12/10/2026). Nada implementado. Decisões D1–D7 aprovadas pelo Marcelo (D4 com correção de design, abaixo).
+> Status: **P0, P1 e P2 feitos** (12/10/2026; tabela de andamento na §5.1). Decisões O1/O2/O3 aprovadas. Decisões D1–D7 aprovadas pelo Marcelo (D4 com correção de design, abaixo).
 > Expectativas executáveis: `scripts/expectations/salt-policy.expected.json` (escritas **antes** do código; mudar exige `_meta.history`).
 > Tudo local: sem push, deploy, banco, Prisma, produção; sem dado real no repo; E6.5 só desenho, depois de D1–D3.
 
@@ -45,6 +45,14 @@ Regra:
 | **P4** | E5b lê `saltId/saltCheck` via provider; regra revisada da §3 (`V3–V12`), controle negativo `V6`; decidir O1/O2/O3 **antes**; matriz completa (`V13`). | **sim, só para bundles novos** |
 | **P5** | Lab: cenários de sal esquecido, errado, rotacionado, `saltCheck` adulterado (inclui o `V6`). | não (dev) |
 | **P6** | Docs (contrato §14.14 deixa de ser "decisão pendente"; §14.15 lacuna → fechada para bundles novos), CHANGELOG, lista revista dos falsos-negativos do guarda, fechar a pendência `sal-usuario` em `layers.ts`. | não |
+
+### 5.1 Andamento
+| Passo | Estado |
+|---|---|
+| P0 | feito (`50f4099`); O1 (tentar sais conhecidos; V8 PARTIAL / V9 UNVERIFIABLE), O2 (`SOURCE_VERIFIED_PARTIAL` + `L_SALT_CHECK_DIVERGENT`, rebaixa o combinado para `VERIFIED_PARTIAL`) e O3 (provider vence a string) **aprovados**; O4 resolvido por leitura e **confirmado por teste no P2 (H4)** |
+| P1 | feito (`f047355`) + `ensure` fail-closed (`f827d96`: último sal aposentado ⇒ `E_SALT_NO_CURRENT`, só `rotate` explícito destrava; antes recriava em silêncio) |
+| P2 | feito — `saltId`/`saltCheck` opcionais (juntos ou nenhum) em `ImportRecord.reproducibility` e `ImportRef.reproducibility`; formatos em `domain/canonical.ts` (fonte única); `projectReproducibility` copia só se declarados. **Estado transitório:** sem produtor (P3) e sem leitor (P4), um bundle com os campos dá `SOURCE_MISMATCH` no E5b (`V_IMPORT_RECORD_MISMATCH` em `reproducibility`) — fail-closed, travado por teste e a ser SUBSTITUÍDO no P4. |
+| P3 / P4 | pendentes — **ordem a decidir (ver relatório do P2): leitor (P4) antes do produtor (P3)** |
 
 ## 6. Fora de escopo
 Persistência real/Prisma/banco, UI de produto, Vega IA, E6.5 (só desenho depois de D1–D3), E5c, vocabulário v2, tratar o sal como senha de usuário.

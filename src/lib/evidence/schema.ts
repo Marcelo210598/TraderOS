@@ -10,7 +10,8 @@ import {
   ExitReasonSchema,
   ExitSummarySchema,
   ImportRecordSchema,
-  ReproducibilitySchema,
+  ReproducibilityBase,
+  saltDeclarationIsPaired,
   IssueSchema,
   PnlSchema,
   ReconstructionSchema,
@@ -39,9 +40,9 @@ export const PATTERN_REF_RE = /^pat_[0-9a-f]{24}$/
  * usuário, pode embutir texto livre) fica em claro; aqui só `patternRef` (+ motivo). O regex fica só no ImportRecord interno; quem verifica a
  * origem (E5b) recebe o mapa do chamador e o confere pelos `patternRef`.
  */
-export const ReproducibilityEvidenceSchema = ReproducibilitySchema.extend({
+export const ReproducibilityEvidenceSchema = ReproducibilityBase.extend({
   exitReasonMap: z.array(z.object({ patternRef: z.string().regex(PATTERN_REF_RE), reason: ExitReasonSchema }).strict()),
-})
+}).refine(saltDeclarationIsPaired, { message: "saltId e saltCheck devem vir juntos (ou nenhum)" })
 export const ImportRefSchema = ImportRecordSchema.extend({
   reproducibility: ReproducibilityEvidenceSchema.optional(),
   importedAt: z.string().nullable().optional(),

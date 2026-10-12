@@ -103,6 +103,9 @@ export function projectReproducibility(r: NonNullable<ImportRecord["reproducibil
     foldPolicy: r.foldPolicy,
     exitReasonMap: r.exitReasonMap.map((m) => ({ patternRef: makePatternRef(m.pattern, salt), reason: m.reason })),
     accountRefSalted: r.accountRefSalted,
+    // política de sal (P2): só se declarados (ausentes ⇒ o objeto, e portanto o evidenceHash, fica idêntico ao de antes)
+    ...(r.saltId !== undefined ? { saltId: r.saltId } : {}),
+    ...(r.saltCheck !== undefined ? { saltCheck: r.saltCheck } : {}),
   }
 }
 
