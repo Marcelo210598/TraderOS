@@ -19,6 +19,13 @@
         "why": "pedido de revisão: um único bundle é pouca evidência para uma mudança de hash que afeta todo bundle novo",
         "before_code": true,
         "baseline_commit": "804def3 (código inalterado nestes caminhos)"
+      },
+      {
+        "date": "2026-10-12",
+        "step": "S2",
+        "what": "Correção da expectativa 'o evidenceHash muda em todo bundle novo': bundles SEM nenhum ImportRef (derivado HASH_ONLY, que não leva trades) NÃO carregam labelVocab ⇒ evidenceHash IDÊNTICO ao baseline. Todo bundle com ao menos 1 ImportRef muda só pelo labelVocab.",
+        "why": "descoberto ao rodar a prova dos 9 bundles contra código real (o bundle 'derived-only HASH_ONLY, limit 3' tem imports: [])",
+        "asked_by": "descoberta na implementação; informado ao Marcelo"
       }
     ]
   },
@@ -456,7 +463,8 @@
             "labels": [],
             "allLabelsStandard": true,
             "derivedId": "drv_05b0f6b20b81d200e0797e3325d38e0d"
-          }
+          },
+          "note": "imports: [] ⇒ sem ImportRef ⇒ o evidenceHash NÃO muda (idêntico ao baseline); a remoção de labelVocab é um no-op"
         },
         "lab-demo-rows(SOURCE_ROW)/netPnl": {
           "build": "runImportPipeline(demoCsv(),{reconstructCycles:false}) → toAnalyticsTrades(run.trades) → explainMetric('netPnl') → metricEvidenceBundle",

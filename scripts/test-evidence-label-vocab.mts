@@ -95,15 +95,21 @@ test("NÃO É IDEMPOTENTE DE PROPÓSITO: projetar um token de novo gera outro to
   assert.equal(projectLabel(`lbl_${"0".repeat(24)}`) === `lbl_${"0".repeat(24)}`, false)
 })
 
-test("ESCOPO DO S1: nada foi ligado — explain-trade e schema ainda não importam o vocabulário (S2 inverte esta asserção de propósito); módulos puros, sem relógio/random/I-O", () => {
+test("S2 LIGADO (inverte a asserção do S1): explain-trade projeta os 4 campos de rótulo e o schema valida com isProjectedLabel; ImportRef registra labelVocab; módulos puros, sem relógio/random/I-O", () => {
   const read = (f: string) => readFileSync(join(ROOT, f), "utf8")
-  assert.equal(/label-vocab/.test(read("src/lib/evidence/explain-trade.ts")), false, "S1: explain-trade ainda não usa o vocabulário")
-  assert.equal(/label-vocab|labelRef/.test(read("src/lib/evidence/schema.ts")), false)
+  const et = read("src/lib/evidence/explain-trade.ts")
+  assert.match(et, /import \{ LABEL_VOCAB_VERSION, projectLabel \} from "\.\/label-vocab\.ts"/)
+  assert.equal((et.match(/projectLabel\(/g) ?? []).length, 4, "entry/exit legs + entryLabel/exitLabel das linhas")
+  assert.match(et, /labelVocab: LABEL_VOCAB_VERSION/)
+  const sc = read("src/lib/evidence/schema.ts")
+  assert.match(sc, /isProjectedLabel/)
+  assert.equal((sc.match(/ProjectedLabelSchema/g) ?? []).length >= 5, true)
+  // nenhum outro ponto da Evidence lê o texto cru do rótulo
+  for (const f of ["src/lib/evidence/explain-metric.ts", "src/lib/evidence/explain-derived.ts", "src/lib/evidence/derived.ts", "src/lib/evidence/verify.ts"]) assert.equal(/\.(sourceLabel|entryLabel|exitLabel)\b/.test(read(f).replace(/\/\/.*$/gm, "")), false, f)
   for (const f of ["src/lib/evidence/label-vocab.ts"]) {
     const code = read(f).replace(/\/\/.*$/gm, "").replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
     assert.equal(/Date\.now|new Date|Math\.random|randomUUID|node:fs|process\./.test(code), false, f)
   }
-  // identidade existente intacta
   assert.match(read("src/lib/ingest/identity.ts"), /export const IDENTITY_VERSIONS = \{ importId: IMPORT_ID_VERSION, rowHash: ROW_HASH_VERSION, tradeId: TRADE_ID_VERSION, accountRef: ACCOUNT_REF_DOMAIN \} as const/)
 })
 

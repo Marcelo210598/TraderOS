@@ -6,6 +6,7 @@
 
 import type { CanonicalTrade, ImportRecord } from "../domain/canonical.ts"
 import { accountRef as makeAccountRef, strategyRef as makeStrategyRef } from "../ingest/identity.ts"
+import { LABEL_VOCAB_VERSION, projectLabel } from "./label-vocab.ts"
 import { findAccountNameLeak, redactFileName, redactReconstruction, type KnownAccount } from "./redact.ts"
 import { ImportRefSchema, TradeEvidenceSchema, type ImportRef, type SourceRowRef, type TradeEvidence } from "./schema.ts"
 
@@ -65,21 +66,22 @@ const pnlOf = (p: CanonicalTrade["pnl"]) => ({
 type EntryLeg = NonNullable<CanonicalTrade["entryLegs"]>[number]
 type ExitLeg = NonNullable<CanonicalTrade["exitLegs"]>[number]
 
-const entryLegOf = (l: EntryLeg) => ({
+// sourceLabel (S2 do plano do sourceLabel): o texto do nome da ordem NUNCA sai em claro, só palavra do vocabulário v1 ou token `lbl_…` (projectLabel).
+const entryLegOf = (salt: string) => (l: EntryLeg) => ({
   at: timeOf(l.at),
   price: l.price,
   quantity: l.quantity,
-  sourceLabel: l.sourceLabel,
+  sourceLabel: projectLabel(l.sourceLabel, salt),
   rowRefs: [...l.rowRefs],
   granularity: l.granularity,
   role: l.role,
 })
 
-const exitLegOf = (l: ExitLeg) => ({
+const exitLegOf = (salt: string) => (l: ExitLeg) => ({
   at: timeOf(l.at),
   price: l.price,
   quantity: l.quantity,
-  sourceLabel: l.sourceLabel,
+  sourceLabel: projectLabel(l.sourceLabel, salt),
   rowRefs: [...l.rowRefs],
   granularity: l.granularity,
   role: l.role,
@@ -91,7 +93,7 @@ const exitLegOf = (l: ExitLeg) => ({
 })
 
 /** Linhas de um ciclo: valores crus completos da fonte (FULL). */
-function cycleRowRefs(trade: CanonicalTrade, importId: string): SourceRowRef[] {
+function cycleRowRefs(trade: CanonicalTrade, importId: string, salt: string): SourceRowRef[] {
   return (trade.sourceRows ?? []).map((r) => ({
     importId,
     rowNo: r.rowNo,
@@ -100,8 +102,8 @@ function cycleRowRefs(trade: CanonicalTrade, importId: string): SourceRowRef[] {
     entryLeg: r.entryLeg,
     exitLeg: r.exitLeg,
     quantity: r.quantity,
-    entryLabel: r.entryLabel,
-    exitLabel: r.exitLabel,
+    entryLabel: projectLabel(r.entryLabel, salt),
+    exitLabel: projectLabel(r.exitLabel, salt),
     entryPrice: r.entryPrice,
     exitPrice: r.exitPrice,
     reportedProfit: r.reportedProfit,
@@ -161,7 +163,7 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
 
   // 3) linhas de origem
   const granularity = trade.granularity === "POSITION_CYCLE" ? ("POSITION_CYCLE" as const) : ("SOURCE_ROW" as const)
-  const sourceRows = (granularity === "POSITION_CYCLE" ? cycleRowRefs(trade, importId) : rowTradeRef(trade, importId)).sort((a, b) => a.rowNo - b.rowNo)
+  const sourceRows = (granularity === "POSITION_CYCLE" ? cycleRowRefs(trade, importId, opts.accountRefSalt ?? "") : rowTradeRef(trade, importId)).sort((a, b) => a.rowNo - b.rowNo)
   const rowNos = new Set(sourceRows.map((r) => r.rowNo))
   for (const [side, legs] of [["entryLegs", trade.entryLegs], ["exitLegs", trade.exitLegs]] as const) {
     for (const [i, leg] of (legs ?? []).entries()) {
@@ -192,8 +194,8 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
     r: { net: trade.r.net, netReason: trade.r.netReason, points: trade.r.points },
     risk: { reason: trade.risk.reason },
     pointsPerContract: trade.pointsPerContract,
-    entryLegs: trade.entryLegs ? trade.entryLegs.map(entryLegOf) : null,
-    exitLegs: trade.exitLegs ? trade.exitLegs.map(exitLegOf) : null,
+    entryLegs: trade.entryLegs ? trade.entryLegs.map(entryLegOf(opts.accountRefSalt ?? "")) : null,
+    exitLegs: trade.exitLegs ? trade.exitLegs.map(exitLegOf(opts.accountRefSalt ?? "")) : null,
     exitSummary: trade.exitSummary
       ? { finalReason: trade.exitSummary.finalReason, finalReasons: [...trade.exitSummary.finalReasons], byReason: { ...trade.exitSummary.byReason }, mixed: trade.exitSummary.mixed }
       : null,
@@ -230,6 +232,8 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
     }
   }
   const importRefParsed = ImportRefSchema.safeParse({
+    // vocabulário de rótulos (decisão D): versão com que os rótulos desta Evidence foram projetados; fora do importId
+    labelVocab: LABEL_VOCAB_VERSION,
     importId: importRecord.importId,
     fileSha256: importRecord.fileSha256,
     hashBasis: importRecord.hashBasis,

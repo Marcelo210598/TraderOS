@@ -67,7 +67,7 @@ Normalização para comparar: remover acentos, `trim`, minúsculas (a mesma `nor
 
 ## 7. Impacto em hashes (a medir, não supor)
 - `importId`, `rowHash`, `tradeId`, `tradeSetHash`, métricas, derivados: **idênticos** (o Canonical e o fingerprint não usam a projeção).
-- `evidenceHash`: **muda em todos os bundles novos** pelo campo `labelVocab` (decisão D) — e, **além disso**, só muda quando havia texto livre (token) ou mapa de usuário (`patternRef`). Prova de que nada mais mudou: bundle novo **sem** a chave `labelVocab`, com selo recalculado, = `evidenceHash` de baseline pinado antes do código. Não há bundle persistido hoje (sem banco), então nenhuma migração.
+- `evidenceHash`: **muda em todo bundle novo que tenha ao menos 1 `ImportRef`** pelo campo `labelVocab` (decisão D; **bundles sem nenhum `ImportRef`, como o derivado `HASH_ONLY`, não mudam — corrigido no S2**) — e, **além disso**, só muda quando havia texto livre (token) ou mapa de usuário (`patternRef`). Prova de que nada mais mudou: bundle novo **sem** a chave `labelVocab`, com selo recalculado, = `evidenceHash` de baseline pinado antes do código. Não há bundle persistido hoje (sem banco), então nenhuma migração.
 - Compatibilidade: bundles antigos com texto livre passam a ser `INVALID_FORMAT` — aceitável (nenhum existe fora de testes); registrar no `CHANGELOG-contratos.md`.
 
 ## 8. Entregas (um commit local cada; expectativas ANTES do código — protocolo de `scripts/expectations/`)
@@ -88,8 +88,9 @@ Normalização para comparar: remover acentos, `trim`, minúsculas (a mesma `nor
 |---|---|
 | S0 (`f36268f`) e S0b (`2ee6c2f`) | **feitos** — expectativas e 9 pins de baseline escritos antes do código |
 | S1 | **feito** — `labelRef` (`ingest/identity.ts`) e `projectLabel`/`isVocabLabel`/`isProjectedLabel` (`evidence/label-vocab.ts`) + `test-evidence-label-vocab.mts` (11). **Não ligado** ao `explain-trade`/schema (isso é o S2): nenhum comportamento existente muda |
-| S2, S2b, S3, S4, S4b, S5, S6 | pendentes |
-Observação do S1: a projeção **não é idempotente de propósito** (projetar um token gera outro token): ela se aplica uma única vez, ao texto canônico; assim um rótulo escrito pelo usuário que imite um token não se passa por outro rótulo.
+| S2 | **feito** — projeção nos 4 campos (`explain-trade`), schemas da Evidence (`ProjectedLabelSchema`) que rejeitam texto livre no V0, `ImportRef.labelVocab: 1`, E5b com o **sal efetivo** e `S_VERSION_INCOMPATIBLE` para `labelVocab` ≠ 1. Prova dos 9 bundles rodada (ver `CHANGELOG-contratos.md`). Teste: `test-evidence-sourcelabel-s2.mts` (8). **S3** (provas de não regressão) já está coberto em boa parte por este teste; fecha com o `test:domain` completo |
+| S2b, S4b (decisão C: `patternRef` / mapa do usuário), S4, S5, S6 | pendentes |
+**Por que a projeção não é idempotente (mecanismo, S1):** o risco é de **confusão/injeção de formato**, não de colisão de hash. Se `projectLabel` devolvesse como está qualquer string que já *pareça* um token (`lbl_<24 hex>`), um usuário poderia nomear uma ordem exatamente com o token de **outro** rótulo (copiado de um bundle) e a Evidence a exibiria como se fosse aquele rótulo — e como o token serve para agrupar "o mesmo rótulo", ele escolheria em que grupo a ordem aparece. Como a função **sempre** normaliza e faz o hash do texto canônico (mesmo que pareça token), o texto `lbl_<hex>` do usuário é tratado como um rótulo comum e vira **outro** token (`lbl_<hash de "lbl_<hex>">`); o usuário não controla o token de saída (teria que inverter o SHA-256). **Alcance honesto:** isto protege o **produtor** (`projectLabel` nunca devolve texto controlado pelo usuário). Não protege contra quem **edita o bundle depois**: o V0 aceita qualquer token bem formado; é o E5b (reingestão + comparação) que denuncia a troca (`SOURCE_MISMATCH` em `V5.values`, testado no S2).
 
 ## 9. Decisões (todas respondidas em 12/10/2026 — ver §0)
 A estrito às 2 fixtures · B `\d{0,2}` · C sim (com S2b/S4b e a semântica da §6.1) · D sim (`labelVocab: 1`) · E documentar e adiar a política de sal (vale para `accountRef`, `strategyRef`, `labelRef` e `patternRef`).

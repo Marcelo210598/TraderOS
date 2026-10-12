@@ -382,7 +382,10 @@ test("PRIVACIDADE (trava fail-closed): nome de conta que escape em issues/mensag
   err(explainTrade(t2, rec, { knownAccountNames: ["Sim102"] }), "E_ACCOUNT_NAME_LEAK")
   const t3 = clone(A)
   t3.entryLegs![0].sourceLabel = "Sim101-entry"
-  err(explainTrade(t3, rec), "E_ACCOUNT_NAME_LEAK")
+  // S2 do sourceLabel: o rótulo livre vira TOKEN, então o nome da conta nem chega à Evidence (garantia estrutural; a trava fail-closed fica como 2ª camada)
+  const r3 = ok(explainTrade(t3, rec))
+  assert.match(r3.tradeEvidence.entryLegs![0].sourceLabel ?? "", /^lbl_[0-9a-f]{24}$/)
+  assert.equal(JSON.stringify(r3).includes("Sim101-entry"), false)
 })
 
 test("LISTA BRANCA: campos do Canonical que não foram escolhidos (notes, tags, fileName, fileHash, campo novo) NÃO chegam à Evidência", () => {
@@ -474,7 +477,10 @@ test("IMPORTREF: reaproveita o ImportRecord do E1 (mesmos campos) sem o conteúd
   void _b
   const { importedAt, ...refNoClock } = refRest
   assert.equal(importedAt, null)
-  assert.deepEqual(refNoClock, recRest)
+  // S2 do sourceLabel: o ImportRef = ImportRecord + EXATAMENTE `labelVocab: 1` (decisão D; fora do importId) — nenhum outro campo novo
+  const { labelVocab, ...refSame } = refNoClock
+  assert.equal(labelVocab, 1)
+  assert.deepEqual(refSame, recRest)
   const blob = JSON.stringify(all)
   assert.ok(!blob.includes("Núm. Neg.") && !blob.includes("Estrategia Teste;Comprada"))
   assert.ok(!blob.includes("21:00:00;"))

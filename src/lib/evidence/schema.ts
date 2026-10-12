@@ -18,11 +18,24 @@ import {
 } from "../domain/canonical.ts"
 import { CONTRIBUTOR_ROLES } from "../metrics/trace.ts"
 import { EVIDENCE_SCHEMA } from "./hash.ts"
+import { isProjectedLabel } from "./label-vocab.ts"
 
 export { EVIDENCE_SCHEMA }
 
 /** ImportRecord (E1) + `importedAt`, que quem persiste preenche. FORA do hash. */
-export const ImportRefSchema = ImportRecordSchema.extend({ importedAt: z.string().nullable().optional() }).strict()
+/**
+ * Rótulo de ordem NA EVIDENCE (S2 do plano do sourceLabel): null, vazio, palavra do vocabulário v1 ou token `lbl_<24 hex>`. Texto livre é
+ * INVALID_FORMAT no V0 — a garantia é do schema, não de convenção (vale mesmo com o selo refeito).
+ */
+export const ProjectedLabelSchema = z.string().nullable().refine((v) => isProjectedLabel(v), { message: "rótulo de ordem fora do vocabulário v1 e que não é um token lbl_<24 hex>" })
+export const EntryLegEvidenceSchema = EntryLegSchema.extend({ sourceLabel: ProjectedLabelSchema })
+export const ExitLegEvidenceSchema = ExitLegSchema.extend({ sourceLabel: ProjectedLabelSchema })
+
+export const ImportRefSchema = ImportRecordSchema.extend({
+  importedAt: z.string().nullable().optional(),
+  /** Versão do vocabulário de rótulos de ordem com que esta Evidence foi projetada (fora do importId). Ausente = 1. Versão ≠ da atual ⇒ o verificador de origem diz UNVERIFIABLE (S_VERSION_INCOMPATIBLE), não adulteração. */
+  labelVocab: z.number().int().positive().optional(),
+}).strict()
 export type ImportRef = z.infer<typeof ImportRefSchema>
 
 /**
@@ -40,8 +53,8 @@ export const SourceRowRefSchema = z
     entryLeg: z.number().int().nullable(),
     exitLeg: z.number().int().nullable(),
     quantity: z.number(),
-    entryLabel: z.string().nullable(),
-    exitLabel: z.string().nullable(),
+    entryLabel: ProjectedLabelSchema,
+    exitLabel: ProjectedLabelSchema,
     entryPrice: z.number(),
     exitPrice: z.number(),
     reportedProfit: z.number().nullable(),
@@ -112,8 +125,8 @@ export const TradeEvidenceSchema = z
     risk: z.object({ reason: RiskReasonSchema.nullable() }).strict(),
     /** Pontos POR CONTRATO, com sinal (+ = a favor), copiado do Canonical. Base de totalPoints/averagePoints. */
     pointsPerContract: z.number().finite(),
-    entryLegs: z.array(EntryLegSchema).nullable(),
-    exitLegs: z.array(ExitLegSchema).nullable(),
+    entryLegs: z.array(EntryLegEvidenceSchema).nullable(),
+    exitLegs: z.array(ExitLegEvidenceSchema).nullable(),
     exitSummary: ExitSummarySchema.nullable(),
     reconstruction: ReconstructionEvidenceSchema.nullable(),
     excursions: ExcursionsEvidenceSchema,

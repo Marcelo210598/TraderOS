@@ -40,6 +40,7 @@ import { RECONSTRUCTION_VERSION } from "../ingest/reconstruct.ts"
 import { DEFAULT_PARSERS } from "../ingest/registry.ts"
 import type { ImportContext, ParserDescriptor, PipelineResult } from "../ingest/types.ts"
 import { explainTrades } from "./explain-trade.ts"
+import { LABEL_VOCAB_VERSION } from "./label-vocab.ts"
 import { EvidenceBundleSchema, type EvidenceBundle, type ImportRef, type TradeEvidence } from "./schema.ts"
 
 export const VERIFY_SOURCE_SCHEMA = "verify-source/1" as const
@@ -242,6 +243,8 @@ export function sourceContextOf(imp: ImportRef, opts: VerifySourceOptions): Impo
 }
 
 function contextProblem(imp: ImportRef, parsers: ParserDescriptor[]): Outcome | null {
+  // vocabulário de rótulos (sourceLabel, decisão D): outra versão não é adulteração — os rótulos projetados não são reproduzíveis com este código
+  if (imp.labelVocab !== undefined && imp.labelVocab !== LABEL_VOCAB_VERSION) return skip(S_VERSION, `vocabulário de rótulos v${imp.labelVocab} ≠ v${LABEL_VOCAB_VERSION} deste código: os rótulos projetados (palavras e tokens) não podem ser reproduzidos (não é adulteração)`)
   const parser = parsers.find((p) => p.id === imp.parserId)
   if (!parser) return skip(S_CONTEXT, `parser "${imp.parserId}" não existe neste registro: não dá para reexecutar a leitura`)
   if (parser.version !== imp.parserVersion) return skip(S_VERSION, `parser ${imp.parserId}: o import usou a versão "${imp.parserVersion}", o registro atual tem "${parser.version}" — a identidade não pode ser reproduzida com outra versão (não é adulteração)`)
@@ -387,6 +390,8 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
   out.reTrades = reTradeById
   const accountNames = [...new Set(run.rowTrades.map((t) => t.account.sourceName?.trim()).filter((n): n is string => !!n))].sort()
   const mine = tradesOf.filter((t) => t.importId === imp.importId)
+  // o MESMO sal que a reingestão usou (sourceContextOf): com `reproducibility`, só vale o sal se o import o usou; senão o accountRef, os rótulos-token e o resto não batem por culpa do chamador
+  const effectiveSalt = rep ? (rep.accountRefSalted ? opts.accountRefSalt : undefined) : opts.accountRefSalt
 
   // sal exigido pelo registro e não informado: sem ele rowHash/tradeId não são comparáveis (o arquivo e o importId já foram conferidos)
   if (rep?.accountRefSalted && !opts.accountRefSalt) {
@@ -460,7 +465,7 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
   if (badStruct.length > 0) out.trades.push(fail(FAIL.TRADE_STRUCTURE, `${label}: ${badStruct.length} trade(s) com as linhas de origem diferentes das da reingestão: ${listed(badStruct)}`))
 
   const explained = pending.length > 0
-    ? explainTrades(pending.map((p) => p.re), re, { ...(opts.accountRefSalt !== undefined ? { accountRefSalt: opts.accountRefSalt } : {}), knownAccountNames: accountNames })
+    ? explainTrades(pending.map((p) => p.re), re, { ...(effectiveSalt !== undefined ? { accountRefSalt: effectiveSalt } : {}), knownAccountNames: accountNames })
     : []
   const structBad: string[] = []
   const valuesBad: string[] = []

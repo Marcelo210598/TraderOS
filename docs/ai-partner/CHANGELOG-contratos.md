@@ -2,6 +2,13 @@
 
 Registra **mudanças de contrato** observáveis por quem lê os tipos/relatórios (campos, estados, hashes). Ordem: mais recente primeiro. `evidence/1` nunca virou `evidence/2`: todas as mudanças abaixo são aditivas, salvo onde dito.
 
+## 2026-10-12 — S2 do `sourceLabel` (MUDANÇA DE CONTRATO — a única do plano até aqui que altera bundles)
+- **Projeção:** `entryLegs[].sourceLabel`, `exitLegs[].sourceLabel`, `sourceRows[].entryLabel` e `sourceRows[].exitLabel` saem como: `null` · `""` · palavra do vocabulário v1 (`Entry`, `Target<0–99>`, `Stop<0–99>`, `Zerar`) · token `lbl_<24 hex>`. O Canonical interno não muda.
+- **Schema (V0):** `ProjectedLabelSchema` — texto livre, `Flat`, `Close`, `Target100`, token malformado ou com maiúsculas ⇒ `INVALID_FORMAT`, mesmo com o selo refeito. (Bundles antigos com texto livre passam a ser inválidos: nenhum existe fora de testes.)
+- **`ImportRef.labelVocab`:** novo campo opcional (`z.number().int().positive()`), fora do `importId`; os bundles novos o emitem com `1`; ausente = 1. **`evidenceHash` muda em todo bundle com ao menos 1 `ImportRef`; bundle sem nenhum `ImportRef` (derivado `HASH_ONLY`) NÃO muda.** Prova (9 bundles, `test-evidence-sourcelabel-s2.mts`): remover `labelVocab` e recalcular o selo reproduz exatamente o `evidenceHash` do baseline em todos; `importId`, `tradeId`, `rowHash`, `tradeSetHash` e o veredito do `verifyEvidence` idênticos.
+- **E5b:** `labelVocab` ≠ 1 ⇒ `UNVERIFIABLE` (`S_VERSION_INCOMPATIBLE`), nunca adulteração. **Correção de comportamento:** o E5b agora usa o **sal efetivo** da reingestão também na projeção (sal informado a um import que não usou sal é ignorado — antes poderia gerar falso `SOURCE_MISMATCH` nos tokens).
+- Teste existente ajustado: `test-evidence-explain-trade.mts` — `ImportRef` = `ImportRecord` + exatamente `labelVocab: 1`; rótulo `Sim101-entry` agora vira token (garantia estrutural; a trava `E_ACCOUNT_NAME_LEAK` fica como 2ª camada).
+
 ## 2026-10-12 — S1 do `sourceLabel` (código novo, SEM mudança de contrato observável)
 - Novas funções puras: `labelRef` (`ingest/identity.ts`, domínio `meutrade/labelRef/1`) e `projectLabel`/`isVocabLabel`/`isProjectedLabel`/`LABEL_VOCAB_VERSION` (`evidence/label-vocab.ts`). **Nada as chama ainda** (o `explain-trade` e o schema só mudam no S2): bundles, hashes e relatórios inalterados.
 
