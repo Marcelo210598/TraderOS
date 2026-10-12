@@ -4,7 +4,8 @@
     "after_execution": false,
     "note": "E6.5-0 (docs/ai-partner/agent-contract-plano.md). Escrito ANTES de qualquer tipo/código. NADA aqui foi executado: o E6.5 é só desenho + tipos; o validador, o combineVerdict e as PromptViews são E6.6 (aprovação própria). `status: approved` = decidido pelo Marcelo; `status: proposed` = proposta minha pendente. Mudar uma expectativa exige entrada em history.",
     "history": [
-      "2026-10-12 E6.5-1: O-A/O-B/O-C/O-D aprovados pelo Marcelo; AV21 e PV6 → approved; N=2 e K=20 fixados em agent-capabilities.md §0 (A3 cumprido); lista de códigos específicos CORRIGIDA para o que o código realmente emite (a lista do E6.5-0 era uma estimativa minha: faltavam S_NO_METRICS, S_REFS_BROKEN, S_PROVENANCE_INCOMPLETE, S_ORDER_NOT_RECORDED, S_NO_ANCHOR_CHECK, S_QUERY_INVALID, S_CHECK_NOT_EXECUTED, S_ENCODING_UNSUPPORTED, S_SALT_*). Propostas novas O-E/O-F/O-G."
+      "2026-10-12 E6.5-1: O-A/O-B/O-C/O-D aprovados pelo Marcelo; AV21 e PV6 → approved; N=2 e K=20 fixados em agent-capabilities.md §0 (A3 cumprido); lista de códigos específicos CORRIGIDA para o que o código realmente emite (a lista do E6.5-0 era uma estimativa minha: faltavam S_NO_METRICS, S_REFS_BROKEN, S_PROVENANCE_INCOMPLETE, S_ORDER_NOT_RECORDED, S_NO_ANCHOR_CHECK, S_QUERY_INVALID, S_CHECK_NOT_EXECUTED, S_ENCODING_UNSUPPORTED, S_SALT_*). Propostas novas O-E/O-F/O-G.",
+      "2026-10-12 E6.5-1 (ajustes pós-revisão do Marcelo): O-E aprovado COM exigência de parada explícita (AV22, stop_reasons); O-F aprovado COM confirmação de que é só exibição — e CORRIGIDO por mim: casas decimais da exibição = as do motor (R 4, razão 4, pontos até 6), não 2 para tudo (erro meu na proposta, achado ao ler exact.ts); AV23 (empate) adicionado."
     ]
   },
   "principles": [
@@ -303,6 +304,19 @@
       "answer": "o modelo repete um número que o USUÁRIO digitou na pergunta",
       "expected": "ALLOWED somente entre aspas como citação da pergunta, nunca como resultado; qualquer outro uso ⇒ NUMBER_OUTSIDE_SLOT",
       "open": "O-A"
+    },
+    "AV22_budget_exhausted_must_say_so": {
+      "status": "approved",
+      "requested_by": "Marcelo 12/10/2026 (O-E)",
+      "setup": "o turno estourou as 8 chamadas de capacidade (BUDGET_EXCEEDED)",
+      "expected": "PARAR e DECLARAR: a resposta final (sem ferramentas) DEVE conter a frase canônica BUDGET_LIMIT_REACHED (renderizada pelo servidor) e só pode afirmar o que está sustentado por chamadas JÁ concluídas, cada uma com o próprio veredito; sem a frase ⇒ REJECT_WITH_FEEDBACK INCOMPLETE_PRESENTED_AS_COMPLETE; NUNCA truncar e responder como se tivesse terminado",
+      "regeneration": "o orçamento de regeração (N=2) vale para esta resposta final; esgotado ⇒ resposta canônica de falha, que TAMBÉM carrega a frase de limite"
+    },
+    "AV23_tie_overclaim": {
+      "status": "approved",
+      "setup": "ranking cujo item adjacente não está marcado empatado pelo motor (tiedWithPrevious=false)",
+      "expected": "o agente NÃO pode dizer 'empate'/'iguais'; só pode dizer empate quando o motor marca tiedWithPrevious=true",
+      "reason": "TIE_OVERCLAIM"
     }
   },
   "privacy_cases": {
@@ -449,5 +463,27 @@
     "O-E": "PROPOSTO (E6.5-1): orçamento de 8 chamadas de capacidade por turno.",
     "O-F": "PROPOSTO (E6.5-1): catálogo de formatos por unidade (count/usd/R/percent/ratio/points): 2 casas, meia-casa para longe de zero, pt-BR.",
     "O-G": "PROPOSTO (E6.5-1): redação final das frases canônicas pode mudar sem mudar o contrato; o conjunto de CÓDIGOS é fixo e derivado do código-fonte."
+  },
+  "stop_reasons": {
+    "status": "approved",
+    "BUDGET_CALLS": "8 chamadas/turno; a 9ª NÃO é executada; resposta final sem ferramentas com a frase BUDGET_LIMIT_REACHED",
+    "REGEN_EXHAUSTED": "N=2 regerações; resposta canônica de falha sem número do modelo",
+    "CAPABILITY_FAILED": "ok=false: o agente diz que falhou, nunca preenche",
+    "FILE_NOT_AVAILABLE": "refresh sem arquivo armazenado: limitação ESTRUTURAL declarada"
+  },
+  "display_format_cases": {
+    "status": "approved",
+    "requested_by": "Marcelo 12/10/2026 (O-F)",
+    "F1_display_only": "a renderização é SÓ exibição: não altera o valor interno (centavos inteiros), nem o ranking/comparação/desempate do motor; o texto renderizado nunca volta ao motor",
+    "F2_no_second_rounding": "CORREÇÃO (achada no exact.ts): o motor já arredonda a SAÍDA — dinheiro 2 casas, R 4, percentual 2, razões 4, contagem inteira, pontos até 6 — meia-casa para longe de zero. A exibição usa EXATAMENTE as casas do motor para a unidade (nunca menos): preenche zeros, JAMAIS arredonda de novo. A proposta anterior (2 casas para R e razão) FOI ERRADA: faria um 2º arredondamento.",
+    "F3_decimals_by_unit": {
+      "count": "0",
+      "usd": "2",
+      "R": "4",
+      "percent": "2",
+      "ratio": "4",
+      "points": "mínimo 2, máximo 6 (zeros à direita aparados até 2)"
+    },
+    "F4_tie_consistency": "o desempate/empate do motor (tiedWithPrevious) compara valores já no escalonamento da saída; como a exibição usa as mesmas casas, dois valores exibidos iguais ⇔ empate do motor; o agente só afirma empate quando tiedWithPrevious=true (AV23)"
   }
 }

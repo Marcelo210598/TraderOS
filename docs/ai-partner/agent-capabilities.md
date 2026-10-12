@@ -47,7 +47,7 @@ EvidenceHandle = {
 - **Os dois veredictos andam juntos** sobre o **mesmo** `evidenceHash` (§6.1 do E6-G6). Um schema que aceite só um dos dois é inválido (CP1). Não existe campo `ok`/`verified` agregado sem os dois componentes e o escopo (CP2).
 - **`combined` vem de uma única função pura** (E6.6, D8), com a semântica já fixada: `VERIFIED` = `VALID` ∧ `SOURCE_VERIFIED`; `VERIFIED_PARTIAL` = `VALID` ∧ `SOURCE_VERIFIED_PARTIAL`; `TAMPERED_OR_MISMATCH` = verify `TAMPERED`/`INVALID_FORMAT` ∨ source `SOURCE_MISMATCH`; **`NOT_VERIFIED` = qualquer `UNVERIFIABLE` e também `source = NOT_RUN` (D4)**. Precedência: `TAMPERED_OR_MISMATCH` > `NOT_VERIFIED` > `VERIFIED_PARTIAL` > `VERIFIED`.
 - `evidenceRef` é **endereçado por conteúdo**: mesmo bundle ⇒ mesmo ref; qualquer mudança ⇒ outro. Só vale o ref que o **ledger** da conversa emitiu (§4.2).
-- **Orçamento por turno** (proposta, O-E): no máximo **8 chamadas** de capacidade; excedeu ⇒ `BUDGET_EXCEEDED` e o agente diz que parou.
+- **Orçamento por turno** (O-E, aprovado): no máximo **8 chamadas** de capacidade. A 9ª **não é executada**: o servidor devolve `BUDGET_EXCEEDED` e o agente **para e declara** (§5.5). Nunca trunca e responde como se tivesse terminado.
 
 ## 3. Catálogo de capacidades (todas somente leitura)
 `userId` vem **sempre da sessão**, nunca do modelo. Argumentos validados por zod; nome de conta/estratégia entra como **alias** que o servidor resolve para o ref do usuário.
@@ -81,17 +81,19 @@ AgentAnswer = {
 O modelo escreve `text` e escolhe `slot`/`phrase`; **o servidor** renderiza os valores e as frases. O modelo não produz número nem texto de limitação.
 ### 4.2 Ledger
 O servidor mantém, **por conversa**, `evidenceRef → EvidenceHandle` para tudo que as capacidades emitiram. O validador só aceita ref presente no ledger **daquela conversa e daquele usuário** (R3/R4: um ref bem formado que o ledger não emitiu é rejeitado).
-### 4.3 Slots e formatos (catálogo por unidade — decisão do catálogo, proposta O-F)
-O formato é **ditado pela unidade do campo** (o modelo não escolhe precisão). Locale pt-BR: vírgula decimal, ponto de milhar, sinal `-`.
-| Unidade do motor | Renderização | Casas | Exemplo |
+### 4.3 Slots e formatos (O-F, aprovado e CORRIGIDO)
+**É só exibição.** O valor interno do motor (centavos inteiros, R em 1e-4) e a lógica de comparação, ranking e desempate **não são afetados**: o texto renderizado nunca volta ao motor, e o validador não compara números exibidos.
+O formato é **ditado pela unidade do campo** (o modelo não escolhe precisão). Locale pt-BR: vírgula decimal, ponto de milhar, sinal `-`. **A exibição usa EXATAMENTE as casas decimais que o motor já usa na saída** (`exact.ts`: dinheiro 2, R 4, percentual 2, razões 4; pontos até 6) — **preenche zeros, nunca arredonda de novo.** (Correção: a proposta anterior de "2 casas para tudo" faria uma segunda rodada de arredondamento sobre R e razões, que o motor guarda com 4 casas.)
+| Unidade | Renderização | Casas | Exemplo |
 |---|---|---|---|
 | `count` | inteiro | 0 | `1.234` |
 | `usd` | `US$` + valor | 2 | `-US$ 1.234,56` |
-| `R` | valor + ` R` | 2 | `1,25 R` |
+| `R` | valor + ` R` | 4 | `1,2500 R` |
 | `percent` | valor + `%` | 2 | `55,56%` |
-| `ratio` | valor | 2 | `1,84` |
-| `points` | valor + ` pts` | 2 | `12,50 pts` |
-Regras: **arredondamento só na renderização**, meia-casa para longe de zero, sobre o decimal exato do motor; o valor exato continua disponível no `explain`. Valor `null` ⇒ `indisponível` **mais** o motivo (`reason` do motor), nunca `0`, nunca em branco. Slot de dado não numérico (alias, rótulo, motivo de saída) usa a palavra canônica correspondente.
+| `ratio` | valor | 4 | `1,8400` |
+| `points` | valor + ` pts` | mín. 2, máx. 6 (zeros à direita aparados até 2) | `12,50 pts` |
+Valor `null` ⇒ `indisponível` **mais** o motivo (`reason` do motor), nunca `0`, nunca em branco. Slot de dado não numérico (alias, rótulo, motivo de saída) usa a palavra canônica correspondente.
+**Empate:** o motor marca `tiedWithPrevious` comparando valores **já no escalonamento da saída** (as mesmas casas da exibição); logo, dois valores exibidos iguais ⇔ empate do motor. O agente só pode dizer "empate"/"iguais" quando `tiedWithPrevious = true` (`TIE_OVERCLAIM`).
 ### 4.4 O que o texto livre pode e não pode
 - Pode: texto **qualitativo sem número de resultado** e sem causa.
 - **Número que o usuário digitou** na pergunta pode ser repetido **entre aspas, como citação**, nunca como afirmação do agente (O-A, aprovado).
@@ -99,13 +101,21 @@ Regras: **arredondamento só na renderização**, meia-casa para longe de zero, 
 
 ## 5. Validador e protocolo de regeração (implementação em E6.6)
 ### 5.1 Regras e motivos de rejeição
-`NUMBER_OUTSIDE_SLOT` · `REF_NOT_IN_LEDGER` · `SLOT_PATH_INVALID` · `MODEL_ARITHMETIC` · `NUMBER_FROM_UNVERIFIED_EVIDENCE` · `MISSING_NOT_VERIFIED_LABEL` · `UNVERIFIED_USED_FOR_CONCLUSION` · `REF_EPOCH_MIX` · `STALE_REF` · `CAUSAL_CLAIM` · `EXIT_REASON_OVERCLAIM` · `SCOPE_OVERCLAIM` · `MISSING_PARTIAL_PHRASE` · `INCONCLUSIVE_AS_CONCLUSIVE`. Casos AV1–AV21 no arquivo de expectativas.
+`INCOMPLETE_PRESENTED_AS_COMPLETE` · `TIE_OVERCLAIM` · `NUMBER_OUTSIDE_SLOT` · `REF_NOT_IN_LEDGER` · `SLOT_PATH_INVALID` · `MODEL_ARITHMETIC` · `NUMBER_FROM_UNVERIFIED_EVIDENCE` · `MISSING_NOT_VERIFIED_LABEL` · `UNVERIFIED_USED_FOR_CONCLUSION` · `REF_EPOCH_MIX` · `STALE_REF` · `CAUSAL_CLAIM` · `EXIT_REASON_OVERCLAIM` · `SCOPE_OVERCLAIM` · `MISSING_PARTIAL_PHRASE` · `INCONCLUSIVE_AS_CONCLUSIVE`. Casos AV1–AV23 no arquivo de expectativas.
 ### 5.2 Ordem
 (1) estrutura/zod → (2) refs no ledger e frescor → (3) slots/paths → (4) veredito × modo (§6) → (5) texto livre (dígitos, aritmética, causa, escopo) → (6) frases obrigatórias presentes.
 ### 5.3 Regeração (**N = 2**)
 Rejeitou ⇒ nova tentativa com a lista de motivos **sem expor dado novo**; até 2 regerações. Os motivos viajam como códigos, nunca como valores.
 ### 5.4 Resposta canônica de falha
-Após esgotar: *"Não consigo afirmar isso com evidência verificável agora."* + as capacidades tentadas + o motivo da última rejeição (código traduzido por frase canônica). **Nenhum número do modelo.** Falha de capacidade ou orçamento estourado: o agente diz que falhou; nunca preenche.
+Após esgotar: *"Não consigo afirmar isso com evidência verificável agora."* + as capacidades tentadas + o motivo da última rejeição (código traduzido por frase canônica). **Nenhum número do modelo.** Falha de capacidade: o agente diz que falhou; nunca preenche. Orçamento de chamadas estourado: ver §5.5.
+### 5.5 Motivos de parada (explícitos, nunca silenciosos)
+| Motivo | Quando | O que acontece | Frase canônica (renderizada pelo servidor) |
+|---|---|---|---|
+| `BUDGET_CALLS` | as **8** chamadas do turno se esgotaram | a 9ª **não executa**; o modelo recebe `BUDGET_EXCEEDED` e tem **uma** resposta final **sem ferramentas** | *"Atingi o limite de consultas deste turno. Abaixo está o que apurei até aqui; o restante não foi apurado."* |
+| `REGEN_EXHAUSTED` | a resposta foi rejeitada **N = 2** vezes (§5.3) | resposta canônica de falha (§5.4), sem número do modelo | *"Não consigo afirmar isso com evidência verificável agora."* |
+| `CAPABILITY_FAILED` | `ok = false` (`ARGS_INVALID`, `NOT_FOUND`, `ENGINE_REFUSED`) | o agente diz que a consulta falhou; não preenche com memória | *"Uma consulta falhou e não consegui apurar essa parte."* |
+| `FILE_NOT_AVAILABLE` | `evidence.refresh` sem arquivo armazenado | limitação **estrutural** (§6.2) | texto estrutural |
+**Regras do `BUDGET_CALLS` (O-E):** (1) a resposta final **só pode afirmar o que está sustentado por chamadas já concluídas**, cada uma com o próprio veredito e modo (§6); (2) **deve** conter o segmento `phrase BUDGET_LIMIT_REACHED` — frase do servidor, que o modelo não consegue omitir nem parafrasear; sem ela ⇒ `INCOMPLETE_PRESENTED_AS_COMPLETE`; (3) é **proibido** truncar e responder como se tivesse terminado; (4) o orçamento de regeração (N = 2) vale para essa resposta final, e a resposta canônica de falha **também** carrega a frase de limite; (5) o ledger persiste: o usuário pode continuar no turno seguinte (orçamento novo) e os refs já emitidos seguem citáveis.
 
 ## 6. Comportamento por veredito e frases canônicas
 ### 6.1 Matriz
@@ -184,6 +194,5 @@ Sem especular causa e sem acusar o usuário. Regeração e auditoria são do ser
 E6.6 (aprovação própria): `combineVerdict`, validador (AV1–AV21), PromptViews e projetor de rótulo como código. Depois: armazenamento do arquivo original (fase de persistência; faz `source` deixar de ser `NOT_RUN`), armazenamento real do chaveiro de sal, integração com a Vega IA/LLM, UI de produto (banner estrutural, binding tardio de nomes).
 
 ## 10. Pontos ainda em aberto (propostas minhas)
-- **O-E:** orçamento de **8 chamadas por turno** (§2).
-- **O-F:** catálogo de formatos da §4.3 (2 casas decimais fixas, meia-casa para longe de zero, `US$`, sinal `-`).
+- ~~O-E~~ e ~~O-F~~: **aprovados em 12/10/2026** (O-E com a regra de parada explícita do §5.5; O-F como exibição-só, com as casas do motor, §4.3).
 - **O-G:** redação final das frases canônicas das §6.2–6.4 (o conjunto de **códigos** é fixo; a prosa pode ser ajustada sem mudar o contrato).
