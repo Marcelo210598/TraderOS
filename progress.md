@@ -591,3 +591,5 @@ Sal gerenciado por usuário (≥ 256 bits, chaveiro versionado em memória), `sa
 ## 📝 12/10/2026 — E6.5-0: plano e expectativas do contrato do agente (SÓ DESENHO) — só local, sem push
 `docs/ai-partner/agent-contract-plano.md` + `scripts/expectations/agent-contract.expected.json`. D1–D10 e ajustes A1 (dois textos de NOT_VERIFIED), A2 (`evidence.explain` pela mesma projeção de rótulo), A3 (N = 2 regerações) aprovados. Nada implementado; sem Vega IA. Próximo: E6.5-1 (documento do contrato).
 
+## 📝 12/10/2026 — E6.5-1: `agent-capabilities.md` (contrato do agente, SÓ DOCUMENTO) — só local, sem push
+N = 2 regerações, K = 20, envelope com verify+source+combined, catálogo de 8 capacidades, slots por unidade, 21 frases específicas (códigos conferidos contra o código-fonte), matriz de vereditos, rotação de sal/refEpoch, T0/T1/T2. Propostas em aberto: O-E/O-F/O-G. Próximo: E6.5-2 (só tipos e schemas).

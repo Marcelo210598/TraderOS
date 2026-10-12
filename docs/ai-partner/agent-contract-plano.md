@@ -1,6 +1,6 @@
 # E6.5 — Contrato de capacidades para o agente: plano (E6.5-0)
 
-> Status: **E6.5-0 feito (plano + expectativas)** — 12/10/2026. **Nada implementado.** O E6.5 é só desenho, documento e tipos; **sem integração com a Vega IA/LLM**, sem persistência, sem UI de produto. Decisões D1–D10 aprovadas pelo Marcelo com três ajustes (A1–A3).
+> Status: **E6.5-0 e E6.5-1 feitos** (plano, expectativas e `agent-capabilities.md`) — 12/10/2026. **Nada implementado.** O E6.5 é só desenho, documento e tipos; **sem integração com a Vega IA/LLM**, sem persistência, sem UI de produto. Decisões D1–D10 aprovadas pelo Marcelo com três ajustes (A1–A3).
 > Expectativas executáveis: `scripts/expectations/agent-contract.expected.json` (escritas **antes** de qualquer tipo; mudar exige `_meta.history`).
 > Tudo local: sem push, deploy, banco, Prisma, produção; sem dado real no repo.
 
@@ -46,7 +46,7 @@ Resposta mista: cada claim com o próprio veredito; o banner é o **pior**. O ag
 | Passo | Conteúdo | Código? |
 |---|---|---|
 | **E6.5-0** | Este plano + `agent-contract.expected.json` (**este commit**) | não |
-| **E6.5-1** | `docs/ai-partner/agent-capabilities.md`: o contrato em texto (capacidades, envelope, ledger, slots, matriz de vereditos, A1 com o catálogo de frases, A3 com **N = 2** e **K** fixados, rotação, privacidade) | não |
+| **E6.5-1** | **FEITO.** `docs/ai-partner/agent-capabilities.md`: o contrato em texto (capacidades, envelope, ledger, slots, matriz de vereditos, A1 com o catálogo de frases, A3 com **N = 2** e **K** fixados, rotação, privacidade) | não |
 | **E6.5-2** | **Só tipos e schemas zod** em `src/lib/agent/contract.ts` (`CapabilityResult`, `EvidenceHandle`, `AgentAnswer`, `PromptView`, constantes N e K). Nenhuma capacidade, nada ligado | tipos |
 | **E6.5-3** | Testes estáticos do contrato (SG1–SG5) e extensão do `test-evidence-no-solo-verdict`; catálogo de frases conferido contra os códigos emitidos; teste dedicado da A2 **sobre a especificação** (a varredura real do drill-down é E6.6, quando houver projetor) | testes |
 
@@ -58,7 +58,8 @@ Resposta mista: cada claim com o próprio veredito; o banner é o **pior**. O ag
 - **Catálogo de formatos de slot** (moeda, R, %, quantidade) também é contrato e precisa de decisão no E6.5-1.
 - **Binding tardio de nomes** cria uma segunda superfície de privacidade (a UI), a revisar quando houver UI.
 
-## 8. Pontos em aberto (propostas minhas, para o E6.5-1)
+## 8. Pontos em aberto
+**Aprovados em 12/10/2026:** O-A (eco de número do usuário entre aspas), O-B (alias por conversa), O-C (K = 20), O-D (banner estrutural é da UI). **Propostos no E6.5-1:** O-E (8 chamadas por turno), O-F (formatos por unidade), O-G (redação final das frases). Texto original das propostas do E6.5-0:
 - **O-A:** número que o usuário digitou na pergunta e o modelo repete — só entre aspas, como citação (AV21).
 - **O-B:** alias por conversa, estável dentro dela e recalculado após rotação (PV6).
 - **O-C:** valor de K do `evidence.explain` — proposta **K = 20**.
