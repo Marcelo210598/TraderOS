@@ -1,6 +1,6 @@
 # Política de sal por usuário — plano (P0)
 
-> Status: **P0, P1 e P2 feitos** (12/10/2026; tabela de andamento na §5.1). Decisões O1/O2/O3 aprovadas. Decisões D1–D7 aprovadas pelo Marcelo (D4 com correção de design, abaixo).
+> Status: **P0, P1, P2 e P4 feitos (P4 antes do P3, ordem aprovada)** (12/10/2026; tabela de andamento na §5.1). Decisões O1/O2/O3 aprovadas. Decisões D1–D7 aprovadas pelo Marcelo (D4 com correção de design, abaixo).
 > Expectativas executáveis: `scripts/expectations/salt-policy.expected.json` (escritas **antes** do código; mudar exige `_meta.history`).
 > Tudo local: sem push, deploy, banco, Prisma, produção; sem dado real no repo; E6.5 só desenho, depois de D1–D3.
 
@@ -52,7 +52,8 @@ Regra:
 | P0 | feito (`50f4099`); O1 (tentar sais conhecidos; V8 PARTIAL / V9 UNVERIFIABLE), O2 (`SOURCE_VERIFIED_PARTIAL` + `L_SALT_CHECK_DIVERGENT`, rebaixa o combinado para `VERIFIED_PARTIAL`) e O3 (provider vence a string) **aprovados**; O4 resolvido por leitura e **confirmado por teste no P2 (H4)** |
 | P1 | feito (`f047355`) + `ensure` fail-closed (`f827d96`: último sal aposentado ⇒ `E_SALT_NO_CURRENT`, só `rotate` explícito destrava; antes recriava em silêncio) |
 | P2 | feito — `saltId`/`saltCheck` opcionais (juntos ou nenhum) em `ImportRecord.reproducibility` e `ImportRef.reproducibility`; formatos em `domain/canonical.ts` (fonte única); `projectReproducibility` copia só se declarados. **Estado transitório:** sem produtor (P3) e sem leitor (P4), um bundle com os campos dá `SOURCE_MISMATCH` no E5b (`V_IMPORT_RECORD_MISMATCH` em `reproducibility`) — fail-closed, travado por teste e a ser SUBSTITUÍDO no P4. |
-| P3 / P4 | pendentes — **ordem a decidir (ver relatório do P2): leitor (P4) antes do produtor (P3)** |
+| P4 | feito — E5b lê `saltId`/`saltCheck` via `VerifySourceOptions.salt = {provider, userId}`; regras da §3 + O1/O2/O3; `V_SALT_CHECK_MISMATCH`, `V_SALT_DECLARATION_INCONSISTENT` (V14, caso novo, **aguarda confirmação**), `S_SALT_UNKNOWN`, `S_SALT_RETIRED`, `L_SALT_CHECK_DIVERGENT`, `L_SALT_ID_NOT_RESOLVED`. Teste `test-salt-policy-p4.mts` (13), 5 mutações pegas (inclui `saltCheck` como portão). Bundles sem `saltId` (legado) e não-salgados: caminho de sempre. **Mudança colateral:** `combine()` passa a preferir SKIPPED bloqueante sobre `S_POPULATION_PARTIAL` (como o comentário já dizia) — nenhum teste existente mudou. |
+| P3 | pendente (gerador fail-closed `E_SALT_REQUIRED`/`E_SALT_MISMATCH`, emite `saltId`/`saltCheck`) — agora SEM janela de bundle acusado, pois o leitor já existe |
 
 ## 6. Fora de escopo
 Persistência real/Prisma/banco, UI de produto, Vega IA, E6.5 (só desenho depois de D1–D3), E5c, vocabulário v2, tratar o sal como senha de usuário.

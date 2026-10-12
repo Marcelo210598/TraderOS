@@ -148,15 +148,6 @@ test("S2 — sigilo: o valor do sal não aparece em nenhum bundle com a declara�
   }
 })
 
-test("TRANSITÓRIO (documentado) — sem produtor e sem leitor: um bundle com saltId/saltCheck NÃO é verificável pelo E5b até o P4 (SOURCE_MISMATCH em reproducibility, fail-closed); bundles sem a declaração seguem SOURCE_VERIFIED. Este teste será SUBSTITUÍDO no P4", () => {
-  for (const c of COMBOS.filter((x) => x.kind === "metric")) {
-    const { bundle, files, opts } = build(c)
-    const vopts = { ...(opts ?? {}), ...(c.mapped ? { exitReasonMap: MAP } : {}) }
-    assert.equal(verifyEvidenceSource(bundle, files, vopts).status, "SOURCE_VERIFIED", "sem declaração: inalterado")
-    const r = verifyEvidenceSource(declare(bundle), files, vopts)
-    assert.equal(r.status, "SOURCE_MISMATCH", "transitório")
-    assert.ok(r.checks.some((x) => x.id === "V5.import-id" && x.code === "V_IMPORT_RECORD_MISMATCH" && /reproducibility/.test(x.detail)))
-  }
-})
+// (o teste TRANSITÓRIO do P2 foi substituído pelo P4: scripts/test-salt-policy-p4.mts — o E5b agora lê saltId/saltCheck)
 
 console.log(`\n${passed} testes ok`)

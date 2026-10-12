@@ -41,6 +41,7 @@ import { DEFAULT_PARSERS } from "../ingest/registry.ts"
 import type { ImportContext, ParserDescriptor, PipelineResult } from "../ingest/types.ts"
 import { explainTrades, projectReproducibility } from "./explain-trade.ts"
 import { LABEL_VOCAB_VERSION } from "./label-vocab.ts"
+import { isStrongSalt, saltCheck, type SaltProvider } from "../ingest/salt.ts"
 import { EvidenceBundleSchema, type EvidenceBundle, type ImportRef, type TradeEvidence } from "./schema.ts"
 
 export const VERIFY_SOURCE_SCHEMA = "verify-source/1" as const
@@ -117,6 +118,12 @@ const DERIVED_SCOPE_LIMITATION: SourceLimitation = {
   text: "Para derivados, confere os trades DECLARADOS na população de cada análise (e as pernas que ela cita) contra o arquivo. Não prova que os filtros originais selecionaram essa população corretamente, nem que ela é a população completa da importação.",
 }
 
+/** Só entram no relatório quando se aplicam (bundles sem declaração de sal mantêm exatamente as limitações de antes). */
+const SALT_LIMITATIONS: ReadonlyArray<SourceLimitation> = [
+  { code: "L_SALT_CHECK_DIVERGENT", text: "O saltCheck declarado no ImportRef não bate com o do sal resolvido pelo provider. Os refs foram conferidos de verdade com esse sal e batem: o bundle carrega uma autodeclaração incorreta. Não é prova de adulteração dos dados, mas deve ser investigada." },
+  { code: "L_SALT_ID_NOT_RESOLVED", text: "O saltId declarado no ImportRef não resolve no provider (inexistente ou aposentado). Os refs foram reproduzidos por outro sal conhecido do usuário: a declaração do bundle está errada. Não é prova de adulteração dos dados." },
+]
+
 const FAIL = {
   FILE: "V_FILE_MISMATCH",
   IMPORT_ID: "V_IMPORT_ID_MISMATCH",
@@ -129,6 +136,10 @@ const FAIL = {
   TRADE_STRUCTURE: "V_TRADE_STRUCTURE_MISMATCH",
   TRADE_VALUES: "V_TRADE_VALUES_MISMATCH",
   DERIVED_LEG_REF: "V_DERIVED_LEG_REF_MISMATCH",
+  /** Política de sal (P4): saltCheck declarado ≠ do sal resolvido E os refs também divergem (reforça; nunca vira UNVERIFIABLE). */
+  SALT_CHECK: "V_SALT_CHECK_MISMATCH",
+  /** Declara saltId num import que NÃO usou sal (contradição estrutural; o gerador nunca emite isso). */
+  SALT_DECLARATION: "V_SALT_DECLARATION_INCONSISTENT",
 } as const
 
 const S_NOT_PROVIDED = "S_SOURCE_NOT_PROVIDED"
@@ -145,6 +156,9 @@ const S_PARTIAL = "S_POPULATION_PARTIAL"
 const S_NOT_EXECUTED = "S_CHECK_NOT_EXECUTED"
 const S_NO_IMPORTS = "S_NO_IMPORTS"
 const S_DERIVED_UNVERIFIED = "S_DERIVED_TRADES_NOT_VERIFIED"
+/** Bloqueantes (UNVERIFIABLE): o provider não tem NENHUM sal para o saltId declarado (nunca cadastrado / aposentado sem valor) e nenhum sal conhecido do usuário reproduz os refs. NÃO é prova de integridade. */
+const S_SALT_UNKNOWN = "S_SALT_UNKNOWN"
+const S_SALT_RETIRED = "S_SALT_RETIRED"
 
 export const SOURCE_CHECK_CATALOG: ReadonlyArray<{ id: string; title: string }> = [
   { id: "V5.format", title: "bundle evidence/1 legível (schema strict)" },
@@ -176,7 +190,8 @@ function combine(parts: Outcome[]): Outcome {
   const fails = applicable.filter((p) => p.status === "FAIL")
   if (fails.length > 0) return fail(fails[0].code as string, join(fails))
   const skips = applicable.filter((p) => p.status === "SKIPPED")
-  if (skips.length > 0) return skip(skips[0].code as string, join(skips))
+  // SKIPPED bloqueante vence o parcial (doc acima): um S_POPULATION_PARTIAL na frente não pode esconder um bloqueio atrás dele
+  if (skips.length > 0) return skip((skips.find((p) => p.code !== S_PARTIAL) ?? skips[0]).code as string, join(skips))
   return pass(join(applicable))
 }
 
@@ -193,6 +208,8 @@ interface PerImport {
   reTrades: Map<string, CanonicalTrade>
   referencedRows: Set<number>
   reingested: boolean
+  /** Códigos de limitação da política de sal (L_SALT_*) que passam ao relatório. */
+  saltNotes: string[]
 }
 
 export interface VerifySourceOptions {
@@ -202,6 +219,11 @@ export interface VerifySourceOptions {
   exitReasonMap?: ImportContext["exitReasonMap"]
   /** Parsers disponíveis (padrão: o registro atual). Existe para testar incompatibilidade de versão. */
   parsers?: ParserDescriptor[]
+  /**
+   * Política de sal (P4): provider + dono dos bundles. Resolve `reproducibility.saltId` (o valor do sal nunca vem do bundle). Para bundles COM saltId o
+   * provider vence a string `accountRefSalt` (O3). Sem provider, a string vale como sal candidato (compatibilidade). Bundles SEM saltId: comportamento de sempre.
+   */
+  salt?: { provider: SaltProvider; userId: string }
 }
 
 export type SourceFiles = Record<string, Uint8Array> | ReadonlyMap<string, Uint8Array>
@@ -294,7 +316,13 @@ function recordDiffs(re: ImportRecord, imp: ImportRef, saltSupplied: boolean, ef
   for (const k of ["sourceTz", "sourceTzOrigin", "dateOrder", "numberLocale", "excursionUnit", "declaredPnlBasis"] as const) cmp(`settings.${k}`, re.settings[k], imp.settings[k])
   // registros anteriores não têm `reproducibility` (não é divergência); se o registro tem, a reingestão precisa reproduzi-lo
   // `accountRefSalted` da reingestão só é verdadeiro se o chamador informou o sal: sem ele a bandeira não é reproduzível (é UNVERIFIABLE em V5.4+, não divergência)
-  if (imp.reproducibility) cmp("reproducibility", re.reproducibility ? projectReproducibility(re.reproducibility, effSalt) : null, { ...imp.reproducibility, accountRefSalted: imp.reproducibility.accountRefSalted && saltSupplied })
+  // saltId/saltCheck são DECLARAÇÕES do gerador (a reingestão não as produz): conferidas à parte em verifyImportWithSalt, nunca como divergência do registro
+  if (imp.reproducibility) {
+    const declared: Record<string, unknown> = { ...imp.reproducibility, accountRefSalted: imp.reproducibility.accountRefSalted && saltSupplied }
+    delete declared.saltId
+    delete declared.saltCheck
+    cmp("reproducibility", re.reproducibility ? projectReproducibility(re.reproducibility, effSalt) : null, declared)
+  }
   return d
 }
 
@@ -321,6 +349,7 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
     reTrades: new Map(),
     referencedRows: new Set(tradesOf.flatMap((t) => t.sourceRows.map((r) => r.rowNo))),
     reingested: false,
+    saltNotes: [],
   }
   const downstream = (o: Outcome) => { out.rows = [o]; out.trades = [o]; out.values = [o] }
   const label = `import ${short(imp.importId)}`
@@ -578,6 +607,85 @@ function verifyDerivedSource(bundle: EvidenceBundle, per: Map<string, PerImport>
   return { outcomes: parts.sort((a, b) => rank(a) - rank(b)), summary }
 }
 
+// ── Política de sal (P4) ─────────────────────────────────────────────────────
+// Regras (salt-policy-plano.md §3, D4 corrigida + O1/O2/O3): `saltCheck` é autodeclaração REDUNDANTE, nunca portão.
+//  · saltId resolve no provider ⇒ usa esse sal e compara os refs DE VERDADE; saltCheck divergente + refs batem ⇒ SOURCE_VERIFIED_PARTIAL (L_SALT_CHECK_DIVERGENT);
+//    refs divergem ⇒ SOURCE_MISMATCH, reforçado por V_SALT_CHECK_MISMATCH se o saltCheck também diverge. NUNCA UNVERIFIABLE quando o saltId resolve.
+//  · saltId não resolve (UNKNOWN/RETIRED) ⇒ tenta TODOS os sais conhecidos do usuário (O1): algum reproduz ⇒ PARTIAL (L_SALT_ID_NOT_RESOLVED); nenhum ⇒ UNVERIFIABLE
+//    (S_SALT_UNKNOWN / S_SALT_RETIRED), resíduo documentado: indistinguível de bundle de sal aposentado.
+//  · sem saltId ⇒ legado, caminho de sempre (inclusive a lacuna conhecida com pista).
+const isOk = (o: Outcome) => o.status === "PASS" || (o.status === "SKIPPED" && o.code === S_NOT_APPLICABLE)
+const importOutcomes = (p: PerImport): Outcome[] => [p.file, p.context, p.importId, ...p.rows, ...p.trades, ...p.values]
+/** A reingestão reproduziu tudo (arquivo, contexto, registro, linhas, trades e valores) com o sal testado. */
+const reproducesClean = (p: PerImport): boolean => p.reingested && importOutcomes(p).every(isOk)
+
+function verifyImportWithSalt(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Array | undefined, opts: VerifySourceOptions, parsers: ParserDescriptor[]): PerImport {
+  const rep = imp.reproducibility
+  if (!rep || rep.saltId === undefined || rep.saltCheck === undefined) return verifyImport(imp, tradesOf, bytes, opts, parsers)
+  const label = `import ${short(imp.importId)}`
+  const saltId = rep.saltId
+  const declared = rep.saltCheck
+  const withSalt = (salt: string | undefined): VerifySourceOptions => {
+    const rest: VerifySourceOptions = { ...opts }
+    delete rest.accountRefSalt
+    return salt !== undefined ? { ...rest, accountRefSalt: salt } : rest
+  }
+
+  if (!rep.accountRefSalted) {
+    const p = verifyImport(imp, tradesOf, bytes, opts, parsers)
+    p.context = fail(FAIL.SALT_DECLARATION, `${label}: o ImportRef declara saltId ${saltId}, mas registra que o import NÃO usou sal: declaração contraditória (o gerador nunca emite isso)`)
+    return p
+  }
+
+  /** Compara o saltCheck declarado com o do sal que foi USADO na conferência. Nunca impede a conferência dos refs (já feita). */
+  const checkDeclared = (p: PerImport, salt: string): PerImport => {
+    if (saltCheck(salt) === declared) return p
+    if (importOutcomes(p).some((o) => o.status === "FAIL")) {
+      const msg = `${label}: o saltCheck declarado ≠ o do sal ${saltId}, E os refs/valores também divergem do arquivo (a divergência do saltCheck reforça o alerta; não é um rebaixamento)`
+      p.context = p.context.status === "FAIL" ? fail(p.context.code as string, `${p.context.detail} | ${msg}`) : fail(FAIL.SALT_CHECK, msg)
+      return p
+    }
+    if (p.context.status === "PASS") {
+      p.context = skip(S_PARTIAL, `${p.context.detail} | ATENÇÃO: o saltCheck declarado ≠ o do sal ${saltId} resolvido; os refs batem com esse sal (autodeclaração incorreta no bundle; não prova de adulteração dos dados)`)
+      p.saltNotes.push("L_SALT_CHECK_DIVERGENT")
+    }
+    return p
+  }
+
+  if (!opts.salt) {
+    // sem provider: a string `accountRefSalt` (se houver) é o sal candidato; sem string, o caminho de sempre dá UNVERIFIABLE (S_ACCOUNT_REF_UNVERIFIED)
+    const p = verifyImport(imp, tradesOf, bytes, opts, parsers)
+    return opts.accountRefSalt !== undefined && isStrongSalt(opts.accountRefSalt) ? checkDeclared(p, opts.accountRefSalt) : p
+  }
+
+  const { provider, userId } = opts.salt
+  const look = provider.get(userId, saltId)
+  if (look.status === "ACTIVE") return checkDeclared(verifyImport(imp, tradesOf, bytes, withSalt(look.salt), parsers), look.salt)
+
+  // O1: o saltId declarado não resolve ⇒ tenta os sais conhecidos do usuário antes de desistir
+  for (const cand of provider.known(userId)) {
+    const p = verifyImport(imp, tradesOf, bytes, withSalt(cand.salt), parsers)
+    if (reproducesClean(p)) {
+      p.context = skip(S_PARTIAL, `${p.context.detail} | ATENÇÃO: o saltId declarado (${saltId}) ${look.status === "RETIRED" ? "está aposentado" : "não existe no provider"}; os refs foram reproduzidos pelo sal conhecido ${cand.saltId} (a declaração do bundle está errada)`)
+      p.saltNotes.push("L_SALT_ID_NOT_RESOLVED")
+      return p
+    }
+  }
+  const p = verifyImport(imp, tradesOf, bytes, withSalt(undefined), parsers)
+  if (p.file.status !== "PASS") return p // problema no arquivo domina (não se esconde atrás do sal)
+  const code = look.status === "RETIRED" ? S_SALT_RETIRED : S_SALT_UNKNOWN
+  const why = look.status === "RETIRED"
+    ? `o sal ${saltId} foi aposentado (registro sem valor) e nenhum outro sal conhecido do usuário reproduz os refs`
+    : `o provider não tem nenhum sal para o saltId ${saltId} e nenhum sal conhecido do usuário reproduz os refs`
+  const o = skip(code, `${label}: ${why}. NÃO é prova de integridade: nada que dependa do sal (contas, estratégias, rótulos, ids de linha e de trade) foi conferido; bundle de sal aposentado e bundle adulterado são indistinguíveis aqui`)
+  p.context = o
+  p.importId = o
+  p.rows = [o]
+  p.trades = [o]
+  p.values = [o]
+  return p
+}
+
 function emptyReport(status: SourceStatus, detail: string): SourceVerifyReport {
   const checks: SourceCheck[] = SOURCE_CHECK_CATALOG.map((c) =>
     c.id === "V5.format"
@@ -604,7 +712,7 @@ export function verifyEvidenceSource(input: unknown, files: SourceFiles, options
 
   const per = new Map<string, PerImport>()
   const unknownImports: string[] = []
-  for (const imp of imports) per.set(imp.importId, verifyImport(imp, trades, filesGet(files, imp.importId), options, parsers))
+  for (const imp of imports) per.set(imp.importId, verifyImportWithSalt(imp, trades, filesGet(files, imp.importId), options, parsers))
   const importIds = new Set(imports.map((i) => i.importId))
   for (const t of trades) if (!importIds.has(t.importId)) unknownImports.push(t.tradeId)
 
@@ -681,6 +789,7 @@ export function verifyEvidenceSource(input: unknown, files: SourceFiles, options
   else if (blocking) status = "UNVERIFIABLE"
   else if (checks.some((c) => c.code === S_PARTIAL)) status = "SOURCE_VERIFIED_PARTIAL"
   else status = "SOURCE_VERIFIED"
-  const limitations = [...SOURCE_LIMITATIONS, ...(dsrc.summary.total > 0 ? [DERIVED_SCOPE_LIMITATION] : [])].map((l) => ({ ...l }))
+  const saltNotes = new Set(all.flatMap((p) => p.saltNotes))
+  const limitations = [...SOURCE_LIMITATIONS, ...(dsrc.summary.total > 0 ? [DERIVED_SCOPE_LIMITATION] : []), ...SALT_LIMITATIONS.filter((l) => saltNotes.has(l.code))].map((l) => ({ ...l }))
   return { schema: VERIFY_SOURCE_SCHEMA, status, evidenceHash: bundle.evidenceHash, checks, coverage, limitations }
 }

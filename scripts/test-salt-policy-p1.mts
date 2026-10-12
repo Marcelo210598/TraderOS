@@ -114,10 +114,11 @@ test("P3d — sigilo: o valor do sal nunca sai por JSON, inspect, spread, mensag
   }
 })
 
-test("P4 — NÃO LIGADO: nenhum arquivo de src/ (além do próprio salt.ts) importa ingest/salt; nada de persistência/banco/Prisma no módulo", () => {
+test("P4 — LIGADO SÓ AO LEITOR: nenhum arquivo de src/ além do verify-source.ts (E5b) importa ingest/salt; nada de persistência/banco/Prisma no módulo", () => {
   const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p] })
   const importers = walk(join(ROOT, "src")).filter((f) => /\.(ts|tsx)$/.test(f) && /from\s+["'][^"']*\/salt(\.ts)?["']/.test(readFileSync(f, "utf8")))
-  assert.deepEqual(importers, [], "P1 não liga o módulo a nada (isso é P2/P3/P4)")
+  // P4 liga o LEITOR (E5b); o gerador (P3) ainda não: só verify-source.ts pode importar até lá
+  assert.deepEqual(importers.map((f) => f.replace(ROOT, "")), ["src/lib/evidence/verify-source.ts"], "só o leitor (E5b, P4) importa ingest/salt; o gerador (P3) ainda não")
   const code = readFileSync(join(ROOT, "src/lib/ingest/salt.ts"), "utf8").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
   assert.equal(/prisma|process\.env|node:fs|fetch\(|localStorage|console\./i.test(code), false)
   assert.match(code, /from "\.\.\/infra\/hash\.ts"/); assert.equal(/node:crypto/.test(code), false, "aleatoriedade só via infra/hash.ts")

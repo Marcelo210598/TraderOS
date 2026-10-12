@@ -1,9 +1,11 @@
 {
   "_meta": {
     "frozen": "2026-10-12",
-    "after_execution": false,
+    "after_execution": true,
     "note": "P0 da política de sal (docs/ai-partner/salt-policy-plano.md). Escrito ANTES de qualquer código. Nada aqui foi executado. `status: approved` = decidido pelo Marcelo; `status: proposed` = proposta minha que depende de decisão (ver open_points do plano). Vereditos do E5b: SOURCE_VERIFIED | SOURCE_VERIFIED_PARTIAL | SOURCE_MISMATCH | UNVERIFIABLE. Mudar uma expectativa exige entrada em history.",
-    "history": []
+    "history": [
+      "2026-10-12 P4: V4/V8/V9/V11 passam de proposed→approved (Marcelo aprovou O1/O2/O3 em 12/10). V14 ADICIONADO por mim durante o P4 (caso não previsto no P0: saltId declarado em import sem sal) — status proposed. V6 (controle negativo) implementado e coberto por mutações (saltCheck-como-portão, sem reforço, V6→UNVERIFIABLE)."
+    ]
   },
   "rules": {
     "D4_corrected": [
@@ -37,10 +39,11 @@
       "expected": "SOURCE_VERIFIED"
     },
     "V4_savedid_known_refs_ok_saltcheck_diverges": {
-      "status": "proposed",
+      "status": "approved",
       "setup": "saltId s1 resolvível; refs batem; saltCheck do bundle diverge (selo refeito)",
-      "expected": "SOURCE_VERIFIED_PARTIAL com limitação L_SALT_CHECK_DIVERGENT (aviso visível); NÃO MISMATCH, NÃO UNVERIFIABLE",
-      "depends_on": "O2"
+      "expected": "SOURCE_VERIFIED_PARTIAL com limitação L_SALT_CHECK_DIVERGENT (rebaixa o veredito combinado para VERIFIED_PARTIAL); NÃO MISMATCH, NÃO UNVERIFIABLE, NÃO SOURCE_VERIFIED limpo",
+      "depends_on": "O2",
+      "approved_by": "Marcelo 12/10/2026 (O1/O2/O3)"
     },
     "V5_known_refs_tampered_saltcheck_ok": {
       "status": "approved",
@@ -65,16 +68,18 @@
       "expected": "UNVERIFIABLE com código distinto S_SALT_RETIRED"
     },
     "V8_saltid_declared_wrong_but_other_known_salt_reproduces": {
-      "status": "proposed",
+      "status": "approved",
       "setup": "refs válidos com o sal s2, mas o bundle declara saltId s99 (desconhecido)",
       "expected": "SOURCE_VERIFIED_PARTIAL com limitação 'saltId declarado não resolve; refs reproduzidos por outro sal conhecido do usuário'",
-      "depends_on": "O1"
+      "depends_on": "O1",
+      "approved_by": "Marcelo 12/10/2026 (O1/O2/O3)"
     },
     "V9_saltid_forged_unknown_to_hide_tampering": {
-      "status": "proposed",
+      "status": "approved",
       "setup": "ref adulterado E saltId trocado para valor desconhecido (selo refeito); nenhum sal conhecido reproduz os refs",
       "expected": "UNVERIFIABLE S_SALT_UNKNOWN (resíduo documentado: indistinguível de bundle de sal aposentado); veredito combinado NOT_VERIFIED, nunca VERIFIED*; texto do check não soa inofensivo",
-      "depends_on": "O1"
+      "depends_on": "O1",
+      "approved_by": "Marcelo 12/10/2026 (O1/O2/O3)"
     },
     "V10_rotation_old_bundle_new_bundle": {
       "status": "approved",
@@ -82,10 +87,11 @@
       "expected": "ambos SOURCE_VERIFIED; geração nova usa só s2"
     },
     "V11_legacy_string_ignored_for_saltid_bundle": {
-      "status": "proposed",
+      "status": "approved",
       "setup": "bundle com saltId resolvível E chamador passa accountRefSalt string diferente",
       "expected": "o sal do provider por saltId vale; a string é ignorada para bundle com saltId (documentado); nunca FAIL por causa da string",
-      "depends_on": "O3"
+      "depends_on": "O3",
+      "approved_by": "Marcelo 12/10/2026 (O1/O2/O3)"
     },
     "V12_no_salt_info_for_salted_new_bundle": {
       "status": "approved",
@@ -96,6 +102,12 @@
       "status": "approved",
       "setup": "matriz sal (nenhum/legado/novo) × rótulo (padrão/livre) × mapa (vazio/usuário) × tipo de bundle (métrica/derivado/linhas) × versão do sal (s1/s2)",
       "expected": "caminho correto ⇒ SOURCE_VERIFIED; entrada errada no verificador ⇒ UNVERIFIABLE ou MISMATCH conforme as regras, nunca FAIL espúrio nem verificado em falso"
+    },
+    "V14_declaration_on_unsalted_import": {
+      "status": "proposed",
+      "setup": "bundle declara saltId/saltCheck mas o ImportRef registra accountRefSalted=false",
+      "expected": "SOURCE_MISMATCH V_SALT_DECLARATION_INCONSISTENT (contradição estrutural; o gerador nunca emite isso)",
+      "added_by": "Claude, no P4 (não estava no P0); aguarda confirmação do Marcelo"
     }
   },
   "generation_cases": {
