@@ -162,7 +162,7 @@ Para a **versão final** das frases (revisão de redação) basta alterar este a
 | Origem | Frase canônica |
 |---|---|
 | `S_POPULATION_PARTIAL` | Só parte da população foi conferida contra o arquivo; trate como indicativo. |
-| `L_SALT_CHECK_DIVERGENT` | A conferência bateu, mas o bundle traz uma autodeclaração de sal incorreta; os dados conferem, o aviso deve ser investigado. |
+| `L_SALT_CHECK_DIVERGENT` | A conferência bateu. Os dados conferem; há uma inconsistência interna no registro de sal que não afeta este valor. |
 | `L_SALT_ID_NOT_RESOLVED` | A conferência bateu com outro sal seu; a identificação de sal declarada no bundle estava errada. |
 ### 6.3b Frases de escopo (acrescentadas no E6.5-2)
 | Código | Frase canônica |
@@ -198,6 +198,8 @@ Sem especular causa e sem acusar o usuário. Regeração e auditoria são do ser
 - **Refs não são anonimização** (§14.14 do contrato): quem tem o sal reverte por dicionário; refs de usuários diferentes não são comparáveis.
 
 ## 9. Fora deste documento
+**PRÉ-REQUISITO OBRIGATÓRIO do E6.6 (12/10/2026):** o schema do E6.5-2 aceita hoje um handle com `combined` inconsistente com `verify`/`source`. O E6.6 **só pode começar** por `combineVerdict` como única fonte do `combined` **e** pelo `EvidenceHandleSchema` rejeitando qualquer `combined` ≠ `combineVerdict(verify, source)`; nada do E6.6 (capacidade, validador, PromptView) é mesclado antes. O teste de lacuna conhecida vira falha quando isso for fechado (ver `agent-contract-plano.md` §6.1).
+
 E6.6 (aprovação própria): `combineVerdict`, validador (AV1–AV21), PromptViews e projetor de rótulo como código. Depois: armazenamento do arquivo original (fase de persistência; faz `source` deixar de ser `NOT_RUN`), armazenamento real do chaveiro de sal, integração com a Vega IA/LLM, UI de produto (banner estrutural, binding tardio de nomes).
 
 ## 10. Pontos ainda em aberto (propostas minhas)

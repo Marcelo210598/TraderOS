@@ -34,7 +34,7 @@ export const SPECIFIC_PHRASES = {
 /** Verificação PARCIAL (`VERIFIED_PARTIAL`). */
 export const PARTIAL_PHRASES = {
   S_POPULATION_PARTIAL: "Só parte da população foi conferida contra o arquivo; trate como indicativo.",
-  L_SALT_CHECK_DIVERGENT: "A conferência bateu, mas o bundle traz uma autodeclaração de sal incorreta; os dados conferem, o aviso deve ser investigado.",
+  L_SALT_CHECK_DIVERGENT: "A conferência bateu. Os dados conferem; há uma inconsistência interna no registro de sal que não afeta este valor.",
   L_SALT_ID_NOT_RESOLVED: "A conferência bateu com outro sal seu; a identificação de sal declarada no bundle estava errada.",
 } as const
 

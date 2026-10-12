@@ -52,6 +52,15 @@ Resposta mista: cada claim com o próprio veredito; o banner é o **pior**. O ag
 
 **Fora do E6.5, precisa de aprovação própria (E6.6):** `combineVerdict`, o validador de respostas (AV1–AV21), as PromptViews e o projetor de rótulo como código. **Fora das duas fases:** integração com a Vega IA/LLM, armazenamento de arquivo, armazenamento real do chaveiro, UI de produto.
 
+## 6.1 PRÉ-REQUISITO OBRIGATÓRIO do E6.6 (decisão do Marcelo, 12/10/2026)
+O schema do E6.5-2 **ainda aceita um `EvidenceHandle` com `combined` inconsistente** com `verify`/`source` (por exemplo `verify = TAMPERED` e `combined = VERIFIED`). Isso é escopo do E6.6 (função pura de derivação, D8) e é **pré-requisito obrigatório — não um detalhe a lembrar depois**:
+1. `combineVerdict(verify, source)` existe como **a única** fonte do `combined` (com a semântica do §6.1 do E6-G6, incluindo `source = NOT_RUN ⇒ NOT_VERIFIED`);
+2. `EvidenceHandleSchema` passa a **rejeitar** `combined` diferente de `combineVerdict(verify, source)` (refine que chama a função);
+3. nenhum handle pode ser construído sem passar por ela;
+4. o teste da LACUNA CONHECIDA (`test-agent-contract-static.mts`) **vira falha** assim que o schema passar a rejeitar — quem fechar o E6.6 é obrigado a trocá-lo por um teste de rejeição, e a matriz completa (verify × source × combined) é testada;
+5. **nenhuma capacidade, validador ou PromptView do E6.6 pode ser mesclado antes dos itens 1–3.**
+Registrado também em `agent-capabilities.md` §9 e em `agent-contract.expected.json` (`e66_mandatory_prerequisites`).
+
 ## 7. Dependências e riscos
 - **Armazenamento do arquivo original** (fase de persistência): sem ele o `source` é "não executado" ⇒ tudo `NOT_VERIFIED` com o texto ESTRUTURAL. É o estado esperado do produto até lá, não falha do contrato.
 - **Armazenamento real do chaveiro de sal:** `evidence.refresh` e a verificação de bundles antigos dependem dele.

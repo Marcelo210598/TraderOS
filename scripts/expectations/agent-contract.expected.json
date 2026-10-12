@@ -7,7 +7,8 @@
       "2026-10-12 E6.5-1: O-A/O-B/O-C/O-D aprovados pelo Marcelo; AV21 e PV6 → approved; N=2 e K=20 fixados em agent-capabilities.md §0 (A3 cumprido); lista de códigos específicos CORRIGIDA para o que o código realmente emite (a lista do E6.5-0 era uma estimativa minha: faltavam S_NO_METRICS, S_REFS_BROKEN, S_PROVENANCE_INCOMPLETE, S_ORDER_NOT_RECORDED, S_NO_ANCHOR_CHECK, S_QUERY_INVALID, S_CHECK_NOT_EXECUTED, S_ENCODING_UNSUPPORTED, S_SALT_*). Propostas novas O-E/O-F/O-G.",
       "2026-10-12 E6.5-1 (ajustes pós-revisão do Marcelo): O-E aprovado COM exigência de parada explícita (AV22, stop_reasons); O-F aprovado COM confirmação de que é só exibição — e CORRIGIDO por mim: casas decimais da exibição = as do motor (R 4, razão 4, pontos até 6), não 2 para tudo (erro meu na proposta, achado ao ler exact.ts); AV23 (empate) adicionado.",
       "2026-10-12 E6.5-2: schema_cases SC1–SC12 escritos antes dos tipos. Duas frases de escopo que o §6.1 do documento exigia mas não catalogava foram acrescentadas por mim (POPULATION_DECLARED, INDICATIVE_ONLY) e entram no catálogo/documento.",
-      "2026-10-12 E6.5-2 EXECUTADO: SC1–SC12 verdes em scripts/test-agent-contract-types.mts (11 testes), 6 mutações pegas. Fora do previsto: handle de servidor × visão do modelo (sem evidenceHash) virou dois schemas; o mapa de PromptViews ficou como rascunho v1 (E6.6 pode refinar com bump)."
+      "2026-10-12 E6.5-2 EXECUTADO: SC1–SC12 verdes em scripts/test-agent-contract-types.mts (11 testes), 6 mutações pegas. Fora do previsto: handle de servidor × visão do modelo (sem evidenceHash) virou dois schemas; o mapa de PromptViews ficou como rascunho v1 (E6.6 pode refinar com bump).",
+      "2026-10-12 E6.5-3 (expectativas antes dos testes): prosa de L_SALT_CHECK_DIVERGENT trocada a pedido do Marcelo ('inconsistência interna no registro de sal que não afeta este valor'); pré-requisito OBRIGATÓRIO do E6.6 registrado (combined inconsistente aceito hoje pelo schema)."
     ]
   },
   "principles": [
@@ -502,5 +503,21 @@
     "SC10_phrases_catalog": "PHRASES cobre: ESTRUTURAL, os 21 códigos específicos, 3 parciais, 3 de integridade, BUDGET_LIMIT_REACHED, REGEN_EXHAUSTED, CAPABILITY_FAILED, POPULATION_DECLARED, INDICATIVE_ONLY; códigos == chaves; todas distintas; o texto ESTRUTURAL não é substring de nenhuma outra e nenhuma outra é substring dele (A1); nenhum texto contém dígitos de resultado (só o placeholder {n} em POPULATION_DECLARED)",
     "SC11_not_wired": "nenhum arquivo fora de src/lib/agent/ importa o contrato; src/lib/agent/ não importa SDK de LLM, rede, banco, Prisma nem process.env",
     "SC12_no_behavior": "o módulo exporta constantes, schemas e tipos; nenhuma função de combinação de veredito, validação de resposta ou projeção (E6.6)"
+  },
+  "e66_mandatory_prerequisites": {
+    "status": "approved",
+    "requested_by": "Marcelo 12/10/2026",
+    "text": "combineVerdict como ÚNICA fonte do combined; EvidenceHandleSchema rejeita combined ≠ combineVerdict(verify, source); nenhum handle construído sem a função; o teste da LACUNA CONHECIDA (E6.5-3) vira falha e é trocado por teste de rejeição + matriz completa verify×source×combined; nada do E6.6 é mesclado antes.",
+    "known_gap_today": "o schema do E6.5-2 aceita verify=TAMPERED com combined=VERIFIED"
+  },
+  "static_cases_e65_3": {
+    "KG1_known_gap_documented": "teste dedicado documenta e TRAVA o estado atual (o schema aceita combined inconsistente); quando o E6.6 fechar a lacuna este teste QUEBRA de propósito",
+    "SG1": "isolamento do módulo: import estático, dinâmico (import()), require, re-export e alias @/ ; src/lib/agent/ só importa zod e ./",
+    "SG2": "extensão do test-evidence-no-solo-verdict: o verdict do agente tem exatamente {verify, source, combined}; nenhuma chave agregada (verified/valid/trusted/…) em nenhum schema do contrato; 'ok' só no topo de CapabilityResult (= a capacidade executou)",
+    "SG3": "catálogo de frases derivado do código-fonte: S_* emitidos por verify.ts/verify-source.ts menos a lista explícita de não-bloqueantes == chaves de SPECIFIC_PHRASES; e o texto do documento (§6.2–6.5 tabelas) == o de phrases.ts",
+    "SG4": "o tipo de entrada do prompt não aceita EvidenceBundle: um bundle real é rejeitado por TODAS as PromptViews e por AgentAnswer; os módulos do agente não importam o schema do bundle",
+    "SG5": "projeção de rótulo única: todo campo 'label' em views usa a MESMA instância LabelViewSchema; nenhum outro regex de vocabulário em src/lib/agent/; no máximo 1 função de projeção de rótulo do agente (hoje 0; o E6.6 cria a única)",
+    "A2_spec": "o rótulo das pernas do explain é a mesma instância da PromptView (LabelViewSchema); a varredura real do drill-down com CSV adversarial é E6.6 (quando existir o projetor)",
+    "X1_expectations_vs_contract": "os motivos de rejeição em validator_cases == REJECTION_REASONS; os motivos de parada em stop_reasons == STOP_REASONS; N, K, orçamento do documento == constantes do contrato"
   }
 }
