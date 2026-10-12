@@ -116,6 +116,28 @@ test("(2) ESTÁTICA — todo call site de explainTrade(s)/explainMetric/explainD
   for (const f of ["src/lib/evidence/explain-metric.ts", "src/lib/evidence/explain-derived.ts", "src/lib/evidence/verify-source.ts"]) assert.ok(sites.some((s) => s.startsWith(`${f} → explainTrades`)), f)
 })
 
+// ── (2c) estática: QUEM pode importar um gerador de Evidence ─────────────────
+// Fecha a lacuna das camadas 1/2 (só enxergam chamadas de nomes conhecidos): um arquivo NOVO em src/ que importe explain-trade/metric/derived
+// (import, re-export ou import dinâmico) FALHA até alguém revisar o uso do sal e incluí-lo aqui. A lista é de revisão humana, não de confiança.
+const GENERATOR_IMPORT_RE = /(?:from|import)\s*\(?\s*["'][^"']*explain-(?:trade|metric|derived)(?:\.ts)?["']/g
+const APPROVED_GENERATOR_IMPORTERS: Record<string, string> = {
+  "src/lib/evidence/explain-metric.ts": "importa explainTrades e repassa o sal (camada 2)",
+  "src/lib/evidence/explain-derived.ts": "importa explainTrades e repassa o sal (camada 2)",
+  "src/lib/evidence/verify-source.ts": "reingestão do E5b: sal efetivo derivado do import (camada 2, teste S2)",
+  "src/lib/dev/evidence-lab/model.ts": "demo do Lab SEM sal por projeto (UNSALTED_BY_DESIGN)",
+  "src/lib/dev/evidence-lab/derived.ts": "demo dos derivados do Lab SEM sal por projeto (UNSALTED_BY_DESIGN)",
+}
+const generatorImporters = (text: string): boolean => new RegExp(GENERATOR_IMPORT_RE.source).test(text)
+test("(2c) ESTÁTICA — só arquivos APROVADOS importam explain-trade/metric/derived; arquivo novo falha até ser revisado (e a aprovação não apodrece)", () => {
+  const importers = SRC.filter((f) => generatorImporters(codeOf(f))).map((f) => rel(f).replace(/^\//, ""))
+  const unapproved = importers.filter((f) => !(f in APPROVED_GENERATOR_IMPORTERS))
+  assert.deepEqual(unapproved, [], "arquivo novo importa um gerador de Evidence: revise o sal dos 3 refs (str/lbl/pat) e inclua em APPROVED_GENERATOR_IMPORTERS")
+  for (const f of Object.keys(APPROVED_GENERATOR_IMPORTERS)) assert.ok(importers.includes(f), `aprovação sem uso: ${f}`)
+  // controle negativo do DETECTOR: as formas de import que um desenvolvedor usaria são vistas
+  for (const code of [`import { explainTrades } from "../evidence/explain-trade.ts"`, `export { explainMetric } from "./explain-metric"`, `const m = await import("@/lib/evidence/explain-derived.ts")`, `import x from '../explain-trade'`]) assert.equal(generatorImporters(code), true, code)
+  for (const code of [`import { x } from "./explain-other.ts"`, `import { y } from "./verify.ts"`]) assert.equal(generatorImporters(code), false, code)
+})
+
 test("(2b) ESTÁTICA — dentro do explain-trade só existe UMA fonte de sal (`opts.accountRefSalt ?? \"\"`): nenhum ref usa sal literal ou outra variável", () => {
   const src = codeOf(join(ROOT, "src/lib/evidence/explain-trade.ts"))
   const uses = [...src.matchAll(/accountRefSalt[^\n]*/g)].map((m) => m[0])
