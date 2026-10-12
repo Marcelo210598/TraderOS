@@ -121,10 +121,10 @@ function fraction(part: Cell, whole: Cell, why = "DENOMINATOR_UNAVAILABLE"): Fra
   return { value: ratio(scaled(part.value, part.unit), w), reason: null }
 }
 
-interface Redaction { redact: boolean; salt: string }
+interface Redaction { redact: boolean; salt: string; asIs: boolean }
 function outKey(dims: Dimension[], key: Array<string | null>, r: Redaction, fallbackLabel?: string): KeyOut {
   const hasRef = dims.some((d) => d === "account" || d === "strategy")
-  const ref = (d: Dimension, k: string | null): string | null => (k === null ? null : d === "account" ? (makeAccountRef(k, r.salt) ?? "acc_?") : d === "strategy" ? (makeStrategyRef(k, r.salt) ?? "str_?") : k)
+  const ref = (d: Dimension, k: string | null): string | null => (k === null || r.asIs ? k : d === "account" ? (makeAccountRef(k, r.salt) ?? "acc_?") : d === "strategy" ? (makeStrategyRef(k, r.salt) ?? "str_?") : k)
   const out = r.redact && hasRef ? key.map((k, i) => ref(dims[i], k)) : [...key]
   const label = r.redact && hasRef ? dims.map((d, i) => dimensionLabel(d, out[i])).join(" · ") : (fallbackLabel ?? dims.map((d, i) => dimensionLabel(d, key[i])).join(" · "))
   return { dims, key: out, label }
@@ -138,11 +138,16 @@ interface Common extends AnalysisOptions {
   redact?: boolean
   /** Mesmo sal do `accountRefSalt` da importação/Evidence. */
   refSalt?: string
+  /**
+   * As chaves de `account`/`strategy` JÁ são refs (os trades vêm de uma "visão por refs": é o caminho da Evidence dos derivados, E6.3, e do verificador):
+   * não re-hashear. Valores de `where`/`a`/`b` também já são refs.
+   */
+  keysAreRefs?: boolean
 }
-const redaction = (a: Common): Redaction => ({ redact: a.redact ?? true, salt: a.refSalt ?? "" })
+const redaction = (a: Common): Redaction => ({ redact: a.redact ?? true, salt: a.refSalt ?? "", asIs: a.keysAreRefs ?? false })
 const engineOpts = (a: Common): AnalysisOptions => {
-  const { filters: _f, redact: _r, refSalt: _s, ...rest } = a
-  void _f; void _r; void _s
+  const { filters: _f, redact: _r, refSalt: _s, keysAreRefs: _k, ...rest } = a
+  void _f; void _r; void _s; void _k
   return rest
 }
 

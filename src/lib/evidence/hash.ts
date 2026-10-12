@@ -108,6 +108,10 @@ export function normalizeForHash(bundle: Omit<EvidenceBundle, "evidenceHash"> & 
         rest.evidence.metrics.map(({ computedAt: _c, ...m }) => (void _c, m)),
         (m) => canonicalJson(m),
       ),
+      // E6.3: só entra quando há derivados — bundles sem eles hasheiam EXATAMENTE como antes (aditivo)
+      ...(rest.evidence.derived && rest.evidence.derived.length > 0
+        ? { derived: bySortKey(rest.evidence.derived.map(({ computedAt: _d, ...d }) => (void _d, d)), (d) => d.derivedId) }
+        : {}),
     },
   }
 }

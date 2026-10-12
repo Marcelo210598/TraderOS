@@ -1,4 +1,4 @@
-// verifyEvidence (Evidence E5.1 + E5.2): V0 formato · V1 selo · V2 referências · V3 população · V4 métricas.
+// verifyEvidence (Evidence E5.1 + E5.2 + E6.3): V0 formato · V1 selo · V2 referências · V3 população · V4 métricas · V6 derivados (ranking/contribuição/comparação do E6.2).
 //
 // Puro: sem relógio, sem random, sem banco, sem CSV, sem rede; nunca lança para dado malformado (devolve relatório).
 // NÃO é segundo motor: V4 reaplica o MESMO motor (`calculateMetricsTraced` / `aggregateTradesTraced`) sobre os trades reconstruídos
@@ -22,17 +22,20 @@ import { ANCHOR_ROLES, CONTRIBUTOR_ROLES } from "../metrics/trace.ts"
 import { aggregateTradesTraced, calculateMetricsTraced, sampleFlagOf } from "../metrics/calculate.ts"
 import { metricDefinition } from "../metrics/catalog.ts"
 import { prepareTrades, resolveOptions } from "../metrics/prepare.ts"
-import { ENGINE_VERSION, type AnalysisOptions, type AnalyticsTrade, type Dimension } from "../metrics/types.ts"
+import { ENGINE_VERSION, type AnalysisOptions, type AnalyticsTrade, type Dimension, type TradeFilters } from "../metrics/types.ts"
 import { canonicalJson } from "../infra/hash.ts"
 import { computeEvidenceHash, tradeFingerprintFromEvidence, tradeSetHash } from "./hash.ts"
-import { EVIDENCE_SCHEMA, EvidenceBundleSchema, type EvidenceBundle, type MetricEvidence, type TradeEvidence } from "./schema.ts"
+import { EVIDENCE_SCHEMA, EvidenceBundleSchema, type DerivedEvidence, type EvidenceBundle, type MetricEvidence, type TradeEvidence } from "./schema.ts"
 import { analyticsTradeFromEvidence } from "./to-analytics.ts"
+import { ANALYSIS_SCHEMA, ANALYSIS_VERSION } from "../metrics/analysis.ts"
+import { normalizeFilters } from "../metrics/filter.ts"
+import { UNIT_OF_OP, classOfPath, computeDerived, diffPaths, parseStoredArgs, probeOf, unverifiableDims, unverifiableFilters, verifiableFilters, type StoredSpec } from "./derived.ts"
 
 export const VERIFY_SCHEMA = "verify/1" as const
 
 export type VerifyStatus = "VALID" | "TAMPERED" | "UNVERIFIABLE" | "INVALID_FORMAT"
 export type CheckStatus = "PASS" | "FAIL" | "SKIPPED"
-export type CheckLevel = "V0" | "V1" | "V2" | "V3" | "V4"
+export type CheckLevel = "V0" | "V1" | "V2" | "V3" | "V4" | "V6"
 
 export interface VerifyCheck {
   /** Estável e único (`V2.import-refs`…). A ordem da lista de checks também é fixa. */
@@ -96,6 +99,15 @@ export const FAIL_CODES = {
   "V4.quality": "V_QUALITY_MISMATCH",
   "V4.association": "V_ASSOCIATION_MISMATCH",
   "V4.anchors": "V_ANCHOR_MISMATCH",
+  // E6.3 — derivados (V6). `V_DERIVED_*` = inconsistência DETECTADA; impossibilidade de verificar é SKIPPED `S_*`, nunca FAIL.
+  "V6.versions": "V_DERIVED_VERSION_UNKNOWN",
+  "V6.query": "V_DERIVED_QUERY_INVALID",
+  "V6.refs": "V_DERIVED_REF_MISSING",
+  "V6.population": "V_TRADESET_HASH_MISMATCH",
+  "V6.result": "V_DERIVED_RESULT_MISMATCH",
+  "V6.derived": "V_DERIVED_DERIVATION_MISMATCH",
+  "V6.quality": "V_DERIVED_QUALITY_MISMATCH",
+  "V6.determinism": "V_DERIVED_NONDETERMINISTIC",
 } as const
 
 /** Ordem FIXA dos checks do relatório (determinismo). Exportada só para a documentação/inspeção (Evidence Lab) listar títulos. */
@@ -131,6 +143,14 @@ export const CHECK_CATALOG: ReadonlyArray<{ id: string; level: CheckLevel; title
   { id: "V4.quality", level: "V4", title: "qualidade dos dados, período e avisos" },
   { id: "V4.association", level: "V4", title: "associação da população à consulta (conta, dimensões do grupo, filtros verificáveis, sampleFlag)" },
   { id: "V4.anchors", level: "V4", title: "âncoras (população acima do limite)" },
+  { id: "V6.versions", level: "V6", title: "derivado: versão do contrato (E6.2) e do motor compatíveis com os atuais" },
+  { id: "V6.query", level: "V6", title: "derivado: operação, argumentos, opções e filtros válidos; dimensões verificáveis" },
+  { id: "V6.refs", level: "V6", title: "derivado: população, trades e pernas referenciados existem e são coerentes" },
+  { id: "V6.population", level: "V6", title: "derivado: tradeSetHash refeito dos TradeEvidence e filtros verificáveis respeitados" },
+  { id: "V6.result", level: "V6", title: "derivado: grupos, chaves e VALORES recalculados pela função real do E6.2" },
+  { id: "V6.derived", level: "V6", title: "derivado: deltas, razões, contribuições, posições e participações recalculados" },
+  { id: "V6.quality", level: "V6", title: "derivado: amostra, cobertura, sampleFlag, confidence, limitations, reconciliação, resumo e pernas" },
+  { id: "V6.determinism", level: "V6", title: "derivado: o recálculo é determinístico (duas execuções idênticas)" },
 ]
 
 const SKIP_FORMAT = "S_FORMAT_INVALID"
@@ -191,6 +211,7 @@ const issuePath = (path: ReadonlyArray<PropertyKey>): string => (path.length ===
 function v2(bundle: EvidenceBundle): Map<string, Outcome> {
   const out = new Map<string, Outcome>()
   const { imports, trades, metrics } = bundle.evidence
+  const derived = bundle.evidence.derived ?? []
   const tradeIds = trades.map((t) => t.tradeId)
   const tradeIdSet = new Set(tradeIds)
   const importIdSet = new Set(imports.map((i) => i.importId))
@@ -226,8 +247,16 @@ function v2(bundle: EvidenceBundle): Map<string, Outcome> {
 
   // checks que dependem de métricas
   const noMetrics = (what: string): Outcome => skip(SKIP_NO_METRICS, `bundle sem métricas: ${what} não se aplica`)
+  const derivedOnly = metrics.length === 0 && derived.length > 0
   if (metrics.length === 0) {
-    for (const id of ["V2.population-shape", "V2.population-refs", "V2.contributor-refs", "V2.contributor-counts", "V2.unreferenced-trades"]) out.set(id, noMetrics(CHECK_CATALOG.find((c) => c.id === id)?.title ?? id))
+    // bundle só com derivados: as checagens de população/contributors de MÉTRICA não se aplicam (a população do derivado é conferida no V6)
+    for (const id of ["V2.population-shape", "V2.population-refs", "V2.contributor-refs", "V2.contributor-counts"]) out.set(id, derivedOnly ? NA("bundle só com derivados: população/contributors de métrica não se aplicam (veja V6.refs)") : noMetrics(CHECK_CATALOG.find((c) => c.id === id)?.title ?? id))
+    if (derivedOnly) {
+      const referencedD = new Set<string>(derived.flatMap((d) => d.population.tradeIds ?? []))
+      if (bundle.subject.type === "TRADE") referencedD.add(bundle.subject.id)
+      const extraD = tradeIds.filter((id) => !referencedD.has(id))
+      out.set("V2.unreferenced-trades", extraD.length === 0 ? pass("todo TradeEvidence é citado pela população de um derivado ou pelo subject") : failWith("V2.unreferenced-trades", `${sortedUnique(extraD).length} TradeEvidence sem referência (população de derivado/subject): ${list(extraD)}.`))
+    } else out.set("V2.unreferenced-trades", noMetrics(CHECK_CATALOG.find((c) => c.id === "V2.unreferenced-trades")?.title ?? "V2.unreferenced-trades"))
   } else {
     const label = (i: number) => `${metrics[i].metricId}#${i}`
     // forma da população
@@ -295,12 +324,13 @@ function v2(bundle: EvidenceBundle): Map<string, Outcome> {
       for (const id of m.population.tradeIds ?? []) referenced.add(id)
       for (const it of m.contributors.items) referenced.add(it.tradeId)
     }
+    for (const d of derived) for (const id of d.population.tradeIds ?? []) referenced.add(id)
     if (bundle.subject.type === "TRADE") referenced.add(bundle.subject.id)
     const extra = tradeIds.filter((id) => !referenced.has(id))
     out.set("V2.unreferenced-trades", extra.length === 0 ? pass("todo TradeEvidence é citado pela população, pelos contributors ou pelo subject") : failWith("V2.unreferenced-trades", `${sortedUnique(extra).length} TradeEvidence sem referência (população/contributors/subject): ${list(extra)}.`))
   }
 
-  const subjectOk = bundle.subject.type === "METRIC" ? metrics.some((m) => m.metricId === bundle.subject.id) : tradeIdSet.has(bundle.subject.id)
+  const subjectOk = bundle.subject.type === "METRIC" ? metrics.some((m) => m.metricId === bundle.subject.id) : bundle.subject.type === "DERIVED" ? derived.some((d) => d.derivedId === bundle.subject.id) : tradeIdSet.has(bundle.subject.id)
   out.set("V2.subject", subjectOk ? pass(`subject ${bundle.subject.type} "${bundle.subject.id}" resolve`) : failWith("V2.subject", `subject ${bundle.subject.type} "${bundle.subject.id}" não existe no bundle.`))
   return out
 }
@@ -617,7 +647,8 @@ function v34(bundle: EvidenceBundle): Map<string, Outcome> {
   const ids = ["V3.population", "V3.provenance", "V4.versions", "V4.query", "V4.population", "V4.sequence", "V4.metric-value", "V4.metric-fields", "V4.contributors", "V4.quality", "V4.association", "V4.anchors"]
   const { metrics, trades } = bundle.evidence
   if (metrics.length === 0) {
-    for (const id of ids) out.set(id, skip(SKIP_NO_METRICS, "bundle sem métricas: não há população nem valor a conferir"))
+    const onlyDerived = (bundle.evidence.derived ?? []).length > 0
+    for (const id of ids) out.set(id, onlyDerived ? NA("bundle só com derivados: não há métrica a conferir (população e valores do derivado são conferidos no V6)") : skip(SKIP_NO_METRICS, "bundle sem métricas: não há população nem valor a conferir"))
     return out
   }
   const byId = new Map<string, TradeEvidence>()
@@ -625,6 +656,157 @@ function v34(bundle: EvidenceBundle): Map<string, Outcome> {
   for (const t of trades) { if (byId.has(t.tradeId)) duplicated = true; byId.set(t.tradeId, t) }
   const per = metrics.map((m, i) => ({ label: `${m.metricId}#${i}`, r: perMetric(m, `${m.metricId}#${i}`, { byId, duplicated }) }))
   for (const id of ids) out.set(id, combine(id as keyof typeof FAIL_CODES, per.map((p) => ({ label: p.label, o: p.r[id] ?? skip(SKIP_NOT_EXECUTED, "check não executado para esta métrica (falha interna do verificador): não conta como aprovado") }))))
+  return out
+}
+
+
+// ── V6: derivados (E6.3) ─────────────────────────────────────────────────────
+// O verificador NÃO tem fórmula própria de ranking/contribuição/comparação: reexecuta `computeDerived` (as funções reais do E6.2) sobre os
+// TradeEvidence declarados e compara. Inconsistência detectada = FAIL (`V_DERIVED_*`); impossibilidade (HASH_ONLY, versão, dimensão sem
+// referência na Evidence) = SKIPPED `S_*` — nunca PASS. Não prova a origem do CSV (E5b).
+
+const V6_IDS = ["V6.versions", "V6.query", "V6.refs", "V6.population", "V6.result", "V6.derived", "V6.quality", "V6.determinism"] as const
+
+function perDerived(d: DerivedEvidence, ctx: Ctx): Record<string, Outcome> {
+  const out: Record<string, Outcome> = {}
+  const set = (id: string, o: Outcome) => (out[id] = o)
+  const skipFrom = (ids: readonly string[], code: string, detail: string) => ids.filter((id) => !(id in out)).forEach((id) => set(id, skip(code, detail)))
+
+  // versões: contrato do E6.2 e motor atuais; senão não é adulteração, é impossibilidade de reproduzir
+  const v = d.analysis
+  if (v.schema !== ANALYSIS_SCHEMA || v.definitionVersion !== ANALYSIS_VERSION || v.engineVersion !== ENGINE_VERSION) {
+    set("V6.versions", skip(SKIP_VERSION, `contrato "${v.schema}" v${v.definitionVersion} / motor "${v.engineVersion}" ≠ atuais ("${ANALYSIS_SCHEMA}" v${ANALYSIS_VERSION} / "${ENGINE_VERSION}"): não é adulteração, não dá para reproduzir com este código`))
+  } else set("V6.versions", pass(`contrato ${ANALYSIS_SCHEMA} v${ANALYSIS_VERSION}, motor ${ENGINE_VERSION}`))
+
+  // consulta: unidade coerente, argumentos no contrato, opções e filtros aceitos pelo motor
+  const problems: string[] = []
+  if (UNIT_OF_OP[v.op] !== v.unit) problems.push(`unidade ${v.unit} ≠ ${UNIT_OF_OP[v.op]} (a de ${v.op})`)
+  const parsedArgs = parseStoredArgs(v.op, d.query.args)
+  if (!parsedArgs.ok) problems.push(parsedArgs.why)
+  else if (canonicalJson(parsedArgs.args) !== canonicalJson(d.query.args)) problems.push("argumentos sem os valores padrão explícitos (forma não normalizada)")
+  const o = d.query.options
+  try {
+    resolveOptions({ timeZone: o.timeZone, timeAnchor: o.timeAnchor, pnlBasis: o.pnlBasis, rBasis: o.rBasis, minSample: o.minSample, tradeIdsLimit: o.tradeIdsLimit })
+    if (o.tradeIdsLimit < 0) problems.push("tradeIdsLimit negativo")
+    normalizeFilters(verifiableFilters(d.query.filters))
+  } catch (e) {
+    problems.push(e instanceof Error ? e.message : "opções/filtros inválidos")
+  }
+  if (problems.length > 0) {
+    set("V6.query", failWith("V6.query", problems.join("; ")))
+    skipFrom(V6_IDS, SKIP_QUERY, "consulta declarada inválida (V6.query)")
+    return out
+  }
+  const args = (parsedArgs as { ok: true; args: Record<string, unknown> }).args
+  const unDims = unverifiableDims(v.op, args)
+  const unFilters = unverifiableFilters(d.query.filters)
+  const assoc = [...unDims.map((x) => `dimensão ${x}`), ...unFilters.map((x) => `filtro ${x}`)]
+  set("V6.query", assoc.length > 0 ? skip(SKIP_ASSOCIATION, `${assoc.join(", ")}: a Evidence não tem referência (estratégia, sessão, setup, timeframe… não entram, de propósito) — a associação NÃO foi verificada`) : pass(`${v.op} (${v.unit}): argumentos, opções e filtros válidos; dimensões verificáveis`))
+
+  // referências
+  const full = d.population.tradeIds !== null
+  const refProblems: string[] = []
+  if (full !== (d.verifiability === "FULL")) refProblems.push(`tradeIds ${full ? "presente" : "null"} mas verifiability ${d.verifiability}`)
+  const ids = d.population.tradeIds ?? []
+  if (new Set(ids).size !== ids.length) refProblems.push("tradeIds com id repetido")
+  if (full && ids.length !== d.population.afterFilters) refProblems.push(`${ids.length} tradeIds ≠ afterFilters ${d.population.afterFilters}`)
+  const trades: TradeEvidence[] = []
+  for (const id of ids) { const t = ctx.byId.get(id); if (t) trades.push(t); else refProblems.push(`tradeId ${id} da população sem TradeEvidence`) }
+  if (!full && d.refs.legs.items !== null) refProblems.push("refs.legs.items presente com população HASH_ONLY (os trades não estão no bundle)")
+  if (!d.refs.legs.applicable && d.refs.legs.items !== null) refProblems.push("refs.legs.items presente numa operação sem pernas")
+  for (const r of d.refs.legs.items ?? []) {
+    const t = ctx.byId.get(r.tradeId)
+    const leg = t?.exitLegs?.[r.legIndex]
+    if (!t || !ids.includes(r.tradeId)) refProblems.push(`perna ${r.tradeId}#${r.legIndex}: trade fora da população`)
+    else if (!leg) refProblems.push(`perna ${r.tradeId}#${r.legIndex}: não existe em exitLegs`)
+    else if (JSON.stringify([...leg.rowRefs].sort((a, b) => a - b)) !== JSON.stringify(r.rowNos)) refProblems.push(`perna ${r.tradeId}#${r.legIndex}: rowNos ≠ rowRefs da perna`)
+  }
+  if (ctx.duplicated) refProblems.push("tradeId repetido em trades[] (veja V2)")
+  set("V6.refs", refProblems.length === 0 ? pass(`${full ? `${ids.length} trade(s) da população` : "população HASH_ONLY"}${d.refs.legs.items ? `, ${d.refs.legs.items.length} perna(s)` : ""} referenciados e coerentes`) : failWith("V6.refs", refProblems.slice(0, MAX_LISTED).join("; ") + (refProblems.length > MAX_LISTED ? ` (+${refProblems.length - MAX_LISTED})` : "")))
+  if (out["V6.refs"].status === "FAIL") {
+    skipFrom(V6_IDS, SKIP_REFS, "referências quebradas (V6.refs): os TradeEvidence da população não puderam ser resolvidos")
+    return out
+  }
+  if (!full) {
+    skipFrom(V6_IDS, SKIP_HASH_ONLY, `população acima do limite (${o.tradeIdsLimit}): os trades não estão no bundle, só o tradeSetHash — o derivado não pode ser recalculado, e isso NÃO é tratado como confirmado`)
+    return out
+  }
+
+  // população: tradeSetHash refeito + filtros verificáveis respeitados
+  const rebuilt = tradeSetHash(trades.map(tradeFingerprintFromEvidence))
+  const probes = trades.map(probeOf)
+  let violators = 0
+  try {
+    violators = probes.length - filterTradesCount(probes, verifiableFilters(d.query.filters), o)
+  } catch {
+    violators = 0
+  }
+  if (rebuilt !== d.population.tradeSetHash) set("V6.population", failWith("V6.population", `declarado ${d.population.tradeSetHash.slice(0, 12)}… ≠ refeito dos TradeEvidence ${rebuilt.slice(0, 12)}…: a população declarada não é a que o tradeSetHash cobre`))
+  else if (violators > 0) set("V6.population", failWith("V6.population", `${violators} trade(s) da população violam os filtros declarados (${Object.keys(verifiableFilters(d.query.filters)).join(", ")})`))
+  else set("V6.population", pass(`tradeSetHash refeito de ${trades.length} TradeEvidence = declarado (${rebuilt.slice(0, 12)}…)`))
+  if (out["V6.population"].status === "FAIL") {
+    skipFrom(V6_IDS, SKIP_REFS, "população declarada inconsistente (V6.population): o recálculo não seria sobre a mesma população")
+    return out
+  }
+  if (out["V6.versions"].status !== "PASS") {
+    skipFrom(V6_IDS, SKIP_VERSION, "versão incompatível (V6.versions): o resultado não pode ser reproduzido com este código")
+    return out
+  }
+  if (unDims.length > 0) {
+    skipFrom(V6_IDS, SKIP_ASSOCIATION, `${unDims.join(", ")}: a Evidence não tem referência dessas dimensões — o derivado não pode ser recalculado`)
+    return out
+  }
+
+  // recálculo com a função REAL do E6.2
+  const stored: StoredSpec = { op: v.op, args, filters: d.query.filters, options: o }
+  let comp
+  try {
+    comp = computeDerived(stored, probes, { select: false })
+  } catch (e) {
+    set("V6.query", failWith("V6.query", `o E6.2 recusou a consulta declarada: ${e instanceof Error ? e.message : "erro"}`))
+    skipFrom(V6_IDS, SKIP_QUERY, "o E6.2 recusou a consulta (V6.query)")
+    return out
+  }
+  const declared = { result: d.result, summary: d.summary, refs: d.refs }
+  const expected = JSON.parse(canonicalJson({ result: comp.result, summary: comp.summary, refs: comp.refs })) as unknown
+  const diffs = diffPaths(JSON.parse(canonicalJson(declared)), expected)
+  const by = (c: "values" | "derived" | "quality") => diffs.filter((p) => classOfPath(p) === c)
+  const verdict = (id: "V6.result" | "V6.derived" | "V6.quality", c: "values" | "derived" | "quality", what: string) => {
+    const bad = by(c)
+    set(id, bad.length === 0 ? pass(`${what} idênticos ao recálculo da função real do E6.2 (${v.op})`) : failWith(id, `${bad.length} divergência(s) em ${what}: ${bad.slice(0, 3).join(", ")}${bad.length > 3 ? " …" : ""}`))
+  }
+  verdict("V6.result", "values", "grupos, chaves e valores")
+  verdict("V6.derived", "derived", "deltas, razões, contribuições, posições e participações")
+  verdict("V6.quality", "quality", "amostra, cobertura, sampleFlag, confidence, limitations, reconciliação, resumo e pernas")
+  // determinismo: segunda execução
+  let again: unknown
+  try {
+    const c2 = computeDerived(stored, probes, { select: false })
+    again = JSON.parse(canonicalJson({ result: c2.result, summary: c2.summary, refs: c2.refs }))
+  } catch {
+    again = null
+  }
+  set("V6.determinism", canonicalJson(again) === canonicalJson(expected) ? pass("duas execuções do recálculo produzem o mesmo resultado") : failWith("V6.determinism", "duas execuções do recálculo divergem"))
+  return out
+}
+
+/** Quantos trades passam nos filtros (o motor decide; nada reimplementado aqui). */
+function filterTradesCount(probes: AnalyticsTrade[], filters: TradeFilters, o: DerivedEvidence["query"]["options"]): number {
+  return calculateMetricsTraced(probes, { timeZone: o.timeZone, timeAnchor: o.timeAnchor, pnlBasis: o.pnlBasis, rBasis: o.rBasis, minSample: o.minSample, tradeIdsLimit: 0, filters }).result.population.afterFilters
+}
+
+function v6(bundle: EvidenceBundle): Map<string, Outcome> {
+  const out = new Map<string, Outcome>()
+  const derived = bundle.evidence.derived ?? []
+  if (derived.length === 0) {
+    for (const id of V6_IDS) out.set(id, NA("bundle sem derivados: V6 não se aplica"))
+    return out
+  }
+  const byId = new Map<string, TradeEvidence>()
+  let duplicated = false
+  for (const t of bundle.evidence.trades) { if (byId.has(t.tradeId)) duplicated = true; byId.set(t.tradeId, t) }
+  const per = derived.map((d, i) => ({ label: `${d.analysis.op}#${i}`, r: perDerived(d, { byId, duplicated }) }))
+  for (const id of V6_IDS) out.set(id, combine(id, per.map((p) => ({ label: p.label, o: p.r[id] ?? skip(SKIP_NOT_EXECUTED, "check não executado para este derivado (falha interna do verificador): não conta como aprovado") }))))
   return out
 }
 
@@ -704,6 +886,8 @@ export function verifyEvidence(input: unknown): VerifyReport {
     for (const [id, o] of v2(bundle)) outcomes.set(id, o)
     // V3/V4 — população e métricas (o motor existente sobre os trades declarados)
     for (const [id, o] of v34(bundle)) outcomes.set(id, o)
+    // V6 — derivados do E6.2 (a mesma função, reexecutada sobre os trades declarados)
+    for (const [id, o] of v6(bundle)) outcomes.set(id, o)
   }
 
   const checks: VerifyCheck[] = CHECK_CATALOG.map((c) => {

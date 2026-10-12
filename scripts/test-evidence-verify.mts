@@ -105,8 +105,8 @@ test("BUNDLE LIMPO: V0, V1 e V2 passam; população FULL ⇒ VALID (V3/V4 PASS o
   assert.equal(check(h, "V3.population").code, "S_HASH_ONLY")
   const ids = verifyEvidence(WIN).checks.map((c) => c.id)
   assert.equal(new Set(ids).size, ids.length)
-  assert.equal(ids.length, 31)
-  assert.deepEqual(verifyEvidence(WIN).checks.map((c) => c.level), ["V0", "V0", "V0", "V0", "V0", "V1", ...Array(13).fill("V2"), "V3", "V3", ...Array(10).fill("V4")])
+  assert.equal(ids.length, 39) // 31 (V0–V4) + 8 de V6 (E6.3; NOT_APPLICABLE sem derivados)
+  assert.deepEqual(verifyEvidence(WIN).checks.map((c) => c.level), ["V0", "V0", "V0", "V0", "V0", "V1", ...Array(13).fill("V2"), "V3", "V3", ...Array(10).fill("V4"), ...Array(8).fill("V6")])
 })
 
 // ── V0: formato ──────────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ test("V0 entradas que não são bundle (null, undefined, array, string, número,
     const rep = verifyEvidence(v as unknown)
     assert.equal(rep.status, "INVALID_FORMAT")
     assert.equal(check(rep, "V0.structure").status, "FAIL")
-    assert.equal(rep.checks.length, 31)
+    assert.equal(rep.checks.length, 39)
     assert.ok(rep.checks.every((c) => c.status !== "PASS" || c.level === "V0"))
     assert.equal(check(rep, "V3.population").code, "S_FORMAT_INVALID")
   }
@@ -417,7 +417,8 @@ test("HONESTIDADE: SKIPPED nunca vira PASS; formato inválido não vira TAMPERED
 test("ARQUITETURA (código): verify.ts não é segundo motor nem segunda implementação de hash — só chama o motor existente (traced/aggregate/prepare), os hashes de hash.ts e a conversão mecânica; sem node:crypto, relógio, random nem conta com valores financeiros", () => {
   const src = readFileSync(fileURLToPath(new URL("../src/lib/evidence/verify.ts", import.meta.url)), "utf8").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
   const imports = [...src.matchAll(/from\s+"([^"]+)"/g)].map((m) => m[1]).sort()
-  assert.deepEqual(imports, ["../infra/hash.ts", "../metrics/calculate.ts", "../metrics/catalog.ts", "../metrics/prepare.ts", "../metrics/trace.ts", "../metrics/types.ts", "./hash.ts", "./schema.ts", "./to-analytics.ts"])
+  // E6.3: + analysis.ts (só as constantes de versão do contrato), filter.ts (normalizeFilters) e derived.ts (computeDerived: a função real do E6.2)
+  assert.deepEqual(imports, ["../infra/hash.ts", "../metrics/analysis.ts", "../metrics/calculate.ts", "../metrics/catalog.ts", "../metrics/filter.ts", "../metrics/prepare.ts", "../metrics/trace.ts", "../metrics/types.ts", "./derived.ts", "./hash.ts", "./schema.ts", "./to-analytics.ts"])
   const code = src.replace(/"(?:[^"\\\n]|\\.)*"/g, '""').replace(/`(?:[^`\\]|\\.)*`/g, "``") // só código: mensagens e títulos podem citar termos
   assert.ok(!/node:crypto|createHash|sha256Hex|hashCanonical/.test(code), "o hash vem de computeEvidenceHash/tradeSetHash")
   assert.ok(!/Date\.now|new Date|Math\.random|randomUUID/.test(code))
@@ -425,6 +426,8 @@ test("ARQUITETURA (código): verify.ts não é segundo motor nem segunda impleme
   assert.ok(!/\.pnl\.(net|gross|commission|fees)\s*[-+*/]|\.r\.(net|points)\s*[-+*/]|pointsPerContract\s*[-+*/]/.test(code))
   assert.ok(!/Math\.(max|min|sqrt|abs|round)|\.reduce\(/.test(code), "nenhuma agregação numérica própria")
   assert.ok(/calculateMetricsTraced\(/.test(code) && /aggregateTradesTraced\(/.test(code))
+  // V6 não tem fórmula própria de ranking/contribuição/comparação: reexecuta computeDerived (E6.2) e só compara
+  assert.ok(/computeDerived\(/.test(code) && !/rankGroups|compareGroups|comparePeriods|exitReasonAnalysis|contributionTo/.test(code))
 })
 
 // ── fixtures reais (locais; sem números embutidos) ───────────────────────────

@@ -85,7 +85,7 @@ const check = (r: VerifyReport, id: string) => r.checks.find((c) => c.id === id)
 /** Invariantes que valem para QUALQUER relatório. */
 function assertReportInvariants(rep: VerifyReport, label: string) {
   assert.deepEqual(rep.checks.map((c) => c.id), CHECK_CATALOG.map((c) => c.id), `${label}: lista/ordem de checks fixa`)
-  assert.equal(rep.checks.length, 31)
+  assert.equal(rep.checks.length, 39)
   assert.deepEqual(rep.limitations.map((l) => l.code), ["L_SEAL_NOT_SIGNATURE", "L_SELECTION_NOT_PROVEN", "L_ORIGIN_NOT_PROVEN"], `${label}: limitations sempre presentes`)
   for (const c of rep.checks) {
     if (c.status === "PASS") assert.equal(c.code, null, `${label} ${c.id}`)

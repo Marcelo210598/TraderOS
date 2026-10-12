@@ -203,15 +203,98 @@ export const MetricEvidenceSchema = z
   .strict()
 export type MetricEvidence = z.infer<typeof MetricEvidenceSchema>
 
-export const ClaimSchema = z.object({ kind: z.enum(["METRIC", "TRADE"]), statement: z.string().nullable() }).strict()
-export const SubjectSchema = z.object({ type: z.enum(["METRIC", "TRADE"]), id: z.string() }).strict()
+// ── E6.3: derivados (ranking, contribuição, comparação) — extensão ADITIVA de evidence/1 (sem evidence/2) ──────────────────────────────
+
+/** Operações do E6.2 que podem virar Evidence. Uma por função pública; o verificador (V6) reexecuta a MESMA função. */
+export const DERIVED_OPS = ["GROUP_RANKING", "GROUP_COMPARISON", "PERIOD_COMPARISON", "EXIT_REASON_ANALYSIS", "EXIT_REASON_COMPARISON_LEGS", "EXIT_REASON_COMPARISON_TRADES", "LEG_GROUP_RANKING"] as const
+export type DerivedOp = (typeof DERIVED_OPS)[number]
+
+export const LegRefSchema = z.object({ tradeId: z.string(), legIndex: z.number().int().nonnegative(), rowNos: z.array(z.number().int()) }).strict()
+
+/**
+ * Resultado derivado do E6.2, com tudo que é preciso para REPRODUZI-LO: a operação e os argumentos (conta/estratégia SÓ como accountRef/strategyRef),
+ * a população (tradeSetHash do E2; os TradeEvidence vão em `evidence.trades`) e o resultado completo. `result` é o JSON do E6.2 (estrutura própria de
+ * cada operação, tipada em `metrics/analysis.ts`); o contrato dele é verificado pelo V6, que o refaz com a função real e exige igualdade — por isso
+ * o schema só fixa o envelope (estrito) e não replica a forma de cada operação.
+ */
+export const DerivedEvidenceSchema = z
+  .object({
+    /** Determinístico: SHA-256 (domínio próprio) de operação + argumentos + população + versões. Sem relógio/random. */
+    derivedId: z.string().regex(/^drv_[0-9a-f]{32}$/),
+    analysis: z
+      .object({
+        op: z.enum(DERIVED_OPS),
+        /** TRADE = valores calculados sobre o trade completo · LEG = valores atribuídos às pernas de saída · TRADE_AND_LEG = os dois lado a lado, rotulados. */
+        unit: z.enum(["TRADE", "LEG", "TRADE_AND_LEG"]),
+        /** Contrato do E6.2 (`metrics-analysis/1`) e sua versão. */
+        schema: z.string(),
+        definitionVersion: z.string(),
+        engineVersion: z.string(),
+      })
+      .strict(),
+    query: z
+      .object({
+        /** Argumentos da operação (groupBy, metric, order, where, a, b, metrics, reason, períodos). Chaves de grupo de conta/estratégia = refs. */
+        args: z.record(z.string(), z.unknown()),
+        /** Filtros normalizados; `account`/`strategyId`/`strategyName` guardam REFS, nunca nomes. */
+        filters: z.record(z.string(), z.unknown()),
+        options: z
+          .object({
+            timeZone: z.string(),
+            timeAnchor: z.enum(["ENTRY", "EXIT"]),
+            pnlBasis: z.enum(["NET", "GROSS"]),
+            rBasis: z.enum(["NET", "POINTS"]),
+            minSample: z.number().int(),
+            tradeIdsLimit: z.number().int(),
+          })
+          .strict(),
+      })
+      .strict(),
+    population: z
+      .object({
+        afterFilters: z.number().int(),
+        tradeSetHash: z.string().regex(/^[0-9a-f]{64}$/),
+        /** Até `tradeIdsLimit`; acima disso null e vale o hash (HASH_ONLY). */
+        tradeIds: z.array(z.string()).nullable(),
+      })
+      .strict(),
+    /** FULL = população listada e TradeEvidence no bundle (reproduzível) · HASH_ONLY = só o tradeSetHash (não reproduzível). */
+    verifiability: z.enum(["FULL", "HASH_ONLY"]),
+    result: z.record(z.string(), z.unknown()),
+    /** Resumo derivado do `result` (pior confiança, limitações, reconciliação): conferido pelo V6. */
+    summary: z
+      .object({
+        inference: z.literal("DESCRIPTIVE_ONLY"),
+        confidence: z.enum(["OK", "LIMITED", "UNRELIABLE"]).nullable(),
+        limitations: z.array(z.string()),
+        reconciliation: z.enum(["FULL", "PARTIAL", "DIVERGENT", "NO_LEGS"]).nullable(),
+      })
+      .strict(),
+    /** Pernas que sustentam o resultado (só operações com unidade LEG): applicable=false ⇒ não se aplica; items=null ⇒ acima do limite (vale o legSetHash do resultado). */
+    refs: z.object({ legs: z.object({ applicable: z.boolean(), items: z.array(LegRefSchema).nullable() }).strict() }).strict(),
+    /** Relógio de quem calculou. FORA do hash. */
+    computedAt: z.string().nullable().optional(),
+  })
+  .strict()
+export type DerivedEvidence = z.infer<typeof DerivedEvidenceSchema>
+
+export const ClaimSchema = z.object({ kind: z.enum(["METRIC", "TRADE", "DERIVED"]), statement: z.string().nullable() }).strict()
+export const SubjectSchema = z.object({ type: z.enum(["METRIC", "TRADE", "DERIVED"]), id: z.string() }).strict()
 
 export const EvidenceBundleSchema = z
   .object({
     schema: z.literal(EVIDENCE_SCHEMA),
     claim: ClaimSchema,
     subject: SubjectSchema,
-    evidence: z.object({ imports: z.array(ImportRefSchema), trades: z.array(TradeEvidenceSchema), metrics: z.array(MetricEvidenceSchema) }).strict(),
+    evidence: z
+      .object({
+        imports: z.array(ImportRefSchema),
+        trades: z.array(TradeEvidenceSchema),
+        metrics: z.array(MetricEvidenceSchema),
+        /** E6.3 (aditivo): ausente nos bundles anteriores — o `evidenceHash` deles NÃO muda. */
+        derived: z.array(DerivedEvidenceSchema).optional(),
+      })
+      .strict(),
     /** SHA-256 de tudo acima, sem `importedAt`/`computedAt`. */
     evidenceHash: z.string().regex(/^[0-9a-f]{64}$/),
   })

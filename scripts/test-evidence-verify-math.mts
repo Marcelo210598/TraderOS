@@ -510,11 +510,11 @@ test("LIMITE CONHECIDO (documentado, não escondido): campo do TradeEvidence que
 
 // ── relatório ────────────────────────────────────────────────────────────────
 
-test("RELATÓRIO: determinístico, 31 checks fixos, limitations sempre presentes; V3/V4 não vazam nome de conta", () => {
+test("RELATÓRIO: determinístico, 39 checks fixos, limitations sempre presentes; V3/V4 não vazam nome de conta", () => {
   for (const b of [bundle("netPnl"), groupBundle("account", 0, "netPnl"), bundle("netPnl", A, [rec], { tradeIdsLimit: 3 }), edit(bundle("netPnl"), (x) => (x.evidence.metrics[0].value += 1))]) {
     const a = verifyEvidence(b)
     assert.equal(canonicalJson(a), canonicalJson(verifyEvidence(clone(b))))
-    assert.equal(a.checks.length, 31)
+    assert.equal(a.checks.length, 39)
     assert.equal(a.limitations.length, 3)
     assert.ok(!/Sim10\d/.test(JSON.stringify(a)))
   }
