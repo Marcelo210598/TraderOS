@@ -164,6 +164,13 @@ Para a **versão final** das frases (revisão de redação) basta alterar este a
 | `S_POPULATION_PARTIAL` | Só parte da população foi conferida contra o arquivo; trate como indicativo. |
 | `L_SALT_CHECK_DIVERGENT` | A conferência bateu, mas o bundle traz uma autodeclaração de sal incorreta; os dados conferem, o aviso deve ser investigado. |
 | `L_SALT_ID_NOT_RESOLVED` | A conferência bateu com outro sal seu; a identificação de sal declarada no bundle estava errada. |
+### 6.3b Frases de escopo (acrescentadas no E6.5-2)
+| Código | Frase canônica |
+|---|---|
+| `POPULATION_DECLARED` | Considerando a população declarada de {n} trades. |
+| `INDICATIVE_ONLY` | Resultado indicativo, não conclusivo. |
+`{n}` é o único placeholder permitido e é preenchido pelo servidor a partir do handle.
+
 ### 6.4 Frases de integridade (`TAMPERED_OR_MISMATCH`, `INVALID_FORMAT`)
 | Situação | Frase canônica |
 |---|---|

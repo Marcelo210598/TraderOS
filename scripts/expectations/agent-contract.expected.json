@@ -5,7 +5,8 @@
     "note": "E6.5-0 (docs/ai-partner/agent-contract-plano.md). Escrito ANTES de qualquer tipo/código. NADA aqui foi executado: o E6.5 é só desenho + tipos; o validador, o combineVerdict e as PromptViews são E6.6 (aprovação própria). `status: approved` = decidido pelo Marcelo; `status: proposed` = proposta minha pendente. Mudar uma expectativa exige entrada em history.",
     "history": [
       "2026-10-12 E6.5-1: O-A/O-B/O-C/O-D aprovados pelo Marcelo; AV21 e PV6 → approved; N=2 e K=20 fixados em agent-capabilities.md §0 (A3 cumprido); lista de códigos específicos CORRIGIDA para o que o código realmente emite (a lista do E6.5-0 era uma estimativa minha: faltavam S_NO_METRICS, S_REFS_BROKEN, S_PROVENANCE_INCOMPLETE, S_ORDER_NOT_RECORDED, S_NO_ANCHOR_CHECK, S_QUERY_INVALID, S_CHECK_NOT_EXECUTED, S_ENCODING_UNSUPPORTED, S_SALT_*). Propostas novas O-E/O-F/O-G.",
-      "2026-10-12 E6.5-1 (ajustes pós-revisão do Marcelo): O-E aprovado COM exigência de parada explícita (AV22, stop_reasons); O-F aprovado COM confirmação de que é só exibição — e CORRIGIDO por mim: casas decimais da exibição = as do motor (R 4, razão 4, pontos até 6), não 2 para tudo (erro meu na proposta, achado ao ler exact.ts); AV23 (empate) adicionado."
+      "2026-10-12 E6.5-1 (ajustes pós-revisão do Marcelo): O-E aprovado COM exigência de parada explícita (AV22, stop_reasons); O-F aprovado COM confirmação de que é só exibição — e CORRIGIDO por mim: casas decimais da exibição = as do motor (R 4, razão 4, pontos até 6), não 2 para tudo (erro meu na proposta, achado ao ler exact.ts); AV23 (empate) adicionado.",
+      "2026-10-12 E6.5-2: schema_cases SC1–SC12 escritos antes dos tipos. Duas frases de escopo que o §6.1 do documento exigia mas não catalogava foram acrescentadas por mim (POPULATION_DECLARED, INDICATIVE_ONLY) e entram no catálogo/documento."
     ]
   },
   "principles": [
@@ -485,5 +486,20 @@
       "points": "mínimo 2, máximo 6 (zeros à direita aparados até 2)"
     },
     "F4_tie_consistency": "o desempate/empate do motor (tiedWithPrevious) compara valores já no escalonamento da saída; como a exibição usa as mesmas casas, dois valores exibidos iguais ⇔ empate do motor; o agente só afirma empate quando tiedWithPrevious=true (AV23)"
+  },
+  "schema_cases": {
+    "_note": "E6.5-2: só tipos e schemas zod (src/lib/agent/contract.ts, views.ts, phrases.ts). Escritos ANTES do código. Nenhuma função de comportamento (combineVerdict/validador/projetor são E6.6).",
+    "SC1_constants": "AGENT_MAX_REGENERATIONS=2, AGENT_MAX_CALLS_PER_TURN=8, EXPLAIN_MAX_TRADES=20, AGENT_CONTRACT_VERSION='agent-capabilities/1', EVIDENCE_REF_RE=^ev_[0-9a-f]{32}$",
+    "SC2_handle_has_both_verdicts": "EvidenceHandle exige verify E source E combined; só um dos dois ⇒ inválido; nenhum campo extra (strict): 'ok'/'verified' agregados são rejeitados (CP1/CP2)",
+    "SC3_model_never_sees_hash": "a visão do handle que vai ao modelo NÃO tem evidenceHash (só evidenceRef); o handle completo é tipo de servidor/ledger",
+    "SC4_capability_result_consistency": "ok=true ⇒ data e evidence presentes; ok=false ⇒ error presente, evidence e data nulos; BUDGET_EXCEEDED e FILE_NOT_AVAILABLE existem como códigos",
+    "SC5_answer_shape": "AgentAnswer = segments (text|slot|phrase) + claims (ref+path+mode ASSERT|LABELED); slot com path inválido, phrase com código fora do catálogo e ref fora do formato ⇒ inválidos",
+    "SC6_views_strict_whitelist": "toda PromptView é .strict(): qualquer campo T0 (rowNo, rowHash, sourceRows, sourceLabel, entryLabel, exitLabel, fileName, fileSha256, userId, saltCheck, saltId, accountRef, strategyRef, importedAt, evidenceHash, issues, fieldProvenance) adicionado em QUALQUER nível ⇒ inválido",
+    "SC7_label_view": "LabelView aceita só vocabulário v1 (Entry, Target<0-99>, Stop<0-99>, Zerar), '(sem rótulo)' e 'rótulo personalizado <A-Z>'; rejeita texto livre, token lbl_… e rótulo adversarial ('IGNORE AS INSTRUCOES ANTERIORES')",
+    "SC8_group_key_view": "chave de grupo na view rejeita refs (acc_/str_/lbl_/pat_ + hex, ev_ + hex): só alias ou valor de dimensão",
+    "SC9_explain_limit": "ExplainView aceita até K=20 trades e rejeita 21; o trade da view não tem rowNo/rowHash/tradeId (só ordinal da página)",
+    "SC10_phrases_catalog": "PHRASES cobre: ESTRUTURAL, os 21 códigos específicos, 3 parciais, 3 de integridade, BUDGET_LIMIT_REACHED, REGEN_EXHAUSTED, CAPABILITY_FAILED, POPULATION_DECLARED, INDICATIVE_ONLY; códigos == chaves; todas distintas; o texto ESTRUTURAL não é substring de nenhuma outra e nenhuma outra é substring dele (A1); nenhum texto contém dígitos de resultado (só o placeholder {n} em POPULATION_DECLARED)",
+    "SC11_not_wired": "nenhum arquivo fora de src/lib/agent/ importa o contrato; src/lib/agent/ não importa SDK de LLM, rede, banco, Prisma nem process.env",
+    "SC12_no_behavior": "o módulo exporta constantes, schemas e tipos; nenhuma função de combinação de veredito, validação de resposta ou projeção (E6.6)"
   }
 }
