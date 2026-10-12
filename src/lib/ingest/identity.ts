@@ -28,13 +28,15 @@ const IMPORT_ID_VERSION = 1
 export const IDENTITY_VERSIONS = { importId: IMPORT_ID_VERSION, rowHash: ROW_HASH_VERSION, tradeId: TRADE_ID_VERSION, accountRef: ACCOUNT_REF_DOMAIN } as const
 
 /** Contexto efetivo reproduzível. `exitReasonMap` é copiado na ORDEM recebida (a primeira regra que casa vence); sem o valor do sal. */
-export function buildReproducibility(args: { foldPolicy: "EARLIER" | "LATER"; exitReasonMap: ExitReasonRule[] | undefined; accountRefSalt: string | undefined }): Reproducibility {
+export function buildReproducibility(args: { foldPolicy: "EARLIER" | "LATER"; exitReasonMap: ExitReasonRule[] | undefined; accountRefSalt: string | undefined; saltId?: string; saltCheck?: string }): Reproducibility {
   return {
     version: 1,
     identity: { ...IDENTITY_VERSIONS },
     foldPolicy: args.foldPolicy,
     exitReasonMap: (args.exitReasonMap ?? []).map((r) => ({ pattern: r.pattern, reason: r.reason })),
     accountRefSalted: (args.accountRefSalt ?? "") !== "",
+    // política de sal (P3): só nos imports com sal gerenciado; ausentes ⇒ o registro é idêntico ao de antes
+    ...(args.saltId !== undefined && args.saltCheck !== undefined ? { saltId: args.saltId, saltCheck: args.saltCheck } : {}),
   }
 }
 

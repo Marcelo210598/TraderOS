@@ -5,7 +5,8 @@
     "note": "P0 da política de sal (docs/ai-partner/salt-policy-plano.md). Escrito ANTES de qualquer código. Nada aqui foi executado. `status: approved` = decidido pelo Marcelo; `status: proposed` = proposta minha que depende de decisão (ver open_points do plano). Vereditos do E5b: SOURCE_VERIFIED | SOURCE_VERIFIED_PARTIAL | SOURCE_MISMATCH | UNVERIFIABLE. Mudar uma expectativa exige entrada em history.",
     "history": [
       "2026-10-12 P4: V4/V8/V9/V11 passam de proposed→approved (Marcelo aprovou O1/O2/O3 em 12/10). V14 ADICIONADO por mim durante o P4 (caso não previsto no P0: saltId declarado em import sem sal) — status proposed. V6 (controle negativo) implementado e coberto por mutações (saltCheck-como-portão, sem reforço, V6→UNVERIFIABLE).",
-      "2026-10-12 V14 approved pelo Marcelo (confirmado também o ajuste de combine() em verify-source.ts)."
+      "2026-10-12 V14 approved pelo Marcelo (confirmado também o ajuste de combine() em verify-source.ts).",
+      "2026-10-12 P3 implementado e executado: G1–G6 e GD2 verdes (test-salt-policy-p3.mts, 8 testes, 5 mutações pegas). Detalhe de implementação não previsto no P0: o produtor é `ImportContext.salt = {provider, userId}` (exclusivo com accountRefSalt ⇒ E_SALT_CONFLICT; sem sal atual ⇒ E_SALT_REQUIRED no import; sal fraco do provider ⇒ E_SALT_WEAK). Via explainMetric/explainDerived o erro chega como E_TRADE_EXPLAIN_FAILED com o código no texto."
     ]
   },
   "rules": {

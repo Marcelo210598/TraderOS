@@ -5,6 +5,7 @@
 // Reconstrução (parsers que declaram `reconstruction`, hoje o NT8 PT-BR validado com export real): as linhas viram
 // CICLOS DE POSIÇÃO 0→0 (ver reconstruct.ts). `rowTrades` guarda as linhas ANTES da reconstrução (auditoria e comparação).
 
+import { saltCheck } from "./salt.ts"
 import { CanonicalTradeSchema, issue, type CanonicalTrade, type Issue } from "../domain/canonical.ts"
 import { DEFAULT_SOURCE_TIME_ZONE, inferDateOrder, type DateOrder, type SourceTzOrigin } from "../domain/time.ts"
 import { buildCanonicalTrade } from "./build-trade.ts"
@@ -81,6 +82,21 @@ export function runImportPipeline(text: string, ctx: ImportContext = {}, parsers
   } catch (e) {
     if (e instanceof ExitReasonMapError) return fail([issue("ERROR", e.code, e.message)])
     throw e
+  }
+
+  // 0b) Política de sal (P3): sal gerenciado por usuário. Fail-closed: sem sal atual não há import.
+  let accountRefSalt = ctx.accountRefSalt
+  let saltDecl: { saltId: string; saltCheck: string } | undefined
+  if (ctx.salt) {
+    if (ctx.accountRefSalt !== undefined) return fail([issue("ERROR", "E_SALT_CONFLICT", "ctx.salt (sal gerenciado) e ctx.accountRefSalt (string) são exclusivos: use só um.")])
+    const cur = ctx.salt.provider.current(ctx.salt.userId)
+    if (!cur) return fail([issue("ERROR", "E_SALT_REQUIRED", "o usuário não tem sal atual no chaveiro (nunca criado ou último aposentado): crie/rotacione o sal explicitamente antes de importar.")])
+    try {
+      saltDecl = { saltId: cur.saltId, saltCheck: saltCheck(cur.salt) }
+    } catch {
+      return fail([issue("ERROR", "E_SALT_WEAK", "o sal atual do usuário não é forte (≥ 256 bits): o provider não pode ser usado para gerar Evidence.")])
+    }
+    accountRefSalt = cur.salt
   }
 
   // 1) Raw → tabela
@@ -201,9 +217,9 @@ export function runImportPipeline(text: string, ctx: ImportContext = {}, parsers
     reconstructionEnabled: summary !== null,
     stats: { rowsRead: parsed.records.length, accepted: rowTrades.length, rejected: rejected.length },
     accountCount: new Set(parsed.records.map((r) => r.account?.trim()).filter((a): a is string => !!a)).size,
-    reproducibility: buildReproducibility({ foldPolicy: settings.foldPolicy, exitReasonMap: ctx.exitReasonMap, accountRefSalt: ctx.accountRefSalt }),
+    reproducibility: buildReproducibility({ foldPolicy: settings.foldPolicy, exitReasonMap: ctx.exitReasonMap, accountRefSalt, ...(saltDecl ?? {}) }),
   })
-  const salt = ctx.accountRefSalt ?? ""
+  const salt = accountRefSalt ?? ""
   const rowHashByRowNo = new Map(lots.map((l) => [l.rowNo, rowHashOf(l, salt)]))
   const identity = { importId: importRecord.importId, rowHashByRowNo, salt }
   trades = assignIdentity(trades, identity)

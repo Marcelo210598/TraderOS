@@ -4,6 +4,7 @@
 // no Canonical não vira Evidence — nem vaza — sem alguém decidir. Cópia fiel: NADA é recalculado (P&L, R, MAE/MFE, reconstrução).
 // Puro: sem relógio, sem random, sem banco, sem rede, não relê o CSV. Não gera hash por trade (o `evidenceHash` é do bundle).
 
+import { isStrongSalt, saltCheck } from "../ingest/salt.ts"
 import type { CanonicalTrade, ImportRecord } from "../domain/canonical.ts"
 import { accountRef as makeAccountRef, patternRef as makePatternRef, strategyRef as makeStrategyRef } from "../ingest/identity.ts"
 import { LABEL_VOCAB_VERSION, projectLabel } from "./label-vocab.ts"
@@ -17,6 +18,8 @@ export type ExplainErrorCode =
   | "E_ROWREF_DANGLING"
   | "E_ACCOUNT_NAME_LEAK"
   | "E_STRATEGY_NAME_LEAK"
+  | "E_SALT_REQUIRED"
+  | "E_SALT_MISMATCH"
   | "E_SCHEMA"
 
 export interface ExplainNote {
@@ -167,6 +170,14 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
   if (!trade.tradeId || !trade.importId) return fail("E_IDENTITY_MISSING", "Trade sem tradeId/importId: a Evidence não fabrica identidade (rode o trade pelo pipeline de ingestão).")
   const { tradeId, importId } = trade
   if (importId !== importRecord.importId) return fail("E_IMPORT_MISMATCH", `trade.importId (${importId}) ≠ importRecord.importId (${importRecord.importId}).`)
+
+  // 1b) política de sal (P3): import com sal GERENCIADO (tem saltCheck) só gera Evidence com O sal certo. Fail-closed; as mensagens nunca citam o sal.
+  const declaredCheck = importRecord.reproducibility?.saltCheck
+  if (declaredCheck !== undefined) {
+    const given = opts.accountRefSalt
+    if (given === undefined || given === "") return fail("E_SALT_REQUIRED", "O import usou um sal gerenciado (saltId/saltCheck registrados): informe o sal do usuário em opts.accountRefSalt. Sem ele os refs sairiam com sal vazio e o bundle seria indistinguível de adulteração.")
+    if (!isStrongSalt(given) || saltCheck(given) !== declaredCheck) return fail("E_SALT_MISMATCH", "O sal informado não é o do import (o saltCheck registrado não bate): gerar com outro sal produziria refs que a verificação de origem acusaria.")
+  }
 
   // 2) conta → accountRef
   const accountName = trade.account.sourceName

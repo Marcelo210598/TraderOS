@@ -114,11 +114,12 @@ test("P3d — sigilo: o valor do sal nunca sai por JSON, inspect, spread, mensag
   }
 })
 
-test("P4 — LIGADO SÓ AO LEITOR: nenhum arquivo de src/ além do verify-source.ts (E5b) importa ingest/salt; nada de persistência/banco/Prisma no módulo", () => {
+test("P4 — LIGAÇÃO CONTROLADA: só os importadores APROVADOS (leitor, gerador, pipeline, tipo) importam ingest/salt; nada de persistência/banco/Prisma no módulo", () => {
   const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p] })
   const importers = walk(join(ROOT, "src")).filter((f) => /\.(ts|tsx)$/.test(f) && /from\s+["'][^"']*\/salt(\.ts)?["']/.test(readFileSync(f, "utf8")))
-  // P4 liga o LEITOR (E5b); o gerador (P3) ainda não: só verify-source.ts pode importar até lá
-  assert.deepEqual(importers.map((f) => f.replace(ROOT, "")), ["src/lib/evidence/verify-source.ts"], "só o leitor (E5b, P4) importa ingest/salt; o gerador (P3) ainda não")
+  // lista APROVADA de quem importa salt.ts (quem entra aqui é revisado): leitor (E5b, P4), gerador de trade (P3, trava E_SALT_*), pipeline (P3, sal gerenciado) e o tipo do contexto
+  const APPROVED = ["src/lib/evidence/explain-trade.ts", "src/lib/evidence/verify-source.ts", "src/lib/ingest/pipeline.ts", "src/lib/ingest/types.ts"]
+  assert.deepEqual(importers.map((f) => f.replace(ROOT, "")).sort(), APPROVED, "importador de salt.ts fora da lista aprovada (revise o uso do sal e inclua aqui)")
   const code = readFileSync(join(ROOT, "src/lib/ingest/salt.ts"), "utf8").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
   assert.equal(/prisma|process\.env|node:fs|fetch\(|localStorage|console\./i.test(code), false)
   assert.match(code, /from "\.\.\/infra\/hash\.ts"/); assert.equal(/node:crypto/.test(code), false, "aleatoriedade só via infra/hash.ts")

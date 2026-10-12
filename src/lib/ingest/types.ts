@@ -8,6 +8,7 @@
 // Adicionar um formato = escrever um ParserDescriptor (só o mapeamento de colunas/vocabulário) + registrar + fixtures.
 // O Normalizer, o Validator e o domínio NÃO mudam.
 
+import type { SaltProvider } from "./salt.ts"
 import type { CanonicalTrade, ImportRecord, Issue, Platform } from "../domain/canonical.ts"
 import type { PnlBasis } from "../domain/pnl.ts"
 import type { ExcursionUnit } from "../domain/risk.ts"
@@ -42,6 +43,11 @@ export interface ImportContext {
   exitReasonMap?: ExitReasonRule[]
   /** Sal do `account.ref` (ex.: id do usuário). Sem sal, o ref é igual para o mesmo nome de conta em qualquer import. */
   accountRefSalt?: string
+  /**
+   * Política de sal (P3): sal GERENCIADO por usuário. O import usa o sal ATUAL do provider e grava `saltId`/`saltCheck` (nunca o valor) em
+   * `reproducibility`. Sem sal atual ⇒ o import FALHA (E_SALT_REQUIRED). Não combina com `accountRefSalt` (E_SALT_CONFLICT).
+   */
+  salt?: { provider: SaltProvider; userId: string }
 }
 
 /** Uma linha de plataforma já traduzida para nomes neutros, mas ainda em TEXTO. */
