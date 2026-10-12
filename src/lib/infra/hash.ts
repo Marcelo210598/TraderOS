@@ -2,7 +2,10 @@
 // O domínio e as métricas continuam puros; quem precisa de identidade/prova chama estas funções.
 // Sem criptografia manual: SHA-256 da plataforma.
 
-import { createHash } from "node:crypto"
+import { createHash, randomBytes } from "node:crypto"
+
+/** `bytes` bytes aleatórios criptográficos, em hex minúsculo (2×bytes chars). Fonte única de aleatoriedade (CSPRNG da plataforma). */
+export const randomHex = (bytes: number): string => randomBytes(bytes).toString("hex")
 
 /** SHA-256 em hex minúsculo (64 chars). Strings entram como UTF-8. */
 export const sha256Hex = (input: string | Uint8Array): string => createHash("sha256").update(input).digest("hex")
