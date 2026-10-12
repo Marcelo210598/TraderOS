@@ -580,6 +580,9 @@ reproducibility?: { version: 1,
 
 **Não muda:** `tradeSetHash`, métricas, fórmulas do E6.2, `verifyEvidence`/V6 (independentes: um derivado adulterado com selo refeito segue `SOURCE_VERIFIED` no E5b e `TAMPERED` no V6), o comportamento e os textos de bundles sem derivados (V5.coverage idêntico; os outros 8 checks continuam PASS). Teste: `scripts/test-evidence-source-derived.mts` (11) + fixtures reais; o `test-evidence-source.mts` ganhou só a exceção `V5.derived = S_NOT_APPLICABLE`.
 
+### 14.12.1 Nota (S2b, 12/10/2026): o mapa de motivos do usuário na Evidence
+No `ImportRef` (Evidence) o `exitReasonMap` de §14.12 passa a ser `{ patternRef, reason }[]` (o regex em claro fica só no `ImportRecord` interno). Consequência para o E5b: imports com mapa não vazio exigem que o chamador informe o mapa (conferido pelos `patternRef`); ausente/divergente ⇒ `UNVERIFIABLE (S_CONTEXT_INSUFFICIENT)`. Detalhes em `CHANGELOG-contratos.md`.
+
 ### 14.14 Pseudônimos da Evidence e política de sal — limite DOCUMENTADO, decisão pendente (12/10/2026)
 `accountRef` (`acc_…`), `strategyRef` (`str_…`) e, quando o plano do `sourceLabel` for implementado, `labelRef` (`lbl_…`) e `patternRef` (`pat_…`) são **pseudônimos determinísticos** (SHA-256 truncado em 24 hex, domínio próprio de cada um). **Não são anonimização criptográfica.** O sal (`accountRefSalt`) é **opcional e por import**; **sem sal, textos curtos ou comuns (nome de conta, de estratégia, rótulo de ordem, padrão de regra) são adivinháveis por dicionário** — vale para os quatro refs juntos, não só para o rótulo. Com sal, quem verifica precisa tê-lo (o valor nunca é gravado no bundle). **Decisão pendente:** a política de sal por usuário (quem gera, onde guarda, rotação, se é obrigatório para exportar a terceiros/IA); até lá nenhum ref deve ser tratado como anônimo e nenhuma exigência de sal foi criada. Plano do `sourceLabel`: `docs/ai-partner/sourceLabel-plano.md` (decisões A–E de 12/10/2026).
 

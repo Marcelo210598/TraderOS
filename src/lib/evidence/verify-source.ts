@@ -34,12 +34,12 @@
 import type { CanonicalTrade, ImportRecord } from "../domain/canonical.ts"
 import { DEFAULT_SOURCE_TIME_ZONE } from "../domain/time.ts"
 import { canonicalJson, sha256Hex } from "../infra/hash.ts"
-import { describeText, IDENTITY_VERSIONS } from "../ingest/identity.ts"
+import { describeText, IDENTITY_VERSIONS, patternRef } from "../ingest/identity.ts"
 import { runImportPipeline } from "../ingest/pipeline.ts"
 import { RECONSTRUCTION_VERSION } from "../ingest/reconstruct.ts"
 import { DEFAULT_PARSERS } from "../ingest/registry.ts"
 import type { ImportContext, ParserDescriptor, PipelineResult } from "../ingest/types.ts"
-import { explainTrades } from "./explain-trade.ts"
+import { explainTrades, projectReproducibility } from "./explain-trade.ts"
 import { LABEL_VOCAB_VERSION } from "./label-vocab.ts"
 import { EvidenceBundleSchema, type EvidenceBundle, type ImportRef, type TradeEvidence } from "./schema.ts"
 
@@ -235,14 +235,25 @@ export function sourceContextOf(imp: ImportRef, opts: VerifySourceOptions): Impo
     declaredPnlBasis: s.declaredPnlBasis,
     reconstructCycles: imp.reconstructionMethod !== null,
     ...(salt !== undefined ? { accountRefSalt: salt } : {}),
-    ...(rep ? { foldPolicy: rep.foldPolicy, exitReasonMap: rep.exitReasonMap.map((r) => ({ pattern: r.pattern, reason: r.reason })) } : {
+    // S2b: o ImportRef guarda só `patternRef`; o regex vem do CHAMADOR e já foi conferido contra os patternRef em `contextProblem` (mapa vazio ⇒ nada a informar)
+    ...(rep ? { foldPolicy: rep.foldPolicy, exitReasonMap: rep.exitReasonMap.length === 0 ? [] : (opts.exitReasonMap ?? []).map((r) => ({ pattern: r.pattern, reason: r.reason })) } : {
       ...(opts.foldPolicy !== undefined ? { foldPolicy: opts.foldPolicy } : {}),
       ...(opts.exitReasonMap !== undefined ? { exitReasonMap: opts.exitReasonMap } : {}),
     }),
   }
 }
 
-function contextProblem(imp: ImportRef, parsers: ParserDescriptor[]): Outcome | null {
+function contextProblem(imp: ImportRef, parsers: ParserDescriptor[], opts: VerifySourceOptions): Outcome | null {
+  // mapa de motivos do USUÁRIO (decisão C do sourceLabel): o bundle só tem `patternRef`; sem o regex não há como reingerir. Ausente/divergente ⇒ UNVERIFIABLE, nunca adulteração
+  const map = imp.reproducibility?.exitReasonMap ?? []
+  if (imp.reproducibility && map.length > 0) {
+    if (imp.reproducibility.accountRefSalted && !opts.accountRefSalt) return skip(S_ACCOUNT_REF, "o import usou accountRefSalt e tem mapa de motivos do usuário: sem o sal não dá para conferir os patternRef (o valor do sal não é gravado)")
+    const supplied = opts.exitReasonMap ?? []
+    if (supplied.length === 0) return skip(S_CONTEXT, `o import tinha mapa de motivos do usuário (${map.length} regra(s)); o ImportRef guarda só patternRef (o texto do regex não vai no bundle): informe o mapa em \`exitReasonMap\` — sem ele a leitura não é reproduzível (não é adulteração)`)
+    const salt = imp.reproducibility.accountRefSalted ? (opts.accountRefSalt as string) : ""
+    const bad = supplied.length !== map.length || supplied.some((m, i) => patternRef(m.pattern, salt) !== map[i].patternRef || m.reason !== map[i].reason)
+    if (bad) return skip(S_CONTEXT, `o mapa de motivos informado (${supplied.length} regra(s)) não bate com os ${map.length} patternRef registrados (ordem, padrão ou motivo diferentes): o regex informado não é o do import (não é adulteração do bundle)`)
+  }
   // vocabulário de rótulos (sourceLabel, decisão D): outra versão não é adulteração — os rótulos projetados não são reproduzíveis com este código
   if (imp.labelVocab !== undefined && imp.labelVocab !== LABEL_VOCAB_VERSION) return skip(S_VERSION, `vocabulário de rótulos v${imp.labelVocab} ≠ v${LABEL_VOCAB_VERSION} deste código: os rótulos projetados (palavras e tokens) não podem ser reproduzidos (não é adulteração)`)
   const parser = parsers.find((p) => p.id === imp.parserId)
@@ -263,7 +274,7 @@ function contextProblem(imp: ImportRef, parsers: ParserDescriptor[]): Outcome | 
   return null
 }
 
-function recordDiffs(re: ImportRecord, imp: ImportRef, saltSupplied: boolean): string[] {
+function recordDiffs(re: ImportRecord, imp: ImportRef, saltSupplied: boolean, effSalt: string): string[] {
   const d: string[] = []
   const cmp = (name: string, a: unknown, b: unknown) => { if (canonicalJson(a ?? null) !== canonicalJson(b ?? null)) d.push(name) }
   cmp("parserId", re.parserId, imp.parserId)
@@ -277,7 +288,7 @@ function recordDiffs(re: ImportRecord, imp: ImportRef, saltSupplied: boolean): s
   for (const k of ["sourceTz", "sourceTzOrigin", "dateOrder", "numberLocale", "excursionUnit", "declaredPnlBasis"] as const) cmp(`settings.${k}`, re.settings[k], imp.settings[k])
   // registros anteriores não têm `reproducibility` (não é divergência); se o registro tem, a reingestão precisa reproduzi-lo
   // `accountRefSalted` da reingestão só é verdadeiro se o chamador informou o sal: sem ele a bandeira não é reproduzível (é UNVERIFIABLE em V5.4+, não divergência)
-  if (imp.reproducibility) cmp("reproducibility", re.reproducibility, { ...imp.reproducibility, accountRefSalted: imp.reproducibility.accountRefSalted && saltSupplied })
+  if (imp.reproducibility) cmp("reproducibility", re.reproducibility ? projectReproducibility(re.reproducibility, effSalt) : null, { ...imp.reproducibility, accountRefSalted: imp.reproducibility.accountRefSalted && saltSupplied })
   return d
 }
 
@@ -351,7 +362,7 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
   out.file = pass(`${label}: ${d.fileBytes} bytes, SHA-256 ${short(d.fileSha256)}, ${d.hasBom ? "com" : "sem"} BOM, ${d.lineEnding} = registrados`)
 
   // V5.2 — contexto
-  const problem = contextProblem(imp, parsers)
+  const problem = contextProblem(imp, parsers, opts)
   if (problem) {
     out.context = { ...problem, detail: `${label}: ${problem.detail}` }
     out.importId = skip(problem.code as string, `${label}: sem contexto reproduzível`)
@@ -374,7 +385,9 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
 
   // V5.3 — importId e registro
   const re = run.importRecord
-  const recDiffs = recordDiffs(re, imp, !!opts.accountRefSalt)
+  // o MESMO sal que a reingestão usou (sourceContextOf): com `reproducibility`, só vale o sal se o import o usou; senão o accountRef, os tokens e os patternRef não batem por culpa do chamador
+  const effectiveSalt = rep ? (rep.accountRefSalted ? opts.accountRefSalt : undefined) : opts.accountRefSalt
+  const recDiffs = recordDiffs(re, imp, !!opts.accountRefSalt, effectiveSalt ?? "")
   if (re.importId !== imp.importId) out.importId = fail(FAIL.IMPORT_ID, `${label}: o importId reconstruído (${short(re.importId)}) ≠ o registrado${recDiffs.length ? ` (campos do registro que também divergem: ${recDiffs.join(", ")})` : ""}`)
   else if (recDiffs.length > 0) out.importId = fail(FAIL.IMPORT_RECORD, `${label}: importId igual, mas o registro do import diverge da reingestão em: ${recDiffs.join(", ")}`)
   else out.importId = pass(`${label}: importId ${short(re.importId)} e registro (parser, linhas lidas/aceitas/rejeitadas, contas, configurações) = reingestão`)
@@ -390,8 +403,6 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
   out.reTrades = reTradeById
   const accountNames = [...new Set(run.rowTrades.map((t) => t.account.sourceName?.trim()).filter((n): n is string => !!n))].sort()
   const mine = tradesOf.filter((t) => t.importId === imp.importId)
-  // o MESMO sal que a reingestão usou (sourceContextOf): com `reproducibility`, só vale o sal se o import o usou; senão o accountRef, os rótulos-token e o resto não batem por culpa do chamador
-  const effectiveSalt = rep ? (rep.accountRefSalted ? opts.accountRefSalt : undefined) : opts.accountRefSalt
 
   // sal exigido pelo registro e não informado: sem ele rowHash/tradeId não são comparáveis (o arquivo e o importId já foram conferidos)
   if (rep?.accountRefSalted && !opts.accountRefSalt) {

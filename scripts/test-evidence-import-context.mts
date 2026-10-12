@@ -3,6 +3,7 @@
 import assert from "node:assert/strict"
 import type { ImportRecord } from "../src/lib/domain/canonical.ts"
 import { explainMetric, metricEvidenceBundle } from "../src/lib/evidence/explain-metric.ts"
+import { projectReproducibility } from "../src/lib/evidence/explain-trade.ts"
 import { explainTrades } from "../src/lib/evidence/explain-trade.ts"
 import { computeEvidenceHash } from "../src/lib/evidence/hash.ts"
 import type { EvidenceBundle } from "../src/lib/evidence/schema.ts"
@@ -45,10 +46,11 @@ function build(rows: SynthRow[], ctx: ImportContext = {}) {
   return { csv, run, record, files: { [record.importId]: enc(csv) } }
 }
 type B = ReturnType<typeof build>
-function bundleOf(b: B, metricId = "netPnl"): EvidenceBundle {
+/** `salt` = o MESMO sal do import: os refs da Evidence (accountRef quando falta, strategyRef, labelRef e patternRef) dependem dele — quem gera a Evidence precisa passá-lo. */
+function bundleOf(b: B, metricId = "netPnl", salt?: string): EvidenceBundle {
   const T = toAnalyticsTrades(withRisk(b.run.trades))
   const { result, trace } = calculateMetricsTraced(T)
-  const r = explainMetric({ metricId, source: { kind: "METRICS", result, trace }, trades: T, importRecords: [b.record] })
+  const r = explainMetric({ metricId, source: { kind: "METRICS", result, trace }, trades: T, importRecords: [b.record], ...(salt !== undefined ? { opts: { accountRefSalt: salt } } : {}) })
   assert.equal(r.ok, true, r.ok ? "" : (r as Any).message)
   return metricEvidenceBundle(r as Any)
 }
@@ -125,10 +127,14 @@ test("REGISTRO: o import novo grava versões de identidade, foldPolicy efetivo, 
   const full = build(ROWS, { foldPolicy: "LATER", exitReasonMap: map, accountRefSalt: "segredo-do-usuario-42" })
   assert.deepEqual(full.record.reproducibility, { version: 1, identity: { ...IDENTITY_VERSIONS }, foldPolicy: "LATER", exitReasonMap: map, accountRefSalted: true })
   assert.deepEqual(full.record.reproducibility?.exitReasonMap.map((r) => r.pattern), ["^zz", "^aa"], "ordem preservada (a primeira que casa vence)")
-  for (const b of [plain, full]) {
-    const bundle = bundleOf(b)
+  for (const [b, salt] of [[plain, undefined], [full, "segredo-do-usuario-42"]] as const) {
+    const bundle = bundleOf(b, "netPnl", salt)
     for (const text of [JSON.stringify(b.record), JSON.stringify(bundle), JSON.stringify(b.run)]) assert.equal(text.includes("segredo-do-usuario-42"), false, "o sal não pode aparecer em lugar nenhum")
-    assert.deepEqual(bundle.evidence.imports[0].reproducibility, b.record.reproducibility)
+    // S2b: o ImportRecord INTERNO guarda o regex do usuário; o ImportRef (Evidence) guarda só patternRef + motivo, na mesma ordem
+    assert.deepEqual(bundle.evidence.imports[0].reproducibility, projectReproducibility(b.record.reproducibility!, salt ?? ""))
+    assert.equal(JSON.stringify(bundle).includes("^zz"), false, "o texto do regex não pode estar na Evidence")
+    assert.equal(JSON.stringify(bundle).includes("^aa"), false)
+    assert.ok(bundle.evidence.imports[0].reproducibility!.exitReasonMap.every((m: Any) => /^pat_[0-9a-f]{24}$/.test(m.patternRef) && !("pattern" in m)))
   }
   // o sal muda rowHash/tradeId (comportamento existente), mas NÃO o importId; foldPolicy/exitReasonMap sozinhos não mudam nenhum id
   const other = build(ROWS, { foldPolicy: "LATER", exitReasonMap: map })
@@ -166,21 +172,26 @@ test("E5b REPRODUZ SOZINHO o que foi registrado: foldPolicy LATER + exitReasonMa
   const late = mk("LATER")
   assert.notEqual(early.run.trades[0].tradeId, late.run.trades[0].tradeId, "o foldPolicy muda o instante, o rowHash e o tradeId")
   assert.equal(early.record.importId, late.record.importId, "…mas não o importId (por isso precisa ser REGISTRADO)")
+  const USER_MAP = [{ pattern: "^target", reason: "MANUAL" as const }]
   for (const b of [early, late]) {
-    const bundle = bundleOf(b)
-    const rep = verifyEvidenceSource(bundle, b.files, { accountRefSalt: "u1" }) // sem foldPolicy/exitReasonMap: vêm do registro
+    const bundle = bundleOf(b, "netPnl", "u1")
+    // S2b: foldPolicy vem do registro; o mapa do USUÁRIO (regex) NÃO está no bundle (só patternRef): o chamador o informa e ele é conferido por hash
+    const rep = verifyEvidenceSource(bundle, b.files, { accountRefSalt: "u1", exitReasonMap: USER_MAP })
     assert.equal(rep.status, "SOURCE_VERIFIED", JSON.stringify(rep.checks.filter((c) => c.status !== "PASS")))
     assert.match(check(rep, "V5.context").detail, /contexto REGISTRADO/)
     assert.equal(rep.coverage?.imports.contextRecorded, 1)
-    // o chamador tenta impor o outro foldPolicy e outro mapa: o registro manda
-    const conflicting = verifyEvidenceSource(bundle, b.files, { accountRefSalt: "u1", foldPolicy: b === early ? "LATER" : "EARLIER", exitReasonMap: [{ pattern: ".*", reason: "STOP" }] })
-    assert.equal(conflicting.status, "SOURCE_VERIFIED")
+    // o chamador tenta impor o outro foldPolicy: o registro manda (ignorado). Impor OUTRO MAPA não é ignorado: não bate com os patternRef ⇒ UNVERIFIABLE (nunca adulteração)
+    assert.equal(verifyEvidenceSource(bundle, b.files, { accountRefSalt: "u1", foldPolicy: b === early ? "LATER" : "EARLIER", exitReasonMap: USER_MAP }).status, "SOURCE_VERIFIED")
+    const wrongMap = verifyEvidenceSource(bundle, b.files, { accountRefSalt: "u1", exitReasonMap: [{ pattern: ".*", reason: "STOP" }] })
+    assert.equal(wrongMap.status, "UNVERIFIABLE")
+    assert.equal(check(wrongMap, "V5.context").code, "S_CONTEXT_INSUFFICIENT")
+    assert.equal(wrongMap.checks.some((c) => c.status === "FAIL"), false)
   }
   // import ANTERIOR ao registro com fold ambíguo e foldPolicy não-padrão: sem o dado, o padrão EARLIER diverge — e dizer o foldPolicy certo resolve
   const old = legacy(late)
-  const mismatch = verifyEvidenceSource(bundleOf(old), old.files, { accountRefSalt: "u1" })
+  const mismatch = verifyEvidenceSource(bundleOf(old, "netPnl", "u1"), old.files, { accountRefSalt: "u1" })
   assert.equal(mismatch.status, "SOURCE_MISMATCH")
-  assert.equal(verifyEvidenceSource(bundleOf(old), old.files, { accountRefSalt: "u1", foldPolicy: "LATER", exitReasonMap: [{ pattern: "^target", reason: "MANUAL" }] }).status, "SOURCE_VERIFIED")
+  assert.equal(verifyEvidenceSource(bundleOf(old, "netPnl", "u1"), old.files, { accountRefSalt: "u1", foldPolicy: "LATER", exitReasonMap: [{ pattern: "^target", reason: "MANUAL" }] }).status, "SOURCE_VERIFIED")
 })
 
 test("SAL: registro diz 'com sal' e nenhum foi informado ⇒ UNVERIFIABLE (arquivo e importId conferidos); sal errado ⇒ UNVERIFIABLE; registro 'sem sal' ignora sal informado; o valor nunca vai ao relatório", () => {
@@ -226,17 +237,20 @@ test("VERSÃO DE IDENTIDADE diferente da atual ⇒ UNVERIFIABLE (S_VERSION_INCOM
   const forged = verifyEvidenceSource(edit(bundleOf(mapped), (x) => (x.evidence.imports[0].reproducibility.exitReasonMap = [])), mapped.files)
   assert.equal(forged.status, "SOURCE_MISMATCH")
   assert.equal(check(forged, "V5.values").code, "V_TRADE_VALUES_MISMATCH")
-  assert.equal(verifyEvidenceSource(bundleOf(mapped), mapped.files).status, "SOURCE_VERIFIED") // íntegro: o registro reproduz as pernas
+  assert.equal(verifyEvidenceSource(bundleOf(mapped), mapped.files, { exitReasonMap: [{ pattern: "^target", reason: "MANUAL" }] }).status, "SOURCE_VERIFIED") // íntegro: o registro reproduz as pernas (mapa informado pelo chamador, S2b)
   // campo desconhecido / valor inválido ⇒ formato
   assert.equal(verifyEvidenceSource(edit(bundle, (x) => (x.evidence.imports[0].reproducibility.accountRefSalt = "x")), b.files).status, "INVALID_FORMAT")
   assert.equal(verifyEvidenceSource(edit(bundle, (x) => (x.evidence.imports[0].reproducibility.foldPolicy = "NUNCA")), b.files).status, "INVALID_FORMAT")
   assert.equal(verifyEvidence(edit(bundle, (x) => (x.evidence.imports[0].reproducibility.accountRefSalt = "x"))).status, "INVALID_FORMAT")
 })
 
-test("PRIVACIDADE: o mapa de saída com nome de conta é recusado pela trava fail-closed da Evidence; o registro nunca carrega conta nem sal", () => {
+test("PRIVACIDADE: o mapa de saída com nome de conta NÃO chega à Evidence (S2b: só patternRef — garantia estrutural; antes só a trava fail-closed o barrava); o registro nunca carrega conta nem sal", () => {
   const leaky = build(ROWS, { reconstructCycles: false, exitReasonMap: [{ pattern: "^conta alfa secreta", reason: "MANUAL" }] })
   const r = explainTrades(leaky.run.trades, leaky.record)
-  assert.ok(r.some((x) => !x.ok && x.code === "E_ACCOUNT_NAME_LEAK"), "a trava deve recusar")
+  assert.ok(r.every((x) => x.ok), "agora não há o que vazar: o regex nem entra no ImportRef")
+  const refText = JSON.stringify(r.map((x) => (x.ok ? x.importRef : null)))
+  assert.equal(refText.includes("conta alfa secreta"), false)
+  assert.match(refText, /pat_[0-9a-f]{24}/)
   const clean = build(ROWS, { reconstructCycles: false, accountRefSalt: "u1" })
   const text = JSON.stringify(bundleOf(clean))
   for (const s of ["Conta Alfa Secreta", "Conta Beta Secreta", "u1\""]) assert.equal(text.includes(s), false, s)

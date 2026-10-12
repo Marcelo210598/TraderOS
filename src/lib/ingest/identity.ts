@@ -18,6 +18,8 @@ const ACCOUNT_REF_DOMAIN = "meutrade/accountRef/1"
 const STRATEGY_REF_DOMAIN = "meutrade/strategyRef/1"
 // Pseudônimo do TEXTO de um rótulo de ordem fora do vocabulário fechado da Evidence (sourceLabel, S1). Só apresentação: não entra em importId/rowHash/tradeId.
 const LABEL_REF_DOMAIN = "meutrade/labelRef/1"
+// Pseudônimo do TEXTO de um padrão (regex) do mapa de motivos do USUÁRIO (S2b do sourceLabel). Só apresentação na Evidence: o regex fica no ImportRecord interno.
+const PATTERN_REF_DOMAIN = "meutrade/patternRef/1"
 const ROW_HASH_VERSION = 1
 const TRADE_ID_VERSION = 1
 const IMPORT_ID_VERSION = 1
@@ -65,6 +67,15 @@ export function labelRef(label: string | null, salt = ""): string | null {
   const n = normalizeLabel(label)
   if (n === "") return null
   return `lbl_${sha256Hex(`${LABEL_REF_DOMAIN}\0${salt}\0${n}`).slice(0, 24)}`
+}
+
+/**
+ * Token determinístico de um padrão do `exitReasonMap` do usuário (`pat_` + 24 hex): SHA-256(domínio ‖ sal ‖ texto EXATO do padrão — sem normalizar:
+ * o regex é sensível à caixa). Mesmo sal opcional do `accountRef`. PSEUDÔNIMO: sem sal, padrões curtos/comuns são adivinháveis por dicionário
+ * (política de sal por usuário pendente, data-contract §14.14). Padrão vazio ⇒ ainda gera token (o texto "" é um padrão válido de regex).
+ */
+export function patternRef(pattern: string, salt = ""): string {
+  return `pat_${sha256Hex(`${PATTERN_REF_DOMAIN}\0${salt}\0${pattern}`).slice(0, 24)}`
 }
 
 export function describeText(text: string): Pick<ImportRecord, "fileSha256" | "hashBasis" | "fileBytes" | "hasBom" | "lineEnding"> {

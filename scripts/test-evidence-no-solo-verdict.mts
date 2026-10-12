@@ -107,7 +107,7 @@ test("UNVERIFIABLE (não só SOURCE_VERIFIED): arquivo ausente, versão incompat
   assert.equal(combined(div.report.status, div.source.status), "TAMPERED_OR_MISMATCH")
 })
 
-test("S4b (mapa do usuário): os casos previstos ESTÃO escritos nas expectativas (antes do código): mapa ausente/divergente = NOT_VERIFIED sem FAIL; mapa correto e mapa vazio = VERIFIED; a execução real entra no S4b", () => {
+test("S4b (mapa do usuário): os casos previstos estão escritos nas expectativas (antes do código) e FORAM EXECUTADOS contra código real em scripts/test-evidence-sourcelabel-s4b.mts (tabela dos 4 casos): mapa ausente/divergente = NOT_VERIFIED sem FAIL; mapa correto e mapa vazio = VERIFIED", () => {
   const g = (JSON.parse(read("scripts/expectations/sourcelabel.expected.json")) as Any).guard_no_solo_verdict
   assert.deepEqual(Object.keys(g.combined_semantics).sort(), ["NOT_VERIFIED", "TAMPERED_OR_MISMATCH", "VERIFIED", "VERIFIED_PARTIAL"])
   for (const k of ["user_map_not_supplied", "user_map_wrong"]) {

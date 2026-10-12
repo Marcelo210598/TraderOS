@@ -7,8 +7,10 @@ import { z } from "zod"
 import {
   EntryLegSchema,
   ExitLegSchema,
+  ExitReasonSchema,
   ExitSummarySchema,
   ImportRecordSchema,
+  ReproducibilitySchema,
   IssueSchema,
   PnlSchema,
   ReconstructionSchema,
@@ -31,7 +33,17 @@ export const ProjectedLabelSchema = z.string().nullable().refine((v) => isProjec
 export const EntryLegEvidenceSchema = EntryLegSchema.extend({ sourceLabel: ProjectedLabelSchema })
 export const ExitLegEvidenceSchema = ExitLegSchema.extend({ sourceLabel: ProjectedLabelSchema })
 
+export const PATTERN_REF_RE = /^pat_[0-9a-f]{24}$/
+/**
+ * Contexto reproduzível NA EVIDENCE (S2b): igual ao do ImportRecord, EXCETO o mapa de motivos do usuário — lá o padrão (regex escrito pelo
+ * usuário, pode embutir texto livre) fica em claro; aqui só `patternRef` (+ motivo). O regex fica só no ImportRecord interno; quem verifica a
+ * origem (E5b) recebe o mapa do chamador e o confere pelos `patternRef`.
+ */
+export const ReproducibilityEvidenceSchema = ReproducibilitySchema.extend({
+  exitReasonMap: z.array(z.object({ patternRef: z.string().regex(PATTERN_REF_RE), reason: ExitReasonSchema }).strict()),
+})
 export const ImportRefSchema = ImportRecordSchema.extend({
+  reproducibility: ReproducibilityEvidenceSchema.optional(),
   importedAt: z.string().nullable().optional(),
   /** Versão do vocabulário de rótulos de ordem com que esta Evidence foi projetada (fora do importId). Ausente = 1. Versão ≠ da atual ⇒ o verificador de origem diz UNVERIFIABLE (S_VERSION_INCOMPATIBLE), não adulteração. */
   labelVocab: z.number().int().positive().optional(),

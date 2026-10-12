@@ -5,7 +5,7 @@
 // Puro: sem relógio, sem random, sem banco, sem rede, não relê o CSV. Não gera hash por trade (o `evidenceHash` é do bundle).
 
 import type { CanonicalTrade, ImportRecord } from "../domain/canonical.ts"
-import { accountRef as makeAccountRef, strategyRef as makeStrategyRef } from "../ingest/identity.ts"
+import { accountRef as makeAccountRef, patternRef as makePatternRef, strategyRef as makeStrategyRef } from "../ingest/identity.ts"
 import { LABEL_VOCAB_VERSION, projectLabel } from "./label-vocab.ts"
 import { findAccountNameLeak, redactFileName, redactReconstruction, type KnownAccount } from "./redact.ts"
 import { ImportRefSchema, TradeEvidenceSchema, type ImportRef, type SourceRowRef, type TradeEvidence } from "./schema.ts"
@@ -91,6 +91,20 @@ const exitLegOf = (salt: string) => (l: ExitLeg) => ({
   reasonRule: l.reasonRule,
   pnl: { net: l.pnl.net, gross: l.pnl.gross, commission: l.pnl.commission, fees: l.pnl.fees },
 })
+
+/**
+ * Contexto reproduzível como vai para a Evidence (S2b): o regex do mapa de motivos do USUÁRIO nunca sai — só `patternRef` + motivo, na mesma ordem
+ * (a primeira regra que casa vence). Cópia profunda e explícita; sem segredo (o sal nunca está no registro).
+ */
+export function projectReproducibility(r: NonNullable<ImportRecord["reproducibility"]>, salt: string) {
+  return {
+    version: r.version,
+    identity: { ...r.identity },
+    foldPolicy: r.foldPolicy,
+    exitReasonMap: r.exitReasonMap.map((m) => ({ patternRef: makePatternRef(m.pattern, salt), reason: m.reason })),
+    accountRefSalted: r.accountRefSalted,
+  }
+}
 
 /** Linhas de um ciclo: valores crus completos da fonte (FULL). */
 function cycleRowRefs(trade: CanonicalTrade, importId: string, salt: string): SourceRowRef[] {
@@ -260,13 +274,7 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
     // contexto reproduzível: cópia profunda e explícita (sem segredo: o sal nunca está no registro)
     ...(importRecord.reproducibility
       ? {
-          reproducibility: {
-            version: importRecord.reproducibility.version,
-            identity: { ...importRecord.reproducibility.identity },
-            foldPolicy: importRecord.reproducibility.foldPolicy,
-            exitReasonMap: importRecord.reproducibility.exitReasonMap.map((r) => ({ pattern: r.pattern, reason: r.reason })),
-            accountRefSalted: importRecord.reproducibility.accountRefSalted,
-          },
+          reproducibility: projectReproducibility(importRecord.reproducibility, opts.accountRefSalt ?? ""),
         }
       : {}),
     importedAt: null,
