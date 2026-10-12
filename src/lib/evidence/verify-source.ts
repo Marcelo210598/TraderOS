@@ -335,7 +335,11 @@ export function decodeSourceBytes(bytes: Uint8Array): string | null {
   }
 }
 
-function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Array | undefined, opts: VerifySourceOptions, parsers: ParserDescriptor[]): PerImport {
+/**
+ * `saltResolved`: o sal veio do SaltProvider pelo saltId DECLARADO (política de sal). Nesse caso "todas as contas divergem" NÃO é indício de sal errado
+ * (o sal é o do chaveiro), é divergência real ⇒ SOURCE_MISMATCH. Sem isso, adulterar TODOS os refs (ou ter 1 só trade) faria o atacante escolher UNVERIFIABLE.
+ */
+function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Array | undefined, opts: VerifySourceOptions, parsers: ParserDescriptor[], saltResolved = false): PerImport {
   const blocked = (why: string): Outcome => skip(S_FILE_FIRST, why)
   const out: PerImport = {
     file: skip(S_NOT_EXECUTED, "check não executado"),
@@ -452,7 +456,7 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
   }
   // sal do accountRef: se TODAS as contas citadas divergem, o problema é o contexto (sal), não adulteração seletiva
   const withRows = mine.filter((t) => t.sourceRows.length > 0)
-  if (withRows.length > 0 && withRows.every((t) => reRowAccount.has(t.sourceRows[0].rowNo) && reRowAccount.get(t.sourceRows[0].rowNo) !== t.accountRef)) {
+  if (!saltResolved && withRows.length > 0 && withRows.every((t) => reRowAccount.has(t.sourceRows[0].rowNo) && reRowAccount.get(t.sourceRows[0].rowNo) !== t.accountRef)) {
     const why = skip(S_ACCOUNT_REF, `${label}: o accountRef de TODOS os trades citados difere do da reingestão — o accountRefSalt informado (${opts.accountRefSalt === undefined ? "nenhum" : "outro"}) não é o da importação original, ou o accountRef foi alterado; sem o sal correto linhas e trades não são comparáveis (não é tratado como adulteração)`)
     out.rows = [why]
     out.trades = [why]
@@ -654,13 +658,15 @@ function verifyImportWithSalt(imp: ImportRef, tradesOf: TradeEvidence[], bytes: 
 
   if (!opts.salt) {
     // sem provider: a string `accountRefSalt` (se houver) é o sal candidato; sem string, o caminho de sempre dá UNVERIFIABLE (S_ACCOUNT_REF_UNVERIFIED)
-    const p = verifyImport(imp, tradesOf, bytes, opts, parsers)
-    return opts.accountRefSalt !== undefined && isStrongSalt(opts.accountRefSalt) ? checkDeclared(p, opts.accountRefSalt) : p
+    // a string forte que bate com o saltCheck declarado é, para este bundle, O sal do gerador ⇒ divergência de ref é real (não "sal errado")
+    const strong = opts.accountRefSalt !== undefined && isStrongSalt(opts.accountRefSalt)
+    const p = verifyImport(imp, tradesOf, bytes, opts, parsers, strong && saltCheck(opts.accountRefSalt as string) === declared)
+    return strong ? checkDeclared(p, opts.accountRefSalt as string) : p
   }
 
   const { provider, userId } = opts.salt
   const look = provider.get(userId, saltId)
-  if (look.status === "ACTIVE") return checkDeclared(verifyImport(imp, tradesOf, bytes, withSalt(look.salt), parsers), look.salt)
+  if (look.status === "ACTIVE") return checkDeclared(verifyImport(imp, tradesOf, bytes, withSalt(look.salt), parsers, true), look.salt)
 
   // O1: o saltId declarado não resolve ⇒ tenta os sais conhecidos do usuário antes de desistir
   for (const cand of provider.known(userId)) {

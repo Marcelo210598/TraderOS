@@ -13,6 +13,7 @@ import { runImportPipeline } from "../../ingest/pipeline.ts"
 import { DEFAULT_PARSERS } from "../../ingest/registry.ts"
 import { assertEvidenceLabEnabled } from "./guard.ts"
 import { buildBundle, buildDemo, type Demo } from "./model.ts"
+import { SALT_SOURCE_DEFS } from "./salt.ts"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -64,6 +65,18 @@ function replaceInCsv(bytes: Uint8Array, from: string, to: string): Uint8Array {
   const at = text.indexOf(from)
   if (at < 0) throw new Error(`Lab: trecho ${JSON.stringify(from)} não existe no CSV sintético`)
   return enc(text.slice(0, at) + to + text.slice(at + from.length))
+}
+
+/** Estado que o contrato prevê para cada cenário de sal (política de sal, plano §3 + O1/O2). O estado MOSTRADO é sempre o devolvido pelo verificador. */
+export const SALT_EXPECTED: Record<string, SourceStatus> = {
+  "salt-ok": "SOURCE_VERIFIED",
+  "salt-rotated": "SOURCE_VERIFIED",
+  "salt-check-diverges": "SOURCE_VERIFIED_PARTIAL",
+  "salt-tampered-both": "SOURCE_MISMATCH",
+  "salt-id-unknown": "UNVERIFIABLE",
+  "salt-retired": "UNVERIFIABLE",
+  "salt-id-wrong": "SOURCE_VERIFIED_PARTIAL",
+  "salt-forgotten": "SOURCE_MISMATCH",
 }
 
 export const SOURCE_SCENARIOS: SourceScenario[] = [
@@ -168,6 +181,7 @@ export const SOURCE_SCENARIOS: SourceScenario[] = [
       options: { parsers: DEFAULT_PARSERS.map((p) => (p.id === c.base.evidence.imports[0].parserId ? { ...p, version: "99.0.0" } : p)) },
     }),
   },
+  ...SALT_SOURCE_DEFS.map((d) => ({ ...d, expected: SALT_EXPECTED[d.id] })),
 ]
 
 export function sourceContext(demo: Demo): SourceContext {
@@ -228,8 +242,14 @@ export function runSourceScenario(ctx: SourceContext, scenario: SourceScenario):
   }
 
   let reingestion: Reingestion | null = null
-  if (text !== null && imp && report.checks.find((c) => c.id === "V5.context")?.status === "PASS") {
-    const run = runImportPipeline(text, sourceContextOf(imp, made.options ?? {}), made.options?.parsers)
+  const ctxCheck = report.checks.find((c) => c.id === "V5.context")
+  // sal GERENCIADO: o valor só é resolvido aqui, no servidor, para reexecutar a importação; a página recebe só hashes e contagens
+  const sid = imp?.reproducibility?.saltId as string | undefined
+  const look = sid && made.options?.salt ? made.options.salt.provider.get(made.options.salt.userId, sid) : null
+  const reOpts: VerifySourceOptions = look?.status === "ACTIVE" ? { ...made.options, accountRefSalt: look.salt } : (made.options ?? {})
+  const saltOk = !imp?.reproducibility?.accountRefSalted || reOpts.accountRefSalt !== undefined
+  if (text !== null && imp && saltOk && (ctxCheck?.status === "PASS" || (ctxCheck?.status === "SKIPPED" && ctxCheck.code === "S_POPULATION_PARTIAL"))) {
+    const run = runImportPipeline(text, sourceContextOf(imp, reOpts), made.options?.parsers)
     if (run.importRecord) {
       const rowHashes: Record<number, string> = {}
       for (const t of run.rowTrades) if (t.source.rowNo !== null && t.source.rowHash) rowHashes[t.source.rowNo] = t.source.rowHash

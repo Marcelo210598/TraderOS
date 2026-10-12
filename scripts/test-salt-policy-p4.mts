@@ -111,6 +111,20 @@ test("V6 (CONTROLE NEGATIVO OBRIGATÓRIO) — saltId resolvível + saltCheck ADU
   }
 })
 
+test("V6b (CONTROLE NEGATIVO) — saltId resolvível e TODOS os accountRef adulterados (ou bundle de 1 trade) ⇒ SOURCE_MISMATCH, nunca UNVERIFIABLE: a heurística legada 'todas as contas divergem ⇒ sal errado' não vale quando o sal veio do provider", () => {
+  const tamperAll = (b: Any): Any => { const x = clone(b); for (const t of x.evidence.trades) t.accountRef = `acc_${"0".repeat(24)}`; return reseal(x) }
+  for (const c of COMBOS) {
+    const { bundle, files } = build(c, SALT1)
+    for (const check of [saltCheck(SALT1), saltCheck(SALT2)]) {
+      const r = verifyEvidenceSource(tamperAll(declare(bundle, "s1", check)), files, withProv(c))
+      assert.equal(r.status, "SOURCE_MISMATCH", `${nm(c)} check=${check === saltCheck(SALT1) ? "certo" : "errado"}: ${JSON.stringify(r.checks.filter((x) => x.status !== "PASS").map((x) => `${x.id}:${x.code}`))}`)
+    }
+    // sem provider, só a string: se ela bate com o saltCheck declarado é o sal do gerador ⇒ MISMATCH. (Resíduo documentado: com saltCheck ERRADO e só a string, o verificador não sabe se a string é a certa ⇒ heurística legada ⇒ UNVERIFIABLE; use o provider.)
+    const viaString = verifyEvidenceSource(tamperAll(declare(bundle, "s1", saltCheck(SALT1))), files, vopts(c, { accountRefSalt: SALT1 }))
+    assert.equal(viaString.status, "SOURCE_MISMATCH", `${nm(c)} só string + check certo`)
+  }
+})
+
 test("V7/V7b — provider sem NENHUM sal para o saltId (e nenhum sal conhecido reproduz os refs) ⇒ UNVERIFIABLE S_SALT_UNKNOWN / S_SALT_RETIRED, sem FAIL; texto diz que NÃO é prova de integridade", () => {
   for (const c of COMBOS) {
     const { bundle, files } = build(c, SALT_X) // gerado com um sal que o provider não conhece
