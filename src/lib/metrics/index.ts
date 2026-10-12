@@ -10,6 +10,8 @@ export { EXIT_REASON_BUCKETS, EXIT_REASON_LABELS, exitReasonOf } from "./exit-re
 export type { ExitReasonBucket, TradeExitReason } from "./exit-reason.ts"
 export { EXIT_BREAKDOWN_SCHEMA, EXIT_BREAKDOWN_VERSION, MONEY_FIELDS, exitBreakdown } from "./legs.ts"
 export type { Divergence, ExitBreakdownResult, ExitBreakdownWarning, FieldReconciliation, LegRef, MoneyField, MoneySum, ReasonBreakdown, ReasonKey } from "./legs.ts"
+export { ANALYSIS_SCHEMA, ANALYSIS_VERSION, DEFAULT_COMPARE_METRICS, compareExitReasons, compareGroups, comparePeriods, compareTradeBuckets, exitReasonAnalysis, rankGroups, rankGroupsByExitLegs } from "./analysis.ts"
+export type { AnalysisUnit, Cell, Comparison, Confidence, ExitContext, ExitReasonAnalysis, Fraction, GroupRanking, KeyOut, LegGroupRanking, LegGroupRow, LegReasonRow, LimitationCode, MetricComparison, RankedGroup, SampleFlag, Side, TradeBucketRow } from "./analysis.ts"
 export { drawdown, streaks } from "./sequence.ts"
 export * from "./types.ts"
 export { ANCHOR_ROLES, CONTRIBUTOR_ROLES, TraceBuilder } from "./trace.ts"

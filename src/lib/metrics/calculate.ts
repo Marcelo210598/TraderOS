@@ -493,6 +493,9 @@ const DIMENSIONS: Record<Dimension, DimDef> = {
 
 export const DIMENSION_IDS = Object.keys(DIMENSIONS) as Dimension[]
 
+/** Rótulo legível de UMA chave de dimensão (a mesma usada em `GroupResult.label`); o E6.2 monta rótulos próprios quando conta/estratégia viram ref. */
+export const dimensionLabel = (dim: Dimension, key: string | null): string => DIMENSIONS[dim].label(key)
+
 /** Classificação de amostra de um grupo (OK ≥ minSample · LOW < minSample · TINY < MIN_BUCKET). Exportada para o verificador reutilizar a MESMA regra. */
 export const sampleFlagOf = (size: number, minSample: number): GroupResult["sampleFlag"] => (size < MIN_BUCKET ? "TINY" : size < minSample ? "LOW" : "OK")
 
