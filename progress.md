@@ -584,3 +584,7 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=✅ na Vercel (18/06) — Web Push (exposta no clie
 
 ## ✅ 12/10/2026 — AI Partner: sourceLabel S4–S6 + guarda do sal (camada 2c) — só local, sem push
 Rótulos na Evidence = palavra do vocabulário v1 ou token `lbl_…`; matriz sal × rótulo × mapa × bundle testada; Lab mostra palavra/token; E5b ganha pista de sal não propagado (só texto). Falsos-negativos restantes do guarda documentados em `data-contract.md` §14.15. Pendências: política de sal por usuário, `rowTrades` no E5b, E6.5 (só desenho).
+
+## ✅ 12/10/2026 — AI Partner: política de sal por usuário (P0–P6) — só local, sem push
+Sal gerenciado por usuário (≥ 256 bits, chaveiro versionado em memória), `saltId`/`saltCheck` declarados no bundle, geração fail-closed, E5b lê via provider (saltCheck nunca é portão), 8 cenários no Lab. Achados no caminho: `ensure()` curando em silêncio, `combine()` escondendo bloqueio, heurística "todas as contas divergem" escolhendo severidade. Pendências: armazenamento real do chaveiro (persistência), E6.5 (só desenho), E5c, vocabulário v2.
+

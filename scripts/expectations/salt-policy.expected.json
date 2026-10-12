@@ -7,7 +7,8 @@
       "2026-10-12 P4: V4/V8/V9/V11 passam de proposed→approved (Marcelo aprovou O1/O2/O3 em 12/10). V14 ADICIONADO por mim durante o P4 (caso não previsto no P0: saltId declarado em import sem sal) — status proposed. V6 (controle negativo) implementado e coberto por mutações (saltCheck-como-portão, sem reforço, V6→UNVERIFIABLE).",
       "2026-10-12 V14 approved pelo Marcelo (confirmado também o ajuste de combine() em verify-source.ts).",
       "2026-10-12 P3 implementado e executado: G1–G6 e GD2 verdes (test-salt-policy-p3.mts, 8 testes, 5 mutações pegas). Detalhe de implementação não previsto no P0: o produtor é `ImportContext.salt = {provider, userId}` (exclusivo com accountRefSalt ⇒ E_SALT_CONFLICT; sem sal atual ⇒ E_SALT_REQUIRED no import; sal fraco do provider ⇒ E_SALT_WEAK). Via explainMetric/explainDerived o erro chega como E_TRADE_EXPLAIN_FAILED com o código no texto.",
-      "2026-10-12 P5: V6b ADICIONADO por mim (achado de severidade escolhida pelo atacante via 'todas as contas divergem'); status approved por consequência direta da regra D4 corrigida do Marcelo — AGUARDA confirmação explícita dele no relatório."
+      "2026-10-12 P5: V6b ADICIONADO por mim (achado de severidade escolhida pelo atacante via 'todas as contas divergem'); status approved por consequência direta da regra D4 corrigida do Marcelo — AGUARDA confirmação explícita dele no relatório.",
+      "2026-10-12 P6: V6b confirmado pelo Marcelo. Política de sal concluída (P0–P6)."
     ]
   },
   "rules": {
@@ -117,7 +118,8 @@
       "setup": "saltId resolvível (provider) e TODOS os accountRef adulterados (ou bundle de 1 trade), saltCheck certo ou errado",
       "expected": "SOURCE_MISMATCH, nunca UNVERIFIABLE (a heurística legada 'todas divergem ⇒ sal errado' não vale com sal resolvido pelo provider)",
       "added_by": "Claude no P5 (achado ao montar os cenários do Lab); escrito e visto FALHAR antes do conserto",
-      "residual": "só string + saltCheck errado mantém a heurística legada"
+      "residual": "só string + saltCheck errado mantém a heurística legada",
+      "confirmed_by": "Marcelo 12/10/2026"
     }
   },
   "generation_cases": {
