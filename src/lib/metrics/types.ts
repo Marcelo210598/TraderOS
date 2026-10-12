@@ -77,6 +77,8 @@ export interface TradeFilters {
   strategyVersionId?: string | string[]
   setup?: string | string[]
   timeframe?: string | string[]
+  /** Motivo de saída do TRADE (E6.0): TARGET | STOP | MANUAL | MIXED | UNKNOWN. Nunca "desconhecido por ausência": UNKNOWN é um valor. */
+  exitReason?: string | string[]
 }
 
 export type FilterField = keyof TradeFilters
@@ -103,6 +105,7 @@ export type Dimension =
   | "strategyVersion"
   | "setup"
   | "timeframe"
+  | "exitReason"
 
 export type MetricUnit = "count" | "usd" | "R" | "percent" | "ratio" | "points"
 

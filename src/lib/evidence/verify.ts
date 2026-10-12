@@ -338,8 +338,8 @@ function optionsOf(m: MetricEvidence): { ok: true; options: AnalysisOptions } | 
 }
 
 /** Dimensões/filtros que o motor consegue derivar SÓ do que a Evidence carrega (instantes, direção, instrumento). O resto não tem referência na Evidence. */
-const ENGINE_DIMS = new Set<string>(["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "symbol", "direction"])
-const ENGINE_FILTERS = ["from", "to", "symbol", "direction", "hour", "dayOfWeek", "tradingDay"] as const
+const ENGINE_DIMS = new Set<string>(["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "symbol", "direction", "exitReason"])
+const ENGINE_FILTERS = ["from", "to", "symbol", "direction", "hour", "dayOfWeek", "tradingDay", "exitReason"] as const
 const REF_DIMS = new Set<string>(["account"])
 /** Esta lista é a ÚNICA fonte do que o verificador NÃO afirma: estratégia/sessão/etc. não têm referência na Evidence. */
 const WARNINGS_NOT_REVERIFIABLE = new Set(["W_FILTER_EXCLUDED_UNKNOWN"]) // depende dos filtros sobre o conjunto de ENTRADA, que o bundle não traz

@@ -11,6 +11,12 @@
 ## ✅ 10/10/2026 — Evidence Lab: aba "Origem (E5b)" — só local, sem push
 Nova aba em `/dev/evidence-lab?tab=source`: 11 cenários sintéticos executados com `verifyEvidenceSource` + `verifyEvidence` reais (íntegro, 1 byte, célula financeira, hash de arquivo, importId, rowHash, tradeId, **bundle forjado VALID no V0–V4 e SOURCE_MISMATCH no E5b**, HASH_ONLY, arquivo ausente, versão do parser), com 9 passos e legenda dos estados (parcial nunca é "completo"). Visão geral atualizada (9 camadas; E5b/E5.3/ordem deixam de ser pendências). Mesmo guard em 4 camadas; validado em `next build --webpack` + `next start` numa cópia isolada (anônimo → login/401; logado → 404 em tudo). `scripts/test-evidence-lab-source.mts` (8). Achado pré-existente: `cycleKey.strategy` expõe o nome da estratégia (E3). Detalhe: `docs/ai-partner/evidence-lab.md`.
 
+## ✅ 12/10/2026 — AI Partner: E6.0 dimensão `exitReason` + `strategyRef` na Evidence — só local, sem push
+Plano E6/G6 **aprovado** (6 decisões, `docs/ai-partner/E6-G6-plano.md`). Entregue só o E6.0 (commit local próprio). Detalhe: `historico/2026-10-12.md` + `docs/ai-partner/MEUTRADE-CHECKPOINT-2026-10-12.md` + `data-contract.md` §15.1.
+- `groupBy:"exitReason"` e `filters.exitReason`: bucket por trade = motivos distintos de TODAS as pernas de saída → 1 motivo / `MIXED` (`partial` se inclui UNKNOWN) / `UNKNOWN` (sem pernas). Nunca inferido do P&L. Métricas, `tradeSetHash` e identidades idênticos ao baseline.
+- `cycleKey.strategy` → `strategyRef` (+ `strategyIdRefs/strategyNameRefs`, `groupKey` e trava `E_STRATEGY_NAME_LEAK`); `evidence/1` mantido.
+- Teste novo `test-metrics-exit-reason.mts` (24) no `test:domain`. **Próximo: revisão do E6.0 → E6.1 (quebra por perna).**
+
 ## ✅ 10/10/2026 — AI Partner: contexto reproduzível das importações (`ImportRecord.reproducibility`) — só local, sem push
 Importações **novas** registram versões das funções de identidade, `foldPolicy` efetivo, `exitReasonMap` normalizado (na ordem) e `accountRefSalted` (nunca o sal). Bloco **opcional e fora do `importId`**: `importId`/`rowHash`/`tradeId`/`tradeSetHash` idênticos aos do commit anterior (pinados em teste); imports antigos não são retro-preenchidos. E5b usa o registrado (e continua `UNVERIFIABLE` quando falta sal/versão). Detalhe: `data-contract.md` §14.12; `scripts/test-evidence-import-context.mts` (7 testes).
 

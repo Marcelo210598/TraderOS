@@ -6,6 +6,8 @@ export { aggregateTrades, aggregateTradesTraced, calculateMetrics, calculateMetr
 export { METRIC_CATALOG, METRIC_IDS, metricDefinition, DEFINITION_VERSION } from "./catalog.ts"
 export { applyFilters, filterTrades, normalizeFilters } from "./filter.ts"
 export { prepareTrades, resolveOptions, toAnalyticsTrades, DEFAULT_TIME_ZONE } from "./prepare.ts"
+export { EXIT_REASON_BUCKETS, EXIT_REASON_LABELS, exitReasonOf } from "./exit-reason.ts"
+export type { ExitReasonBucket, TradeExitReason } from "./exit-reason.ts"
 export { drawdown, streaks } from "./sequence.ts"
 export * from "./types.ts"
 export { ANCHOR_ROLES, CONTRIBUTOR_ROLES, TraceBuilder } from "./trace.ts"

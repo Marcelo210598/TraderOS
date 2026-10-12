@@ -427,7 +427,7 @@ test("PRIVACIDADE (fail-closed): nome de conta que escape em warnings/filtros/es
   bad1.warnings.push({ code: "X", severity: "INFO", message: "conta Sim101 com problema" })
   err(explain("netPnl", { kind: "METRICS", result: bad1, trace: t.trace }), "E_ACCOUNT_NAME_LEAK")
   const bad2 = clone(t.result)
-  bad2.query.filters.strategyName = "Sim102-estrategia"
+  bad2.query.filters.setup = "Sim102-setup"
   err(explain("netPnl", { kind: "METRICS", result: bad2, trace: t.trace }), "E_ACCOUNT_NAME_LEAK")
 })
 

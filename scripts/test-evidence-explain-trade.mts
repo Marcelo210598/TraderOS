@@ -11,7 +11,7 @@ import { findAccountNameLeak, redactFileName } from "../src/lib/evidence/redact.
 import { EvidenceBundleSchema, ImportRefSchema, TradeEvidenceSchema } from "../src/lib/evidence/schema.ts"
 import { canonicalJson } from "../src/lib/infra/hash.ts"
 import { parseDelimited } from "../src/lib/ingest/csv.ts"
-import { accountRef } from "../src/lib/ingest/identity.ts"
+import { accountRef, strategyRef } from "../src/lib/ingest/identity.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
 import { calculateMetrics, toAnalyticsTrades } from "../src/lib/metrics/index.ts"
 import type { ImportContext } from "../src/lib/ingest/types.ts"
@@ -156,8 +156,11 @@ test("RECONSTRUCTION: method, version, scope, confidence, completeness, integrit
   const r = eA.tradeEvidence.reconstruction!
   assert.deepEqual([r.method, r.version, r.scope, r.confidence, r.completeness, r.integrity], [A.reconstruction!.method, "1", "STRATEGY_POSITION", A.reconstruction!.confidence, A.reconstruction!.completeness, "CONSISTENT"])
   assert.deepEqual(r.boundary, A.reconstruction!.boundary)
-  assert.deepEqual(r.cycleKey, { accountRef: A.account.ref, contract: A.reconstruction!.cycleKey.contract, strategy: "Estrategia Teste", direction: "LONG" })
+  assert.deepEqual(r.cycleKey, { accountRef: A.account.ref, contract: A.reconstruction!.cycleKey.contract, strategyRef: strategyRef("Estrategia Teste"), direction: "LONG" })
   assert.equal("account" in r.cycleKey, false)
+  assert.equal("strategy" in r.cycleKey, false) // E6.0: o nome da estratégia não sai
+  assert.match(r.cycleKey.strategyRef!, /^str_[0-9a-f]{24}$/)
+  assert.equal(JSON.stringify(eA).includes("Estrategia Teste"), false)
   assert.equal(eA.tradeEvidence.accountRef, A.account.ref)
   assert.notEqual(eA.tradeEvidence.accountRef, eE.tradeEvidence.accountRef) // contas distintas continuam distinguíveis
   assert.equal(r.cycleKey.accountRef, eA.tradeEvidence.accountRef)

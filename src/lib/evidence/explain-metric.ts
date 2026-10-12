@@ -7,7 +7,7 @@
 // Puro: sem relógio, sem random, sem banco; projeção por lista branca; contas sempre como accountRef.
 
 import type { ImportRecord } from "../domain/canonical.ts"
-import { accountRef as makeAccountRef } from "../ingest/identity.ts"
+import { accountRef as makeAccountRef, strategyRef as makeStrategyRef } from "../ingest/identity.ts"
 import type { AggregateResult, AnalyticsTrade, MetricsResult, MetricValue, Population } from "../metrics/types.ts"
 import type { AggregateTrace, MetricsTrace } from "../metrics/trace.ts"
 import { explainTrades, type ExplainNote } from "./explain-trade.ts"
@@ -25,6 +25,7 @@ export type ExplainMetricErrorCode =
   | "E_IMPORT_UNRESOLVED"
   | "E_TRADE_EXPLAIN_FAILED"
   | "E_ACCOUNT_NAME_LEAK"
+  | "E_STRATEGY_NAME_LEAK"
   | "E_SCHEMA"
 
 export type MetricSource =
@@ -52,8 +53,8 @@ export type ExplainMetricResult = ExplainMetricOk | { ok: false; code: ExplainMe
 
 const fail = (code: ExplainMetricErrorCode, message: string): ExplainMetricResult => ({ ok: false, code, message })
 
-/** Todos os campos de TradeFilters (exceto `account`, que vira accountRefs). Lista explícita: filtro novo só entra se alguém decidir. */
-const FILTER_KEYS = ["from", "to", "symbol", "direction", "session", "hour", "dayOfWeek", "tradingDay", "strategyId", "strategyName", "strategyVersionId", "setup", "timeframe"] as const
+/** Todos os campos de TradeFilters (exceto `account` → accountRefs e `strategyId`/`strategyName` → strategyIdRefs/strategyNameRefs: nome em claro não sai, E6.0). Lista explícita: filtro novo só entra se alguém decidir. */
+const FILTER_KEYS = ["from", "to", "symbol", "direction", "session", "hour", "dayOfWeek", "tradingDay", "strategyVersionId", "setup", "timeframe", "exitReason"] as const
 
 interface View {
   scope: "TOTAL" | "GROUP"
@@ -219,7 +220,13 @@ export function explainMetric(input: ExplainMetricInput): ExplainMetricResult {
     const names = Array.isArray(v.filters.account) ? v.filters.account : [v.filters.account]
     filters.accountRefs = sortedUnique(names.map(refOf))
   }
-  const groupKey = v.groupKey && v.groupBy ? v.groupKey.map((k, i) => (k !== null && v.groupBy?.[i] === "account" ? refOf(k) : k)) : null
+  for (const [key, refKey] of [["strategyId", "strategyIdRefs"], ["strategyName", "strategyNameRefs"]] as const) {
+    const val = v.filters[key]
+    if (val !== undefined) filters[refKey] = sortedUnique((Array.isArray(val) ? val : [val]).map((n) => makeStrategyRef(n, salt) ?? "str_?"))
+  }
+  const groupKey = v.groupKey && v.groupBy
+    ? v.groupKey.map((k, i) => (k === null ? k : v.groupBy?.[i] === "account" ? refOf(k) : v.groupBy?.[i] === "strategy" ? (makeStrategyRef(k, salt) ?? "str_?") : k))
+    : null
 
   // 6) projeção por lista branca
   const pop = v.population
@@ -289,6 +296,16 @@ export function explainMetric(input: ExplainMetricInput): ExplainMetricResult {
   const allNames = sortedUnique(trades.map((t) => t.trade.account.sourceName?.trim() ?? "").filter((n) => n !== ""))
   const leak = findAccountNameLeak({ metricEvidence: parsed.data, tradeEvidences, importRefs }, allNames)
   if (leak) return fail("E_ACCOUNT_NAME_LEAK", `Nome de conta encontrado na Evidence (${leak}); resultado descartado.`)
+
+  // 8b) idem para estratégia: rótulos dos trades + valores de filtro/chave de grupo pedidos
+  const strategyNames = sortedUnique([
+    ...trades.map((t) => t.trade.labels.strategyName?.trim() ?? ""),
+    ...trades.map((t) => t.trade.reconstruction?.cycleKey.strategy?.trim() ?? ""),
+    ...(["strategyId", "strategyName"] as const).flatMap((k) => { const x = v.filters[k]; return x === undefined ? [] : (Array.isArray(x) ? x : [x]).map((n) => n.trim()) }),
+    ...(v.groupBy && v.groupKey ? v.groupKey.filter((_, i) => v.groupBy?.[i] === "strategy").map((k) => k?.trim() ?? "") : []),
+  ].filter((n) => n !== ""))
+  const strategyLeak = findAccountNameLeak({ metricEvidence: parsed.data, tradeEvidences, importRefs }, strategyNames)
+  if (strategyLeak) return fail("E_STRATEGY_NAME_LEAK", `Nome de estratégia encontrado na Evidence (${strategyLeak}); resultado descartado.`)
 
   return { ok: true, metricEvidence: parsed.data, tradeEvidences, importRefs, notes }
 }

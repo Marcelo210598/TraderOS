@@ -33,6 +33,9 @@ export function analyticsTradeFromEvidence(e: TradeEvidence): AnalyticsTrade {
     r: e.r,
     labels: { strategyName: null },
     sessionHint: null,
+    // E6.0: o motivo de saída por trade deriva das pernas; a Evidence já as carrega (cópia, sem cálculo). Não entram no fingerprint.
+    exitLegs: e.exitLegs,
+    exitSummary: e.exitSummary,
     reconstruction: e.reconstruction,
     // ciclo: as linhas de `sourceRows`; trade-linha: o `source.rowHash` (a referência à linha entra no fingerprint nos dois casos)
     sourceRows: cycle ? e.sourceRows.map((r) => ({ rowNo: r.rowNo, rowHash: r.rowHash })) : undefined,

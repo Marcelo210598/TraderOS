@@ -16,6 +16,7 @@ import {
   sum,
   toScaled,
 } from "./exact.ts"
+import { EXIT_REASON_LABELS, type ExitReasonBucket } from "./exit-reason.ts"
 import { applyFilters, normalizeFilters } from "./filter.ts"
 import { prepareTrades, resolveOptions, sequenceOrder, type TradeRow } from "./prepare.ts"
 import { drawdown, SEQUENCE_METRICS, streaks } from "./sequence.ts"
@@ -486,6 +487,8 @@ const DIMENSIONS: Record<Dimension, DimDef> = {
   strategyVersion: { key: (r) => r.strategyVersionId, label: (k) => k ?? "(sem versão)" },
   setup: { key: (r) => r.setup, label: (k) => k ?? "(sem setup)" },
   timeframe: { key: (r) => r.timeframe, label: (k) => k ?? "(sem timeframe)" },
+  // E6.0: nunca null — sem informação é o bucket UNKNOWN (explícito); motivos diferentes = MIXED. Ver exit-reason.ts / data-contract §15.1.
+  exitReason: { key: (r) => r.exitReason, label: (k) => (k === null ? "(desconhecido)" : EXIT_REASON_LABELS[k as ExitReasonBucket] ?? k) },
 }
 
 export const DIMENSION_IDS = Object.keys(DIMENSIONS) as Dimension[]

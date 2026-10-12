@@ -41,5 +41,5 @@ Verificado em `next build` + `next start` (`NODE_ENV=production`): anônimo → 
 - **Sintético e sem persistência:** o CSV é o do Lab (inventado); fica no servidor, nunca é enviado à página (a aba mostra tamanho, SHA-256, BOM e quebra de linha). Não há upload nem endpoint: os cenários são parâmetros de URL (`?tab=source&src=forged`).
 - **Produção:** o mesmo guard em 4 camadas (`NODE_ENV === "development"`, no servidor); `sourceContext`/`runSourceScenario`/`runAllSourceScenarios` recusam fora de desenvolvimento.
 - **Testes:** `scripts/test-evidence-lab-source.mts` (8) e `scripts/test-evidence-lab.mts` (atualizado: 9 camadas).
-- **Achado de privacidade (pré-existente, E3):** `reconstruction.cycleKey.strategy` leva o **nome da estratégia em texto aberto** no bundle (só a conta é substituída por `accountRef`). O teste do Lab trava que a estratégia só aparece nesse campo. Corrigir exige decisão (muda o schema/`evidenceHash`).
+- **Achado de privacidade do E3 — RESOLVIDO no E6.0 (12/10/2026):** `reconstruction.cycleKey.strategy` (nome em texto aberto) virou `cycleKey.strategyRef`; o teste do Lab agora trava que o nome da estratégia **não aparece em lugar nenhum** do bundle (`data-contract.md` §15.1).
 

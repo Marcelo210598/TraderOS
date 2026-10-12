@@ -1,4 +1,5 @@
 // Redação de privacidade da Evidence: o NOME da conta nunca sai em claro; quem precisa distinguir contas usa `accountRef`.
+// (E6.0: o mesmo vale para o nome da ESTRATÉGIA → `strategyRef`, com a mesma trava fail-closed.)
 // Lugares onde o nome pode aparecer: `account.sourceName`, `reconstruction.cycleKey.account` e o `fileName` do import
 // (ex.: "Sim101.csv"). Tudo que vai para a Evidence passa por aqui e, no fim, pela trava `findAccountNameLeak` (fail-closed).
 
@@ -18,15 +19,15 @@ const nameRe = (name: string, flags: string) =>
   new RegExp(name.length >= MIN_SUBSTRING_LEN ? escapeRe(name) : `(?<![A-Za-z0-9])${escapeRe(name)}(?![A-Za-z0-9])`, flags)
 
 /**
- * `cycleKey.account` (nome em claro no Canonical) vira `accountRef`. Projeção campo a campo — sem spread da reconstrução.
+ * `cycleKey.account` (nome em claro no Canonical) vira `accountRef`; `cycleKey.strategy` vira `strategyRef` (E6.0). Projeção campo a campo — sem spread da reconstrução.
  * `version` é a do algoritmo (ImportRecord.reconstructionVersion).
  */
-export function redactReconstruction(rec: NonNullable<CanonicalTrade["reconstruction"]>, accountRef: string | null, version: string): ReconstructionEvidence {
+export function redactReconstruction(rec: NonNullable<CanonicalTrade["reconstruction"]>, accountRef: string | null, strategyRef: string | null, version: string): ReconstructionEvidence {
   return {
     method: rec.method,
     version,
     scope: rec.scope,
-    cycleKey: { accountRef, contract: rec.cycleKey.contract, strategy: rec.cycleKey.strategy, direction: rec.cycleKey.direction },
+    cycleKey: { accountRef, contract: rec.cycleKey.contract, strategyRef, direction: rec.cycleKey.direction },
     confidence: rec.confidence,
     ambiguities: rec.ambiguities.map((a) => ({ code: a.code, severity: a.severity, rowNos: [...a.rowNos], message: a.message })),
     completeness: rec.completeness,

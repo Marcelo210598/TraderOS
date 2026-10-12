@@ -5,7 +5,7 @@
 // Puro: sem relógio, sem random, sem banco, sem rede, não relê o CSV. Não gera hash por trade (o `evidenceHash` é do bundle).
 
 import type { CanonicalTrade, ImportRecord } from "../domain/canonical.ts"
-import { accountRef as makeAccountRef } from "../ingest/identity.ts"
+import { accountRef as makeAccountRef, strategyRef as makeStrategyRef } from "../ingest/identity.ts"
 import { findAccountNameLeak, redactFileName, redactReconstruction, type KnownAccount } from "./redact.ts"
 import { ImportRefSchema, TradeEvidenceSchema, type ImportRef, type SourceRowRef, type TradeEvidence } from "./schema.ts"
 
@@ -15,6 +15,7 @@ export type ExplainErrorCode =
   | "E_ACCOUNT_KEY_MISMATCH"
   | "E_ROWREF_DANGLING"
   | "E_ACCOUNT_NAME_LEAK"
+  | "E_STRATEGY_NAME_LEAK"
   | "E_SCHEMA"
 
 export interface ExplainNote {
@@ -27,7 +28,7 @@ export type ExplainTradeResult =
   | { ok: false; code: ExplainErrorCode; message: string }
 
 export interface ExplainOptions {
-  /** Só usado se o trade não trouxer `account.ref` (precisa ser o MESMO sal do import). */
+  /** Só usado se o trade não trouxer `account.ref` (precisa ser o MESMO sal do import). Também é o sal do `strategyRef`. */
   accountRefSalt?: string
   /**
    * TODAS as contas do import (nomes). Só com a lista COMPLETA o `fileName` é exposto (redigido); sem ela — ou incompleta — o
@@ -152,6 +153,7 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
   const accountName = trade.account.sourceName
   const accountRef = trade.account.ref ?? makeAccountRef(accountName, opts.accountRefSalt ?? "")
   const rec = trade.reconstruction ?? null
+  const strategyRef = makeStrategyRef(rec?.cycleKey.strategy ?? null, opts.accountRefSalt ?? "")
   if (rec && rec.cycleKey.account !== accountName) return fail("E_ACCOUNT_KEY_MISMATCH", "reconstruction.cycleKey.account ≠ account.sourceName: a conta do ciclo e a do trade divergem.")
   if (rec && (importRecord.reconstructionMethod !== rec.method || importRecord.reconstructionVersion === null)) {
     return fail("E_IMPORT_MISMATCH", `reconstrução do trade (${rec.method}) não bate com a do import (${importRecord.reconstructionMethod ?? "nenhuma"}).`)
@@ -195,7 +197,7 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
     exitSummary: trade.exitSummary
       ? { finalReason: trade.exitSummary.finalReason, finalReasons: [...trade.exitSummary.finalReasons], byReason: { ...trade.exitSummary.byReason }, mixed: trade.exitSummary.mixed }
       : null,
-    reconstruction: rec ? redactReconstruction(rec, accountRef, importRecord.reconstructionVersion as string) : null,
+    reconstruction: rec ? redactReconstruction(rec, accountRef, strategyRef, importRecord.reconstructionVersion as string) : null,
     excursions: {
       mfePoints: trade.excursions.mfePoints,
       maePoints: trade.excursions.maePoints,
@@ -270,6 +272,11 @@ export function explainTrade(trade: CanonicalTrade, importRecord: ImportRecord, 
   // 6) trava final (fail-closed): nenhum nome de conta conhecido em NENHUM valor da saída
   const leak = findAccountNameLeak({ tradeEvidence: parsed.data, importRef: importRefParsed.data }, accounts.map((a) => a.name))
   if (leak) return fail("E_ACCOUNT_NAME_LEAK", `Nome de conta encontrado na Evidence (${leak}); resultado descartado.`)
+
+  // 6b) o mesmo para o nome da estratégia (cycleKey e rótulo do trade): só o `strategyRef` pode sair
+  const strategyNames = [rec?.cycleKey.strategy, trade.labels.strategyName].filter((n): n is string => typeof n === "string" && n.trim() !== "")
+  const strategyLeak = findAccountNameLeak({ tradeEvidence: parsed.data, importRef: importRefParsed.data }, strategyNames)
+  if (strategyLeak) return fail("E_STRATEGY_NAME_LEAK", `Nome de estratégia encontrado na Evidence (${strategyLeak}); resultado descartado.`)
 
   return { ok: true, tradeEvidence: parsed.data, importRef: importRefParsed.data, notes }
 }

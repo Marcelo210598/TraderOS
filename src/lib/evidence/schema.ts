@@ -59,12 +59,12 @@ export type SourceRowRef = z.infer<typeof SourceRowRefSchema>
 
 /**
  * Reconstrução como aparece na Evidence: igual à do Canonical, EXCETO a chave do ciclo — lá `cycleKey.account` é o nome da conta
- * em claro; aqui vira `accountRef`. Sem isso o nome vazaria por dentro da reconstrução.
+ * em claro; aqui vira `accountRef`; `cycleKey.strategy` (nome da estratégia) vira `strategyRef` (E6.0). Sem isso o nome vazaria por dentro da reconstrução.
  */
 export const ReconstructionEvidenceSchema = ReconstructionSchema.extend({
   /** Versão do algoritmo que reconstruiu o ciclo (do ImportRecord). */
   version: z.string(),
-  cycleKey: z.object({ accountRef: z.string().nullable(), contract: z.string(), strategy: z.string().nullable(), direction: z.enum(["LONG", "SHORT"]) }).strict(),
+  cycleKey: z.object({ accountRef: z.string().nullable(), contract: z.string(), strategyRef: z.string().nullable(), direction: z.enum(["LONG", "SHORT"]) }).strict(),
 }).strict()
 export type ReconstructionEvidence = z.infer<typeof ReconstructionEvidenceSchema>
 

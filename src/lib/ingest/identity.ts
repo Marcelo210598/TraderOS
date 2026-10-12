@@ -14,6 +14,8 @@ import { RECONSTRUCTION_VERSION } from "./reconstruct.ts"
 import type { ReconstructionSummary } from "./types.ts"
 
 const ACCOUNT_REF_DOMAIN = "meutrade/accountRef/1"
+// Pseudônimo da estratégia na Evidence (E6.0). NÃO entra em importId/rowHash/tradeId (esses continuam com o nome em hash próprio): é só apresentação.
+const STRATEGY_REF_DOMAIN = "meutrade/strategyRef/1"
 const ROW_HASH_VERSION = 1
 const TRADE_ID_VERSION = 1
 const IMPORT_ID_VERSION = 1
@@ -37,6 +39,17 @@ export function accountRef(sourceName: string | null, salt = ""): string | null 
   const name = sourceName?.trim()
   if (!name) return null
   return `acc_${sha256Hex(`${ACCOUNT_REF_DOMAIN}\0${salt}\0${name}`).slice(0, 24)}`
+}
+
+/**
+ * Fingerprint não reversível da estratégia (mesma ideia do `accountRef`, domínio próprio: o mesmo texto em conta e em estratégia NÃO
+ * gera o mesmo ref). Determinístico, distingue estratégias, mesmo sal do `accountRef`. Pseudônimo, não segredo: sem sal, nome curto/comum
+ * pode ser adivinhado por dicionário — mesmo limite já documentado para a conta.
+ */
+export function strategyRef(strategyName: string | null, salt = ""): string | null {
+  const name = strategyName?.trim()
+  if (!name) return null
+  return `str_${sha256Hex(`${STRATEGY_REF_DOMAIN}\0${salt}\0${name}`).slice(0, 24)}`
 }
 
 export function describeText(text: string): Pick<ImportRecord, "fileSha256" | "hashBasis" | "fileBytes" | "hasBom" | "lineEnding"> {

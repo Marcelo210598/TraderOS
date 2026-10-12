@@ -14,6 +14,7 @@ import {
   type ResolvedOptions,
 } from "./types.ts"
 import type { CanonicalTrade } from "../domain/canonical.ts"
+import { exitReasonOf, type ExitReasonBucket } from "./exit-reason.ts"
 
 /** Análise do trader: America/Sao_Paulo (padrão do MeuTrade). Sessão (AM/PM/OVERNIGHT) segue em ET e dia de pregão no calendário CME, independente deste fuso. */
 export const DEFAULT_TIME_ZONE = DEFAULT_ANALYSIS_TIME_ZONE
@@ -77,6 +78,11 @@ export interface TradeRow {
   granularity: "POSITION_CYCLE" | "SOURCE_ROW"
   lowConfidence: boolean
   unverifiedEdges: boolean
+  /** Motivo de saída agregado do trade (regra em exit-reason.ts). Sempre um bucket: sem informação = UNKNOWN. */
+  exitReason: ExitReasonBucket
+  /** MIXED que inclui saída de motivo desconhecido (conhecido + desconhecido na mesma operação). */
+  exitReasonPartial: boolean
+  exitReasonSource: "LEGS" | "SUMMARY" | "NONE"
 }
 
 function anchorOf(t: CanonicalTrade, o: ResolvedOptions): TimeValue {
@@ -137,6 +143,8 @@ export function prepareTrades(trades: AnalyticsTrade[], o: ResolvedOptions): Tra
     const grossC = p.gross === null ? null : toCents(p.gross)
     const pnlC = o.pnlBasis === "NET" ? netC : grossC
 
+    const exit = exitReasonOf(t)
+
     const rValue = o.rBasis === "NET" ? t.r.net : t.r.points
     const rReason = rValue !== null ? null : o.rBasis === "NET" ? t.r.netReason ?? "RISK_UNKNOWN" : t.risk.reason ?? "STOP_MISSING"
 
@@ -175,6 +183,9 @@ export function prepareTrades(trades: AnalyticsTrade[], o: ResolvedOptions): Tra
       granularity: t.granularity ?? "SOURCE_ROW",
       lowConfidence: t.reconstruction?.confidence === "LOW",
       unverifiedEdges: t.reconstruction != null && t.reconstruction.completeness !== "VERIFIED",
+      exitReason: exit.bucket,
+      exitReasonPartial: exit.partial,
+      exitReasonSource: exit.source,
     }
   })
 }

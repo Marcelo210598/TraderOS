@@ -169,11 +169,11 @@ O motor recebe `AnalyticsTrade[]` (= `CanonicalTrade` + `id` estável + vínculo
 **Pontos** — `totalPoints = Σ pointsPerContract_i` e `averagePoints` (por contrato; **não** pondera quantidade). Só com **um único instrumento conhecido** (pontos de ES ≠ pontos de NQ): senão `MIXED_INSTRUMENTS` / `UNKNOWN_INSTRUMENT`.
 
 ### 11.4 Filtros (`TradeFilters`) — composáveis, sem função por combinação
-`from`/`to` (data local `YYYY-MM-DD`, inclusivo, do instante âncora), `symbol`, `direction`, `account`, `session` (`AM`/`PM`/`OVERNIGHT`, derivada em ET), `hour` (0–23 no fuso), `dayOfWeek` (0=dom), `tradingDay` (dia de pregão CME), `strategyId`, `strategyName`, `strategyVersionId`, `setup`, `timeframe`.
+`from`/`to` (data local `YYYY-MM-DD`, inclusivo, do instante âncora), `symbol`, `direction`, `account`, `session` (`AM`/`PM`/`OVERNIGHT`, derivada em ET), `hour` (0–23 no fuso), `dayOfWeek` (0=dom), `tradingDay` (dia de pregão CME), `strategyId`, `strategyName`, `strategyVersionId`, `setup`, `timeframe`, `exitReason` (E6.0, §15.1).
 **AND entre campos; array = OR dentro do campo.** Atributo **desconhecido** no trade (ex.: filtro de hora num trade só com data) ⇒ o trade é **excluído e contado** em `report.excluded[campo].unknown` (nunca "passa por não saber"). Filtro inválido (`from > to`, hora 24…) ⇒ `MetricsInputError` (não é ignorado). Filtros são ecoados **normalizados** (caixa, ordenados, sem repetição).
 
 ### 11.5 Dimensões (`groupBy`, uma ou várias)
-`day`, `tradingDay`, `week` (segunda-feira), `month`, `dayOfWeek`, `hour`, `session`, `symbol`, `direction`, `account`, `strategy` (`strategyId ?? nome`), `strategyVersion`, `setup`, `timeframe`.
+`day`, `tradingDay`, `week` (segunda-feira), `month`, `dayOfWeek`, `hour`, `session`, `symbol`, `direction`, `account`, `strategy` (`strategyId ?? nome`), `strategyVersion`, `setup`, `timeframe`, `exitReason` (E6.0, §15.1).
 Os grupos **particionam** a população: a soma das amostras = total (grupo **desconhecido**, `key = null`, vai por último: "sem horário", "sem setup"…). Cada grupo tem as métricas completas, **cobertura relativa ao grupo** e `sampleFlag` (`OK` ≥ minSample · `LOW` · `TINY` < 3).
 Tempo: **DATE_ONLY** só tem data ⇒ entra em `day/week/month/dayOfWeek`; **hora, sessão e dia de pregão** ficam em "sem horário". `session` = derivada do instante (ET); no DATE_ONLY usa a dica declarada pelo usuário, se houver.
 
@@ -566,3 +566,32 @@ reproducibility?: { version: 1,
 
 **Testes** (`scripts/test-evidence-import-context.mts`, 7, no `test:domain`): não regressão de identidades (pinadas), registro (ordem do mapa, bandeira de sal, sem vazamento do sal), compatibilidade com imports antigos, E5b reproduzindo sozinho um import com `foldPolicy LATER` em horário ambíguo (America/New_York, 01/11/2026 01:30) + mapa + sal, sal ausente/errado/ignorado, versão de identidade incompatível, bloco adulterado/inválido, privacidade.
 
+
+
+## 15. E6 — motivo de saída, grupos e comparações (plano aprovado em 2026-10-12; só o E6.0 implementado)
+
+### 15.1 E6.0 — dimensão/filtro `exitReason` (motivo de saída AGREGADO POR TRADE) e `strategyRef` (IMPLEMENTADO em 2026-10-12)
+
+**Origem do motivo (não muda no E6.0).** O motivo nasce **por perna** na ingestão: `exitLegs[].reason ∈ {TARGET, STOP, MANUAL, UNKNOWN}`, decidido pelo **nome** da ordem de saída (regra padrão `Target*`→TARGET, `Stop*`→STOP, `Zerar/Flat/Close`→MANUAL; mapa do usuário tem prioridade, `reasonRule` = `LABEL_RULE`/`USER_MAP`/`NONE`). É o **rótulo**, não o tipo real da ordem: `Stop` em break-even continua STOP; MANUAL = "comando de zerar", não decisão discricionária. O motivo **nunca** é inferido do P&L, do sinal do resultado, do preço nem da estratégia (teste: `Stop` com lucro = STOP; `Target` com prejuízo = TARGET; rótulo desconhecido com lucro ou prejuízo = UNKNOWN).
+
+**Agregação por trade** (`src/lib/metrics/exit-reason.ts`, função pura; usada por `prepareTrades`): seja D o conjunto de motivos **distintos de todas as pernas de saída** (parciais e final), com `UNKNOWN` contando como um valor:
+
+| D | bucket | `exitReasonPartial` |
+|---|---|---|
+| 1 valor (`TARGET`/`STOP`/`MANUAL`) | esse valor (várias saídas do mesmo motivo = o mesmo motivo) | false |
+| só `UNKNOWN` | `UNKNOWN` | false |
+| ≥ 2 valores conhecidos | `MIXED` | false |
+| ≥ 2 valores, **incluindo `UNKNOWN`** (conhecido + desconhecido na mesma operação) | `MIXED` | **true** |
+| sem pernas (trade-linha `SOURCE_ROW`, ou ciclo sem `exitLegs`) | `UNKNOWN` (`exitReasonSource = NONE`) | false |
+
+Sem `exitLegs` mas com `exitSummary.byReason`, aplica-se a mesma regra às chaves com quantidade > 0 (`exitReasonSource = SUMMARY`). Valor fora do enum nunca vira motivo conhecido. **Decisão da regra "conhecido + desconhecido":** vira `MIXED` + `partial` (e não o motivo conhecido) para não atribuir à operação inteira um motivo que só vale para parte das saídas e para não esconder a saída desconhecida; a quebra fina por perna é o E6.1. Diferente do `exitSummary.finalReason` do Canonical (só a perna que zera a posição): o E6.0 olha **todas** as saídas.
+
+**Dimensão e filtro.** `groupBy: "exitReason"` (e combinações, ex. `["exitReason","direction"]`) e `filters.exitReason` (valor ou lista, caixa normalizada, inválido ⇒ `E_FILTER_INVALID`). Chave **nunca `null`**: `UNKNOWN` e `MIXED` são grupos explícitos ("Desconhecido", "Misto (motivos diferentes)"); Σ amostras = população e Σ P&L por bucket = total (centavos). Nenhuma das 39 métricas muda de fórmula/versão (`DEFINITION_VERSION` intacta); `tradeSetHash`, `tradeId` e `rowHash` idênticos (o motivo **não entra** no fingerprint). Trades-linha ⇒ `UNKNOWN` ("não sei", não "sem stop"): relatórios devem mostrar a cobertura.
+
+**Evidence.** `analyticsTradeFromEvidence` passa a **copiar** `exitLegs`/`exitSummary` do `TradeEvidence` (já presentes) para o motor; assim a dimensão e o filtro `exitReason` entram em `ENGINE_DIMS`/`ENGINE_FILTERS` do verificador: `V4.association` **verifica** que todos os trades do grupo pertencem ao bucket declarado, a partir das pernas que a Evidence carrega (adulterar a chave do grupo ou o motivo de uma perna, mesmo com selo refeito ⇒ `FAIL`/`TAMPERED`). **Limite dito:** isso prova a **consistência da agregação** com as pernas da Evidence; a **veracidade do motivo** (rótulo → motivo, mapa do usuário) é a do E5b (`V5.values`, com `reproducibility.exitReasonMap`) e continua sendo o nome da ordem, não o tipo real. Bucket `UNKNOWN` verificado = "os trades do grupo realmente não têm motivo conhecido", nunca "motivo verificado".
+
+**`strategyRef` (decisão 5 do E6).** `reconstruction.cycleKey.strategy` (nome da estratégia em texto aberto, achado do E3) foi **substituído** por `cycleKey.strategyRef` = `str_` + 24 hex de SHA-256(`meutrade/strategyRef/1` ∥ sal ∥ nome aparado); determinístico, distingue estratégias, mesmo sal do `accountRef` (`accountRefSalt`), domínio próprio (o mesmo texto não gera o mesmo ref de conta), nome vazio ⇒ `null`. Continua `evidence/1` (sem `evidence/2`); bundles **novos** têm `evidenceHash` diferente (como no E5.0/§14.12). **Varredura de caminhos de exposição** (todos tratados e testados): (1) `TradeEvidence.reconstruction.cycleKey`; (2) `MetricEvidence.query.filters.strategyName/strategyId` → `strategyNameRefs`/`strategyIdRefs`; (3) `query.groupKey` de `groupBy: "strategy"` → `strategyRef`; (4) mensagens de `issues`/`warnings`/`ambiguities`/`fileName`: **trava fail-closed** `E_STRATEGY_NAME_LEAK` (mesmo mecanismo da conta) em `explainTrade` e `explainMetric`, procurando em todo o bundle os nomes de estratégia do `labels.strategyName`, do `cycleKey` e dos filtros/chaves pedidos. **Limites assumidos:** `strategyVersionId`, `setup` e `timeframe` continuam em claro nos filtros (são rótulos do usuário, não o nome da estratégia; se contiverem o nome, a trava acusa quando coincide com um nome conhecido); `strategyRef` é pseudônimo (sem sal, nome curto/comum é adivinhável por dicionário, como o `accountRef`); `labels.strategyName` não está no `TradeEvidence` (nunca esteve). O **motor** continua agrupando/filtrando pelo nome (privacidade é da Evidence, não do motor); a associação a grupos por estratégia segue `SKIPPED S_ASSOCIATION_UNVERIFIABLE` (a Evidence não tem a estratégia para conferir). `strategyRef` **não** altera `importId`/`rowHash`/`tradeId` (o nome da estratégia continua dentro do hash da linha, como antes).
+
+**Testes.** `scripts/test-metrics-exit-reason.mts` (24; no `test:domain`): tabela da regra, pipeline real (11 ciclos: alvo, alvo×2, stop, stop com lucro, alvo com prejuízo, manual, alvo+stop, stop+manual, rótulo desconhecido, sem rótulo, alvo+desconhecido), mapa do usuário, trade-linha, partição/reconciliação em centavos, total idêntico com/sem a dimensão, multidimensão, determinismo (ordem de chegada), filtro, Evidence (associação PASS, adulteração), `strategyRef` e privacidade (incl. fail-closed), identidade intacta, e as fixtures reais locais (sem números no repositório).
+
+**Fora do E6.0 (continua pendente):** E6.1 quebra por perna (`exitBreakdown`), E6.2 ranking/contribuição/comparação, E6.3 Evidence dos derivados (`claim.kind`/`derived[]`, V6), E6.4 aba no Lab, E6.5 contrato do agente. Sem integração com a Vega IA, sem Prisma, sem UI de produto.

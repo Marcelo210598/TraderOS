@@ -3,6 +3,7 @@
 // Um trade cujo atributo é DESCONHECIDO (ex.: filtro de hora num trade só com data) é EXCLUÍDO e CONTADO no relatório —
 // nunca "passa" por não saber.
 
+import { EXIT_REASON_BUCKETS } from "./exit-reason.ts"
 import { prepareTrades, resolveOptions, type TradeRow } from "./prepare.ts"
 import {
   MetricsInputError,
@@ -41,6 +42,7 @@ export function normalizeFilters(f: TradeFilters = {}): TradeFilters {
     ["strategyVersionId", (s) => s.trim()],
     ["setup", (s) => s.trim()],
     ["timeframe", (s) => s.trim()],
+    ["exitReason", (s) => s.trim().toUpperCase()],
   ]
   for (const [k, norm] of strs) {
     const v = arr(f[k] as string | string[] | undefined)
@@ -48,6 +50,11 @@ export function normalizeFilters(f: TradeFilters = {}): TradeFilters {
       if (v.length === 0) throw new MetricsInputError("E_FILTER_INVALID", `Filtro ${k} vazio.`)
       const sorted = [...new Set(v.map(norm))].sort()
       ;(out as Record<string, unknown>)[k] = sorted.length === 1 ? sorted[0] : sorted
+    }
+  }
+  if (out.exitReason !== undefined) {
+    for (const v of arr(out.exitReason)!) {
+      if (!(EXIT_REASON_BUCKETS as readonly string[]).includes(v)) throw new MetricsInputError("E_FILTER_INVALID", `exitReason inválido: "${v}". Válidos: ${EXIT_REASON_BUCKETS.join(", ")}.`)
     }
   }
   if (out.tradingDay !== undefined) {
@@ -88,6 +95,7 @@ function buildChecks(f: TradeFilters): Array<[FilterField, Check]> {
   if (f.strategyVersionId !== undefined) checks.push(["strategyVersionId", inSet(arr(f.strategyVersionId), (r) => r.strategyVersionId)])
   if (f.setup !== undefined) checks.push(["setup", inSet(arr(f.setup), (r) => r.setup)])
   if (f.timeframe !== undefined) checks.push(["timeframe", inSet(arr(f.timeframe), (r) => r.timeframe)])
+  if (f.exitReason !== undefined) checks.push(["exitReason", inSet(arr(f.exitReason), (r) => r.exitReason)])
   return checks
 }
 

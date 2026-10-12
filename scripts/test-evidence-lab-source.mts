@@ -90,17 +90,17 @@ test("REEXECUÇÃO exibida: só quando o verificador a executou (V5.context PASS
   assert.ok(run("partial").reingestion)
 })
 
-test("PRIVACIDADE: nenhum byte/trecho do CSV, conta ou estratégia no que o E5b e a reexecução devolvem; só metadados do arquivo; a estratégia só aparece no campo JÁ CONHECIDO do bundle (cycleKey.strategy)", () => {
+test("PRIVACIDADE: nenhum byte/trecho do CSV, conta ou estratégia no que o E5b e a reexecução devolvem; só metadados do arquivo; a estratégia NÃO aparece em lugar nenhum do bundle (E6.0: cycleKey.strategy virou strategyRef)", () => {
   const csvLines = demo.csv.split("\n").filter(Boolean)
   const strip = (r: (typeof runs)[number]) => ({ report: r.report, verify: r.verify, file: r.file, reingestion: r.reingestion })
   const text = JSON.stringify(runs.map(strip))
   for (const forbidden of ["Conta Demo A", "Conta Demo B", "Estratégia Demo", "MGC 12-26", "Núm. Neg.", csvLines[1], csvLines[2]]) assert.equal(text.includes(forbidden), false, `vazou: ${forbidden}`)
-  // bundles: conta nunca; CSV nunca; a estratégia só em reconstruction.cycleKey.strategy (limite pré-existente desde o E3, documentado como achado)
+  // bundles: conta nunca; CSV nunca; estratégia nunca em texto aberto (só strategyRef)
   for (const r of runs) {
     const b = JSON.stringify(r.bundle)
     for (const forbidden of ["Conta Demo A", "Conta Demo B", "Núm. Neg.", csvLines[1], csvLines[2]]) assert.equal(b.includes(forbidden), false, `${r.scenario.id}: vazou ${forbidden}`)
-    const withoutKnownField = JSON.stringify(r.bundle, (k, v) => (k === "strategy" ? undefined : v))
-    assert.equal(withoutKnownField.includes("Estratégia Demo"), false, `${r.scenario.id}: estratégia fora do campo conhecido`)
+    assert.equal(b.includes("Estratégia Demo"), false, `${r.scenario.id}: nome da estratégia vazou`)
+    assert.equal(b.includes("\"strategy\""), false, `${r.scenario.id}: campo cycleKey.strategy ainda existe`)
   }
   for (const r of runs) {
     assert.equal("bytes" in (r.file as object) && (r.file as Any).bytes instanceof Uint8Array, false)
