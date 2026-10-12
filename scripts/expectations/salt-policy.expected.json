@@ -1,0 +1,193 @@
+{
+  "_meta": {
+    "frozen": "2026-10-12",
+    "after_execution": false,
+    "note": "P0 da política de sal (docs/ai-partner/salt-policy-plano.md). Escrito ANTES de qualquer código. Nada aqui foi executado. `status: approved` = decidido pelo Marcelo; `status: proposed` = proposta minha que depende de decisão (ver open_points do plano). Vereditos do E5b: SOURCE_VERIFIED | SOURCE_VERIFIED_PARTIAL | SOURCE_MISMATCH | UNVERIFIABLE. Mudar uma expectativa exige entrada em history.",
+    "history": []
+  },
+  "rules": {
+    "D4_corrected": [
+      "saltCheck NÃO é portão: se saltId resolve a um sal conhecido via SaltProvider, o verificador usa esse sal e compara os refs de verdade, mesmo com saltCheck divergente (saltCheck é autodeclaração redundante, não fonte da verdade).",
+      "S_SALT_UNKNOWN só quando o SaltProvider não tem NENHUM sal para o saltId declarado (não cadastrado ou aposentado sem registro).",
+      "saltId resolvido + refs batem + saltCheck diverge ⇒ limitação/aviso visível (nunca MISMATCH automático, nunca UNVERIFIABLE silencioso).",
+      "saltId resolvido + refs divergem ⇒ SOURCE_MISMATCH, reforçado (detalhe/limitação adicional) se o saltCheck também divergir.",
+      "NUNCA: saltId resolvido + ref adulterado + saltCheck adulterado ⇒ UNVERIFIABLE (o atacante não escolhe a severidade)."
+    ],
+    "never": [
+      "o valor do sal aparece em bundle, relatório, log, mensagem de erro ou Lab",
+      "saltCheck é igual ou deriva reversivelmente do sal sem o domínio próprio meutrade/saltCheck/1",
+      "sal gerado pelo sistema com menos de 32 bytes (256 bits) no caminho de produto",
+      "mudança em importId/rowHash/tradeId/tradeSetHash por causa da política"
+    ]
+  },
+  "verification_cases": {
+    "V1_unsalted_unchanged": {
+      "status": "approved",
+      "setup": "import sem sal; bundle sem saltId/saltCheck",
+      "expected": "SOURCE_VERIFIED; evidenceHash IDÊNTICO ao baseline (pins existentes)"
+    },
+    "V2_legacy_salted_unchanged": {
+      "status": "approved",
+      "setup": "bundle salgado SEM saltId (legado, accountRefSalt informado como string)",
+      "expected": "comportamento de hoje: sal certo ⇒ SOURCE_VERIFIED; sal esquecido na geração sem mapa ⇒ SOURCE_MISMATCH com pista; hash idêntico ao baseline"
+    },
+    "V3_new_salted_ok": {
+      "status": "approved",
+      "setup": "bundle novo: saltId s1 resolvível, refs e saltCheck corretos",
+      "expected": "SOURCE_VERIFIED"
+    },
+    "V4_savedid_known_refs_ok_saltcheck_diverges": {
+      "status": "proposed",
+      "setup": "saltId s1 resolvível; refs batem; saltCheck do bundle diverge (selo refeito)",
+      "expected": "SOURCE_VERIFIED_PARTIAL com limitação L_SALT_CHECK_DIVERGENT (aviso visível); NÃO MISMATCH, NÃO UNVERIFIABLE",
+      "depends_on": "O2"
+    },
+    "V5_known_refs_tampered_saltcheck_ok": {
+      "status": "approved",
+      "setup": "saltId s1 resolvível; um ref adulterado (selo refeito); saltCheck correto",
+      "expected": "SOURCE_MISMATCH"
+    },
+    "V6_NEGATIVE_CONTROL_known_refs_tampered_saltcheck_tampered": {
+      "status": "approved",
+      "setup": "saltId s1 resolvível; um ref adulterado E saltCheck adulterado (selo refeito)",
+      "expected": "SOURCE_MISMATCH reforçado (inclui V_SALT_CHECK_MISMATCH como detalhe adicional); NUNCA UNVERIFIABLE",
+      "mandatory": true,
+      "requested_by": "Marcelo 12/10/2026"
+    },
+    "V7_saltid_unknown_to_provider": {
+      "status": "approved",
+      "setup": "saltId s99 sem nenhum sal no provider",
+      "expected": "UNVERIFIABLE S_SALT_UNKNOWN; mensagem diz que NÃO é prova de integridade e que nada dependente de sal foi conferido; veredito combinado NOT_VERIFIED"
+    },
+    "V7b_saltid_retired_with_record": {
+      "status": "approved",
+      "setup": "saltId s1 aposentado (registro existe, sem valor de sal utilizável)",
+      "expected": "UNVERIFIABLE com código distinto S_SALT_RETIRED"
+    },
+    "V8_saltid_declared_wrong_but_other_known_salt_reproduces": {
+      "status": "proposed",
+      "setup": "refs válidos com o sal s2, mas o bundle declara saltId s99 (desconhecido)",
+      "expected": "SOURCE_VERIFIED_PARTIAL com limitação 'saltId declarado não resolve; refs reproduzidos por outro sal conhecido do usuário'",
+      "depends_on": "O1"
+    },
+    "V9_saltid_forged_unknown_to_hide_tampering": {
+      "status": "proposed",
+      "setup": "ref adulterado E saltId trocado para valor desconhecido (selo refeito); nenhum sal conhecido reproduz os refs",
+      "expected": "UNVERIFIABLE S_SALT_UNKNOWN (resíduo documentado: indistinguível de bundle de sal aposentado); veredito combinado NOT_VERIFIED, nunca VERIFIED*; texto do check não soa inofensivo",
+      "depends_on": "O1"
+    },
+    "V10_rotation_old_bundle_new_bundle": {
+      "status": "approved",
+      "setup": "usuário com chaveiro {s1 ativo→aposentado de geração, s2 atual}; bundle antigo declara s1, novo declara s2; provider tem os dois",
+      "expected": "ambos SOURCE_VERIFIED; geração nova usa só s2"
+    },
+    "V11_legacy_string_ignored_for_saltid_bundle": {
+      "status": "proposed",
+      "setup": "bundle com saltId resolvível E chamador passa accountRefSalt string diferente",
+      "expected": "o sal do provider por saltId vale; a string é ignorada para bundle com saltId (documentado); nunca FAIL por causa da string",
+      "depends_on": "O3"
+    },
+    "V12_no_salt_info_for_salted_new_bundle": {
+      "status": "approved",
+      "setup": "bundle novo salgado, verificador sem provider e sem string",
+      "expected": "UNVERIFIABLE (S_ACCOUNT_REF_UNVERIFIED), nunca FAIL"
+    },
+    "V13_matrix": {
+      "status": "approved",
+      "setup": "matriz sal (nenhum/legado/novo) × rótulo (padrão/livre) × mapa (vazio/usuário) × tipo de bundle (métrica/derivado/linhas) × versão do sal (s1/s2)",
+      "expected": "caminho correto ⇒ SOURCE_VERIFIED; entrada errada no verificador ⇒ UNVERIFIABLE ou MISMATCH conforme as regras, nunca FAIL espúrio nem verificado em falso"
+    }
+  },
+  "generation_cases": {
+    "G1_salted_import_no_salt": {
+      "status": "approved",
+      "setup": "import novo salgado (tem saltCheck); gerar Evidence sem sal/provider",
+      "expected": "erro E_SALT_REQUIRED (fail-closed), nenhum bundle produzido"
+    },
+    "G2_salted_import_wrong_salt": {
+      "status": "approved",
+      "setup": "import salgado; sal fornecido cujo saltCheck ≠ o do import",
+      "expected": "erro E_SALT_MISMATCH (fail-closed); a mensagem não contém nenhum dos dois sais"
+    },
+    "G3_salted_import_right_salt": {
+      "status": "approved",
+      "setup": "sal certo",
+      "expected": "bundle gerado; saltId e saltCheck do import copiados para o ImportRef"
+    },
+    "G4_unsalted_import": {
+      "status": "approved",
+      "setup": "import sem sal",
+      "expected": "inalterado (sem erro, sem saltId/saltCheck)"
+    },
+    "G5_lab_unsalted_by_design": {
+      "status": "approved",
+      "setup": "Lab/dev",
+      "expected": "inalterado; guarda de UNSALTED_BY_DESIGN continua exigindo que o arquivo não use sal"
+    },
+    "G6_legacy_import_without_saltcheck": {
+      "status": "approved",
+      "setup": "import salgado criado ANTES da política (sem saltCheck)",
+      "expected": "geração com accountRefSalt string continua como hoje (legado); sem fail-closed (não há como checar)"
+    }
+  },
+  "hash_and_schema_cases": {
+    "H1_unsalted_hash_baseline": {
+      "status": "approved",
+      "expected": "evidenceHash de bundles não salgados idêntico aos pins atuais"
+    },
+    "H2_legacy_salted_hash_baseline": {
+      "status": "approved",
+      "expected": "evidenceHash de bundles salgados SEM saltId idêntico aos pins atuais"
+    },
+    "H3_new_salted_removal_proof": {
+      "status": "approved",
+      "expected": "para bundles novos salgados: remover saltId+saltCheck do ImportRef e recalcular o selo reproduz o baseline (prova dos 9 bundles repetida)"
+    },
+    "H4_ids_unchanged": {
+      "status": "approved",
+      "expected": "importId/rowHash/tradeId/tradeSetHash inalterados por causa da política (se reproducibility entrar no importId, PARAR e reportar: ver O4)"
+    },
+    "S1_format_v0": {
+      "status": "approved",
+      "expected": "saltId só com formato ^[a-z0-9][a-z0-9_-]{0,31}$ e saltCheck ^slt_[0-9a-f]{24}$; um sem o outro ⇒ INVALID_FORMAT; texto livre ⇒ INVALID_FORMAT (mesmo com selo refeito)"
+    },
+    "S2_secrecy": {
+      "status": "approved",
+      "expected": "varredura automática: o valor do sal não aparece em bundle, relatórios V0–V6/E5b, mensagens de erro, Lab (todas as abas), documentos"
+    }
+  },
+  "provider_cases": {
+    "P1_generate": {
+      "status": "approved",
+      "expected": "generateSalt() = 32 bytes aleatórios (crypto), hex; duas chamadas diferentes; rejeita < 32 bytes no caminho de produto"
+    },
+    "P2_saltcheck": {
+      "status": "approved",
+      "expected": "saltCheck determinístico por (sal), domínio meutrade/saltCheck/1, 24 hex; sais diferentes ⇒ checks diferentes; saltCheck não permite recuperar o sal (não há função inversa) e não coincide com nenhum ref (acc_/str_/lbl_/pat_)"
+    },
+    "P3_keyring": {
+      "status": "approved",
+      "expected": "chaveiro por usuário: ids únicos s1,s2…; só o último ativo gera; get(saltId) devolve ACTIVE|RETIRED|UNKNOWN; aposentar não apaga o registro; usuários diferentes não se enxergam"
+    },
+    "P4_provider_in_memory_only": {
+      "status": "approved",
+      "expected": "única implementação nesta fase: em memória/env para testes e Lab; nenhuma persistência, nenhum Prisma/banco"
+    }
+  },
+  "guard_cases": {
+    "GD1_guard_layers_still_pass": {
+      "status": "approved",
+      "expected": "camadas 1/2/2b/2c do test-evidence-salt-propagation seguem verdes; o teste 3d (lacuna do legado) segue descrevendo o legado"
+    },
+    "GD2_runtime_covers_old_false_negatives": {
+      "status": "approved",
+      "expected": "wrapper novo ou opts com sal errado, em import NOVO, falham em runtime com E_SALT_MISMATCH (cobre falsos-negativos 1 e 2 do guarda, só para imports novos)"
+    }
+  },
+  "open_points": {
+    "O1": "Ataque de severidade por saltId: adulterar ref E trocar saltId para valor desconhecido leva a UNVERIFIABLE (mesma família do que o Marcelo apontou para saltCheck). Proposta: (a) antes de dar S_SALT_UNKNOWN, tentar os sais conhecidos do usuário no provider; se algum reproduz os refs ⇒ V8; se nenhum ⇒ V9 (resíduo documentado, indistinguível de sal aposentado; combinado = NOT_VERIFIED; texto explícito).",
+    "O2": "Status de V4 (refs batem, saltCheck diverge): proposta SOURCE_VERIFIED_PARTIAL + limitação L_SALT_CHECK_DIVERGENT, para aparecer no veredito combinado (VERIFIED_PARTIAL). Alternativa: SOURCE_VERIFIED só com limitação.",
+    "O3": "Bundle com saltId resolvível e string accountRefSalt do chamador divergente: proposta = o sal do provider vale e a string é ignorada.",
+    "O4": "RESOLVIDO POR LEITURA (12/10/2026): `reproducibility` está FORA do importId (identity.ts: `importId = hashCanonical({v, fileSha256, parserId, parserVersion, settings})`; reproducibility é anexado depois). Acrescentar saltId/saltCheck ali não muda importId. Será CONFIRMADO por teste (H4) no P2."
+  }
+}
