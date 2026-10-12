@@ -6,7 +6,8 @@
     "history": [
       "2026-10-12 E6.5-1: O-A/O-B/O-C/O-D aprovados pelo Marcelo; AV21 e PV6 → approved; N=2 e K=20 fixados em agent-capabilities.md §0 (A3 cumprido); lista de códigos específicos CORRIGIDA para o que o código realmente emite (a lista do E6.5-0 era uma estimativa minha: faltavam S_NO_METRICS, S_REFS_BROKEN, S_PROVENANCE_INCOMPLETE, S_ORDER_NOT_RECORDED, S_NO_ANCHOR_CHECK, S_QUERY_INVALID, S_CHECK_NOT_EXECUTED, S_ENCODING_UNSUPPORTED, S_SALT_*). Propostas novas O-E/O-F/O-G.",
       "2026-10-12 E6.5-1 (ajustes pós-revisão do Marcelo): O-E aprovado COM exigência de parada explícita (AV22, stop_reasons); O-F aprovado COM confirmação de que é só exibição — e CORRIGIDO por mim: casas decimais da exibição = as do motor (R 4, razão 4, pontos até 6), não 2 para tudo (erro meu na proposta, achado ao ler exact.ts); AV23 (empate) adicionado.",
-      "2026-10-12 E6.5-2: schema_cases SC1–SC12 escritos antes dos tipos. Duas frases de escopo que o §6.1 do documento exigia mas não catalogava foram acrescentadas por mim (POPULATION_DECLARED, INDICATIVE_ONLY) e entram no catálogo/documento."
+      "2026-10-12 E6.5-2: schema_cases SC1–SC12 escritos antes dos tipos. Duas frases de escopo que o §6.1 do documento exigia mas não catalogava foram acrescentadas por mim (POPULATION_DECLARED, INDICATIVE_ONLY) e entram no catálogo/documento.",
+      "2026-10-12 E6.5-2 EXECUTADO: SC1–SC12 verdes em scripts/test-agent-contract-types.mts (11 testes), 6 mutações pegas. Fora do previsto: handle de servidor × visão do modelo (sem evidenceHash) virou dois schemas; o mapa de PromptViews ficou como rascunho v1 (E6.6 pode refinar com bump)."
     ]
   },
   "principles": [

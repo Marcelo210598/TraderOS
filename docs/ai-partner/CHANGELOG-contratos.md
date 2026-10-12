@@ -76,3 +76,6 @@ S4 (`7b4227a`): teste da matriz sal × rótulo × mapa × tipo de bundle e fixtu
 ## 12/10/2026 — Política de sal P6: documentação final (sem mudança de código de produção)
 Contrato §14.14 reescrito (política implementada, regras do leitor, rotação, limites que continuam), §14.15 (lacuna do sal esquecido fechada só para imports gerenciados; falsos-negativos 1 e 2 do guarda cobertos em runtime para esses imports), `evidence-lab.md` (19 cenários na aba Origem), pendência do Lab `sal-usuario` resolvida e `sal-persistencia` registrada (armazenamento real, fase de persistência).
 
+## 12/10/2026 — E6.5-1/E6.5-2: contrato do agente (documento + tipos; SEM mudança de comportamento do produto)
+`docs/ai-partner/agent-capabilities.md` (`agent-capabilities/1`) e `src/lib/agent/{contract,views,phrases}.ts` (constantes, schemas zod e catálogo de frases como dados; N=2, K=20, 8 chamadas/turno). Nada importa o módulo fora dele (travado por teste); sem capacidade, validador, `combineVerdict` ou projetor (E6.6). **Correção registrada:** a exibição dos slots usa as casas decimais do motor (R e razão 4), nunca um segundo arredondamento. Teste: `test-agent-contract-types.mts` (11). Baseline 726 → 737 ✓.
+

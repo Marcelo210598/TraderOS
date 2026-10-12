@@ -1,6 +1,6 @@
 # E6.5 — Contrato de capacidades para o agente: plano (E6.5-0)
 
-> Status: **E6.5-0 e E6.5-1 feitos** (plano, expectativas e `agent-capabilities.md`) — 12/10/2026. **Nada implementado.** O E6.5 é só desenho, documento e tipos; **sem integração com a Vega IA/LLM**, sem persistência, sem UI de produto. Decisões D1–D10 aprovadas pelo Marcelo com três ajustes (A1–A3).
+> Status: **E6.5-0, E6.5-1 e E6.5-2 feitos** (plano, expectativas, `agent-capabilities.md` e tipos/schemas em `src/lib/agent/`) — 12/10/2026. **Nada implementado.** O E6.5 é só desenho, documento e tipos; **sem integração com a Vega IA/LLM**, sem persistência, sem UI de produto. Decisões D1–D10 aprovadas pelo Marcelo com três ajustes (A1–A3).
 > Expectativas executáveis: `scripts/expectations/agent-contract.expected.json` (escritas **antes** de qualquer tipo; mudar exige `_meta.history`).
 > Tudo local: sem push, deploy, banco, Prisma, produção; sem dado real no repo.
 
@@ -47,7 +47,7 @@ Resposta mista: cada claim com o próprio veredito; o banner é o **pior**. O ag
 |---|---|---|
 | **E6.5-0** | Este plano + `agent-contract.expected.json` (**este commit**) | não |
 | **E6.5-1** | **FEITO.** `docs/ai-partner/agent-capabilities.md`: o contrato em texto (capacidades, envelope, ledger, slots, matriz de vereditos, A1 com o catálogo de frases, A3 com **N = 2** e **K** fixados, rotação, privacidade) | não |
-| **E6.5-2** | **Só tipos e schemas zod** em `src/lib/agent/contract.ts` (`CapabilityResult`, `EvidenceHandle`, `AgentAnswer`, `PromptView`, constantes N e K). Nenhuma capacidade, nada ligado | tipos |
+| **E6.5-2** | **FEITO** (`contract.ts`, `views.ts`, `phrases.ts`; `test-agent-contract-types.mts`, 11 testes, 6 mutações pegas; nada ligado). **Só tipos e schemas zod** em `src/lib/agent/contract.ts` (`CapabilityResult`, `EvidenceHandle`, `AgentAnswer`, `PromptView`, constantes N e K). Nenhuma capacidade, nada ligado | tipos |
 | **E6.5-3** | Testes estáticos do contrato (SG1–SG5) e extensão do `test-evidence-no-solo-verdict`; catálogo de frases conferido contra os códigos emitidos; teste dedicado da A2 **sobre a especificação** (a varredura real do drill-down é E6.6, quando houver projetor) | testes |
 
 **Fora do E6.5, precisa de aprovação própria (E6.6):** `combineVerdict`, o validador de respostas (AV1–AV21), as PromptViews e o projetor de rótulo como código. **Fora das duas fases:** integração com a Vega IA/LLM, armazenamento de arquivo, armazenamento real do chaveiro, UI de produto.

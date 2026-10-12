@@ -593,3 +593,6 @@ Sal gerenciado por usuário (≥ 256 bits, chaveiro versionado em memória), `sa
 
 ## 📝 12/10/2026 — E6.5-1: `agent-capabilities.md` (contrato do agente, SÓ DOCUMENTO) — só local, sem push
 N = 2 regerações, K = 20, envelope com verify+source+combined, catálogo de 8 capacidades, slots por unidade, 21 frases específicas (códigos conferidos contra o código-fonte), matriz de vereditos, rotação de sal/refEpoch, T0/T1/T2. Propostas em aberto: O-E/O-F/O-G. Próximo: E6.5-2 (só tipos e schemas).
+
+## 📝 12/10/2026 — E6.5-2: tipos e schemas do contrato do agente (SÓ TIPOS) — só local, sem push
+`src/lib/agent/{contract,views,phrases}.ts` + `test-agent-contract-types.mts` (11). PromptViews strict (T0 rejeitado em qualquer nível), handle de servidor × visão sem hash, 8 capacidades sem verify/verifySource, catálogo de frases. Corrigido no E6.5-1: exibição com as casas do motor; parada explícita por orçamento. Próximo: E6.5-3 (testes estáticos SG1–SG5 e extensão do guarda do veredito); E6.6 só com aprovação.
