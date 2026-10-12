@@ -13,7 +13,7 @@ export const SALT_ID_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/
 export const SALT_CHECK_RE = /^slt_[0-9a-f]{24}$/
 const SALT_CHECK_DOMAIN = "meutrade/saltCheck/1"
 
-export type SaltErrorCode = "E_SALT_WEAK" | "E_SALT_ID_INVALID" | "E_SALT_USER_INVALID" | "E_SALT_DUPLICATE" | "E_SALT_UNKNOWN_ID" | "E_SALT_CURRENT_CANNOT_RETIRE"
+export type SaltErrorCode = "E_SALT_WEAK" | "E_SALT_ID_INVALID" | "E_SALT_USER_INVALID" | "E_SALT_DUPLICATE" | "E_SALT_UNKNOWN_ID" | "E_SALT_CURRENT_CANNOT_RETIRE" | "E_SALT_NO_CURRENT"
 export class SaltError extends Error {
   readonly code: SaltErrorCode
   constructor(code: SaltErrorCode, message: string) {
@@ -86,10 +86,15 @@ export class InMemorySaltKeyring implements SaltProvider {
     this.#byUser.set(userId, [...list, { saltId, salt }])
   }
 
-  /** Cria o sal do usuário (s1) se ainda não houver nenhum; senão devolve o atual. Nunca devolve o valor do sal. */
+  /**
+   * Cria o sal do usuário (s1) SÓ se ele nunca teve nenhum; se já tem, devolve o atual. Nunca devolve o valor do sal.
+   * Usuário que tem registros mas nenhum atual (último aposentado) NÃO é curado em silêncio: lança E_SALT_NO_CURRENT e a geração fica
+   * bloqueada até uma ação administrativa explícita (`rotate`). Fail-closed de propósito.
+   */
   ensure(userId: string): { saltId: string } {
     const cur = this.current(userId)
     if (cur) return { saltId: cur.saltId }
+    if (this.#entries(userId).length > 0) throw new SaltError("E_SALT_NO_CURRENT", "o usuário tem sais mas nenhum atual (o último foi aposentado): rotacione explicitamente")
     return this.rotate(userId)
   }
 

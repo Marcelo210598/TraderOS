@@ -77,7 +77,11 @@ test("P3b — aposentar apaga o VALOR e mantém o registro (RETIRED); o atual n�
   assert.equal(k.current("u1")!.saltId, "s2")
   // regra "só o último gera": último registro aposentado (carregado de fora) ⇒ sem sal atual, não cai para o antigo
   const k2 = InMemorySaltKeyring.from([{ userId: "u", saltId: "s1", salt: generateSalt() }, { userId: "u", saltId: "s2", salt: null }])
-  assert.equal(k2.current("u"), null); assert.equal(k2.get("u", "s1").status, "ACTIVE"); assert.equal((k2.get("u", "s1") as Any).current, false)
+  throwsCode(() => k2.ensure("u"), "E_SALT_NO_CURRENT") // bloqueio explícito: ensure NÃO recria sal em silêncio
+  assert.equal(k2.current("u"), null, "continua sem atual depois do ensure recusado")
+  assert.deepEqual(k2.rotate("u"), { saltId: "s3" }); assert.equal(k2.current("u")!.saltId, "s3") // só a ação explícita destrava
+  const k3 = InMemorySaltKeyring.from([{ userId: "u", saltId: "s1", salt: generateSalt() }, { userId: "u", saltId: "s2", salt: null }])
+  assert.equal(k3.current("u"), null); assert.equal(k2.get("u", "s1").status, "ACTIVE"); assert.equal((k2.get("u", "s1") as Any).current, false)
 })
 
 test("P3c — usuários não se enxergam; userId inválido e saltId inválido/duplicado/fraco são erros com código", () => {
