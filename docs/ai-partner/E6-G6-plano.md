@@ -102,7 +102,8 @@ Consequências para o contrato do agente (E6.5):
 1. Toda capacidade que devolve um número/derivado devolve **os dois** veredictos sobre o **mesmo `evidenceHash`**: `verify` (VALID/TAMPERED/UNVERIFIABLE/INVALID_FORMAT, com V6 quando há derivados) e `source` (SOURCE_VERIFIED/…_PARTIAL/SOURCE_MISMATCH/UNVERIFIABLE, ou "não executado").
 2. Só se afirma "verificado" com `verify = VALID` **e** `source` ∈ {SOURCE_VERIFIED, SOURCE_VERIFIED_PARTIAL (dito como parcial)}. `source` sozinho, ou `verify` sozinho, ⇒ o agente declara a limitação em vez de afirmar.
 3. Nenhum campo "ok"/"verified" agregado pode existir sem trazer os dois componentes e o escopo (população declarada, não a importação inteira).
-4. Teste-guarda: `scripts/test-evidence-no-solo-verdict.mts` (trava os consumidores atuais; o E6.5 deve estendê-lo).
+4. **Semântica do veredito combinado** (UNVERIFIABLE incluído): `VERIFIED` = verify `VALID` ∧ source `SOURCE_VERIFIED`; `VERIFIED_PARTIAL` = `VALID` ∧ `SOURCE_VERIFIED_PARTIAL` (dito como parcial); **`NOT_VERIFIED` = qualquer `UNVERIFIABLE` (do verify ou do source — inclusive por arquivo ausente, versão, HASH_ONLY e, a partir do S4b do plano do `sourceLabel`, mapa do usuário ausente/divergente) — não é ok e **não** é adulteração**; `TAMPERED_OR_MISMATCH` = verify `TAMPERED`/`INVALID_FORMAT` ∨ source `SOURCE_MISMATCH`.
+5. Teste-guarda: `scripts/test-evidence-no-solo-verdict.mts` (trava os consumidores atuais; o E6.5 deve estendê-lo).
 
 ## 7. Riscos e mitigação
 

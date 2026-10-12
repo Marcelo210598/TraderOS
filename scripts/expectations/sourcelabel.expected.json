@@ -12,7 +12,15 @@
       "E": "token/patternRef sem exigência de sal; política de sal por usuário pendente (vale para accountRef, strategyRef, labelRef, patternRef)"
     },
     "note": "Tudo abaixo foi escrito ANTES de qualquer código do sourceLabel. 'TOKEN' = string que casa /^lbl_[0-9a-f]{24}$/. Os pins de baseline são do código ANTERIOR à mudança (commit 804def3).",
-    "history": []
+    "history": [
+      {
+        "date": "2026-10-12",
+        "what": "S0b: 9 bundles pinados para a prova de remoção de labelVocab (inclui metric+derived) + expectativa do teste-guarda para o mapa do usuário (S4b)",
+        "why": "pedido de revisão: um único bundle é pouca evidência para uma mudança de hash que afeta todo bundle novo",
+        "before_code": true,
+        "baseline_commit": "804def3 (código inalterado nestes caminhos)"
+      }
+    ]
   },
   "vocabulary": {
     "version": 1,
@@ -295,6 +303,187 @@
         "trades": 13,
         "tradeSetHash": "a8f2163ddf24c579d5c601375651cd11838b3906adb70ab11d47d119d3d03c0b"
       }
+    },
+    "removal_proof": {
+      "rule": "Para CADA bundle abaixo (só rótulos padrão, mapa de usuário vazio): construir com o código novo, remover a chave `labelVocab` de TODO ImportRef, recalcular o selo (computeEvidenceHash) ⇒ evidenceHash === baseline. Além disso o bundle novo tem evidenceHash ≠ baseline (o campo labelVocab entrou) e verifyEvidence continua com o MESMO status do baseline.",
+      "bundles": {
+        "lab-demo/netPnl": {
+          "build": "buildBundle(demo,{metricId:'netPnl',view:{pnl:'NET',r:'NET'}})",
+          "baseline": {
+            "evidenceHash": "276b5094a060a1605b4380f818a23bc39b3ac5998068fdfc589e019055bbd392",
+            "importId": "imp_6101dd1f17405bd6ca6d6e5c78a28c8c",
+            "firstTradeId": "trd_044deedd8b1494a92c012d0b4f8b94ae",
+            "firstRowHash": "bf34d94d813780c562724b9cce5113f1392e3232bdd3e878bd16355b55f1a364",
+            "trades": 14,
+            "imports": 1,
+            "verify": "VALID",
+            "labels": [
+              "Entry",
+              "Stop1",
+              "Target1",
+              "Target2"
+            ],
+            "allLabelsStandard": true
+          }
+        },
+        "lab-demo/largestWinner@limit3(HASH_ONLY)": {
+          "build": "buildBundle(demo,{metricId:'largestWinner',view:NET,tradeIdsLimit:3})",
+          "baseline": {
+            "evidenceHash": "feee491d07a49e806ae567b8a1f181bbdf9582ad98444efc0507c8468fe6c15b",
+            "importId": "imp_6101dd1f17405bd6ca6d6e5c78a28c8c",
+            "firstTradeId": "trd_a49b7f2edf79194ff803d47c754649a7",
+            "firstRowHash": "1618f29da031ad5c6d308f323806a12795f6801cfc0ef4af2921b6fb61ae10cc",
+            "trades": 1,
+            "imports": 1,
+            "verify": "UNVERIFIABLE",
+            "labels": [
+              "Entry",
+              "Target1",
+              "Target2"
+            ],
+            "allLabelsStandard": true
+          }
+        },
+        "lab-demo/netPnl@account#0": {
+          "build": "buildBundle(demo,{metricId:'netPnl',view:NET,by:'account',group:0})",
+          "baseline": {
+            "evidenceHash": "bdab28251ce30f1069b36257600303873e44d5a6d3ffc2b3f6548590c9ee20d8",
+            "importId": "imp_6101dd1f17405bd6ca6d6e5c78a28c8c",
+            "firstTradeId": "trd_2742025115480e0250542b4f2589178f",
+            "firstRowHash": "16850b2072c73c47cc8b7a2b1a17b799cd553deeda7266a7a1fbb08951828016",
+            "trades": 9,
+            "imports": 1,
+            "verify": "VALID",
+            "labels": [
+              "Entry",
+              "Stop1",
+              "Target1",
+              "Target2"
+            ],
+            "allLabelsStandard": true
+          }
+        },
+        "lab-demo/maxDrawdownR": {
+          "build": "buildBundle(demo,{metricId:'maxDrawdownR',view:NET})",
+          "baseline": {
+            "evidenceHash": "a55e1f2688a90ee34d71474db627b9b66d65aaaef0400e06a6c334da35ca15ee",
+            "importId": "imp_6101dd1f17405bd6ca6d6e5c78a28c8c",
+            "firstTradeId": "trd_044deedd8b1494a92c012d0b4f8b94ae",
+            "firstRowHash": "bf34d94d813780c562724b9cce5113f1392e3232bdd3e878bd16355b55f1a364",
+            "trades": 14,
+            "imports": 1,
+            "verify": "VALID",
+            "labels": [
+              "Entry",
+              "Stop1",
+              "Target1",
+              "Target2"
+            ],
+            "allLabelsStandard": true
+          }
+        },
+        "lab-demo/metric+derived(GROUP_RANKING account)": {
+          "build": "bundle de netPnl (buildBundle) + evidence.derived=[explainDerived({op:'GROUP_RANKING',args:{groupBy:'account'},options:{timeZone:'America/Sao_Paulo',minSample:4}}, trades:demo.analytics)] e selo recalculado (computeEvidenceHash)",
+          "baseline": {
+            "evidenceHash": "7162879dd957ac8332a976382e4d85bdb3dec7c92c01fab425e6b8012e2a65a2",
+            "importId": "imp_6101dd1f17405bd6ca6d6e5c78a28c8c",
+            "firstTradeId": "trd_044deedd8b1494a92c012d0b4f8b94ae",
+            "firstRowHash": "bf34d94d813780c562724b9cce5113f1392e3232bdd3e878bd16355b55f1a364",
+            "trades": 14,
+            "imports": 1,
+            "verify": "VALID",
+            "labels": [
+              "Entry",
+              "Stop1",
+              "Target1",
+              "Target2"
+            ],
+            "allLabelsStandard": true,
+            "derivedId": "drv_bc61d862f13d437792ec5fa8af963a2f",
+            "derivedTradeSetHash": "fda36861daf93ec8329113b8340f080f43806ab8b201032948355e07ab7c3171"
+          }
+        },
+        "lab-demo/derived-only(EXIT_REASON_ANALYSIS)": {
+          "build": "derivedEvidenceBundle(explainDerived({op:'EXIT_REASON_ANALYSIS',args:{}, options as above}, demo.analytics))",
+          "baseline": {
+            "evidenceHash": "9e50ce1035d5e562a75e09a7cf26f6b739e6960fe25494b4dcc5098b76b476ae",
+            "importId": "imp_6101dd1f17405bd6ca6d6e5c78a28c8c",
+            "firstTradeId": "trd_044deedd8b1494a92c012d0b4f8b94ae",
+            "firstRowHash": "bf34d94d813780c562724b9cce5113f1392e3232bdd3e878bd16355b55f1a364",
+            "trades": 14,
+            "imports": 1,
+            "verify": "VALID",
+            "labels": [
+              "Entry",
+              "Stop1",
+              "Target1",
+              "Target2"
+            ],
+            "allLabelsStandard": true,
+            "derivedId": "drv_fec810cacf0a94184eced568decb9575"
+          }
+        },
+        "lab-demo/derived-only(LEG_GROUP_RANKING hour STOP)": {
+          "build": "derivedEvidenceBundle(explainDerived({op:'LEG_GROUP_RANKING',args:{groupBy:'hour',reason:'STOP'}, options as above}))",
+          "baseline": {
+            "evidenceHash": "c9b32487f178321f11f79a5c4258e6cd2bc992437615ad4dd534260d8df76be7",
+            "importId": "imp_6101dd1f17405bd6ca6d6e5c78a28c8c",
+            "firstTradeId": "trd_044deedd8b1494a92c012d0b4f8b94ae",
+            "firstRowHash": "bf34d94d813780c562724b9cce5113f1392e3232bdd3e878bd16355b55f1a364",
+            "trades": 14,
+            "imports": 1,
+            "verify": "VALID",
+            "labels": [
+              "Entry",
+              "Stop1",
+              "Target1",
+              "Target2"
+            ],
+            "allLabelsStandard": true,
+            "derivedId": "drv_77b76d31b3b988bf1418313462cf7827"
+          }
+        },
+        "lab-demo/derived-only(HASH_ONLY, limit 3)": {
+          "build": "derivedEvidenceBundle(explainDerived({op:'GROUP_RANKING',args:{groupBy:'account'}, options: {...as above, tradeIdsLimit:3}}))",
+          "baseline": {
+            "evidenceHash": "26c67e2274c63acd78c757f86625dc8d640566bd43e7b3abbe79bb5f79a760b8",
+            "importId": null,
+            "firstTradeId": null,
+            "firstRowHash": null,
+            "trades": 0,
+            "imports": 0,
+            "verify": "UNVERIFIABLE",
+            "labels": [],
+            "allLabelsStandard": true,
+            "derivedId": "drv_05b0f6b20b81d200e0797e3325d38e0d"
+          }
+        },
+        "lab-demo-rows(SOURCE_ROW)/netPnl": {
+          "build": "runImportPipeline(demoCsv(),{reconstructCycles:false}) → toAnalyticsTrades(run.trades) → explainMetric('netPnl') → metricEvidenceBundle",
+          "baseline": {
+            "evidenceHash": "7848af81bffc6533c1a70374d7a6e3792ccf9b7863407d17a01b96e447e7b625",
+            "importId": "imp_6101dd1f17405bd6ca6d6e5c78a28c8c",
+            "firstTradeId": "trd_0afcc7da2270b34741f0b506bda30e08",
+            "firstRowHash": "7e85f579dafcc481ad454ac5876180dd77f62f658b37035a09482d0e24a9d570",
+            "trades": 16,
+            "imports": 1,
+            "verify": "VALID",
+            "labels": [],
+            "allLabelsStandard": true
+          }
+        }
+      },
+      "min_bundles": 9,
+      "must_include_kinds": [
+        "métrica total",
+        "HASH_ONLY",
+        "métrica por grupo",
+        "métrica sequencial",
+        "metric+derived no mesmo bundle",
+        "derived-only",
+        "derived HASH_ONLY",
+        "SOURCE_ROW"
+      ]
     }
   },
   "e5b": {
@@ -377,5 +566,41 @@
     "importId/rowHash/tradeId/tradeSetHash e métricas/V6 idênticos aos pins; E5b e V0–V4 nos baselines",
     "E5b reproduz tokens e detecta token adulterado; mapa de usuário fornecido/ausente/divergente tratado como acima",
     "test:domain, tsc (+.mts) e ESLint do escopo verdes; sem push/deploy/banco/Prisma"
-  ]
+  ],
+  "guard_no_solo_verdict": {
+    "combined_semantics": {
+      "VERIFIED": "verifyEvidence = VALID E source = SOURCE_VERIFIED",
+      "VERIFIED_PARTIAL": "verifyEvidence = VALID E source = SOURCE_VERIFIED_PARTIAL (dito como parcial)",
+      "NOT_VERIFIED": "qualquer UNVERIFIABLE (do verify OU do source) — NÃO é ok e NÃO é adulteração",
+      "TAMPERED_OR_MISMATCH": "verify ∈ {TAMPERED, INVALID_FORMAT} OU source = SOURCE_MISMATCH"
+    },
+    "S4b_cases": {
+      "user_map_not_supplied": {
+        "source": "UNVERIFIABLE",
+        "code": "S_CONTEXT_INSUFFICIENT",
+        "verify": "VALID",
+        "combined": "NOT_VERIFIED",
+        "has_FAIL": false
+      },
+      "user_map_wrong": {
+        "source": "UNVERIFIABLE",
+        "code": "S_CONTEXT_INSUFFICIENT",
+        "verify": "VALID",
+        "combined": "NOT_VERIFIED",
+        "has_FAIL": false
+      },
+      "user_map_correct": {
+        "source": "SOURCE_VERIFIED",
+        "verify": "VALID",
+        "combined": "VERIFIED"
+      },
+      "empty_map": {
+        "source": "SOURCE_VERIFIED",
+        "verify": "VALID",
+        "combined": "VERIFIED",
+        "note": "inalterado"
+      }
+    },
+    "note": "O teste-guarda (scripts/test-evidence-no-solo-verdict.mts) cobre HOJE: leitura isolada de SOURCE_VERIFIED e UNVERIFIABLE do E5b por arquivo ausente, versão incompatível e HASH_ONLY. Os 3 casos de mapa do usuário só passam a existir no S4b: nesse passo o guarda é estendido para ler estes casos e rodá-los de verdade."
+  }
 }
