@@ -596,3 +596,6 @@ N = 2 regerações, K = 20, envelope com verify+source+combined, catálogo de 8 
 
 ## 📝 12/10/2026 — E6.5-2: tipos e schemas do contrato do agente (SÓ TIPOS) — só local, sem push
 `src/lib/agent/{contract,views,phrases}.ts` + `test-agent-contract-types.mts` (11). PromptViews strict (T0 rejeitado em qualquer nível), handle de servidor × visão sem hash, 8 capacidades sem verify/verifySource, catálogo de frases. Corrigido no E6.5-1: exibição com as casas do motor; parada explícita por orçamento. Próximo: E6.5-3 (testes estáticos SG1–SG5 e extensão do guarda do veredito); E6.6 só com aprovação.
+
+## ✅ 12/10/2026 — E6.5 concluído (contrato do agente: só desenho + tipos + testes estáticos) — só local, sem push
+`agent-capabilities.md`, `src/lib/agent/{contract,views,phrases}.ts`, `test-agent-contract-{types,static}.mts`. PRÉ-REQUISITO OBRIGATÓRIO do E6.6: `combineVerdict` único + handle rejeitando `combined` inconsistente (o schema aceita hoje; KG1 trava isso). Sem Vega IA, sem implementação de capacidade. Pendências: E6.6 (aprovação própria), armazenamento do arquivo e do chaveiro, E5c, vocabulário v2.

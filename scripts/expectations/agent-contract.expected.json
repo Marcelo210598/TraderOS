@@ -8,7 +8,9 @@
       "2026-10-12 E6.5-1 (ajustes pós-revisão do Marcelo): O-E aprovado COM exigência de parada explícita (AV22, stop_reasons); O-F aprovado COM confirmação de que é só exibição — e CORRIGIDO por mim: casas decimais da exibição = as do motor (R 4, razão 4, pontos até 6), não 2 para tudo (erro meu na proposta, achado ao ler exact.ts); AV23 (empate) adicionado.",
       "2026-10-12 E6.5-2: schema_cases SC1–SC12 escritos antes dos tipos. Duas frases de escopo que o §6.1 do documento exigia mas não catalogava foram acrescentadas por mim (POPULATION_DECLARED, INDICATIVE_ONLY) e entram no catálogo/documento.",
       "2026-10-12 E6.5-2 EXECUTADO: SC1–SC12 verdes em scripts/test-agent-contract-types.mts (11 testes), 6 mutações pegas. Fora do previsto: handle de servidor × visão do modelo (sem evidenceHash) virou dois schemas; o mapa de PromptViews ficou como rascunho v1 (E6.6 pode refinar com bump).",
-      "2026-10-12 E6.5-3 (expectativas antes dos testes): prosa de L_SALT_CHECK_DIVERGENT trocada a pedido do Marcelo ('inconsistência interna no registro de sal que não afeta este valor'); pré-requisito OBRIGATÓRIO do E6.6 registrado (combined inconsistente aceito hoje pelo schema)."
+      "2026-10-12 E6.5-3 (expectativas antes dos testes): prosa de L_SALT_CHECK_DIVERGENT trocada a pedido do Marcelo ('inconsistência interna no registro de sal que não afeta este valor'); pré-requisito OBRIGATÓRIO do E6.6 registrado (combined inconsistente aceito hoje pelo schema).",
+      "2026-10-12 E6.5-3: o teste X1 (expectativas × contrato) achou que AV22 não tinha o campo `reason` (INCOMPLETE_PRESENTED_AS_COMPLETE só estava no texto); campo acrescentado. O teste SG3b achou negrito markdown numa frase do documento (S_SALT_UNKNOWN); o documento foi corrigido (o texto canônico é sem formatação).",
+      "2026-10-12 E6.5-3 EXECUTADO: SG1/SG3/SG3b/SG4/SG5/A2/X1/KG1 (test-agent-contract-static.mts, 8) + SG2 (extensão do no-solo-verdict, +1); 8 mutações pegas (inclui a simulação do fechamento da lacuna, que quebra por .omit())."
     ]
   },
   "principles": [
@@ -313,7 +315,8 @@
       "requested_by": "Marcelo 12/10/2026 (O-E)",
       "setup": "o turno estourou as 8 chamadas de capacidade (BUDGET_EXCEEDED)",
       "expected": "PARAR e DECLARAR: a resposta final (sem ferramentas) DEVE conter a frase canônica BUDGET_LIMIT_REACHED (renderizada pelo servidor) e só pode afirmar o que está sustentado por chamadas JÁ concluídas, cada uma com o próprio veredito; sem a frase ⇒ REJECT_WITH_FEEDBACK INCOMPLETE_PRESENTED_AS_COMPLETE; NUNCA truncar e responder como se tivesse terminado",
-      "regeneration": "o orçamento de regeração (N=2) vale para esta resposta final; esgotado ⇒ resposta canônica de falha, que TAMBÉM carrega a frase de limite"
+      "regeneration": "o orçamento de regeração (N=2) vale para esta resposta final; esgotado ⇒ resposta canônica de falha, que TAMBÉM carrega a frase de limite",
+      "reason": "INCOMPLETE_PRESENTED_AS_COMPLETE"
     },
     "AV23_tie_overclaim": {
       "status": "approved",
@@ -508,7 +511,8 @@
     "status": "approved",
     "requested_by": "Marcelo 12/10/2026",
     "text": "combineVerdict como ÚNICA fonte do combined; EvidenceHandleSchema rejeita combined ≠ combineVerdict(verify, source); nenhum handle construído sem a função; o teste da LACUNA CONHECIDA (E6.5-3) vira falha e é trocado por teste de rejeição + matriz completa verify×source×combined; nada do E6.6 é mesclado antes.",
-    "known_gap_today": "o schema do E6.5-2 aceita verify=TAMPERED com combined=VERIFIED"
+    "known_gap_today": "o schema do E6.5-2 aceita verify=TAMPERED com combined=VERIFIED",
+    "technical_note": "zod 4: .omit() não funciona em schema com refine. O E6.6 precisa de EvidenceHandleBase (sem refine) → handle de servidor (base+refine) e visão do modelo (base.omit+refine). Achado ao simular o fechamento da lacuna."
   },
   "static_cases_e65_3": {
     "KG1_known_gap_documented": "teste dedicado documenta e TRAVA o estado atual (o schema aceita combined inconsistente); quando o E6.6 fechar a lacuna este teste QUEBRA de propósito",

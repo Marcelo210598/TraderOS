@@ -79,3 +79,6 @@ Contrato §14.14 reescrito (política implementada, regras do leitor, rotação,
 ## 12/10/2026 — E6.5-1/E6.5-2: contrato do agente (documento + tipos; SEM mudança de comportamento do produto)
 `docs/ai-partner/agent-capabilities.md` (`agent-capabilities/1`) e `src/lib/agent/{contract,views,phrases}.ts` (constantes, schemas zod e catálogo de frases como dados; N=2, K=20, 8 chamadas/turno). Nada importa o módulo fora dele (travado por teste); sem capacidade, validador, `combineVerdict` ou projetor (E6.6). **Correção registrada:** a exibição dos slots usa as casas decimais do motor (R e razão 4), nunca um segundo arredondamento. Teste: `test-agent-contract-types.mts` (11). Baseline 726 → 737 ✓.
 
+## 12/10/2026 — E6.5-3: testes estáticos do contrato do agente (sem mudança de comportamento do produto)
+Isolamento do módulo (SG1), catálogo de frases derivado dos `S_*` emitidos pelo código (SG3) e **sincronizado com o documento** (SG3b), o prompt não aceita bundle (SG4), projeção de rótulo única (SG5), expectativas × contrato (X1) e a **lacuna conhecida do `combined`** travada de propósito (KG1) como **pré-requisito obrigatório do E6.6**. Extensão do guarda do veredito (SG2). Prosa de `L_SALT_CHECK_DIVERGENT` atualizada. Baseline 737 → 746 ✓.
+

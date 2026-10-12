@@ -10,6 +10,8 @@ import { DERIVED_SCENARIOS, derivedContext, runDerivedScenario } from "../src/li
 import { buildDemo } from "../src/lib/dev/evidence-lab/model.ts"
 import { SOURCE_SCENARIOS, runSourceScenario, sourceContext } from "../src/lib/dev/evidence-lab/source.ts"
 import { SOURCE_LIMITATIONS } from "../src/lib/evidence/verify-source.ts"
+import { EvidenceHandleSchema, VerdictSchema, capabilityResultSchema } from "../src/lib/agent/contract.ts"
+import * as agentViews from "../src/lib/agent/views.ts"
 
 const env = process.env as Record<string, string | undefined>
 const ORIGINAL_ENV = env.NODE_ENV
@@ -128,4 +130,36 @@ test("E6.5: a regra do VEREDITO COMBINADO está escrita no plano (6.1); o teste-
 
 env.NODE_ENV = ORIGINAL_ENV
 if (ORIGINAL_ENV === undefined) delete env.NODE_ENV
+test("E6.5 / SG2 (extensão para o AGENTE): o veredito do contrato tem EXATAMENTE {verify, source, combined}; nenhum schema do contrato tem chave agregada ('verified', 'valid', 'trusted', 'allOk'…); 'ok' só no topo do CapabilityResult (= a capacidade executou, não veredito); source/verify nunca aparecem sozinhos num handle", () => {
+  const views = agentViews
+  const keysOf = (schema: Any, out = new Set<string>(), seen = new Set<unknown>()): Set<string> => {
+    if (!schema || seen.has(schema)) return out
+    seen.add(schema)
+    const def = schema._zod?.def ?? schema.def
+    if (!def) return out
+    if (def.type === "object") for (const [k, v] of Object.entries(def.shape as Record<string, unknown>)) { out.add(k); keysOf(v, out, seen) }
+    else if (def.type === "array") keysOf(def.element, out, seen)
+    else if (def.type === "optional" || def.type === "nullable") keysOf(def.innerType, out, seen)
+    else if (def.type === "union") for (const o of def.options) keysOf(o, out, seen)
+    return out
+  }
+  assert.deepEqual([...keysOf(VerdictSchema)].filter((k) => !["status", "codes"].includes(k)).sort(), ["combined", "source", "verify"], "o verdict tem de ter os DOIS componentes e o combinado, e nada mais")
+  const AGGREGATE = /^(ok|verified|isverified|valid|isvalid|trusted|allok|passed|safe|confirmed)$/i
+  const handleKeys = keysOf(EvidenceHandleSchema)
+  assert.equal([...handleKeys].some((k) => AGGREGATE.test(k)), false, "o handle não pode ter campo agregado")
+  const results = Object.values(views.PROMPT_VIEWS).map((v) => capabilityResultSchema(v as Any))
+  for (const [name, schema] of [...Object.entries(views).filter(([k]) => /Schema$/.test(k)), ...results.map((r, n) => [`CapabilityResult#${n}`, r] as [string, unknown])] as Array<[string, Any]>) {
+    const bad = [...keysOf(schema)].filter((k) => AGGREGATE.test(k) && !(k === "ok" && name.startsWith("CapabilityResult")))
+    assert.deepEqual(bad, [], `${name}: chave agregada de veredito ${bad.join(",")}`)
+  }
+  // um verdict só com um dos componentes é inválido (a própria regra do §6.1)
+  assert.equal(VerdictSchema.safeParse({ verify: { status: "VALID", codes: [] }, combined: "VERIFIED" }).success, false)
+  assert.equal(VerdictSchema.safeParse({ source: { status: "SOURCE_VERIFIED", codes: [] }, combined: "VERIFIED" }).success, false)
+  // todo arquivo do agente que cita SOURCE_VERIFIED também define o status do verify (os dois componentes juntos)
+  for (const f of walk(join(ROOT, "src/lib/agent")).filter((x) => x.endsWith(".ts"))) {
+    const code = readFileSync(f, "utf8").replace(/\/\/.*$/gm, "")
+    if (/SOURCE_VERIFIED/.test(code)) assert.ok(/VerifyStatusSchema/.test(code) && /"VALID"/.test(code), `${f.replace(ROOT, "")}: cita o estado do E5b sem o do verify`)
+  }
+})
+
 console.log(`\n${passed} testes ok`)

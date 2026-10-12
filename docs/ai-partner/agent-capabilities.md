@@ -145,7 +145,7 @@ Resposta mista: cada claim com o próprio modo; banner da resposta = o **pior**.
 | `S_ROWHASH_MISSING` | Faltam as marcas de linha necessárias para ligar este valor ao arquivo. |
 | `S_NO_IMPORTS` | Este valor não tem nenhuma importação associada; não há arquivo a conferir. |
 | `S_DERIVED_TRADES_NOT_VERIFIED` | Parte dos trades que sustentam esta análise não pôde ser conferida com o arquivo. |
-| `S_SALT_UNKNOWN` | Não há mais sal conhecido que reproduza as identificações deste valor; **isto não é prova de integridade** (nada que dependa do sal foi conferido). |
+| `S_SALT_UNKNOWN` | Não há mais sal conhecido que reproduza as identificações deste valor; isto não é prova de integridade (nada que dependa do sal foi conferido). |
 | `S_SALT_RETIRED` | O sal usado neste valor foi aposentado; regere a análise para voltar a conferi-la. |
 | `S_NO_METRICS` | Não há métrica neste resultado para conferir. |
 | `S_HASH_ONLY` | A população é grande demais para ser listada: só a assinatura dela foi conferida, não cada trade. |

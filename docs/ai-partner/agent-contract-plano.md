@@ -1,6 +1,6 @@
 # E6.5 — Contrato de capacidades para o agente: plano (E6.5-0)
 
-> Status: **E6.5-0, E6.5-1 e E6.5-2 feitos** (plano, expectativas, `agent-capabilities.md` e tipos/schemas em `src/lib/agent/`) — 12/10/2026. **Nada implementado.** O E6.5 é só desenho, documento e tipos; **sem integração com a Vega IA/LLM**, sem persistência, sem UI de produto. Decisões D1–D10 aprovadas pelo Marcelo com três ajustes (A1–A3).
+> Status: **E6.5-0 a E6.5-3 FEITOS — E6.5 concluído (só desenho + tipos + testes estáticos)**; antes dos passos seguintes vale o §6.1 (pré-requisito obrigatório do E6.6). Antes: E6.5-0, E6.5-1 e E6.5-2 (plano, expectativas, `agent-capabilities.md` e tipos/schemas em `src/lib/agent/`) — 12/10/2026. **Nada implementado.** O E6.5 é só desenho, documento e tipos; **sem integração com a Vega IA/LLM**, sem persistência, sem UI de produto. Decisões D1–D10 aprovadas pelo Marcelo com três ajustes (A1–A3).
 > Expectativas executáveis: `scripts/expectations/agent-contract.expected.json` (escritas **antes** de qualquer tipo; mudar exige `_meta.history`).
 > Tudo local: sem push, deploy, banco, Prisma, produção; sem dado real no repo.
 
@@ -48,7 +48,7 @@ Resposta mista: cada claim com o próprio veredito; o banner é o **pior**. O ag
 | **E6.5-0** | Este plano + `agent-contract.expected.json` (**este commit**) | não |
 | **E6.5-1** | **FEITO.** `docs/ai-partner/agent-capabilities.md`: o contrato em texto (capacidades, envelope, ledger, slots, matriz de vereditos, A1 com o catálogo de frases, A3 com **N = 2** e **K** fixados, rotação, privacidade) | não |
 | **E6.5-2** | **FEITO** (`contract.ts`, `views.ts`, `phrases.ts`; `test-agent-contract-types.mts`, 11 testes, 6 mutações pegas; nada ligado). **Só tipos e schemas zod** em `src/lib/agent/contract.ts` (`CapabilityResult`, `EvidenceHandle`, `AgentAnswer`, `PromptView`, constantes N e K). Nenhuma capacidade, nada ligado | tipos |
-| **E6.5-3** | Testes estáticos do contrato (SG1–SG5) e extensão do `test-evidence-no-solo-verdict`; catálogo de frases conferido contra os códigos emitidos; teste dedicado da A2 **sobre a especificação** (a varredura real do drill-down é E6.6, quando houver projetor) | testes |
+| **E6.5-3** | **FEITO** (`test-agent-contract-static.mts`, 8; SG2 em `test-evidence-no-solo-verdict.mts`, +1; 8 mutações pegas; catálogo e documento sincronizados por teste). Testes estáticos do contrato (SG1–SG5) e extensão do `test-evidence-no-solo-verdict`; catálogo de frases conferido contra os códigos emitidos; teste dedicado da A2 **sobre a especificação** (a varredura real do drill-down é E6.6, quando houver projetor) | testes |
 
 **Fora do E6.5, precisa de aprovação própria (E6.6):** `combineVerdict`, o validador de respostas (AV1–AV21), as PromptViews e o projetor de rótulo como código. **Fora das duas fases:** integração com a Vega IA/LLM, armazenamento de arquivo, armazenamento real do chaveiro, UI de produto.
 
@@ -59,6 +59,7 @@ O schema do E6.5-2 **ainda aceita um `EvidenceHandle` com `combined` inconsisten
 3. nenhum handle pode ser construído sem passar por ela;
 4. o teste da LACUNA CONHECIDA (`test-agent-contract-static.mts`) **vira falha** assim que o schema passar a rejeitar — quem fechar o E6.6 é obrigado a trocá-lo por um teste de rejeição, e a matriz completa (verify × source × combined) é testada;
 5. **nenhuma capacidade, validador ou PromptView do E6.6 pode ser mesclado antes dos itens 1–3.**
+6. **Nota técnica (achada na mutação do KG1 no E6.5-3):** zod 4 não permite `.omit()` em schema com refinamento. Hoje `EvidenceHandleViewSchema = EvidenceHandleSchema.omit({ evidenceHash })`; ao acrescentar o refine ao handle a visão quebra na importação. O E6.6 precisa de uma **base sem refinamento** (`EvidenceHandleBase`), da qual saem o handle de servidor (base + refine) e a visão do modelo (base.omit + o MESMO refine), como já foi feito com `ReproducibilityBase`. O KG1 quebraria por esse erro de importação antes de chegar à asserção: ao fechar a lacuna, ajuste o teste junto.
 Registrado também em `agent-capabilities.md` §9 e em `agent-contract.expected.json` (`e66_mandatory_prerequisites`).
 
 ## 7. Dependências e riscos
