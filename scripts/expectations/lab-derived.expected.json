@@ -1,0 +1,95 @@
+{
+  "_meta": {
+    "frozen": "2026-10-12",
+    "after_execution": true,
+    "note": "Congelado APÓS a execução verificada dos 17 cenários (os vereditos já estavam no campo `expected` de derived.ts antes da 1ª execução, mas sem arquivo separado). Trava contra regressão, não previsão independente. v6 = status dos 8 checks do V6 na ordem do catálogo (P=PASS, F=FAIL, S=SKIPPED).",
+    "history": []
+  },
+  "scenarios": {
+    "rank-hour": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "compare-acc": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "compare-period": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "exit-analysis": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "compare-legs": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "leg-rank": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "small-sample": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "unavailable": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "divergence": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_MISMATCH"
+    },
+    "forged-value": {
+      "verdict": "TAMPERED",
+      "v6": "PPPPFPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "forged-delta": {
+      "verdict": "TAMPERED",
+      "v6": "PPPPPFPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "forged-quality": {
+      "verdict": "TAMPERED",
+      "v6": "PPPPPPFP",
+      "e5b": "SOURCE_MISMATCH"
+    },
+    "invalid-ref": {
+      "verdict": "TAMPERED",
+      "v6": "PPFSSSSS",
+      "e5b": "SOURCE_VERIFIED_PARTIAL"
+    },
+    "swapped-dim": {
+      "verdict": "TAMPERED",
+      "v6": "PPPPFFFP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "hash-only": {
+      "verdict": "UNVERIFIABLE",
+      "v6": "PPPSSSSS",
+      "e5b": "UNVERIFIABLE"
+    },
+    "version": {
+      "verdict": "UNVERIFIABLE",
+      "v6": "SPPPSSSS",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "strategy-dim": {
+      "verdict": "UNVERIFIABLE",
+      "v6": "PSPPSSSS",
+      "e5b": "SOURCE_VERIFIED"
+    }
+  }
+}

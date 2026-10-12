@@ -1,0 +1,18 @@
+{
+  "_meta": {
+    "written": "2026-10-12",
+    "before_implementation": true,
+    "note": "Resultado esperado de cada adulteração de refs.legs.items de um derivado LEG_GROUP_RANKING (selo refeito). V6 = verifyEvidence; E5b = verifyEvidenceSource (check V5.derived). Divisão de responsabilidade: o E5b confere CADA perna citada contra a reingestão do CSV e nunca deixa uma citação não conferida passar como PASS; a completude/ordem/duplicidade da LISTA de citações é do V6 (recálculo).",
+    "history": []
+  },
+  "cases": {
+    "legIndex_fora_do_intervalo": { "v6": { "V6.refs": "FAIL" }, "v6Status": "TAMPERED", "e5b": { "V5.derived": "FAIL", "code": "V_DERIVED_LEG_REF_MISMATCH" }, "e5bStatus": "SOURCE_MISMATCH" },
+    "legIndex_trocado_no_mesmo_trade": { "v6": { "V6.refs": "FAIL" }, "v6Status": "TAMPERED", "e5b": { "V5.derived": "FAIL", "code": "V_DERIVED_LEG_REF_MISMATCH" }, "e5bStatus": "SOURCE_MISMATCH" },
+    "item_duplicado": { "v6": { "V6.refs": "PASS", "V6.quality": "FAIL" }, "v6Status": "TAMPERED", "e5b": { "V5.derived": "PASS", "code": null }, "e5bStatus": "SOURCE_VERIFIED" },
+    "itens_fora_de_ordem": { "v6": { "V6.refs": "PASS", "V6.quality": "FAIL" }, "v6Status": "TAMPERED", "e5b": { "V5.derived": "PASS", "code": null }, "e5bStatus": "SOURCE_VERIFIED" },
+    "rowNos_com_linha_a_mais": { "v6": { "V6.refs": "FAIL" }, "v6Status": "TAMPERED", "e5b": { "V5.derived": "FAIL", "code": "V_DERIVED_LEG_REF_MISMATCH" }, "e5bStatus": "SOURCE_MISMATCH" },
+    "rowNos_vazio": { "v6": { "V6.refs": "FAIL" }, "v6Status": "TAMPERED", "e5b": { "V5.derived": "FAIL", "code": "V_DERIVED_LEG_REF_MISMATCH" }, "e5bStatus": "SOURCE_MISMATCH" },
+    "item_removido": { "v6": { "V6.refs": "PASS", "V6.quality": "FAIL" }, "v6Status": "TAMPERED", "e5b": { "V5.derived": "PASS", "code": null }, "e5bStatus": "SOURCE_VERIFIED" },
+    "tradeId_inexistente": { "v6": { "V6.refs": "FAIL" }, "v6Status": "TAMPERED", "e5b": { "V5.derived": "SKIPPED", "code": "S_POPULATION_PARTIAL" }, "e5bStatus": "SOURCE_VERIFIED_PARTIAL" }
+  }
+}
