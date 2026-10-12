@@ -95,8 +95,10 @@ test("1. ARQUIVO ORIGINAL CORRETO: ciclos e trades-linha ⇒ SOURCE_VERIFIED, to
       const rep = verify(bundle, b)
       assert.equal(rep.status, "SOURCE_VERIFIED", `${name}/${id}: ${JSON.stringify(rep.checks.filter((c) => c.status !== "PASS"))}`)
       assert.deepEqual(rep.checks.map((c) => c.id), SOURCE_CHECK_CATALOG.map((c) => c.id))
-      // V5.derived (E6.3→E5b) não se aplica a bundle sem derivados: S_NOT_APPLICABLE, nunca PASS vazio; todos os demais PASS como antes
-      assert.ok(rep.checks.every((c) => c.status === "PASS" || (c.id === "V5.derived" && c.code === "S_NOT_APPLICABLE")), `${name}/${id}`)
+      // V5.derived (E6.3→E5b) não se aplica a bundle sem derivados: S_NOT_APPLICABLE, nunca PASS vazio. Cobertura EXATA (não "ou"):
+      // os 8 checks que já existiam continuam TODOS PASS e o novo é exatamente NOT_APPLICABLE — nenhuma folga para outro check mudar de estado.
+      assert.deepEqual(rep.checks.filter((c) => c.id !== "V5.derived").map((c) => c.status), Array(8).fill("PASS"), `${name}/${id}`)
+      assert.deepEqual(rep.checks.filter((c) => c.id === "V5.derived").map((c) => [c.status, c.code]), [["SKIPPED", "S_NOT_APPLICABLE"]], `${name}/${id}`)
       assert.equal(rep.coverage?.derived.total, 0)
       assert.equal(rep.evidenceHash, bundle.evidenceHash)
       assert.deepEqual(rep.coverage?.imports, { declared: 1, sourceProvided: 1, fileVerified: 1, reingested: 1, contextRecorded: 1 })

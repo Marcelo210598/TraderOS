@@ -165,6 +165,20 @@ test("REFERÊNCIAS DIVERGENTES: pernas citadas ≠ reingestão ⇒ SOURCE_MISMAT
   assert.equal(chk(src(row), "V5.rows").status, "FAIL")
 })
 
+test("CITAÇÃO DE PERNA NÃO CONFERIDA nunca vira PASS (conserto do E6.4): trade citado ausente do bundle ⇒ PARTIAL e dito; população parcial + citação não conferida contam o derivado UMA vez", () => {
+  const ghost = mutate(LEG, (x) => { d0(x).refs.legs.items[0].tradeId = "trd_inexistente" })
+  const r = src(ghost)
+  assert.equal(r.status, "SOURCE_VERIFIED_PARTIAL")
+  assert.equal(chk(r, "V5.derived").code, "S_POPULATION_PARTIAL")
+  assert.match(chk(r, "V5.derived").detail, /apontam para trade ausente do bundle .* NÃO foram conferidas/)
+  assert.equal(r.coverage?.derived.partial, 1)
+  assert.equal(r.coverage?.populations.complete, false)
+  assert.ok(r.coverage!.derived.legRefs.verified < r.coverage!.derived.legRefs.declared)
+  const both = mutate(LEG, (x) => { d0(x).refs.legs.items[0].tradeId = "trd_inexistente"; x.evidence.trades.pop() })
+  assert.equal(src(both).coverage?.derived.partial, 1, "o mesmo derivado não é contado duas vezes")
+  assert.equal(verifyEvidence(ghost).status, "TAMPERED", "o V6 acusa a referência (independente)")
+})
+
 test("DERIVADO SEM REFERÊNCIAS SUFICIENTES: população declarada vazia ou sem nenhum trade no bundle ⇒ nunca SOURCE_VERIFIED; sem FAIL", () => {
   const empty = mutate(RANK, (x) => { d0(x).population.tradeIds = []; d0(x).population.afterFilters = 0; x.evidence.trades = []; x.evidence.imports = [] })
   const r = src(empty)

@@ -508,24 +508,33 @@ function verifyDerivedSource(bundle: EvidenceBundle, per: Map<string, PerImport>
     summary.trades.verified += ok.length
     // pernas citadas × reingestão (só onde o trade foi reingerido; ausência é tratada pelos outros checks, nunca como adulteração aqui)
     const legMismatch: string[] = []
+    let unconfirmed = 0
+    let partialCounted = false
     for (const r of d.refs.legs.items ?? []) {
       summary.legRefs.declared += 1
       const re = reTrades.get(r.tradeId)
       const leg = re?.exitLegs?.[r.legIndex]
-      if (!re || !verified.has(r.tradeId)) continue
+      // citação cujo trade não está no bundle (ou não foi conferido): NÃO foi comparada com a fonte — nunca passa como PASS
+      if (!re || !verified.has(r.tradeId)) { unconfirmed += 1; continue }
       if (!leg || JSON.stringify([...leg.rowRefs].sort((a, b) => a - b)) !== JSON.stringify(r.rowNos)) legMismatch.push(`${short(r.tradeId)}#${r.legIndex}`)
       else summary.legRefs.verified += 1
     }
     if (legMismatch.length > 0) parts.push(fail(FAIL.DERIVED_LEG_REF, `${label}: ${legMismatch.length} perna(s) citada(s) não existem ou têm linhas de origem diferentes das da reingestão: ${listed(legMismatch)}`))
+    if (unconfirmed > 0) {
+      if (!partialCounted) { summary.partial += 1; partialCounted = true }
+      parts.push(skip(S_PARTIAL, `${label}: ${unconfirmed} de ${d.refs.legs.items?.length ?? 0} perna(s) citada(s) apontam para trade ausente do bundle ou não conferido com a fonte: NÃO foram conferidas`))
+    }
     if (present.length < ids.length) {
-      summary.partial += 1
+      if (!partialCounted) summary.partial += 1
+      partialCounted = true
       parts.push(skip(S_PARTIAL, `${label}: população PARCIAL — ${ids.length - present.length} de ${ids.length} trade(s) declarados não estão no bundle e não foram conferidos com a fonte`))
     } else if (ids.length === 0) {
-      summary.partial += 1
+      if (!partialCounted) summary.partial += 1
+      partialCounted = true
       parts.push(skip(S_PARTIAL, `${label}: população declarada vazia — nada a conferir contra a fonte`))
     } else if (ok.length < present.length) {
       parts.push(skip(S_DERIVED_UNVERIFIED, `${label}: ${present.length - ok.length} de ${present.length} trade(s) da população não puderam ser conferidos com a fonte (veja V5.file–V5.values)`))
-    } else if (legMismatch.length === 0) {
+    } else if (legMismatch.length === 0 && unconfirmed === 0) {
       parts.push(pass(`${label}: ${ok.length} trade(s) da população DECLARADA conferem com a fonte${d.refs.legs.items ? ` e ${d.refs.legs.items.length} perna(s) citada(s) batem com a reingestão` : ""} (a seleção original e a completude da importação não são provadas)`))
     }
   })
