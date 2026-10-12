@@ -138,7 +138,7 @@ export const LAYERS: Layer[] = [
     limits: [
       "HASH_ONLY, versão incompatível e dimensões sem referência na Evidence (estratégia, setup, timeframe, sessão) ficam SKIPPED/UNVERIFIABLE; nunca aprovados.",
       "Motivo de saída = o NOME da ordem (+ mapa do usuário), não o tipo real; UNKNOWN ≠ 'sem stop'. VALID = reproduzível, não 'confiável': veja confiança e limitações.",
-      "O rótulo de origem (sourceLabel) continua dentro dos TradeEvidence (o E5b depende dele); o derivado não o replica. Minimizá-lo é pendência anterior ao agente.",
+      "O rótulo de origem na Evidence é só a palavra do vocabulário v1 (Entry, Target0–99, Stop0–99, Zerar) ou um token lbl_… (texto livre nunca entra; sourceLabel S0–S5). Pseudônimo, não anonimização: sem sal, tokens de textos curtos são adivinháveis por dicionário.",
     ],
   },
 ]
@@ -152,7 +152,8 @@ export interface Pending {
 
 export const PENDING: Pending[] = [
   { id: "e6", title: "E6.5 — contrato de capacidades para o agente", status: "pendente", why: "E6.0–E6.4 estão implementados (motivo de saída, breakdown, ranking/comparação, Evidence dos derivados, esta aba). Falta só o desenho do contrato para o agente — sem integração com LLM." },
-  { id: "sourcelabel", title: "Minimizar ou substituir o sourceLabel nos TradeEvidence", status: "pendente", why: "Os rótulos de ordem vivem nos TradeEvidence desde o E3 e o E5b depende deles para reconferir o motivo de saída. Revisão específica ANTES de qualquer integração com o agente, mantendo a verificação da origem. Nenhum bundle completo vai à Vega IA nesta etapa." },
+  { id: "sal-usuario", title: "Política de sal por usuário (accountRef/strategyRef/labelRef/patternRef)", status: "pendente", why: "Hoje o sal é opcional e por import; sem ele os 4 refs são adivinháveis por dicionário para textos curtos. Documentado (contrato §14.14); decisão adiada." },
+  { id: "e5b-rowtrades", title: "E5b não cobre bundles de LINHAS (rowTrades)", status: "pendente", why: "Buraco de cobertura anterior ao sourceLabel: o E5b reingere em ciclos, então um bundle de linhas dá V_TRADE_ID_MISMATCH. Não investigado; só V0–V6 cobrem esse bundle." },
   { id: "selecao", title: "Provar a SELEÇÃO original (E5c, a decidir)", status: "pendente", why: "O E5b confere os trades CITADOS contra o arquivo; reaplicar os filtros declarados ao conjunto reingerido provaria que a seleção foi a correta. Não feito." },
   { id: "persistencia", title: "Persistência (Prisma/banco)", status: "pendente", why: "Só com o contrato de dados validado. O Lab não usa banco." },
   { id: "parser-en", title: "Parser NT8 em inglês validado", status: "pendente", why: "Falta um export real em inglês." },

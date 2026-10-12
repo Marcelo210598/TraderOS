@@ -51,3 +51,6 @@ Registra **mudanças de contrato** observáveis por quem lê os tipos/relatório
 
 ## 12/10/2026 — E5b: pista de diagnóstico de sal não propagado (só texto)
 `V_TRADE_STRUCTURE_MISMATCH`/`V_TRADE_VALUES_MISMATCH` ganham o sufixo "[possível causa: o sal do import não foi propagado na geração da Evidence — não é prova de adulteração]" quando o import é salgado, o sal foi informado e a divergência está em campo derivado de ref. Veredito, códigos e checks inalterados. Coberto em `test-evidence-salt-propagation` (3d).
+
+## 12/10/2026 — sourceLabel S4–S6: matriz, Lab e guarda 2c (sem mudança de contrato)
+S4 (`7b4227a`): teste da matriz sal × rótulo × mapa × tipo de bundle e fixtures reais. S5 (`b9f87b6`): Lab mostra palavra do vocabulário/token (falha fechada), cenários `free-label`/`forged-token`. Guarda do sal: camada 2c (`93f4854`) — só arquivos aprovados importam geradores de Evidence. S6: contrato §14.15 (inclui os 3 falsos-negativos restantes do guarda). Pendência `sourcelabel` do Lab resolvida; entram `sal-usuario` e `e5b-rowtrades`.

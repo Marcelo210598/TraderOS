@@ -581,3 +581,6 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=✅ na Vercel (18/06) — Web Push (exposta no clie
 - resend: ^6.12.3 (instalado, não ativado)
 - tailwindcss: v4
 - zod: ^4.4.3
+
+## ✅ 12/10/2026 — AI Partner: sourceLabel S4–S6 + guarda do sal (camada 2c) — só local, sem push
+Rótulos na Evidence = palavra do vocabulário v1 ou token `lbl_…`; matriz sal × rótulo × mapa × bundle testada; Lab mostra palavra/token; E5b ganha pista de sal não propagado (só texto). Falsos-negativos restantes do guarda documentados em `data-contract.md` §14.15. Pendências: política de sal por usuário, `rowTrades` no E5b, E6.5 (só desenho).
