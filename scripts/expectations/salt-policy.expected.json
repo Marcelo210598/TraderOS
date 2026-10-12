@@ -4,7 +4,8 @@
     "after_execution": true,
     "note": "P0 da política de sal (docs/ai-partner/salt-policy-plano.md). Escrito ANTES de qualquer código. Nada aqui foi executado. `status: approved` = decidido pelo Marcelo; `status: proposed` = proposta minha que depende de decisão (ver open_points do plano). Vereditos do E5b: SOURCE_VERIFIED | SOURCE_VERIFIED_PARTIAL | SOURCE_MISMATCH | UNVERIFIABLE. Mudar uma expectativa exige entrada em history.",
     "history": [
-      "2026-10-12 P4: V4/V8/V9/V11 passam de proposed→approved (Marcelo aprovou O1/O2/O3 em 12/10). V14 ADICIONADO por mim durante o P4 (caso não previsto no P0: saltId declarado em import sem sal) — status proposed. V6 (controle negativo) implementado e coberto por mutações (saltCheck-como-portão, sem reforço, V6→UNVERIFIABLE)."
+      "2026-10-12 P4: V4/V8/V9/V11 passam de proposed→approved (Marcelo aprovou O1/O2/O3 em 12/10). V14 ADICIONADO por mim durante o P4 (caso não previsto no P0: saltId declarado em import sem sal) — status proposed. V6 (controle negativo) implementado e coberto por mutações (saltCheck-como-portão, sem reforço, V6→UNVERIFIABLE).",
+      "2026-10-12 V14 approved pelo Marcelo (confirmado também o ajuste de combine() em verify-source.ts)."
     ]
   },
   "rules": {
@@ -104,10 +105,10 @@
       "expected": "caminho correto ⇒ SOURCE_VERIFIED; entrada errada no verificador ⇒ UNVERIFIABLE ou MISMATCH conforme as regras, nunca FAIL espúrio nem verificado em falso"
     },
     "V14_declaration_on_unsalted_import": {
-      "status": "proposed",
+      "status": "approved",
       "setup": "bundle declara saltId/saltCheck mas o ImportRef registra accountRefSalted=false",
       "expected": "SOURCE_MISMATCH V_SALT_DECLARATION_INCONSISTENT (contradição estrutural; o gerador nunca emite isso)",
-      "added_by": "Claude, no P4 (não estava no P0); aguarda confirmação do Marcelo"
+      "approved_by": "Marcelo 12/10/2026"
     }
   },
   "generation_cases": {
