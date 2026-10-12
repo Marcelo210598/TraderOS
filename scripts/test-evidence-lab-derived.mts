@@ -212,11 +212,11 @@ test("NAVEGAÇÃO: do derivado às evidências de origem — população, pernas
   assert.ok((run("leg-rank").parsed!.evidence.derived![0].refs.legs.items ?? []).length > 0)
 })
 
-test("VISÃO GERAL: nova camada Derivados com sonda ao vivo ok; pendências E6.5, sal por usuário e rowTrades registradas (sourceLabel resolvido); nenhuma integração com Vega IA", () => {
+test("VISÃO GERAL: nova camada Derivados com sonda ao vivo ok; pendências E6.5 e sal por usuário registradas (sourceLabel resolvido); nenhuma integração com Vega IA", () => {
   const layers = read("src/lib/dev/evidence-lab/layers.ts")
   assert.match(layers, /id: "derivados"/)
   assert.match(layers, /id: "sal-usuario"/)
-  assert.match(layers, /id: "e5b-rowtrades"/)
+  assert.doesNotMatch(layers, /id: "e5b-rowtrades"/, "E5b × rowTrades corrigido")
   assert.doesNotMatch(layers, /id: "sourcelabel"/, "sourceLabel foi resolvido (S0–S5)")
   assert.match(layers, /Hoje o sal é opcional e por import/)
 })

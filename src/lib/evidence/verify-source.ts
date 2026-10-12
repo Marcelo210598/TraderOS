@@ -405,7 +405,10 @@ function verifyImport(imp: ImportRef, tradesOf: TradeEvidence[], bytes: Uint8Arr
     if (r.source.rowNo !== null && r.source.rowHash) reRowHash.set(r.source.rowNo, r.source.rowHash)
     if (r.source.rowNo !== null) reRowAccount.set(r.source.rowNo, r.account.ref ?? null)
   }
-  const reTradeById = new Map(run.trades.map((t) => [t.tradeId as string, t]))
+  // Espaço de ids da reingestão = ciclos (run.trades) + LINHAS (run.rowTrades). Com reconstrução ligada os ids de linha NÃO estão em run.trades
+  // (são disjuntos dos de ciclo); sem indexá-los, todo bundle de linhas dava V_TRADE_ID_MISMATCH. A granularidade declarada é conferida contra a
+  // do índice (V5.trades) e uma linha citada por dois trades é V_ROWREF_DUPLICATE, então ciclo e linha não se cobrem.
+  const reTradeById = new Map([...run.rowTrades, ...run.trades].map((t) => [t.tradeId as string, t]))
   out.reTrades = reTradeById
   const accountNames = [...new Set(run.rowTrades.map((t) => t.account.sourceName?.trim()).filter((n): n is string => !!n))].sort()
   const mine = tradesOf.filter((t) => t.importId === imp.importId)

@@ -153,7 +153,6 @@ export interface Pending {
 export const PENDING: Pending[] = [
   { id: "e6", title: "E6.5 — contrato de capacidades para o agente", status: "pendente", why: "E6.0–E6.4 estão implementados (motivo de saída, breakdown, ranking/comparação, Evidence dos derivados, esta aba). Falta só o desenho do contrato para o agente — sem integração com LLM." },
   { id: "sal-usuario", title: "Política de sal por usuário (accountRef/strategyRef/labelRef/patternRef)", status: "pendente", why: "Hoje o sal é opcional e por import; sem ele os 4 refs são adivinháveis por dicionário para textos curtos. Documentado (contrato §14.14); decisão adiada." },
-  { id: "e5b-rowtrades", title: "E5b não cobre bundles de LINHAS (rowTrades)", status: "pendente", why: "Buraco de cobertura anterior ao sourceLabel: o E5b reingere em ciclos, então um bundle de linhas dá V_TRADE_ID_MISMATCH. Não investigado; só V0–V6 cobrem esse bundle." },
   { id: "selecao", title: "Provar a SELEÇÃO original (E5c, a decidir)", status: "pendente", why: "O E5b confere os trades CITADOS contra o arquivo; reaplicar os filtros declarados ao conjunto reingerido provaria que a seleção foi a correta. Não feito." },
   { id: "persistencia", title: "Persistência (Prisma/banco)", status: "pendente", why: "Só com o contrato de dados validado. O Lab não usa banco." },
   { id: "parser-en", title: "Parser NT8 em inglês validado", status: "pendente", why: "Falta um export real em inglês." },

@@ -155,7 +155,7 @@ test("VISÃO GERAL: estados válidos, sondas ao vivo ok, nada verde sem implemen
   assert.ok(PENDING.some((p) => p.id === "e6" && p.status === "pendente")) // agora: só o E6.5 (contrato do agente)
   assert.equal(PENDING.some((p) => p.id === "sourcelabel"), false, "sourceLabel resolvido (S0–S5): não é mais pendência")
   assert.ok(PENDING.some((p) => p.id === "sal-usuario" && p.status === "pendente"), "política de sal por usuário: pendência registrada")
-  assert.ok(PENDING.some((p) => p.id === "e5b-rowtrades" && p.status === "pendente"), "E5b × rowTrades: pendência rastreada")
+  assert.equal(PENDING.some((p) => p.id === "e5b-rowtrades"), false, "E5b × rowTrades corrigido: não é mais pendência")
   assert.equal(LAYERS.find((l) => l.id === "derivados")?.status, "parcial")
   assert.match(views.find((v) => v.id === "derivados")!.probe!.text, /VALID.*TAMPERED.*UNVERIFIABLE/)
   assert.equal(LAYERS.find((l) => l.id === "origem")?.status, "parcial")

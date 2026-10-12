@@ -1,23 +1,70 @@
 {
   "_meta": {
     "frozen": "2026-10-12",
-    "after_execution": false,
+    "after_execution": true,
     "note": "Escrito ANTES de qualquer medição/código (investigação e5b-rowtrades). O contrato (data-contract §V5.5) promete que o E5b confere trades SOURCE_ROW e POSITION_CYCLE. 'today_prediction' é o que EU espero que o código atual faça (hipótese H1: reTradeById só indexa run.trades); 'contract' é o que o contrato prevê e o que o conserto deve produzir. A coluna contract não muda para acompanhar o resultado.",
     "hypothesis_H1": "verify-source.ts reTradeById = new Map(run.trades...): com reconstrução ligada run.trades são CICLOS; os tradeIds das LINHAS só existem em run.rowTrades e caem em noId (V_TRADE_ID_MISMATCH).",
-    "history": []
+    "history": [
+      "2026-10-12 (pós-medição, antes do conserto, commit 2fa2e54): H1 confirmada. Erros de MINHA previsão today_prediction: R5 falha hoje por V_TRADE_ID_MISMATCH (id de linha desconhecido) e NÃO por 'outro motivo' equivalente; R6 hoje é mascarado por V_TRADE_ID_MISMATCH (previsto certo). A coluna `contract` não foi alterada.",
+      "2026-10-12 (conserto): R5 contract refinado de 'SOURCE_MISMATCH' para código V_TRADE_STRUCTURE_MISMATCH nos testes (a expectativa já dizia SOURCE_MISMATCH; o código específico veio da medição na cópia experimental)."
+    ]
   },
   "cases": {
-    "R1_rows_reconstruction_on_intact": { "bundle": "métrica sobre run.rowTrades, parser com reconstrução LIGADA", "contract": "SOURCE_VERIFIED", "today_prediction": "SOURCE_MISMATCH (V5.trades V_TRADE_ID_MISMATCH)" },
-    "R2_rows_reconstruction_off_intact": { "bundle": "métrica sobre run.trades (= linhas), reconstructCycles:false", "contract": "SOURCE_VERIFIED", "today_prediction": "SOURCE_VERIFIED (caminho SOURCE_ROW já indexado)" },
-    "R3_cycles_intact": { "bundle": "métrica sobre run.trades (ciclos), reconstrução ligada", "contract": "SOURCE_VERIFIED", "today_prediction": "SOURCE_VERIFIED" },
-    "R4_neg_cycle_declared_as_row": { "bundle": "R3 com granularity trocada para SOURCE_ROW no ciclo (selo refeito)", "contract": "SOURCE_MISMATCH", "today_prediction": "SOURCE_MISMATCH (V_TRADE_STRUCTURE_MISMATCH)" },
-    "R5_neg_row_declared_as_cycle": { "bundle": "R1 com granularity trocada para POSITION_CYCLE na linha (selo refeito)", "contract": "SOURCE_MISMATCH", "today_prediction": "SOURCE_MISMATCH (por outro motivo: id desconhecido)" },
-    "R6_neg_row_value_forged": { "bundle": "R1 com netPnl da linha alterado (selo refeito)", "contract": "SOURCE_MISMATCH em V5.values", "today_prediction": "SOURCE_MISMATCH (mas por V_TRADE_ID_MISMATCH, não por valor: mascarado)" },
-    "R7_neg_row_rowhash_forged": { "bundle": "R1 com rowHash da linha trocado (selo refeito)", "contract": "SOURCE_MISMATCH em V5.rows/V5.trades", "today_prediction": "SOURCE_MISMATCH" },
-    "R8_neg_unknown_row_id": { "bundle": "R1 com tradeId inexistente", "contract": "SOURCE_MISMATCH (V_TRADE_ID_MISMATCH)", "today_prediction": "SOURCE_MISMATCH" },
-    "R9_mixed_cycle_and_its_rows": { "bundle": "bundle com um ciclo E uma das linhas desse mesmo ciclo como trades", "contract": "SOURCE_MISMATCH (V_ROWREF_DUPLICATE: linha citada por dois trades)", "today_prediction": "SOURCE_MISMATCH (por id de linha desconhecido, não por duplicata)" },
-    "R10_rows_salted_and_free_label": { "bundle": "R1 com sal, rótulo livre e mapa de usuário (matriz do S4)", "contract": "SOURCE_VERIFIED com sal+mapa; UNVERIFIABLE sem eles (nunca FAIL)", "today_prediction": "SOURCE_MISMATCH nos dois" },
-    "R11_real_fixtures_rows": { "bundle": "R1 nas 2 fixtures reais locais", "contract": "SOURCE_VERIFIED", "today_prediction": "SOURCE_MISMATCH (7 ids na 1ª fixture)" }
+    "R1_rows_reconstruction_on_intact": {
+      "bundle": "métrica sobre run.rowTrades, parser com reconstrução LIGADA",
+      "contract": "SOURCE_VERIFIED",
+      "today_prediction": "SOURCE_MISMATCH (V5.trades V_TRADE_ID_MISMATCH)"
+    },
+    "R2_rows_reconstruction_off_intact": {
+      "bundle": "métrica sobre run.trades (= linhas), reconstructCycles:false",
+      "contract": "SOURCE_VERIFIED",
+      "today_prediction": "SOURCE_VERIFIED (caminho SOURCE_ROW já indexado)"
+    },
+    "R3_cycles_intact": {
+      "bundle": "métrica sobre run.trades (ciclos), reconstrução ligada",
+      "contract": "SOURCE_VERIFIED",
+      "today_prediction": "SOURCE_VERIFIED"
+    },
+    "R4_neg_cycle_declared_as_row": {
+      "bundle": "R3 com granularity trocada para SOURCE_ROW no ciclo (selo refeito)",
+      "contract": "SOURCE_MISMATCH",
+      "today_prediction": "SOURCE_MISMATCH (V_TRADE_STRUCTURE_MISMATCH)"
+    },
+    "R5_neg_row_declared_as_cycle": {
+      "bundle": "R1 com granularity trocada para POSITION_CYCLE na linha (selo refeito)",
+      "contract": "SOURCE_MISMATCH",
+      "today_prediction": "SOURCE_MISMATCH (por outro motivo: id desconhecido)"
+    },
+    "R6_neg_row_value_forged": {
+      "bundle": "R1 com netPnl da linha alterado (selo refeito)",
+      "contract": "SOURCE_MISMATCH em V5.values",
+      "today_prediction": "SOURCE_MISMATCH (mas por V_TRADE_ID_MISMATCH, não por valor: mascarado)"
+    },
+    "R7_neg_row_rowhash_forged": {
+      "bundle": "R1 com rowHash da linha trocado (selo refeito)",
+      "contract": "SOURCE_MISMATCH em V5.rows/V5.trades",
+      "today_prediction": "SOURCE_MISMATCH"
+    },
+    "R8_neg_unknown_row_id": {
+      "bundle": "R1 com tradeId inexistente",
+      "contract": "SOURCE_MISMATCH (V_TRADE_ID_MISMATCH)",
+      "today_prediction": "SOURCE_MISMATCH"
+    },
+    "R9_mixed_cycle_and_its_rows": {
+      "bundle": "bundle com um ciclo E uma das linhas desse mesmo ciclo como trades",
+      "contract": "SOURCE_MISMATCH (V_ROWREF_DUPLICATE: linha citada por dois trades)",
+      "today_prediction": "SOURCE_MISMATCH (por id de linha desconhecido, não por duplicata)"
+    },
+    "R10_rows_salted_and_free_label": {
+      "bundle": "R1 com sal, rótulo livre e mapa de usuário (matriz do S4)",
+      "contract": "SOURCE_VERIFIED com sal+mapa; UNVERIFIABLE sem eles (nunca FAIL)",
+      "today_prediction": "SOURCE_MISMATCH nos dois"
+    },
+    "R11_real_fixtures_rows": {
+      "bundle": "R1 nas 2 fixtures reais locais",
+      "contract": "SOURCE_VERIFIED",
+      "today_prediction": "SOURCE_MISMATCH (7 ids na 1ª fixture)"
+    }
   },
   "measurements_to_confirm_H1": {
     "M1": "ids citados no FAIL ∈ ids de run.rowTrades e ∉ ids de run.trades (e 0 ids de ciclo no bundle de linhas)",
