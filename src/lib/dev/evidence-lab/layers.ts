@@ -10,6 +10,7 @@ import { RECONSTRUCTION_VERSION } from "../../ingest/reconstruct.ts"
 import { DEFINITION_VERSION, ENGINE_VERSION, METRIC_IDS, calculateMetrics } from "../../metrics/index.ts"
 import { verifyEvidence } from "../../evidence/verify.ts"
 import { runAllScenarios, type Demo, type ScenarioContext } from "./model.ts"
+import { DERIVED_SCENARIOS, derivedContext, runAllDerivedScenarios } from "./derived.ts"
 import { SOURCE_SCENARIOS, runAllSourceScenarios, sourceContext } from "./source.ts"
 
 export type LayerStatus = "concluido" | "parcial" | "pendente" | "fora"
@@ -125,6 +126,19 @@ export const LAYERS: Layer[] = [
     limits: [
       "Não prova a seleção original, a ordem original da sequência nem o R/stop do usuário (acrescentados depois da importação).",
       "HASH_ONLY: só as âncoras são conferidas (SOURCE_VERIFIED_PARTIAL). Imports anteriores ao contexto reproduzível dependem de foldPolicy/exitReasonMap/sal informados.",
+      "Para derivados confere a população DECLARADA de cada análise (trades e pernas citadas), não a importação inteira.",
+    ],
+  },
+  {
+    id: "derivados",
+    title: "10. Derivados de análise (E6.0–E6.4)",
+    status: "parcial",
+    summary: "Motivo de saída por trade e por perna, ranking, contribuição e comparação de grupos (E6.0–E6.2), com Evidence própria (DerivedEvidence) e verificação V6: o verificador reexecuta a função real do E6.2 sobre os TradeEvidence e compara. Inferência só descritiva (sem p-valor).",
+    basis: ["src/lib/metrics/{exit-reason,legs,analysis}.ts", "src/lib/evidence/{derived,explain-derived}.ts + V6 em verify.ts", "scripts/test-metrics-exit-*.mts, test-metrics-analysis.mts, test-evidence-derived.mts, test-evidence-source-derived.mts", "2 exports NT8 reais locais: derivados reais VALID, adulterações detectadas"],
+    limits: [
+      "HASH_ONLY, versão incompatível e dimensões sem referência na Evidence (estratégia, setup, timeframe, sessão) ficam SKIPPED/UNVERIFIABLE; nunca aprovados.",
+      "Motivo de saída = o NOME da ordem (+ mapa do usuário), não o tipo real; UNKNOWN ≠ 'sem stop'. VALID = reproduzível, não 'confiável': veja confiança e limitações.",
+      "O rótulo de origem (sourceLabel) continua dentro dos TradeEvidence (o E5b depende dele); o derivado não o replica. Minimizá-lo é pendência anterior ao agente.",
     ],
   },
 ]
@@ -137,7 +151,8 @@ export interface Pending {
 }
 
 export const PENDING: Pending[] = [
-  { id: "e6", title: "E6 — grupos/comparações e motivo de saída (G6)", status: "pendente", why: "Plano a ser aprovado antes de implementar; o E5/E5b estão fechados." },
+  { id: "e6", title: "E6.5 — contrato de capacidades para o agente", status: "pendente", why: "E6.0–E6.4 estão implementados (motivo de saída, breakdown, ranking/comparação, Evidence dos derivados, esta aba). Falta só o desenho do contrato para o agente — sem integração com LLM." },
+  { id: "sourcelabel", title: "Minimizar ou substituir o sourceLabel nos TradeEvidence", status: "pendente", why: "Os rótulos de ordem vivem nos TradeEvidence desde o E3 e o E5b depende deles para reconferir o motivo de saída. Revisão específica ANTES de qualquer integração com o agente, mantendo a verificação da origem. Nenhum bundle completo vai à Vega IA nesta etapa." },
   { id: "selecao", title: "Provar a SELEÇÃO original (E5c, a decidir)", status: "pendente", why: "O E5b confere os trades CITADOS contra o arquivo; reaplicar os filtros declarados ao conjunto reingerido provaria que a seleção foi a correta. Não feito." },
   { id: "persistencia", title: "Persistência (Prisma/banco)", status: "pendente", why: "Só com o contrato de dados validado. O Lab não usa banco." },
   { id: "parser-en", title: "Parser NT8 em inglês validado", status: "pendente", why: "Falta um export real em inglês." },
@@ -150,6 +165,19 @@ export const PENDING: Pending[] = [
 ]
 
 const probes: Record<string, (demo: Demo, ctx: ScenarioContext) => Probe> = {
+  derivados: () => {
+    const dctx = derivedContext()
+    const runs = runAllDerivedScenarios(dctx)
+    const ok = runs.filter((r) => r.matchesContract).length
+    const find = (id: string) => runs.find((r) => r.scenario.id === id)
+    const intact = find("rank-hour")
+    const forged = find("forged-value")
+    const hashOnly = find("hash-only")
+    return {
+      ok: intact?.report.status === "VALID" && forged?.report.status === "TAMPERED" && hashOnly?.report.status === "UNVERIFIABLE" && ok === runs.length && runs.length === DERIVED_SCENARIOS.length,
+      text: `ranking íntegro → ${intact?.report.status} (V6 ${intact?.report.checks.filter((c) => c.level === "V6" && c.status === "PASS").length}/8 PASS) · valor alterado com selo refeito → ${forged?.report.status} · HASH_ONLY → ${hashOnly?.report.status} · ${ok}/${runs.length} cenários com o veredito previsto pelo contrato`,
+    }
+  },
   ingestao: (demo) => ({ ok: demo.rowsRejected === 0 && demo.rowsRead > 0, text: `CSV sintético: ${demo.rowsRead} linhas lidas, ${demo.rowsRejected} rejeitadas · parser ${demo.importRecord.parserId}@${demo.importRecord.parserVersion}` }),
   canonical: (demo) => {
     const passed = demo.trades.filter((t) => CanonicalTradeSchema.safeParse(t).success).length

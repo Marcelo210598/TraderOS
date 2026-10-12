@@ -60,7 +60,7 @@ export function VerifierPanel({ title, report, extra }: { title: string; report:
       <Section title="Verificador — os quatro veredictos" subtitle="verifyEvidence devolve um destes quatro status. SKIPPED nunca é apresentado como aprovado.">
         <StatusLegend />
       </Section>
-      <Section title={title} subtitle="Relatório REAL de verifyEvidence sobre o bundle selecionado, na ordem fixa dos checks (V0 formato · V1 selo · V2 referências · V3 população · V4 métricas).">
+      <Section title={title} subtitle="Relatório REAL de verifyEvidence sobre o bundle selecionado, na ordem fixa dos checks (V0 formato · V1 selo · V2 referências · V3 população · V4 métricas · V6 derivados — este último só se aplica a bundles com derivados; veja a aba Derivados (E6)).">
         {extra}
         <div className="mb-3"><ReportSummary report={report} /></div>
         <CheckTable report={report} />

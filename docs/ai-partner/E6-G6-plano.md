@@ -1,4 +1,4 @@
-# MeuTrade — Plano E6/G6 (APROVADO em 12/10/2026 — E6.0 a E6.3 implementados; E6.4+ aguardam revisão)
+# MeuTrade — Plano E6/G6 (APROVADO em 12/10/2026 — E6.0 a E6.4 implementados; E6.5 aguarda revisão)
 
 > Status: **plano, nada implementado.** Parte dos módulos existentes (`src/lib/metrics`, `src/lib/evidence`, Evidence Lab). Sem segundo motor, sem Prisma, sem agente nesta fase.
 > Repo público: sem dados reais. Data: 10/10/2026.

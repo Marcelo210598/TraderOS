@@ -3,9 +3,11 @@ import { notFound } from "next/navigation"
 import { isEvidenceLabEnabled } from "@/lib/dev/evidence-lab/guard"
 import { layerViews } from "@/lib/dev/evidence-lab/layers"
 import { SCENARIOS, buildBundle, buildDemo, runAllScenarios, runScenario, scenarioContext } from "@/lib/dev/evidence-lab/model"
+import { DERIVED_SCENARIOS, derivedContext, runAllDerivedScenarios, runDerivedScenario } from "@/lib/dev/evidence-lab/derived"
 import { SOURCE_SCENARIOS, runAllSourceScenarios, runSourceScenario, sourceContext } from "@/lib/dev/evidence-lab/source"
 import { verifyEvidence } from "@/lib/evidence/verify"
 import { BundlePanel, HASH_ONLY_LIMIT } from "./_components/bundle-panel"
+import { DerivedPanel } from "./_components/derived-panel"
 import { MetricsPanel } from "./_components/metrics-panel"
 import { Overview } from "./_components/overview"
 import { TABS, href, parseParams } from "./_components/params"
@@ -53,6 +55,7 @@ export default async function EvidenceLabPage({ searchParams }: { searchParams: 
       {p.tab === "bundle" ? <BundlePanel demo={demo} p={p} /> : null}
       {p.tab === "verify" ? <VerifyTab demo={demo} ctx={ctx} p={p} /> : null}
       {p.tab === "source" ? <SourceTab demo={demo} p={p} /> : null}
+      {p.tab === "derived" ? <DerivedTab p={p} /> : null}
       {p.tab === "tamper" ? <TamperPanel runs={runAllScenarios(ctx)} selected={runScenario(ctx, SCENARIOS.find((s) => s.id === p.scenario) ?? SCENARIOS[0])} p={p} /> : null}
     </div>
   )
@@ -75,6 +78,14 @@ function VerifyTab({ demo, ctx, p }: { demo: ReturnType<typeof buildDemo>; ctx: 
   }
   const run = runScenario(ctx, SCENARIOS.find((s) => s.id === p.scenario) ?? SCENARIOS[0])
   return <VerifierPanel title={`Relatório — ${run.scenario.title}`} report={run.report} extra={picker} />
+}
+
+function DerivedTab({ p }: { p: ReturnType<typeof parseParams> }) {
+  // só calcula quando a aba está aberta; dataset sintético próprio dos derivados, nada é persistido
+  const dctx = derivedContext()
+  const runs = runAllDerivedScenarios(dctx)
+  const selected = runDerivedScenario(dctx, DERIVED_SCENARIOS.find((s) => s.id === p.dv) ?? DERIVED_SCENARIOS[0])
+  return <DerivedPanel runs={runs} selected={selected} p={p} cycles={dctx.cycles} rows={dctx.rowsRead} />
 }
 
 function SourceTab({ demo, p }: { demo: ReturnType<typeof buildDemo>; p: ReturnType<typeof parseParams> }) {

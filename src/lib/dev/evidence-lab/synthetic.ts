@@ -89,3 +89,57 @@ export function applyDemoStops(trades: CanonicalTrade[]): CanonicalTrade[] {
     } as CanonicalTrade
   })
 }
+
+// ── dataset dos DERIVADOS (aba "Derivados (E6)") ─────────────────────────────
+// Também 100% inventado. Diferente do demo principal, aqui há de propósito: motivos de saída variados (alvo, stop, manual), ciclos de saídas
+// MISTAS, rótulos que as regras NÃO reconhecem (⇒ UNKNOWN), um ciclo com quantidades diferentes por perna, 2 contas, 2 horários, 2 semanas.
+// Sem stops demonstrativos (R indisponível de propósito: mostra "métrica indisponível" sem inventar valor).
+
+interface DerivedCycle {
+  acc: keyof typeof DEMO_ACCOUNTS
+  dir: "L" | "S"
+  /** dd/03/2026 */
+  day: string
+  hour: number
+  legs: Array<{ qty?: number; exit: number; label: string; minute: number }>
+}
+const ENTRY_PRICE = 2000
+const DERIVED_CYCLES: DerivedCycle[] = [
+  { acc: "A", dir: "L", day: "02", hour: 9, legs: [{ exit: 2004, label: "Target1", minute: 10 }, { exit: 2008, label: "Target2", minute: 20 }] },
+  { acc: "A", dir: "L", day: "03", hour: 9, legs: [{ exit: 1996, label: "Stop1", minute: 10 }] },
+  { acc: "A", dir: "L", day: "04", hour: 14, legs: [{ exit: 1994, label: "Stop1", minute: 10 }, { exit: 1992, label: "Stop2", minute: 20 }] },
+  { acc: "B", dir: "L", day: "05", hour: 14, legs: [{ exit: 2006, label: "Target1", minute: 10 }, { exit: 1995, label: "Stop1", minute: 20 }] },
+  { acc: "B", dir: "L", day: "06", hour: 9, legs: [{ exit: 2001, label: "Zerar", minute: 10 }] },
+  { acc: "B", dir: "L", day: "09", hour: 14, legs: [{ exit: 2004, label: "Target1", minute: 10 }, { exit: 2002, label: "Saida X", minute: 20 }] },
+  { acc: "B", dir: "L", day: "10", hour: 9, legs: [{ exit: 2002, label: "Saida X", minute: 10 }, { exit: 1999, label: "", minute: 20 }] },
+  { acc: "A", dir: "L", day: "11", hour: 14, legs: [{ qty: 3, exit: 2005, label: "Target1", minute: 10 }, { qty: 2, exit: 1997, label: "Stop1", minute: 20 }, { qty: 1, exit: 2001, label: "Zerar", minute: 30 }] },
+  { acc: "A", dir: "L", day: "12", hour: 9, legs: [{ exit: 2003, label: "Target1", minute: 10 }] },
+  { acc: "B", dir: "L", day: "13", hour: 9, legs: [{ exit: 1996, label: "Stop1", minute: 10 }] },
+  { acc: "A", dir: "L", day: "16", hour: 9, legs: [{ exit: 2001, label: "Saida X", minute: 10 }] },
+  { acc: "B", dir: "L", day: "17", hour: 14, legs: [{ exit: 1993, label: "Stop1", minute: 10 }, { exit: 2002, label: "Target1", minute: 20 }] },
+  { acc: "B", dir: "S", day: "18", hour: 14, legs: [{ exit: 2005, label: "Stop1", minute: 10 }] },
+]
+const hms = (h: number, m = 0) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`
+
+/** CSV NT8 PT-BR sintético dos derivados (uma linha por perna de saída); o acumulado fecha linha a linha. */
+export function derivedDemoCsv(): string {
+  assertEvidenceLabEnabled()
+  let cum = 0
+  let n = 0
+  const lines = DERIVED_CYCLES.flatMap((c) =>
+    c.legs.map((l) => {
+      const qty = l.qty ?? 1
+      const sign = c.dir === "L" ? 1 : -1
+      const commission = Math.round(COMMISSION_PER_CONTRACT * qty * 100) / 100
+      const profit = Math.round(((l.exit - ENTRY_PRICE) * sign * POINT_VALUE * qty - commission) * 100) / 100
+      cum = Math.round((cum + profit) * 100) / 100
+      n += 1
+      return [
+        n, "MGC 12-26", DEMO_ACCOUNTS[c.acc], DEMO_STRATEGY, c.dir === "L" ? "Comprada" : "Venda", qty, price(ENTRY_PRICE), price(l.exit),
+        `${c.day}/03/2026 ${hms(c.hour)}`, `${c.day}/03/2026 ${hms(c.hour, l.minute)}`, "Entry", l.label, money(profit), money(cum), money(commission),
+        money(0), money(0), money(0), money(0), money(8), money(90), money(40), 0, "",
+      ].join(";")
+    }),
+  )
+  return [NT8_PTBR_HEADER, ...lines].join("\n") + "\n"
+}
