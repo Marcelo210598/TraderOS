@@ -588,3 +588,6 @@ Rótulos na Evidence = palavra do vocabulário v1 ou token `lbl_…`; matriz sal
 ## ✅ 12/10/2026 — AI Partner: política de sal por usuário (P0–P6) — só local, sem push
 Sal gerenciado por usuário (≥ 256 bits, chaveiro versionado em memória), `saltId`/`saltCheck` declarados no bundle, geração fail-closed, E5b lê via provider (saltCheck nunca é portão), 8 cenários no Lab. Achados no caminho: `ensure()` curando em silêncio, `combine()` escondendo bloqueio, heurística "todas as contas divergem" escolhendo severidade. Pendências: armazenamento real do chaveiro (persistência), E6.5 (só desenho), E5c, vocabulário v2.
 
+## 📝 12/10/2026 — E6.5-0: plano e expectativas do contrato do agente (SÓ DESENHO) — só local, sem push
+`docs/ai-partner/agent-contract-plano.md` + `scripts/expectations/agent-contract.expected.json`. D1–D10 e ajustes A1 (dois textos de NOT_VERIFIED), A2 (`evidence.explain` pela mesma projeção de rótulo), A3 (N = 2 regerações) aprovados. Nada implementado; sem Vega IA. Próximo: E6.5-1 (documento do contrato).
+

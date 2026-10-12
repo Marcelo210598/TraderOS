@@ -96,6 +96,8 @@ O agente **nunca calcula**: chama capacidades determinísticas e cita a Evidence
 
 Regras: resposta **sem** `evidenceRef` ou com estado ≠ `VALID` ⇒ o agente declara a limitação em vez de afirmar; população `HASH_ONLY`/`LOW`/`TINY` ⇒ linguagem "indicativo, não conclusivo"; o agente não inventa motivo, R nem causa. Fica **fora do E6**: integração com LLM, prompts, memória, UI de produto.
 
+> **E6.5 em andamento (só desenho):** plano e expectativas em `docs/ai-partner/agent-contract-plano.md` e `scripts/expectations/agent-contract.expected.json` (12/10/2026). Esta tabela é a versão original; vale o plano novo (verify/verifySource não são ferramentas do agente; números por slots; `evidence.explain`/`evidence.refresh`).
+
 ### 6.1 Regra do VEREDITO COMBINADO (decisão do Marcelo, 12/10/2026 — obrigatória no E6.5)
 O estado do E5b **nunca** é lido isolado como "tudo ok". `SOURCE_VERIFIED` liga os **trades** ao CSV; não confere selo, métricas nem derivados (V0–V6) e não julga completude, ordem ou duplicidade das citações de pernas (isso é do V6). Exemplos reais já testados: derivado com valor adulterado e selo refeito, citação duplicada, lista fora de ordem ou com item removido ⇒ E5b `SOURCE_VERIFIED` **e** V6 `TAMPERED`.
 Consequências para o contrato do agente (E6.5):

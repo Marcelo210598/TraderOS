@@ -1,0 +1,159 @@
+{
+  "_meta": {
+    "frozen": "2026-10-12",
+    "after_execution": false,
+    "note": "E6.5-0 (docs/ai-partner/agent-contract-plano.md). Escrito ANTES de qualquer tipo/código. NADA aqui foi executado: o E6.5 é só desenho + tipos; o validador, o combineVerdict e as PromptViews são E6.6 (aprovação própria). `status: approved` = decidido pelo Marcelo; `status: proposed` = proposta minha pendente. Mudar uma expectativa exige entrada em history.",
+    "history": []
+  },
+  "principles": [
+    "O agente nunca calcula, nunca arredonda e nunca digita número: chama capacidades determinísticas e cita evidenceRef; o servidor renderiza os números em slots.",
+    "Sem evidenceRef, ou com veredito combinado ≠ VERIFIED/VERIFIED_PARTIAL, o agente declara a limitação em vez de afirmar (NOT_VERIFIED com verify=VALID é a única exceção, rotulada: D3).",
+    "O bundle nunca entra no prompt: só a PromptView (lista branca) e, sob demanda, o drill-down evidence.explain, ambos pela MESMA projeção de rótulo/nome/ref."
+  ],
+  "decisions": {
+    "D1": { "status": "approved", "text": "evidenceRef = 'ev_' + 32 hex do evidenceHash (endereçado por conteúdo; não inventável)" },
+    "D2": { "status": "approved", "text": "números só por slots exatos renderizados no servidor; validador pós-modelo como defesa em profundidade; SUBSTITUI a 'tolerância de arredondamento' do technical-foundation H.4" },
+    "D3": { "status": "approved", "text": "NOT_VERIFIED com verify=VALID: mostrar o valor do motor ROTULADO, sem uso em comparação/conclusão/recomendação; verify≠VALID ⇒ nenhum número", "adjustment": "A1" },
+    "D4": { "status": "approved", "text": "source 'NOT_RUN' ⇒ NOT_VERIFIED, nunca VERIFIED" },
+    "D5": { "status": "approved", "text": "verify/verifySource NÃO são ferramentas do agente; rodam dentro de cada capacidade" },
+    "D6": { "status": "approved", "text": "memória guarda ESPECIFICAÇÕES de consulta, nunca refs; refEpoch (= saltId) em todo resultado; ref antigo vira STALE; evidence.refresh regera sob o sal atual; sal aposentado ⇒ NOT_VERIFIED (S_SALT_RETIRED)" },
+    "D7": { "status": "approved", "text": "nomes reais só por binding tardio na UI, depois da validação, fora do modelo" },
+    "D8": { "status": "approved", "text": "o veredito combinado sai de UMA função pura única (E6.6), com teste próprio" },
+    "D9": { "status": "approved", "text": "frases de limitação são canônicas pt-BR geradas no servidor, nunca pelo modelo" },
+    "D10": { "status": "approved", "text": "evidence.explain: no máximo K trades por chamada, sem rowNo/rowHash/ids de linha", "adjustment": "A2" }
+  },
+  "adjustments": {
+    "A1": {
+      "status": "approved",
+      "requested_by": "Marcelo 12/10/2026",
+      "text": "O rótulo do NOT_VERIFIED tem DOIS textos canônicos distintos: ESTRUTURAL (a infraestrutura de verificação — armazenamento do arquivo original — ainda não existe) e ESPECÍFICO (motivo deste caso: saltId não resolvido, dimensão sem referência, mapa do usuário ausente, versão incompatível…). Texto genérico único ensina o usuário a ignorar o aviso.",
+      "design_rules_proposed": [
+        "ESTRUTURAL: um único texto fixo, na MESMA posição de toda resposta (banner/rodapé), sem variação de frase; cobre source=NOT_RUN por falta de arquivo armazenado.",
+        "ESPECÍFICO: uma frase PRÓPRIA por código (catálogo completo), inline no claim afetado, visualmente distinta do estrutural; nunca uma frase genérica de reserva.",
+        "Nunca fundidos numa só frase; se os dois se aplicam, aparecem os dois, o específico primeiro.",
+        "Catálogo completo: todo código UNVERIFIABLE que o verify/E5b pode emitir tem frase específica; código sem frase ⇒ o build do catálogo FALHA (não há texto de reserva)."
+      ]
+    },
+    "A2": {
+      "status": "approved",
+      "requested_by": "Marcelo 12/10/2026",
+      "text": "evidence.explain (T2) passa pela MESMA projeção de rótulo da PromptView (vocabulário v1 / token → alias). Teste dedicado: o drill-down nunca expõe sourceLabel/entryLabel/exitLabel bruto."
+    },
+    "A3": {
+      "status": "approved",
+      "requested_by": "Marcelo 12/10/2026",
+      "text": "N (regerações antes da resposta canônica 'não consigo afirmar') é definido já no E6.5-1, pequeno (1–2).",
+      "proposed_value": 2,
+      "proposed_meaning": "até 2 REGERAÇÕES com o motivo da rejeição como feedback (3 tentativas no total); falhou ⇒ resposta canônica. O valor fica fixado como constante tipada no contrato (E6.5-2) e no documento (E6.5-1); mudar exige entrada em history."
+    }
+  },
+  "verdict_matrix": {
+    "VERIFIED": { "numbers": "ALLOWED", "must_state": ["população declarada (n), nunca 'seu histórico inteiro'"], "forbidden": ["chamar de conclusivo se conclusive=false / sampleFlag LOW|TINY", "tratar VERIFIED como 'confiável'"] },
+    "VERIFIED_PARTIAL": { "numbers": "ALLOWED_WITH_PARTIAL_PHRASE", "must_state": ["frase canônica da razão parcial: HASH_ONLY | L_SALT_CHECK_DIVERGENT | L_SALT_ID_NOT_RESOLVED | população parcial"], "forbidden": ["generalizar além da população coberta", "linguagem conclusiva (usar 'indicativo')"] },
+    "NOT_VERIFIED__verify_VALID": { "numbers": "ALLOWED_LABELED", "must_state": ["rótulo A1: estrutural e/ou específico, conforme o caso"], "forbidden": ["usar o número em comparação, conclusão ou recomendação", "esconder o rótulo"] },
+    "NOT_VERIFIED__verify_not_VALID": { "numbers": "FORBIDDEN", "must_state": ["limitação específica do verify (ex.: HASH_ONLY sem âncoras, versão, dimensão sem referência)"], "forbidden": ["qualquer número desta evidência"] },
+    "TAMPERED_OR_MISMATCH": { "numbers": "FORBIDDEN", "must_state": ["'o bundle não confere com o selo' ou 'com o arquivo' (o que de fato falhou)", "pedir regeração (evidence.refresh feito pelo SERVIDOR, não pelo modelo)", "auditoria registrada"], "forbidden": ["qualquer número desta evidência", "especular causa", "acusar o usuário", "recorrer a número 'da memória' ou de outra evidência para preencher"] },
+    "INVALID_FORMAT": { "numbers": "FORBIDDEN", "must_state": ["bundle ilegível"], "forbidden": ["qualquer número"] },
+    "mixed_answer": { "rule": "cada claim leva o PRÓPRIO veredito; o banner da resposta é o PIOR" },
+    "model_arithmetic": { "rule": "soma/razão/diferença entre refs só existe se uma capacidade a devolve; o agente não faz aritmética" }
+  },
+  "not_verified_text_classes": {
+    "STRUCTURAL": { "code": "VERIFICATION_INFRA_MISSING", "when": "source = NOT_RUN porque o arquivo original não está armazenado (infraestrutura de verificação ausente)", "rendering": "banner/rodapé fixo, texto único" },
+    "SPECIFIC_by_code": {
+      "when": "o verify ou o E5b emitiu um UNVERIFIABLE com motivo do caso",
+      "codes_required_in_catalog": ["S_SALT_UNKNOWN", "S_SALT_RETIRED", "S_ACCOUNT_REF_UNVERIFIED", "S_CONTEXT_INSUFFICIENT", "S_VERSION_INCOMPATIBLE", "S_ENCODING_UNSUPPORTED", "S_SOURCE_NOT_PROVIDED", "S_ASSOCIATION_UNVERIFIABLE", "S_HASH_ONLY", "S_REINGEST_FAILED", "S_FILE_NOT_VERIFIED", "S_DERIVED_TRADES_NOT_VERIFIED", "S_ROWHASH_MISSING", "S_NO_IMPORTS"],
+      "note": "a lista exata é o que verify.ts/verify-source.ts efetivamente emitem; o teste do E6.5-3 DERIVA os códigos do código-fonte e compara com o catálogo (código novo sem frase ⇒ falha)."
+    },
+    "both_apply": "mostrar os dois, específico primeiro; jamais numa frase só",
+    "tests": [
+      "o texto estrutural é idêntico em todas as respostas (mesma string)",
+      "cada código específico tem frase própria, nenhuma igual à estrutural nem a outra específica",
+      "nenhuma frase específica contém a frase estrutural como substring",
+      "não existe frase de reserva para código sem catálogo (catálogo incompleto = erro de build)"
+    ]
+  },
+  "evidence_ref_cases": {
+    "R1_content_addressed": "mesmo bundle ⇒ mesmo evidenceRef; qualquer mudança de conteúdo ⇒ outro",
+    "R2_format": "^ev_[0-9a-f]{32}$ e igual ao prefixo de 32 hex do evidenceHash",
+    "R3_ledger_only": "o validador só aceita refs que o ledger da conversa emitiu",
+    "R4_not_forgeable": "um ref bem formado que o ledger não emitiu é rejeitado (mesmo que exista um bundle com esse hash em outro lugar)"
+  },
+  "validator_cases": {
+    "AV1_number_without_ref": { "answer": "texto com número digitado, sem slot", "expected": "REJECT_WITH_FEEDBACK", "reason": "NUMBER_OUTSIDE_SLOT" },
+    "AV2_slot_unknown_ref": { "answer": "slot {{ev_<inexistente>.pnl.net}}", "expected": "REJECT_WITH_FEEDBACK", "reason": "REF_NOT_IN_LEDGER" },
+    "AV3_slot_ref_other_user": { "answer": "ref emitida para outro usuário", "expected": "REJECT_WITH_FEEDBACK", "reason": "REF_NOT_IN_LEDGER" },
+    "AV4_slot_bad_path": { "answer": "slot com caminho inexistente na PromptView", "expected": "REJECT_WITH_FEEDBACK", "reason": "SLOT_PATH_INVALID" },
+    "AV5_rounding_by_model": { "answer": "'cerca de 1,2 mil'", "expected": "REJECT_WITH_FEEDBACK", "reason": "NUMBER_OUTSIDE_SLOT" },
+    "AV6_arithmetic_by_model": { "answer": "soma/razão de dois slots escrita pelo modelo", "expected": "REJECT_WITH_FEEDBACK", "reason": "MODEL_ARITHMETIC" },
+    "AV7_tampered_with_number": { "answer": "slot de evidência TAMPERED_OR_MISMATCH", "expected": "REJECT_WITH_FEEDBACK", "reason": "NUMBER_FROM_UNVERIFIED_EVIDENCE" },
+    "AV8_not_verified_unlabeled": { "answer": "slot de NOT_VERIFIED (verify VALID) sem o rótulo A1", "expected": "REJECT_WITH_FEEDBACK", "reason": "MISSING_NOT_VERIFIED_LABEL" },
+    "AV9_not_verified_used_to_conclude": { "answer": "usa valor NOT_VERIFIED para comparar/recomendar", "expected": "REJECT_WITH_FEEDBACK", "reason": "UNVERIFIED_USED_FOR_CONCLUSION" },
+    "AV10_epoch_mix": { "answer": "afirma que dois refs de refEpoch diferentes são a mesma conta", "expected": "REJECT_WITH_FEEDBACK", "reason": "REF_EPOCH_MIX" },
+    "AV11_stale_ref": { "answer": "cita evidenceRef STALE sem refresh", "expected": "REJECT_WITH_FEEDBACK", "reason": "STALE_REF" },
+    "AV12_causal_claim": { "answer": "afirma causa ('perdi por causa do stop')", "expected": "REJECT_WITH_FEEDBACK", "reason": "CAUSAL_CLAIM" },
+    "AV13_stop_real": { "answer": "chama o motivo de 'stop real' / tipo real da ordem", "expected": "REJECT_WITH_FEEDBACK", "reason": "EXIT_REASON_OVERCLAIM" },
+    "AV14_qualitative_no_number": { "answer": "texto qualitativo sem número e sem causa", "expected": "DELIVER" },
+    "AV15_verified_with_scope": { "answer": "slot VERIFIED + frase de população declarada", "expected": "DELIVER" },
+    "AV16_verified_without_scope": { "answer": "slot VERIFIED dito como 'seu histórico inteiro'", "expected": "REJECT_WITH_FEEDBACK", "reason": "SCOPE_OVERCLAIM" },
+    "AV17_partial_without_phrase": { "answer": "slot VERIFIED_PARTIAL sem a frase canônica da razão", "expected": "REJECT_WITH_FEEDBACK", "reason": "MISSING_PARTIAL_PHRASE" },
+    "AV18_inconclusive_as_conclusive": { "answer": "conclusivo com conclusive=false ou sampleFlag LOW/TINY", "expected": "REJECT_WITH_FEEDBACK", "reason": "INCONCLUSIVE_AS_CONCLUSIVE" },
+    "AV19_regeneration_budget": { "answer": "rejeitada N+1 vezes seguidas", "expected": "CANONICAL_FALLBACK", "N_regenerations": 2, "fallback": "resposta canônica 'não consigo afirmar isso com evidência', listando as capacidades tentadas e o motivo da última rejeição; sem nenhum número do modelo" },
+    "AV20_mixed_verdict_banner": { "answer": "dois claims, um VERIFIED e um NOT_VERIFIED", "expected": "DELIVER com banner = NOT_VERIFIED e cada claim com o próprio veredito" },
+    "AV21_user_number_echo": { "status": "proposed", "answer": "o modelo repete um número que o USUÁRIO digitou na pergunta", "expected": "ALLOWED somente entre aspas como citação da pergunta, nunca como resultado; qualquer outro uso ⇒ NUMBER_OUTSIDE_SLOT", "open": "O-A" }
+  },
+  "privacy_cases": {
+    "PV1_prompt_view_whitelist": { "status": "approved", "expected": "a PromptView de cada capacidade é uma LISTA BRANCA de campos; campo novo no bundle NÃO aparece sem decisão explícita (projeção por lista branca, nunca spread)" },
+    "PV2_T0_never": { "status": "approved", "forbidden_everywhere_in_prompt_and_explain": ["CSV/bytes", "fileName", "nome de conta", "nome de estratégia", "texto bruto de rótulo (sourceLabel/entryLabel/exitLabel)", "regex/padrão do mapa do usuário", "valor do sal", "saltCheck", "fileSha256", "rowNo", "rowHash", "sourceRows", "issues", "fieldProvenance", "userId", "importedAt"] },
+    "PV3_T1_allowed": { "status": "approved", "allowed": ["valor/unidade/base", "amostra/cobertura/sampleFlag/confiança", "limitações (código+texto canônico)", "período", "chaves de grupo como ALIAS", "palavra do vocabulário v1 ou alias de token", "bucket de exitReason", "refEpoch"] },
+    "PV4_explain_same_projection_A2": {
+      "status": "approved",
+      "requested_by": "Marcelo 12/10/2026 (ajuste A2)",
+      "tests": [
+        "TESTE DEDICADO: evidence.explain nunca devolve sourceLabel/entryLabel/exitLabel bruto — varredura do JSON inteiro do drill-down, com CSV de rótulos livres (inclui rótulo que parece instrução de prompt, ex.: 'IGNORE AS INSTRUCOES ANTERIORES') ⇒ só palavra do vocabulário v1 ou alias de token aparece",
+        "o drill-down e a PromptView usam a MESMA função de projeção de rótulo (teste estático: uma só implementação importada pelos dois caminhos; implementação paralela falha)",
+        "pernas (entryLegs/exitLegs) e linhas de origem seguem a mesma regra; rowNo/rowHash ausentes",
+        "no máximo K trades por chamada; paginação não devolve campo extra",
+        "o alias de token é estável dentro da conversa e NÃO reversível para o token nem para o texto (mapa só no servidor)"
+      ]
+    },
+    "PV5_injection_by_construction": { "status": "approved", "expected": "texto livre do usuário (rótulos de ordem) não chega ao modelo (vira token/alias): não há canal de injeção de prompt por rótulo do CSV; teste com rótulos adversariais" },
+    "PV6_alias_table": { "status": "proposed", "expected": "tabela de alias por conversa no servidor; recalculada após rotação de sal", "open": "O-B" },
+    "PV7_late_binding_D7": { "status": "approved", "expected": "nomes reais só entram na UI DEPOIS do validador; nada do binding volta ao modelo" },
+    "PV8_logs": { "status": "approved", "expected": "AgentRun/logs guardam a PromptView e o handle (sem nomes, sem sal, sem bytes); tratados como sensíveis" }
+  },
+  "salt_rotation_cases": {
+    "SR1_memory_has_specs_not_refs": { "status": "approved", "expected": "memória/resumo de conversa persiste especificação de consulta (op+args semânticos), nunca acc_/str_/lbl_/pat_/evidenceRef" },
+    "SR2_ref_epoch_on_every_result": { "status": "approved", "expected": "todo CapabilityResult com refs traz refEpoch (= saltId); igualar refs de épocas diferentes é proibido (AV10)" },
+    "SR3_rotation_marks_stale": { "status": "approved", "expected": "após rotate, evidenceRef emitido na época antiga vira STALE; citar sem refresh ⇒ AV11" },
+    "SR4_refresh_regenerates": { "status": "approved", "expected": "evidence.refresh regera sob o sal ATUAL (exige o arquivo original); devolve novo evidenceRef e novo handle; o antigo permanece para auditoria" },
+    "SR5_retired_salt": { "status": "approved", "expected": "sal aposentado ⇒ o antigo verifica NOT_VERIFIED (S_SALT_RETIRED, texto ESPECÍFICO) e o agente declara; refresh só se o arquivo existir" },
+    "SR6_no_file_no_refresh": { "status": "approved", "expected": "sem arquivo armazenado o refresh falha com limitação ESTRUTURAL; o agente declara; nada é inventado" }
+  },
+  "capability_cases": {
+    "CP1_envelope_has_both_verdicts": { "status": "approved", "expected": "todo CapabilityResult que devolve número/derivado traz verify E source E combined, sobre o MESMO evidenceHash; schema zod rejeita resultado com só um dos dois" },
+    "CP2_no_aggregate_ok": { "status": "approved", "expected": "nenhum campo 'ok'/'verified' agregado sem trazer os dois componentes e o escopo (§6.1.3)" },
+    "CP3_no_verify_tools": { "status": "approved", "expected": "o catálogo de ferramentas do agente NÃO contém verify nem verifySource (D5)" },
+    "CP4_userid_from_session": { "status": "approved", "expected": "nenhuma capacidade aceita userId vindo do modelo; argumentos validados por zod" },
+    "CP5_read_only": { "status": "approved", "expected": "todas as capacidades são somente leitura (sem escrita em banco/arquivo)" },
+    "CP6_versioned": { "status": "approved", "expected": "capability@semver; mudança de definitionVersion/engineVersion do motor ⇒ bump registrado; a versão do prompt vai no AgentRun" },
+    "CP7_combined_single_function": { "status": "approved", "expected": "(E6.6) o combinado vem de UMA função pura; o contrato de tipos do E6.5 só DECLARA o tipo" }
+  },
+  "static_guard_cases": {
+    "SG1_agent_module_isolated": "nenhum arquivo fora de src/lib/agent/ importa o contrato do agente (E6.5), e nada em src/lib/agent/ importa SDK de LLM, rede, banco ou Prisma",
+    "SG2_no_solo_verdict_extended": "scripts/test-evidence-no-solo-verdict.mts estendido: o contrato do agente só tem 'combined' derivado dos dois componentes; nenhum campo agregado sem eles",
+    "SG3_catalog_derived_from_source": "o catálogo de frases ESPECÍFICAS é conferido contra os códigos S_* realmente emitidos por verify.ts/verify-source.ts (extração do código-fonte); código novo sem frase ⇒ falha",
+    "SG4_no_bundle_in_prompt_type": "o tipo de entrada do prompt NÃO aceita EvidenceBundle (só PromptView): erro de tipo/schema se passar bundle",
+    "SG5_single_label_projector": "uma só função de projeção de rótulo para PromptView e explain (PV4)"
+  },
+  "dependencies_declared": {
+    "file_storage": "O E5b precisa dos bytes do CSV. Sem armazenamento (fase de persistência) o source é NOT_RUN ⇒ tudo NOT_VERIFIED com o texto ESTRUTURAL (D4/A1). Isso NÃO é falha do E6.5: é o estado esperado do produto até lá.",
+    "salt_storage": "Chaveiro de sal só em memória hoje (pendência sal-persistencia). refresh/verificação de bundles antigos depende dele.",
+    "llm_integration": "Vega IA/LLM fora do E6.5 e do E6.6."
+  },
+  "open_points": {
+    "O-A": "Número que o usuário digitou na pergunta e o modelo repete: proposta AV21 (só entre aspas, como citação).",
+    "O-B": "Alias por conversa (estável dentro da conversa, recalculado após rotação) — proposta PV6.",
+    "O-C": "Valor de K do evidence.explain (trades por chamada): proposta K = 20 (a fixar no E6.5-1).",
+    "O-D": "Posição/forma visual do banner ESTRUTURAL é da UI (fora do E6.5); o contrato só exige texto único e posição fixa."
+  }
+}
