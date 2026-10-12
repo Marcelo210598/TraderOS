@@ -83,6 +83,14 @@ Normalização para comparar: remover acentos, `trim`, minúsculas (a mesma `nor
 | S5 | Lab: `redactLabels`/`maskLabel` passam a mostrar padrão ou token (texto livre inexistente na Evidence); cenário novo "rótulo livre ⇒ token" | — |
 | S6 | Docs: `data-contract.md`, `CHANGELOG-contratos.md`, checkpoint; atualizar `L_*` e a pendência `sourcelabel` | sim |
 
+### Andamento (atualizado a cada passo)
+| Passo | Estado |
+|---|---|
+| S0 (`f36268f`) e S0b (`2ee6c2f`) | **feitos** — expectativas e 9 pins de baseline escritos antes do código |
+| S1 | **feito** — `labelRef` (`ingest/identity.ts`) e `projectLabel`/`isVocabLabel`/`isProjectedLabel` (`evidence/label-vocab.ts`) + `test-evidence-label-vocab.mts` (11). **Não ligado** ao `explain-trade`/schema (isso é o S2): nenhum comportamento existente muda |
+| S2, S2b, S3, S4, S4b, S5, S6 | pendentes |
+Observação do S1: a projeção **não é idempotente de propósito** (projetar um token gera outro token): ela se aplica uma única vez, ao texto canônico; assim um rótulo escrito pelo usuário que imite um token não se passa por outro rótulo.
+
 ## 9. Decisões (todas respondidas em 12/10/2026 — ver §0)
 A estrito às 2 fixtures · B `\d{0,2}` · C sim (com S2b/S4b e a semântica da §6.1) · D sim (`labelVocab: 1`) · E documentar e adiar a política de sal (vale para `accountRef`, `strategyRef`, `labelRef` e `patternRef`).
 **Ainda sem política de sal por usuário:** hoje o sal é opcional e por import; sem ele, `accountRef`, `strategyRef`, `labelRef` e `patternRef` são **adivinháveis por dicionário** para textos curtos/comuns. Isso é limite documentado, não corrigido.

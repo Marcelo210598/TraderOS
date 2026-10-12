@@ -7,7 +7,7 @@
 // Fora de qualquer hash: nome do arquivo, `importedAt`/`computedAt`, nº da linha, `account.sourceName` em claro.
 
 import type { CanonicalTrade, ImportRecord, Reproducibility } from "../domain/canonical.ts"
-import type { ExitReasonRule } from "./exit-reason.ts"
+import { normalizeLabel, type ExitReasonRule } from "./exit-reason.ts"
 import { hashCanonical, sha256Hex } from "../infra/hash.ts"
 import type { LotRow } from "./reconstruct.ts"
 import { RECONSTRUCTION_VERSION } from "./reconstruct.ts"
@@ -16,6 +16,8 @@ import type { ReconstructionSummary } from "./types.ts"
 const ACCOUNT_REF_DOMAIN = "meutrade/accountRef/1"
 // Pseudônimo da estratégia na Evidence (E6.0). NÃO entra em importId/rowHash/tradeId (esses continuam com o nome em hash próprio): é só apresentação.
 const STRATEGY_REF_DOMAIN = "meutrade/strategyRef/1"
+// Pseudônimo do TEXTO de um rótulo de ordem fora do vocabulário fechado da Evidence (sourceLabel, S1). Só apresentação: não entra em importId/rowHash/tradeId.
+const LABEL_REF_DOMAIN = "meutrade/labelRef/1"
 const ROW_HASH_VERSION = 1
 const TRADE_ID_VERSION = 1
 const IMPORT_ID_VERSION = 1
@@ -50,6 +52,19 @@ export function strategyRef(strategyName: string | null, salt = ""): string | nu
   const name = strategyName?.trim()
   if (!name) return null
   return `str_${sha256Hex(`${STRATEGY_REF_DOMAIN}\0${salt}\0${name}`).slice(0, 24)}`
+}
+
+/**
+ * Token determinístico de um rótulo de ordem (`lbl_` + 24 hex): SHA-256(domínio ‖ sal ‖ rótulo NORMALIZADO). Normalização = a MESMA das regras de
+ * motivo (`normalizeLabel`: sem acento, aparado, minúsculo) ⇒ "Meu Setup", "meu setup" e "  MÉU SETUP " dão o mesmo token. Domínio próprio (o mesmo
+ * texto não gera o mesmo hex de `accountRef`/`strategyRef`); mesmo sal opcional do `accountRef`. Texto vazio ⇒ null (vazio não é tokenizado).
+ * PSEUDÔNIMO, não anonimização: sem sal, textos curtos/comuns são adivinháveis por dicionário (política de sal por usuário: pendente, ver
+ * data-contract §14.14).
+ */
+export function labelRef(label: string | null, salt = ""): string | null {
+  const n = normalizeLabel(label)
+  if (n === "") return null
+  return `lbl_${sha256Hex(`${LABEL_REF_DOMAIN}\0${salt}\0${n}`).slice(0, 24)}`
 }
 
 export function describeText(text: string): Pick<ImportRecord, "fileSha256" | "hashBasis" | "fileBytes" | "hasBom" | "lineEnding"> {

@@ -2,6 +2,9 @@
 
 Registra **mudanças de contrato** observáveis por quem lê os tipos/relatórios (campos, estados, hashes). Ordem: mais recente primeiro. `evidence/1` nunca virou `evidence/2`: todas as mudanças abaixo são aditivas, salvo onde dito.
 
+## 2026-10-12 — S1 do `sourceLabel` (código novo, SEM mudança de contrato observável)
+- Novas funções puras: `labelRef` (`ingest/identity.ts`, domínio `meutrade/labelRef/1`) e `projectLabel`/`isVocabLabel`/`isProjectedLabel`/`LABEL_VOCAB_VERSION` (`evidence/label-vocab.ts`). **Nada as chama ainda** (o `explain-trade` e o schema só mudam no S2): bundles, hashes e relatórios inalterados.
+
 ## 2026-10-12 — Decisões do plano do `sourceLabel` (NADA implementado; só contrato futuro e pendências)
 - Vocabulário v1 estrito às 2 fixtures reais: vazio, `Entry`, `Target<0–99>`, `Stop<0–99>`, `Zerar` (`Flat`/`Close` e nomes padrão do NT8 ficam de fora); o resto vira token `lbl_<24 hex>`. `ImportRef.labelVocab: 1` (opcional, fora do `importId`). `exitReasonMap` do usuário passa a sair como `patternRef` (o E5b passará a exigir o mapa do chamador para imports com mapa não vazio; sem ele ⇒ `UNVERIFIABLE`, nunca adulteração). Detalhes e passos: `sourceLabel-plano.md`; expectativas escritas antes do código: `scripts/expectations/sourcelabel.expected.json`.
 - **Limite documentado agora (decisão E):** `accountRef`, `strategyRef`, `labelRef` e `patternRef` são pseudônimos sem anonimização; sem sal são adivinháveis por dicionário; **política de sal por usuário pendente** (`data-contract.md` §14.14).

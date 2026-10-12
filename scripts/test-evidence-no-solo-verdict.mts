@@ -7,6 +7,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { DERIVED_SCENARIOS, derivedContext, runDerivedScenario } from "../src/lib/dev/evidence-lab/derived.ts"
+import { buildDemo } from "../src/lib/dev/evidence-lab/model.ts"
+import { SOURCE_SCENARIOS, runSourceScenario, sourceContext } from "../src/lib/dev/evidence-lab/source.ts"
 import { SOURCE_LIMITATIONS } from "../src/lib/evidence/verify-source.ts"
 
 const env = process.env as Record<string, string | undefined>
@@ -17,6 +19,14 @@ type Any = any
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const read = (f: string) => readFileSync(join(ROOT, f), "utf8")
 const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p] })
+/** Semântica de referência do veredito COMBINADO (plano E6/G6 §6.1 item 4). UNVERIFIABLE (de qualquer lado) = NOT_VERIFIED: nem ok, nem adulteração. */
+type Combined = "VERIFIED" | "VERIFIED_PARTIAL" | "NOT_VERIFIED" | "TAMPERED_OR_MISMATCH"
+const combined = (verify: string, source: string | null): Combined => {
+  if (verify === "TAMPERED" || verify === "INVALID_FORMAT" || source === "SOURCE_MISMATCH" || source === "INVALID_FORMAT") return "TAMPERED_OR_MISMATCH"
+  if (verify === "VALID" && source === "SOURCE_VERIFIED") return "VERIFIED"
+  if (verify === "VALID" && source === "SOURCE_VERIFIED_PARTIAL") return "VERIFIED_PARTIAL"
+  return "NOT_VERIFIED"
+}
 let passed = 0
 const test = (name: string, fn: () => void) => {
   fn()
@@ -67,6 +77,45 @@ test("CASOS REAIS: existem situações em que o E5b diz SOURCE_VERIFIED e o vere
     assert.equal(ok(r.report.status, r.source.status), false, id)
     assert.equal(r.source.evidenceHash, (r.bundle as Any).evidenceHash, "os dois relatórios falam do MESMO evidenceHash")
   }
+})
+
+test("UNVERIFIABLE (não só SOURCE_VERIFIED): arquivo ausente, versão incompatível e HASH_ONLY dão NOT_VERIFIED — nem ok, nem adulteração (nenhum FAIL); só VERIFIED/VERIFIED_PARTIAL contam como verificado", () => {
+  const sctx = sourceContext(buildDemo())
+  for (const id of ["no-file", "version"]) {
+    const r = runSourceScenario(sctx, SOURCE_SCENARIOS.find((s) => s.id === id)!)
+    assert.equal(r.report.status, "UNVERIFIABLE", id)
+    assert.equal(r.report.checks.some((c) => c.status === "FAIL"), false, `${id}: indisponibilidade não é adulteração`)
+    assert.equal(combined(r.verify.status, r.report.status), "NOT_VERIFIED", id)
+  }
+  const dctx = derivedContext()
+  for (const id of ["hash-only", "version", "strategy-dim"]) {
+    const r = runDerivedScenario(dctx, DERIVED_SCENARIOS.find((s) => s.id === id)!)
+    assert.equal(r.report.status, "UNVERIFIABLE", id)
+    assert.equal(r.report.checks.some((c) => c.status === "FAIL"), false, id)
+    assert.equal(combined(r.report.status, r.source.status), "NOT_VERIFIED", `${id}: ${r.source.status}`)
+  }
+  // matriz dos 17 cenários: VERIFIED* só com os DOIS lados ok; adulteração nunca vira NOT_VERIFIED
+  for (const s of DERIVED_SCENARIOS) {
+    const r = runDerivedScenario(dctx, s)
+    const c = combined(r.report.status, r.source.status)
+    if (r.report.status === "TAMPERED" || r.source.status === "SOURCE_MISMATCH") assert.equal(c, "TAMPERED_OR_MISMATCH", s.id)
+    else if (r.report.status === "UNVERIFIABLE" || r.source.status === "UNVERIFIABLE") assert.equal(c, "NOT_VERIFIED", s.id)
+    if (c === "VERIFIED" || c === "VERIFIED_PARTIAL") assert.ok(r.report.status === "VALID" && ["SOURCE_VERIFIED", "SOURCE_VERIFIED_PARTIAL"].includes(r.source.status), s.id)
+  }
+  // divergência perna×trade: V6 reproduz (VALID) e o E5b acusa ⇒ o combinado NÃO é verificado
+  const div = runDerivedScenario(dctx, DERIVED_SCENARIOS.find((s) => s.id === "divergence")!)
+  assert.equal(combined(div.report.status, div.source.status), "TAMPERED_OR_MISMATCH")
+})
+
+test("S4b (mapa do usuário): os casos previstos ESTÃO escritos nas expectativas (antes do código): mapa ausente/divergente = NOT_VERIFIED sem FAIL; mapa correto e mapa vazio = VERIFIED; a execução real entra no S4b", () => {
+  const g = (JSON.parse(read("scripts/expectations/sourcelabel.expected.json")) as Any).guard_no_solo_verdict
+  assert.deepEqual(Object.keys(g.combined_semantics).sort(), ["NOT_VERIFIED", "TAMPERED_OR_MISMATCH", "VERIFIED", "VERIFIED_PARTIAL"])
+  for (const k of ["user_map_not_supplied", "user_map_wrong"]) {
+    assert.deepEqual([g.S4b_cases[k].source, g.S4b_cases[k].code, g.S4b_cases[k].combined, g.S4b_cases[k].has_FAIL], ["UNVERIFIABLE", "S_CONTEXT_INSUFFICIENT", "NOT_VERIFIED", false], k)
+    assert.equal(combined(g.S4b_cases[k].verify, g.S4b_cases[k].source), "NOT_VERIFIED", k)
+  }
+  assert.equal(combined(g.S4b_cases.user_map_correct.verify, g.S4b_cases.user_map_correct.source), "VERIFIED")
+  assert.equal(combined(g.S4b_cases.empty_map.verify, g.S4b_cases.empty_map.source), "VERIFIED")
 })
 
 test("E6.5: a regra do VEREDITO COMBINADO está escrita no plano (6.1); o teste-guarda é citado como ponto de extensão", () => {
