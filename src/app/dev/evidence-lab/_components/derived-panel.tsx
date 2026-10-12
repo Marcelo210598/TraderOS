@@ -6,7 +6,7 @@ import type { DerivedEvidence, TradeEvidence } from "@/lib/evidence/schema"
 import type { VerifyStatus } from "@/lib/evidence/verify"
 import { METRIC_CATALOG, type Cell, type Comparison, type ExitReasonAnalysis, type Fraction, type GroupRanking, type LegGroupRanking } from "@/lib/metrics"
 import { href, type LabParams } from "./params"
-import { Badge, Callout, Hash, Json, Kv, Panel, QLink, Section, Table, Td, checkTone, sourceStatusTone, statusTone, type Tone } from "./ui"
+import { Badge, Callout, Hash, Json, Kv, Panel, QLink, Section, SoloVerdictCallout, Table, Td, checkTone, sourceStatusTone, statusTone, type Tone } from "./ui"
 import { ReportSummary } from "./verifier-panel"
 
 const conf = (c: string | null): Tone => (c === "OK" ? "ok" : c === "LIMITED" ? "warn" : c === "UNRELIABLE" ? "bad" : "mute")
@@ -360,7 +360,9 @@ export function DerivedPanel({ runs, selected, p, cycles, rows }: { runs: Derive
       </Section>
 
       <Section title="Origem (E5b) deste derivado" subtitle="verifyEvidenceSource sobre o MESMO bundle e o CSV sintético (que fica no servidor). Verifica os trades DECLARADOS contra o arquivo; não prova a seleção original nem que a população é a importação inteira.">
+        <div className="mb-3"><SoloVerdictCallout /></div>
         <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Badge tone={statusTone(s.report.status)}>V6/verifyEvidence: {s.report.status}</Badge>
           <Badge tone={sourceStatusTone(s.source.status)}>{s.source.status}</Badge>
           {s.source.coverage ? <span className="text-xs text-zinc-400">trades declarados {s.source.coverage.derived.trades.declared} · no bundle {s.source.coverage.derived.trades.inBundle} · conferidos {s.source.coverage.derived.trades.verified} · pernas citadas conferidas {s.source.coverage.derived.legRefs.verified}/{s.source.coverage.derived.legRefs.declared} · população {s.source.coverage.populations.complete ? "declarada completa" : "NÃO completa"}</span> : null}
         </div>

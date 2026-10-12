@@ -1,3 +1,4 @@
+import { maskLabel } from "@/lib/dev/evidence-lab/redact-view"
 import type { Demo } from "@/lib/dev/evidence-lab/model"
 import type { TradeEvidence } from "@/lib/evidence/schema"
 import { Badge, Hash, Json, Kv, Num, Panel, QLink, Section, Table, Td } from "./ui"
@@ -84,7 +85,7 @@ export function TradeTrail({ demo, p }: { demo: Demo; p: LabParams }) {
                     <Table head={["perna", "papel", "preço", "qtd", "rótulo", "linhas", "motivo da saída"]}>
                       {[...e.entryLegs.map((l) => ({ k: "entrada", l, reason: "" })), ...e.exitLegs.map((l) => ({ k: "saída", l, reason: `${l.reason} (${l.reasonRule})` }))].map(({ k, l, reason }, i) => (
                         <tr key={i}>
-                          <Td>{k}</Td><Td>{l.role}</Td><Td mono>{l.price}</Td><Td mono>{l.quantity}</Td><Td>{l.sourceLabel}</Td><Td mono>{l.rowRefs.join(", ")}</Td><Td className="text-zinc-400">{reason}</Td>
+                          <Td>{k}</Td><Td>{l.role}</Td><Td mono>{l.price}</Td><Td mono>{l.quantity}</Td><Td>{maskLabel(l.sourceLabel)}</Td><Td mono>{l.rowRefs.join(", ")}</Td><Td className="text-zinc-400">{reason}</Td>
                         </tr>
                       ))}
                     </Table>
@@ -97,7 +98,7 @@ export function TradeTrail({ demo, p }: { demo: Demo; p: LabParams }) {
                 {e.sourceRows.map((r) => (
                   <tr key={r.rowNo}>
                     <Td mono>{r.rowNo}</Td><Td><Hash value={r.rowHash} n={16} /></Td><Td>{r.detail}</Td>
-                    <Td className="text-zinc-400">{r.entryLabel ?? "—"}/{r.exitLabel ?? "—"}</Td>
+                    <Td className="text-zinc-400">{maskLabel(r.entryLabel)}/{maskLabel(r.exitLabel)}</Td>
                     <Td mono>{r.entryPrice}→{r.exitPrice}</Td><Td><Num v={r.reportedProfit} /></Td><Td><Num v={r.commission} /></Td><Td><Num v={r.maeUsd} /></Td><Td><Num v={r.mfeUsd} /></Td><Td><Num v={r.etdUsd} /></Td>
                   </tr>
                 ))}

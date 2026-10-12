@@ -78,7 +78,7 @@ export const SOURCE_SCENARIOS: SourceScenario[] = [
   {
     id: "byte",
     title: "Arquivo alterado em UM byte",
-    what: "Um único byte do rótulo de saída (Target1 → Uarget1) é trocado no CSV entregue ao verificador.",
+    what: "Um único byte do texto do rótulo de saída (a primeira letra do nome da ordem de alvo) é trocado no CSV entregue ao verificador.",
     expected: "SOURCE_MISMATCH",
     expectedNote: "V5.file: o SHA-256 dos bytes não é o registrado. O resto não é executado como se o arquivo fosse o original.",
     make: (c) => ({ bundle: c.base, files: { [importIdOf(c.base)]: replaceInCsv(c.bytes, "Target1", "Uarget1") } }),

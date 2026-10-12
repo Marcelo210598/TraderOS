@@ -16,6 +16,7 @@ import {
 } from "../src/lib/dev/evidence-lab/derived.ts"
 import { assertEvidenceLabEnabled } from "../src/lib/dev/evidence-lab/guard.ts"
 import { derivedDemoCsv } from "../src/lib/dev/evidence-lab/synthetic.ts"
+import { maskLabel } from "../src/lib/dev/evidence-lab/redact-view.ts"
 import { derivedEvidenceBundle, explainDerived } from "../src/lib/evidence/explain-derived.ts"
 import { computeEvidenceHash } from "../src/lib/evidence/hash.ts"
 import { CHECK_CATALOG, verifyEvidence } from "../src/lib/evidence/verify.ts"
@@ -212,6 +213,30 @@ test("VISÃO GERAL: nova camada Derivados com sonda ao vivo ok; pendências E6.5
   assert.match(layers, /id: "derivados"/)
   assert.match(layers, /id: "sourcelabel"/)
   assert.match(layers, /Nenhum bundle completo vai à Vega IA nesta etapa/)
+})
+
+test("REDAÇÃO EM TODAS AS ABAS (inclusive as antigas): o componente Json sempre redige rótulos; tabelas usam maskLabel; nenhum painel renderiza sourceLabel/entryLabel/exitLabel cru", () => {
+  assert.equal(maskLabel(null), "—")
+  assert.equal(maskLabel(undefined), "—")
+  assert.equal(maskLabel(""), "(vazio)")
+  assert.equal(maskLabel("Target1"), "«omitido»")
+  const sample = { a: { sourceLabel: "Stop1", entryLabel: null, exitLabel: "", deep: [{ sourceLabel: "Zerar" }] }, keep: "Target1-nao-e-chave" }
+  const red = redactLabels(sample) as Any
+  assert.deepEqual([red.a.sourceLabel, red.a.entryLabel, red.a.exitLabel, red.a.deep[0].sourceLabel, red.keep], ["«omitido»", null, "", "«omitido»", "Target1-nao-e-chave"])
+  assert.equal(J(sample).includes("Stop1"), true, "a função não altera o original")
+  assert.match(read("src/app/dev/evidence-lab/_components/ui.tsx"), /JSON\.stringify\(redactLabels\(value\), null, 2\)/)
+  const panels = walk(join(ROOT, "src/app/dev/evidence-lab/_components")).filter((f) => f.endsWith(".tsx"))
+  assert.ok(panels.length >= 9)
+  for (const f of panels) {
+    const code = readFileSync(f, "utf8").replace(/\/\/.*$/gm, "")
+    // todo uso de .sourceLabel/.entryLabel/.exitLabel dentro de um painel precisa estar dentro de maskLabel(...)
+    for (const m of code.matchAll(/[A-Za-z_]+\.(?:sourceLabel|entryLabel|exitLabel)\b/g)) {
+      const before = code.slice(Math.max(0, (m.index ?? 0) - 11), m.index)
+      assert.ok(before.endsWith("maskLabel("), `${f.replace(ROOT, "")}: ${m[0]} fora de maskLabel`)
+    }
+  }
+  // todos os bundles do Lab principal (abas antigas), vistos pela interface, não mostram rótulo
+  assert.equal(J(redactLabels(runs[0].bundle)).includes("Target1"), false)
 })
 
 if (ORIGINAL_ENV === undefined) delete env.NODE_ENV

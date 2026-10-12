@@ -5,7 +5,7 @@ import type { SourceRun } from "@/lib/dev/evidence-lab/source"
 import { SOURCE_SCENARIOS } from "@/lib/dev/evidence-lab/source"
 import { SOURCE_CHECK_CATALOG, type SourceCheck, type SourceStatus, type SourceVerifyReport } from "@/lib/evidence/verify-source"
 import { href, type LabParams } from "./params"
-import { Badge, Callout, Hash, Json, Kv, Panel, QLink, Section, Table, Td, checkTone, statusTone, sourceStatusTone } from "./ui"
+import { Badge, Callout, Hash, Json, Kv, Panel, QLink, SoloVerdictCallout, Section, Table, Td, checkTone, statusTone, sourceStatusTone } from "./ui"
 import { ReportSummary } from "./verifier-panel"
 
 export const SOURCE_STATUS_EXPLAIN: Record<SourceStatus, { title: string; text: string }> = {
@@ -263,6 +263,7 @@ export function SourcePanel({ runs, selected, p }: { runs: SourceRun[]; selected
         </Table>
       </Section>
       <Section title="Os estados possíveis do E5b" subtitle="O que cada um significa. Parcial NUNCA quer dizer 'toda a população foi conferida'.">
+        <div className="mb-3"><SoloVerdictCallout /></div>
         <StatusLegend current={selected.report.status} />
       </Section>
       <Section id="detalhe" title={s.title} subtitle={s.what}>

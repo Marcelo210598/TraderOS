@@ -265,10 +265,7 @@ export function runAllDerivedScenarios(c: DerivedLabContext): DerivedRun[] {
   return DERIVED_SCENARIOS.map((s) => runDerivedScenario(c, s))
 }
 
-/** O que a interface mostra do JSON: nenhum rótulo de origem (sourceLabel, entryLabel, exitLabel) — o conteúdo bruto deles não é apresentado. */
-export function redactLabels(value: unknown): unknown {
-  return JSON.parse(JSON.stringify(value, (k, v) => (k === "sourceLabel" || k === "entryLabel" || k === "exitLabel" ? (v === null ? null : "«omitido»") : v)))
-}
+export { redactLabels } from "./redact-view.ts"
 
 // ── textos legíveis (PT) ─────────────────────────────────────────────────────
 

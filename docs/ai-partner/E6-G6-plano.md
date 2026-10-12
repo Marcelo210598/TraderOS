@@ -96,6 +96,14 @@ O agente **nunca calcula**: chama capacidades determinísticas e cita a Evidence
 
 Regras: resposta **sem** `evidenceRef` ou com estado ≠ `VALID` ⇒ o agente declara a limitação em vez de afirmar; população `HASH_ONLY`/`LOW`/`TINY` ⇒ linguagem "indicativo, não conclusivo"; o agente não inventa motivo, R nem causa. Fica **fora do E6**: integração com LLM, prompts, memória, UI de produto.
 
+### 6.1 Regra do VEREDITO COMBINADO (decisão do Marcelo, 12/10/2026 — obrigatória no E6.5)
+O estado do E5b **nunca** é lido isolado como "tudo ok". `SOURCE_VERIFIED` liga os **trades** ao CSV; não confere selo, métricas nem derivados (V0–V6) e não julga completude, ordem ou duplicidade das citações de pernas (isso é do V6). Exemplos reais já testados: derivado com valor adulterado e selo refeito, citação duplicada, lista fora de ordem ou com item removido ⇒ E5b `SOURCE_VERIFIED` **e** V6 `TAMPERED`.
+Consequências para o contrato do agente (E6.5):
+1. Toda capacidade que devolve um número/derivado devolve **os dois** veredictos sobre o **mesmo `evidenceHash`**: `verify` (VALID/TAMPERED/UNVERIFIABLE/INVALID_FORMAT, com V6 quando há derivados) e `source` (SOURCE_VERIFIED/…_PARTIAL/SOURCE_MISMATCH/UNVERIFIABLE, ou "não executado").
+2. Só se afirma "verificado" com `verify = VALID` **e** `source` ∈ {SOURCE_VERIFIED, SOURCE_VERIFIED_PARTIAL (dito como parcial)}. `source` sozinho, ou `verify` sozinho, ⇒ o agente declara a limitação em vez de afirmar.
+3. Nenhum campo "ok"/"verified" agregado pode existir sem trazer os dois componentes e o escopo (população declarada, não a importação inteira).
+4. Teste-guarda: `scripts/test-evidence-no-solo-verdict.mts` (trava os consumidores atuais; o E6.5 deve estendê-lo).
+
 ## 7. Riscos e mitigação
 
 | Risco | Mitigação |

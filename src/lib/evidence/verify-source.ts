@@ -7,6 +7,15 @@
 // `infra/hash.ts`; a projeção de cada trade é `explainTrades` (E3). Aqui só se COMPARA. Puro: sem relógio, random, banco, rede nem
 // caminho de arquivo (quem chama entrega os BYTES; o CSV nunca entra no bundle nem no relatório).
 //
+// ╔══ NUNCA LER ISOLADO ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+// ║ `SOURCE_VERIFIED` (e `SOURCE_VERIFIED_PARTIAL`) NÃO significa "tudo ok". Este verificador liga os TRADES do bundle ao CSV; ele NÃO confere ║
+// ║ o selo, as referências, os números das métricas nem os resultados DERIVADOS (ranking/comparação): isso é do `verifyEvidence` (V0–V6).     ║
+// ║ Exemplos reais (scripts/expectations/derived-legrefs-edge.expected.json): derivado com valor adulterado e selo refeito, citação de perna ║
+// ║ duplicada, lista de citações fora de ordem ou com item removido ⇒ E5b diz SOURCE_VERIFIED e o V6 diz TAMPERED. O E5b confere CADA citação ║
+// ║ contra o arquivo; completude/ordem/duplicidade da lista de citações é do V6.                                                              ║
+// ║ Regra para qualquer consumidor (UI, relatório, agente/E6.5): só se afirma "verificado" com o veredito COMBINADO sobre o MESMO              ║
+// ║ `evidenceHash`: `verifyEvidence` = VALID (incluindo V6 quando há derivados) E `verifyEvidenceSource` ∈ {SOURCE_VERIFIED, …_PARTIAL, dito}. ║
+// ╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
 // Independe do `verifyEvidence` (V0–V4): aquele prova consistência interna e reprodução matemática da população declarada; este liga
 // os dados à fonte. `SOURCE_VERIFIED` + `VALID` juntos é o que se pode afirmar; nenhum dos dois sozinho prova o outro.
 //
@@ -35,6 +44,7 @@ import { EvidenceBundleSchema, type EvidenceBundle, type ImportRef, type TradeEv
 
 export const VERIFY_SOURCE_SCHEMA = "verify-source/1" as const
 
+/** ATENÇÃO: nenhum destes estados, sozinho, é 'tudo ok' — leia SEMPRE junto do `VerifyReport` do mesmo `evidenceHash` (ver o bloco "NUNCA LER ISOLADO" no topo do arquivo). */
 export type SourceStatus = "SOURCE_VERIFIED" | "SOURCE_VERIFIED_PARTIAL" | "UNVERIFIABLE" | "SOURCE_MISMATCH" | "INVALID_FORMAT"
 export type SourceCheckStatus = "PASS" | "FAIL" | "SKIPPED"
 
@@ -97,7 +107,7 @@ export const SOURCE_LIMITATIONS: ReadonlyArray<SourceLimitation> = [
   { code: "L_SEQUENCE_ORIGINAL_ORDER_NOT_PROVEN", text: "A ordem registrada em population.sequence reproduz o resultado do motor (V4.sequence), mas a ordem do array de entrada do motor depende de quem o chamou, não do CSV: a ordem original não é provada contra o arquivo." },
   { code: "L_USER_ENRICHMENT_NOT_PROVEN", text: "R, risco, stop, issues e fieldProvenance podem ter sido acrescentados depois da importação (não derivam do arquivo) e ficam fora da comparação de valores." },
   { code: "L_CONTEXT_FROM_BUNDLE_AND_CALLER", text: "O contexto da reingestão vem do ImportRef. Imports com `reproducibility` registram as versões das funções de identidade, foldPolicy, exitReasonMap e se houve sal; imports ANTERIORES não têm esse bloco (nunca é inferido) e dependem de foldPolicy/exitReasonMap/versões informados ou padrão — uma diferença aparece como divergência. O VALOR do accountRefSalt nunca é gravado: quem verifica precisa tê-lo." },
-  { code: "L_BUNDLE_INTEGRITY_NOT_CHECKED", text: "O selo e a consistência interna do bundle (V0–V4) são do verifyEvidence; esta verificação só liga o bundle à fonte." },
+  { code: "L_BUNDLE_INTEGRITY_NOT_CHECKED", text: "O selo e a consistência interna do bundle (V0–V4, e V6 para derivados) são do verifyEvidence; esta verificação só liga o bundle à fonte. SOURCE_VERIFIED ISOLADO NÃO significa \"tudo ok\": só vale junto de VALID do verifyEvidence sobre o MESMO evidenceHash." },
 ]
 
 /** Só entra no relatório quando o bundle tem derivados (os bundles anteriores mantêm exatamente as 5 limitações). */

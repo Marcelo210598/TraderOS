@@ -3,6 +3,7 @@ import Link from "next/link"
 import type { ReactNode } from "react"
 import type { CheckStatus, VerifyStatus } from "@/lib/evidence/verify"
 import type { SourceStatus } from "@/lib/evidence/verify-source"
+import { redactLabels } from "@/lib/dev/evidence-lab/redact-view"
 
 export type Tone = "ok" | "bad" | "warn" | "mute" | "info"
 
@@ -88,7 +89,8 @@ export function Hash({ value, n = 12 }: { value: string | null | undefined; n?: 
 }
 
 export function Json({ value, label, open = false }: { value: unknown; label: string; open?: boolean }) {
-  const text = JSON.stringify(value, null, 2)
+  // rótulos de origem NUNCA aparecem em nenhuma aba (a redação é do componente, não de cada painel)
+  const text = JSON.stringify(redactLabels(value), null, 2)
   return (
     <details open={open} className="rounded-lg border border-zinc-800 bg-zinc-950">
       <summary className="cursor-pointer select-none px-3 py-2 text-sm text-zinc-300 hover:text-zinc-100">
@@ -119,5 +121,14 @@ export function Callout({ tone = "info", title, children }: { tone?: Tone; title
       {title ? <p className="mb-1 font-semibold">{title}</p> : null}
       <div className="text-zinc-200">{children}</div>
     </div>
+  )
+}
+
+/** Aviso fixo: SOURCE_VERIFIED do E5b sozinho NÃO é "tudo ok" (nem para a UI nem para o futuro contrato do agente). */
+export function SoloVerdictCallout() {
+  return (
+    <Callout tone="warn" title="SOURCE_VERIFIED sozinho não é “tudo ok”">
+      A verificação de origem (E5b) liga os <b>trades</b> ao CSV. Ela <b>não</b> confere o selo, as métricas nem os resultados derivados (ranking, comparação) — isso é do <code>verifyEvidence</code> (V0–V6) — e não julga a completude, a ordem ou a duplicidade das citações de pernas. “Verificado” só vale com o veredito <b>combinado</b>: <code>VALID</code> no verifyEvidence <b>e</b> o estado do E5b, sobre o mesmo <code>evidenceHash</code>.
+    </Callout>
   )
 }

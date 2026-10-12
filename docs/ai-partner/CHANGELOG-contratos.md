@@ -2,6 +2,10 @@
 
 Registra **mudanças de contrato** observáveis por quem lê os tipos/relatórios (campos, estados, hashes). Ordem: mais recente primeiro. `evidence/1` nunca virou `evidence/2`: todas as mudanças abaixo são aditivas, salvo onde dito.
 
+## 2026-10-12 — Veredito combinado e redação de rótulos na interface (sem mudança de schema/hash)
+- **Regra:** o estado do E5b (`SOURCE_VERIFIED`…) nunca é lido isolado como "tudo ok". Aviso no código (`verify-source.ts`, bloco "NUNCA LER ISOLADO" + JSDoc de `SourceStatus`), no texto da limitação `L_BUNDLE_INTEGRITY_NOT_CHECKED` (agora cita `VALID` do `verifyEvidence` sobre o mesmo `evidenceHash`; **só o texto mudou, o código da limitação é o mesmo**), nas telas (aviso fixo) e no plano do E6.5 (§6.1). Teste-guarda: `scripts/test-evidence-no-solo-verdict.mts`.
+- **Lab:** rótulos de origem nunca são exibidos em nenhuma aba (o componente `Json` sempre aplica `redactLabels`; tabelas usam `maskLabel`). Só visão: o bundle real não mudou.
+
 ## 2026-10-12 — E5b conserto: citação de perna não conferida (`V5.derived`)
 - **Comportamento (corrige falha minha):** perna citada por um derivado cujo trade não está no bundle (ou não foi conferido com a fonte) passava como `PASS`. Agora ⇒ `SKIPPED S_POPULATION_PARTIAL` ⇒ `SOURCE_VERIFIED_PARTIAL`, com a contagem dita no detalhe; `coverage.derived.partial` conta o derivado uma só vez.
 - Divisão de responsabilidade documentada: o E5b confere **cada** citação contra a reingestão; **completude, ordem e duplicidade da lista** de citações são do V6 (recálculo).
