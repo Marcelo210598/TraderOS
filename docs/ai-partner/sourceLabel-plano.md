@@ -1,7 +1,17 @@
 # MeuTrade — Plano: lista fechada de rótulos + token (`sourceLabel`) — SÓ PLANO, nada implementado
 
-> Status: **proposta para aprovação** (12/10/2026). Decisão do Marcelo já tomada: **lista fechada de rótulos permitidos** (Entry, Target<n>, Stop<n>, Zerar/Flat/Close, vazio) + **hash/token** para qualquer coisa fora da lista. Este documento desenha *como*; as escolhas abertas estão na §9. Nenhum código foi alterado.
+> Status: **plano APROVADO com decisões A–E (12/10/2026); S0 = arquivo de expectativas commitado antes do código; S1+ NÃO iniciados.**
+> (Texto original abaixo, ajustado às decisões; a seção 0 resume o que mudou.) Proposta original de Decisão anterior do Marcelo: **lista fechada de rótulos permitidos** (Entry, Target<n>, Stop<n>, Zerar/Flat/Close, vazio) + **hash/token** para qualquer coisa fora da lista. Este documento desenha *como*; as escolhas abertas estão na §9. Nenhum código foi alterado.
 > Pré-requisito do E6.5 e de qualquer integração com a Vega IA. Repo público: sem dados reais.
+
+## 0. Decisões do Marcelo (12/10/2026) e o que mudaram no plano
+| | Decisão | Efeito no plano |
+|---|---|---|
+| A | Vocabulário **estrito às 2 fixtures reais**, sem nomes padrão do NT8 | v1 = vazio, `Entry`, `Target<n>`, `Stop<n>`, `Zerar`. **`Flat` e `Close` saem da lista** (as regras de motivo continuam classificando-os como MANUAL; na Evidence viram token). Nomes NT8 padrão (`Stop loss`, `Profit target`, `Buy`, `Sell`…) ficam para uma v2 só se aparecerem num export real. |
+| B | Sufixo `\d{0,2}` | `Target`…`Target99`; `Target100` ⇒ token. |
+| C | Tratar `exitReasonMap` do `reproducibility` na mesma etapa | **Cabe, com +2 passos (S2b, S4b) e uma mudança de semântica no E5b — ver §6.1.** Escopo avisado, sem atraso estrutural. |
+| D | Registrar `labelVocab: 1` no `ImportRef` | Campo opcional no `ImportRef` (fora do `importId`), emitido sempre pelos bundles novos. **Consequência (corrige a §7 original): o `evidenceHash` de TODOS os bundles novos muda** (campo novo, como no §14.12); a prova de que nada além disso mudou é: remover `labelVocab` e recalcular o selo reproduz exatamente o `evidenceHash` de baseline (pinado em `sourcelabel.expected.json`). |
+| E | Documentar já: token **sem sal é adivinhável por dicionário**; política de sal por usuário **pendente**, vale para `accountRef`, `strategyRef`, `labelRef` e `patternRef` juntos | Documentado em `data-contract.md` §14.14 e `CHANGELOG-contratos.md`. Nenhuma exigência nova de sal; quem verifica continua precisando do sal quando o import o usou. |
 
 ## 1. Problema (verificado no código e nas fixtures)
 - O texto do nome da ordem (NT8 `Entry`/`Exit`) entra no Canonical em `entryLegs[].sourceLabel` / `exitLegs[].sourceLabel` e em `RowMeta.entryLabel/exitLabel`.
@@ -24,12 +34,12 @@ Normalização para comparar: remover acentos, `trim`, minúsculas (a mesma `nor
 |---|---|---|
 | vazio | `^$` | `""` (vazio é preservado: explica `UNKNOWN`) |
 | entrada | `^entry$` | o texto original (ex.: `Entry`) |
-| alvo | `^target\d{0,3}$` | o texto original (ex.: `Target1`) |
-| stop | `^stop\d{0,3}$` | o texto original (ex.: `Stop2`) |
-| manual | `^(zerar\|flat\|close)$` | o texto original |
+| alvo | `^target\d{0,2}$` | o texto original (ex.: `Target1`) |
+| stop | `^stop\d{0,2}$` | o texto original (ex.: `Stop2`) |
+| manual | `^zerar$` | o texto original (**`Flat`/`Close` NÃO estão na v1**: decisão A) |
 | **qualquer outra coisa** | — | **token** `lbl_<24 hex>` |
 
-- O texto original só é devolvido quando pertence ao vocabulário (fechado, não sensível). Variações de caixa/acento (`ZERAR`, `Zérar`) casam e saem como vieram.
+- O texto original só é devolvido quando pertence ao vocabulário (fechado, não sensível), **já sem espaços nas pontas**. Variações de caixa/acento (`ZERAR`, `Zérar`) casam e saem como vieram (aparados).
 - **Atenção a um descasamento real:** as regras de motivo (`ingest/exit-reason.ts`) usam **prefixo** (`^target`, `^stop`). Um rótulo `StopLossCustom` é classificado `STOP`, mas **não** está na lista fechada ⇒ sai como token (o motivo `STOP` continua aparecendo e verificável). Isso é intencional: a lista de *exibição* é mais estreita que a de *classificação*.
 
 ## 4. Token
@@ -48,9 +58,16 @@ Normalização para comparar: remover acentos, `trim`, minúsculas (a mesma `nor
 - **Sal:** com sal no import, a verificação já exige o sal (accountRef). Tokens passam a depender dele também (mesma exigência, nenhuma nova).
 - Versão do vocabulário: registrar **`labelVocab: 1`** como campo opcional no `ImportRef` (fora do `importId`; ausente = v1) para que uma lista futura (v2) não torne bundles v1 irreprodutíveis em silêncio. (Decisão §9-D.)
 
+### 6.1 Decisão C — `exitReasonMap` do usuário (mudança de semântica no E5b)
+- **Hoje:** `ImportRef.reproducibility.exitReasonMap[] = { pattern, reason }` leva o **regex do usuário em claro**, e o E5b o **usa para reingerir** (`sourceContextOf`, `verify-source.ts`).
+- **Plano:** a Evidence passa a carregar `{ patternRef, reason }`, com `patternRef = "pat_" + SHA-256("meutrade/patternRef/1" ‖ sal ‖ pattern).hex.slice(0,24)`. O regex fica **só no `ImportRecord` interno**.
+- **Consequência para o E5b (dita, não escondida):** sem o padrão em claro no bundle, ele deixa de poder reingerir sozinho um import que tinha mapa **não vazio**. O chamador passa o mapa (opção `exitReasonMap`, que já existe para imports anteriores) e o E5b **confere cada padrão contra o `patternRef` registrado**; mapa ausente ou divergente ⇒ `UNVERIFIABLE` (`S_CONTEXT_INSUFFICIENT`, **nunca** adulteração). Imports com **mapa vazio** (todas as fixtures reais e sintéticas atuais) não mudam em nada. É a mesma lógica do sal: o segredo/dado do usuário não viaja no bundle; quem verifica precisa tê-lo.
+- **Reprodução do registro:** `recordDiffs` compara o `reproducibility` da reingestão com o do bundle; a reingestão passa a ser **projetada** (mesma função) antes de comparar.
+- **Tamanho:** +2 passos no cronograma (S2b projeção/schema do `ImportRef`; S4b E5b com mapa fornecido/ausente/divergente). Não muda `importId`/`rowHash`/`tradeId`.
+
 ## 7. Impacto em hashes (a medir, não supor)
 - `importId`, `rowHash`, `tradeId`, `tradeSetHash`, métricas, derivados: **idênticos** (o Canonical e o fingerprint não usam a projeção).
-- `evidenceHash`: **idêntico** para bundles em que todos os rótulos já são padrão (caso das 2 fixtures e dos CSVs sintéticos); **muda** só quando havia texto livre (passa a token). Não há bundle persistido hoje (sem banco), então nenhuma migração.
+- `evidenceHash`: **muda em todos os bundles novos** pelo campo `labelVocab` (decisão D) — e, **além disso**, só muda quando havia texto livre (token) ou mapa de usuário (`patternRef`). Prova de que nada mais mudou: bundle novo **sem** a chave `labelVocab`, com selo recalculado, = `evidenceHash` de baseline pinado antes do código. Não há bundle persistido hoje (sem banco), então nenhuma migração.
 - Compatibilidade: bundles antigos com texto livre passam a ser `INVALID_FORMAT` — aceitável (nenhum existe fora de testes); registrar no `CHANGELOG-contratos.md`.
 
 ## 8. Entregas (um commit local cada; expectativas ANTES do código — protocolo de `scripts/expectations/`)
@@ -58,25 +75,24 @@ Normalização para comparar: remover acentos, `trim`, minúsculas (a mesma `nor
 |---|---|---|
 | S0 | `scripts/expectations/sourcelabel.expected.json` (tabela rótulo → saída, V0, E5b, hashes pinados) **commitado antes** do código | sim |
 | S1 | `labelRef` + `projectLabel` + testes unitários (tabela, acento/caixa, token determinístico, domínio separado, sal) | — |
-| S2 | Projeção em `explain-trade` + schemas da Evidence com regex (V0 rejeita texto livre) | — |
+| S2 | Projeção em `explain-trade` + schemas da Evidence com regex (V0 rejeita texto livre) + `labelVocab` no `ImportRef` | — |
+| S2b | (decisão C) `patternRef` no lugar do regex do usuário no `ImportRef`; regex só no registro interno | — |
 | S3 | Provas de não regressão: `importId/rowHash/tradeId/tradeSetHash` pinados; `evidenceHash` idêntico em bundles padrão; baselines 5.238/36 e E5b 273/7/8; derivados/V6 intactos | sim |
+| S4b | (decisão C) E5b: mapa de usuário fornecido (confere por `patternRef`) / ausente / divergente ⇒ `UNVERIFIABLE`; mapa vazio inalterado | sim |
 | S4 | E5b com tokens (CSV sintético com texto livre inventado; reingestão reproduz; token adulterado detectado); fixtures reais (0 não-padrão ⇒ sem mudança) | — |
 | S5 | Lab: `redactLabels`/`maskLabel` passam a mostrar padrão ou token (texto livre inexistente na Evidence); cenário novo "rótulo livre ⇒ token" | — |
 | S6 | Docs: `data-contract.md`, `CHANGELOG-contratos.md`, checkpoint; atualizar `L_*` e a pendência `sourcelabel` | sim |
 
-## 9. Decisões abertas (preciso do Marcelo antes do S0)
-- **A. Amplitude do vocabulário.** Só o que as fixtures mostram (Entry/Target/Stop/Zerar/Flat/Close) ou também os nomes **padrão do NT8**: `Stop loss`, `Profit target`, `Exit on session close`, `Buy`, `Sell`? Recomendo **começar estrito** (v1 = tabela da §3) e acrescentar na v2 só o que aparecer num export real — hoje não há evidência de que os outros ocorram, e cada item novo amplia o texto que sai em claro.
-- **B. Sufixo numérico:** `\d{0,3}` (Target1…Target999) ou limite menor (`\d{0,2}`)? Recomendo `\d{0,2}`.
-- **C. `exitReasonMap[].pattern` do usuário** (vetor 1.a): tratar na mesma etapa (recomendo **sim**): aceitar na Evidence só a *forma* (`reason` + hash do padrão) e manter o regex só no registro interno do import; hoje ele sai em texto aberto no `ImportRef.reproducibility`.
-- **D. Registrar `labelVocab` no `ImportRef`** (recomendo sim, opcional, fora do `importId`).
-- **E. Token sem sal** quando o import não usou sal: aceitar o limite (dicionário) e documentar, ou **exigir sal** para exportar bundles com rótulo não-padrão? Recomendo documentar e deixar para a política de produto (sal por usuário) antes do agente.
+## 9. Decisões (todas respondidas em 12/10/2026 — ver §0)
+A estrito às 2 fixtures · B `\d{0,2}` · C sim (com S2b/S4b e a semântica da §6.1) · D sim (`labelVocab: 1`) · E documentar e adiar a política de sal (vale para `accountRef`, `strategyRef`, `labelRef` e `patternRef`).
+**Ainda sem política de sal por usuário:** hoje o sal é opcional e por import; sem ele, `accountRef`, `strategyRef`, `labelRef` e `patternRef` são **adivinháveis por dicionário** para textos curtos/comuns. Isso é limite documentado, não corrigido.
 
 ## 10. Riscos e mitigação
 | Risco | Mitigação |
 |---|---|
 | Perda de verificabilidade do motivo | `reason`/`reasonRule` continuam na Evidence; E5b reingere e compara (testado no S4). |
 | Descasamento prefixo × lista fechada confunde (`StopX` = STOP mas token) | Dito no doc/Lab; `reason` aparece junto do token. |
-| Token adivinhável (texto curto, sem sal) | Documentado como pseudônimo; sal recomendado; decisão E. |
+| Token adivinhável (texto curto, sem sal) | Documentado (§9/E) como pseudônimo; política de sal por usuário pendente e comum a todos os refs. |
 | Bundles futuros com vocabulário v2 | `labelVocab` no `ImportRef` (decisão D). |
 | Quebrar algo que lê o texto | Auditoria dos leitores feita em 12/10 (`grep` em `src/`): quem **lê** o rótulo para a Evidence é `evidence/explain-trade.ts` (`entryLegOf`/`exitLegOf` e a montagem de `SourceRowRef`, linhas 68–104) e quem o **valida** é `evidence/schema.ts` (linhas 43–44); o E5b só compara via `explainTrades` (não lê o campo); `metrics/analysis.ts` e `metrics/legs.ts` apenas citam o nome em comentário; o resto é ingestão/Canonical (interno, inalterado), Lab e testes. |
 

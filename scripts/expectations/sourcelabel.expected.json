@@ -1,0 +1,381 @@
+{
+  "_meta": {
+    "written": "2026-10-12",
+    "before_implementation": true,
+    "step": "S0",
+    "plan": "docs/ai-partner/sourceLabel-plano.md",
+    "decisions": {
+      "A": "vocabulário estrito às 2 fixtures reais (Flat/Close fora)",
+      "B": "sufixo \\d{0,2}",
+      "C": "exitReasonMap do usuário: patternRef no ImportRef (S2b/S4b)",
+      "D": "labelVocab:1 no ImportRef",
+      "E": "token/patternRef sem exigência de sal; política de sal por usuário pendente (vale para accountRef, strategyRef, labelRef, patternRef)"
+    },
+    "note": "Tudo abaixo foi escrito ANTES de qualquer código do sourceLabel. 'TOKEN' = string que casa /^lbl_[0-9a-f]{24}$/. Os pins de baseline são do código ANTERIOR à mudança (commit 804def3).",
+    "history": []
+  },
+  "vocabulary": {
+    "version": 1,
+    "allowed": [
+      "",
+      "Entry",
+      "Target<0-99>",
+      "Stop<0-99>",
+      "Zerar"
+    ],
+    "normalization": "sem acento, trim, minúsculas; casamento da string inteira; saída = texto original aparado"
+  },
+  "projection": [
+    {
+      "in": null,
+      "out": null,
+      "note": "null passa como null"
+    },
+    {
+      "in": "",
+      "out": "",
+      "note": "vazio é preservado (explica UNKNOWN)"
+    },
+    {
+      "in": "   ",
+      "out": "",
+      "note": "só espaços ≡ vazio (aparado)"
+    },
+    {
+      "in": "Entry",
+      "out": "Entry",
+      "note": ""
+    },
+    {
+      "in": "entry",
+      "out": "entry",
+      "note": "caixa preservada"
+    },
+    {
+      "in": "ENTRY",
+      "out": "ENTRY",
+      "note": ""
+    },
+    {
+      "in": "  Entry  ",
+      "out": "Entry",
+      "note": "aparado"
+    },
+    {
+      "in": "Target",
+      "out": "Target",
+      "note": ""
+    },
+    {
+      "in": "Target1",
+      "out": "Target1",
+      "note": ""
+    },
+    {
+      "in": "Target12",
+      "out": "Target12",
+      "note": "2 dígitos (decisão B)"
+    },
+    {
+      "in": "Target99",
+      "out": "Target99",
+      "note": ""
+    },
+    {
+      "in": "Target100",
+      "out": "TOKEN",
+      "note": "3 dígitos fora (decisão B)"
+    },
+    {
+      "in": "Target 1",
+      "out": "TOKEN",
+      "note": "espaço no meio"
+    },
+    {
+      "in": "Target1a",
+      "out": "TOKEN",
+      "note": ""
+    },
+    {
+      "in": "Targets",
+      "out": "TOKEN",
+      "note": ""
+    },
+    {
+      "in": "Stop",
+      "out": "Stop",
+      "note": ""
+    },
+    {
+      "in": "Stop1",
+      "out": "Stop1",
+      "note": ""
+    },
+    {
+      "in": "Stop2",
+      "out": "Stop2",
+      "note": ""
+    },
+    {
+      "in": "Stop99",
+      "out": "Stop99",
+      "note": ""
+    },
+    {
+      "in": "Stop100",
+      "out": "TOKEN",
+      "note": ""
+    },
+    {
+      "in": "STOP3",
+      "out": "STOP3",
+      "note": ""
+    },
+    {
+      "in": "Zerar",
+      "out": "Zerar",
+      "note": ""
+    },
+    {
+      "in": "ZERAR",
+      "out": "ZERAR",
+      "note": ""
+    },
+    {
+      "in": "Zérar",
+      "out": "Zérar",
+      "note": "acento: casa pela normalização"
+    },
+    {
+      "in": "Flat",
+      "out": "TOKEN",
+      "note": "decisão A: Flat NÃO está na v1 (a regra de motivo ainda o classifica MANUAL)"
+    },
+    {
+      "in": "Close",
+      "out": "TOKEN",
+      "note": "decisão A: Close NÃO está na v1"
+    },
+    {
+      "in": "Stop loss",
+      "out": "TOKEN",
+      "note": "nome padrão do NT8: fora da v1"
+    },
+    {
+      "in": "Profit target",
+      "out": "TOKEN",
+      "note": "idem"
+    },
+    {
+      "in": "Exit on session close",
+      "out": "TOKEN",
+      "note": "idem"
+    },
+    {
+      "in": "Buy",
+      "out": "TOKEN",
+      "note": "idem"
+    },
+    {
+      "in": "Sell",
+      "out": "TOKEN",
+      "note": "idem"
+    },
+    {
+      "in": "StopLossCustom",
+      "out": "TOKEN",
+      "note": "classificado STOP por prefixo, mas fora da lista de exibição"
+    },
+    {
+      "in": "Stop1 loss",
+      "out": "TOKEN",
+      "note": ""
+    },
+    {
+      "in": "Saida X",
+      "out": "TOKEN",
+      "note": ""
+    },
+    {
+      "in": "Meu Setup X",
+      "out": "TOKEN",
+      "note": "texto livre"
+    },
+    {
+      "in": "João do setup",
+      "out": "TOKEN",
+      "note": "nome de pessoa"
+    }
+  ],
+  "token": {
+    "format": "^lbl_[0-9a-f]{24}$",
+    "deterministic": true,
+    "sameForVariants": [
+      [
+        "Meu Setup X",
+        "meu setup x",
+        "  MÉU SETUP X  "
+      ]
+    ],
+    "differentForDifferentText": [
+      [
+        "Meu Setup X",
+        "Meu Setup Y"
+      ]
+    ],
+    "differentWithSalt": [
+      [
+        "Meu Setup X",
+        "sal-a",
+        "sal-b"
+      ]
+    ],
+    "domainSeparation": "o trecho hex de labelRef(x), accountRef(x) e strategyRef(x) são todos diferentes para o mesmo x",
+    "saltOptional": true,
+    "unsaltedIsDictionaryGuessable": true
+  },
+  "schema_V0": {
+    "fields": [
+      "entryLegs[].sourceLabel",
+      "exitLegs[].sourceLabel",
+      "sourceRows[].entryLabel",
+      "sourceRows[].exitLabel"
+    ],
+    "accepts": [
+      "null",
+      "",
+      "palavra do vocabulário v1",
+      "lbl_<24 hex>"
+    ],
+    "rejects_INVALID_FORMAT": [
+      "texto livre (ex.: 'Meu Setup X')",
+      "Flat",
+      "Close",
+      "Target100",
+      "lbl_ com tamanho ≠ 24 ou hex inválido",
+      "token em maiúsculas"
+    ],
+    "note": "rejeição vale mesmo com o selo refeito (a garantia é do V0, não do selo)"
+  },
+  "noChange_invariants": {
+    "importId_rowHash_tradeId_tradeSetHash": "idênticos aos pins abaixo (o Canonical e o fingerprint não usam a projeção)",
+    "metrics_V6_derived_results": "idênticos (nenhuma métrica, delta ou ranking muda)",
+    "baselines": "5.238 VALID / 36 UNVERIFIABLE (V0–V4) e E5b 273 verificados / 7 parciais / 8 sem referência, 0 divergências",
+    "evidenceHash": "MUDA em todo bundle novo pelo campo ImportRef.labelVocab (decisão D). Prova de que nada mais mudou: para o bundle lab-demo/netPnl (só rótulos padrão, mapa de usuário vazio), remover a chave labelVocab e recalcular o selo reproduz EXATAMENTE pins['lab-demo/netPnl'].evidenceHash. Os bundles lab-derived contêm 'Saida X' (⇒ token): para eles só os pins de identidade valem, o evidenceHash muda também pelo token.",
+    "pins": {
+      "lab-demo/netPnl": {
+        "evidenceHash": "276b5094a060a1605b4380f818a23bc39b3ac5998068fdfc589e019055bbd392",
+        "importId": "imp_6101dd1f17405bd6ca6d6e5c78a28c8c",
+        "firstTradeId": "trd_044deedd8b1494a92c012d0b4f8b94ae",
+        "firstRowHash": "bf34d94d813780c562724b9cce5113f1392e3232bdd3e878bd16355b55f1a364",
+        "trades": 14,
+        "tradeSetHash": "fda36861daf93ec8329113b8340f080f43806ab8b201032948355e07ab7c3171"
+      },
+      "lab-derived/rank-hour": {
+        "evidenceHash": "e07942a47629bc885b16ab457c85624cdbec2b12598efd8b089217a0549ee007",
+        "importId": "imp_b00b34b2d38ee3b7aa89e0171bf916c7",
+        "firstTradeId": "trd_0a180fca57381f5ddc28994634903c0f",
+        "firstRowHash": "8f22b845f8dd1aa9daa4ec1b3a2029cc909f0337c0a6412026a4e760d183975a",
+        "trades": 13,
+        "tradeSetHash": "a8f2163ddf24c579d5c601375651cd11838b3906adb70ab11d47d119d3d03c0b"
+      },
+      "lab-derived/exit-analysis": {
+        "evidenceHash": "218760fa7eec5c2988ef65369d0c12cfebbc00cd1ec3497b9a2028b519a21a28",
+        "importId": "imp_b00b34b2d38ee3b7aa89e0171bf916c7",
+        "firstTradeId": "trd_0a180fca57381f5ddc28994634903c0f",
+        "firstRowHash": "8f22b845f8dd1aa9daa4ec1b3a2029cc909f0337c0a6412026a4e760d183975a",
+        "trades": 13,
+        "tradeSetHash": "a8f2163ddf24c579d5c601375651cd11838b3906adb70ab11d47d119d3d03c0b"
+      },
+      "lab-derived/leg-rank": {
+        "evidenceHash": "035e4a122b555b70a6785f534f2f7c88916bce2f132c2fe89622820bc9db1191",
+        "importId": "imp_b00b34b2d38ee3b7aa89e0171bf916c7",
+        "firstTradeId": "trd_0a180fca57381f5ddc28994634903c0f",
+        "firstRowHash": "8f22b845f8dd1aa9daa4ec1b3a2029cc909f0337c0a6412026a4e760d183975a",
+        "trades": 13,
+        "tradeSetHash": "a8f2163ddf24c579d5c601375651cd11838b3906adb70ab11d47d119d3d03c0b"
+      }
+    }
+  },
+  "e5b": {
+    "free_text_label_csv": {
+      "setup": "CSV sintético inventado com exitLabel 'Meu Setup X' e 'StopLossCustom' (e entryLabel 'Entry'); import sem sal",
+      "bundle_labels": "nenhum texto livre no bundle: tokens nos dois rótulos não-padrão",
+      "reason_still_visible": {
+        "StopLossCustom": "STOP",
+        "Meu Setup X": "UNKNOWN"
+      },
+      "verifyEvidence": "VALID",
+      "verifyEvidenceSource": "SOURCE_VERIFIED",
+      "token_adulterado": {
+        "verifyEvidenceSource": "SOURCE_MISMATCH",
+        "check": "V5.values",
+        "code": "V_TRADE_VALUES_MISMATCH"
+      },
+      "texto_livre_injetado_com_selo_refeito": {
+        "verifyEvidence": "INVALID_FORMAT"
+      }
+    },
+    "salted_import_without_salt": {
+      "verifyEvidenceSource": "UNVERIFIABLE",
+      "code": "S_ACCOUNT_REF_UNVERIFIED",
+      "note": "comportamento já existente; tokens não criam exigência nova de sal"
+    },
+    "real_fixtures": {
+      "non_vocabulary_labels": 0,
+      "tokens_in_bundles": 0,
+      "result": "todos os bundles reais com labels idênticos ao original (projeção = identidade)"
+    }
+  },
+  "exitReasonMap_C": {
+    "import_with_empty_map": {
+      "ImportRef.reproducibility.exitReasonMap": "[]",
+      "e5b": "inalterado (SOURCE_VERIFIED como hoje)"
+    },
+    "import_with_user_map": {
+      "setup": "mapa do usuário [{pattern:'^meu stop', reason:'STOP'}] com import sintético cujo rótulo é 'meu stop 1'",
+      "ImportRef_exitReasonMap": "[{ patternRef: 'pat_<24 hex>', reason: 'STOP' }] — a chave 'pattern' NÃO existe",
+      "regex_text_anywhere_in_bundle": false,
+      "e5b_without_map": {
+        "status": "UNVERIFIABLE",
+        "code": "S_CONTEXT_INSUFFICIENT",
+        "note": "nunca SOURCE_MISMATCH"
+      },
+      "e5b_with_matching_map": {
+        "status": "SOURCE_VERIFIED"
+      },
+      "e5b_with_wrong_map": {
+        "status": "UNVERIFIABLE",
+        "code": "S_CONTEXT_INSUFFICIENT",
+        "note": "padrão informado não bate com o patternRef registrado"
+      },
+      "verifyEvidence": "VALID"
+    },
+    "patternRef": {
+      "format": "^pat_[0-9a-f]{24}$",
+      "domain": "meutrade/patternRef/1",
+      "sameSaltAsAccountRef": true
+    }
+  },
+  "labelVocab_D": {
+    "ImportRef_labelVocab": 1,
+    "outside_importId": true,
+    "absent_means": 1,
+    "unknown_future_version": {
+      "verifyEvidenceSource": "UNVERIFIABLE",
+      "code": "S_VERSION_INCOMPATIBLE",
+      "note": "labelVocab diferente do código atual não é adulteração"
+    }
+  },
+  "lab_S5": {
+    "free_text_scenario": "cenário novo do Lab com rótulo livre: a interface mostra o token (lbl_…), nunca o texto",
+    "everything_shown": "palavra do vocabulário ou token; nenhum texto fora disso em nenhuma aba"
+  },
+  "acceptance": [
+    "nenhum texto fora do vocabulário em nenhum campo de nenhum bundle gerado (varredura automática: sintético, 2 fixtures reais, cenários do Lab)",
+    "V0 rejeita texto livre injetado, mesmo com selo refeito",
+    "importId/rowHash/tradeId/tradeSetHash e métricas/V6 idênticos aos pins; E5b e V0–V4 nos baselines",
+    "E5b reproduz tokens e detecta token adulterado; mapa de usuário fornecido/ausente/divergente tratado como acima",
+    "test:domain, tsc (+.mts) e ESLint do escopo verdes; sem push/deploy/banco/Prisma"
+  ]
+}

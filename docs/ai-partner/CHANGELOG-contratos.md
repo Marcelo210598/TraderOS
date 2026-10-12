@@ -2,6 +2,10 @@
 
 Registra **mudanças de contrato** observáveis por quem lê os tipos/relatórios (campos, estados, hashes). Ordem: mais recente primeiro. `evidence/1` nunca virou `evidence/2`: todas as mudanças abaixo são aditivas, salvo onde dito.
 
+## 2026-10-12 — Decisões do plano do `sourceLabel` (NADA implementado; só contrato futuro e pendências)
+- Vocabulário v1 estrito às 2 fixtures reais: vazio, `Entry`, `Target<0–99>`, `Stop<0–99>`, `Zerar` (`Flat`/`Close` e nomes padrão do NT8 ficam de fora); o resto vira token `lbl_<24 hex>`. `ImportRef.labelVocab: 1` (opcional, fora do `importId`). `exitReasonMap` do usuário passa a sair como `patternRef` (o E5b passará a exigir o mapa do chamador para imports com mapa não vazio; sem ele ⇒ `UNVERIFIABLE`, nunca adulteração). Detalhes e passos: `sourceLabel-plano.md`; expectativas escritas antes do código: `scripts/expectations/sourcelabel.expected.json`.
+- **Limite documentado agora (decisão E):** `accountRef`, `strategyRef`, `labelRef` e `patternRef` são pseudônimos sem anonimização; sem sal são adivinháveis por dicionário; **política de sal por usuário pendente** (`data-contract.md` §14.14).
+
 ## 2026-10-12 — Veredito combinado e redação de rótulos na interface (sem mudança de schema/hash)
 - **Regra:** o estado do E5b (`SOURCE_VERIFIED`…) nunca é lido isolado como "tudo ok". Aviso no código (`verify-source.ts`, bloco "NUNCA LER ISOLADO" + JSDoc de `SourceStatus`), no texto da limitação `L_BUNDLE_INTEGRITY_NOT_CHECKED` (agora cita `VALID` do `verifyEvidence` sobre o mesmo `evidenceHash`; **só o texto mudou, o código da limitação é o mesmo**), nas telas (aviso fixo) e no plano do E6.5 (§6.1). Teste-guarda: `scripts/test-evidence-no-solo-verdict.mts`.
 - **Lab:** rótulos de origem nunca são exibidos em nenhuma aba (o componente `Json` sempre aplica `redactLabels`; tabelas usam `maskLabel`). Só visão: o bundle real não mudou.
