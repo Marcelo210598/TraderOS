@@ -117,7 +117,7 @@ test("FIDELIDADE: cada cenário chama as funções REAIS — selo = computeEvide
 })
 
 test("CENÁRIOS (todos os pedidos): íntegro, comparação, UNKNOWN/MIXED, divergência, amostra pequena, métrica indisponível, alteração com selo refeito, referência inválida, HASH_ONLY e limitações — com o veredito e os checks do V6 previstos", () => {
-  const need = ["rank-hour", "compare-acc", "compare-period", "exit-analysis", "compare-legs", "leg-rank", "small-sample", "unavailable", "divergence", "forged-value", "forged-delta", "forged-quality", "invalid-ref", "swapped-dim", "hash-only", "version", "strategy-dim"]
+  const need = ["rank-hour", "compare-acc", "compare-period", "exit-analysis", "compare-legs", "leg-rank", "small-sample", "unavailable", "divergence", "forged-value", "forged-delta", "forged-quality", "invalid-ref", "swapped-dim", "hash-only", "version", "strategy-dim", "free-label", "forged-token"]
   assert.deepEqual(DERIVED_SCENARIOS.map((s) => s.id), need)
   const st = (id: string, c: string) => v6(run(id)).find((x) => x.id === c)!
   for (const id of ["rank-hour", "compare-acc", "compare-period", "exit-analysis", "compare-legs", "leg-rank", "small-sample", "unavailable", "divergence"]) {
@@ -181,14 +181,16 @@ test("PRIVACIDADE: nenhum nome de conta/estratégia/arquivo nos bundles, relató
       assert.equal(J(r.source).includes(s), false, `${r.scenario.id}: relatório E5b vazou ${s}`)
     }
     for (const l of LABELS) {
-      assert.equal(shown.includes(l), false, `${r.scenario.id}: rótulo ${l} na visão da interface`)
+      if (l === "Saida X") assert.equal(shown.includes(l), false, `${r.scenario.id}: texto livre ${l} na visão da interface`) // S5: palavras do vocabulário (Target1…) agora aparecem de propósito
       const d = (r.bundle as Any).evidence?.derived?.[0]
       if (d) assert.equal(J(d).includes(l), false, `${r.scenario.id}: rótulo ${l} dentro do derivado`)
       assert.equal(J(r.report).includes(l), false)
     }
   }
-  assert.ok(J(runs[0].bundle).includes("Target1"), "premissa do teste: o bundle real mantém o rótulo nos TradeEvidence (E3/E5b)")
-  assert.ok(J(redactLabels(runs[0].bundle)).includes("«omitido»"))
+  assert.ok(J(runs[0].bundle).includes("Target1"), "premissa do teste: a Evidence mantém a palavra do vocabulário nos TradeEvidence (E5b depende dela)")
+  assert.ok(/lbl_[0-9a-f]{24}/.test(J(runs[0].bundle)), "rótulo livre ('Saida X') aparece como token na Evidence")
+  assert.equal(J(runs[0].bundle).includes("Saida X"), false, "texto livre nunca está na Evidence (S2)")
+  assert.ok(J(redactLabels(runs[0].bundle)).includes("Target1"), "S5: a visão mostra a palavra do vocabulário como está")
   for (const f of ["src/lib/dev/evidence-lab/derived.ts", "src/app/dev/evidence-lab/_components/derived-panel.tsx"]) {
     const code = read(f).replace(/\/\/.*$/gm, "").replace(/"(?:[^"\\\n]|\\.)*"/g, '""').replace(/`(?:[^`\\]|\\.)*`/g, "``")
     assert.equal(/\.(sourceLabel|entryLabel|exitLabel)\b/.test(code), false, `${f}: lê rótulo de origem`)
@@ -221,11 +223,13 @@ test("REDAÇÃO EM TODAS AS ABAS (inclusive as antigas): o componente Json sempr
   assert.equal(maskLabel(null), "—")
   assert.equal(maskLabel(undefined), "—")
   assert.equal(maskLabel(""), "(vazio)")
-  assert.equal(maskLabel("Target1"), "«omitido»")
-  const sample = { a: { sourceLabel: "Stop1", entryLabel: null, exitLabel: "", deep: [{ sourceLabel: "Zerar" }] }, keep: "Target1-nao-e-chave" }
+  assert.equal(maskLabel("Target1"), "Target1", "S5: palavra do vocabulário aparece")
+  assert.equal(maskLabel("lbl_0123456789abcdef01234567"), "lbl_0123456789abcdef01234567", "S5: token aparece")
+  assert.equal(maskLabel("Meu Setup X"), "«omitido»", "falha fechada: texto livre (não projetado) nunca aparece")
+  const sample = { a: { sourceLabel: "Meu Setup X", entryLabel: null, exitLabel: "", deep: [{ sourceLabel: "texto livre 2" }] }, keep: "Target1-nao-e-chave" }
   const red = redactLabels(sample) as Any
   assert.deepEqual([red.a.sourceLabel, red.a.entryLabel, red.a.exitLabel, red.a.deep[0].sourceLabel, red.keep], ["«omitido»", null, "", "«omitido»", "Target1-nao-e-chave"])
-  assert.equal(J(sample).includes("Stop1"), true, "a função não altera o original")
+  assert.equal(J(sample).includes("Meu Setup X"), true, "a função não altera o original")
   assert.match(read("src/app/dev/evidence-lab/_components/ui.tsx"), /JSON\.stringify\(redactLabels\(value\), null, 2\)/)
   const panels = walk(join(ROOT, "src/app/dev/evidence-lab/_components")).filter((f) => f.endsWith(".tsx"))
   assert.ok(panels.length >= 9)
@@ -238,7 +242,8 @@ test("REDAÇÃO EM TODAS AS ABAS (inclusive as antigas): o componente Json sempr
     }
   }
   // todos os bundles do Lab principal (abas antigas), vistos pela interface, não mostram rótulo
-  assert.equal(J(redactLabels(runs[0].bundle)).includes("Target1"), false)
+  for (const l of ["Saida X"]) assert.equal(J(redactLabels(runs[0].bundle)).includes(l), false, "texto livre nunca visível")
+  assert.equal(J(redactLabels({ sourceLabel: "Saida X" })).includes("Saida X"), false, "injeção de texto livre numa chave de rótulo é omitida")
 })
 
 test("MÉTRICAS POR CONTA/ESTRATÉGIA: o grupo do motor é mostrado como accountRef/strategyRef (nome em claro nunca); chave nula e outras dimensões mantêm o rótulo do motor; select do bundle usa o mesmo helper", () => {

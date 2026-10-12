@@ -3,7 +3,9 @@
     "frozen": "2026-10-12",
     "after_execution": true,
     "note": "Congelado APÓS a execução verificada dos 17 cenários (os vereditos já estavam no campo `expected` de derived.ts antes da 1ª execução, mas sem arquivo separado). Trava contra regressão, não previsão independente. v6 = status dos 8 checks do V6 na ordem do catálogo (P=PASS, F=FAIL, S=SKIPPED).",
-    "history": []
+    "history": [
+      "2026-10-12 S5 (sourceLabel): +2 cenários ANTES de rodar — free-label (VALID, V6 PPPPPPPP, E5b SOURCE_VERIFIED) e forged-token (VALID, V6 PPPPPPPP, E5b SOURCE_MISMATCH: só o E5b enxerga token trocado)."
+    ]
   },
   "scenarios": {
     "rank-hour": {
@@ -90,6 +92,16 @@
       "verdict": "UNVERIFIABLE",
       "v6": "PSPPSSSS",
       "e5b": "SOURCE_VERIFIED"
+    },
+    "free-label": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_VERIFIED"
+    },
+    "forged-token": {
+      "verdict": "VALID",
+      "v6": "PPPPPPPP",
+      "e5b": "SOURCE_MISMATCH"
     }
   }
 }

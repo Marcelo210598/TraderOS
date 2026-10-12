@@ -237,7 +237,7 @@ function Origin({ run, p }: { run: DerivedRun; p: LabParams }) {
                   ))}
                 </Table>
               ) : null}
-              <Json value={redactLabels(open)} label={`TradeEvidence #${p.dvt} (JSON; rótulos de origem omitidos)`} />
+              <Json value={redactLabels(open)} label={`TradeEvidence #${p.dvt} (JSON; rótulos = palavra do vocabulário ou token)`} />
             </div>
           ) : null}
         </>
@@ -378,8 +378,8 @@ export function DerivedPanel({ runs, selected, p, cycles, rows }: { runs: Derive
         </Table>
       </Section>
 
-      <Section title="JSON" subtitle="Rótulos de origem (sourceLabel, entryLabel, exitLabel) omitidos nesta tela; o bundle real os mantém nos TradeEvidence porque o E5b depende deles (pendência registrada antes de qualquer integração com o agente).">
-        <Json value={redactLabels(s.parsed ?? s.bundle)} label="Bundle completo (JSON, rótulos omitidos)" />
+      <Section title="JSON" subtitle="Rótulos de origem: a Evidence só carrega a palavra do vocabulário (Entry, Target1, Stop1, Zerar…) ou um token lbl_… (texto livre nunca entra); esta tela mostra exatamente isso e omite qualquer outro texto.">
+        <Json value={redactLabels(s.parsed ?? s.bundle)} label="Bundle completo (JSON; rótulos = palavra ou token)" />
       </Section>
     </>
   )

@@ -238,6 +238,28 @@ export const DERIVED_SCENARIOS: DerivedScenario[] = [
     expectedNote: "V6.query: S_ASSOCIATION_UNVERIFIABLE. O resultado existe e é declarado, mas NÃO é confirmado — nunca vira PASS.",
     make: (c) => build(c, { op: "GROUP_RANKING", args: { groupBy: "strategy" } }),
   },
+  {
+    id: "free-label",
+    group: "integro",
+    title: "Rótulo livre vira token (válido)",
+    what: "O CSV sintético tem ordens com um texto livre (fora do vocabulário). Na Evidence a perna carrega só lbl_<24 hex>; palavras do vocabulário (Target1, Stop1, Zerar) aparecem como são. O texto nunca está no bundle.",
+    expected: "VALID",
+    expectedNote: "V0 exige palavra do vocabulário ou token; o E5b reprojeta o rótulo do CSV e confere o token (SOURCE_VERIFIED).",
+    make: (c) => build(c, { op: "EXIT_REASON_ANALYSIS", args: {} }),
+  },
+  {
+    id: "forged-token",
+    group: "adulteracao",
+    title: "Token de rótulo trocado (selo refeito)",
+    what: "Um token lbl_… é trocado por outro bem formado e o selo é recalculado. O V0–V6 não tem como saber (o token não é recalculável a partir do bundle).",
+    expected: "VALID",
+    expectedNote: "V0–V6 dão VALID; quem acusa é o E5b (SOURCE_MISMATCH em V5.values), por isso o veredito é sempre lido em conjunto.",
+    make: (c) => edit(build(c, { op: "EXIT_REASON_ANALYSIS", args: {} }), (x) => {
+      // troca textual do 1º token (sem ler a propriedade do rótulo): o resultado continua um token bem formado
+      const swapped = JSON.parse(JSON.stringify(x).replace(/lbl_[0-9a-f]{24}/, `lbl_${"0".repeat(24)}`)) as Record<string, unknown>
+      Object.assign(x as object, swapped)
+    }),
+  },
 ]
 
 export interface DerivedRun {
