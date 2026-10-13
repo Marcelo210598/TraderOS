@@ -5,7 +5,7 @@
     "step": "E6.6-0a (docs/ai-partner/agent-contract-plano.md §6.1; plano aprovado pelo Marcelo em 13/10/2026: Q1-Q6 e passos 0a-0e)",
     "note": "Escrito ANTES de qualquer teste ou código do combineVerdict. A tabela abaixo foi derivada À MÃO apenas das regras em texto: E6-G6-plano.md §6.1 item 4, agent-capabilities.md linha 48 (precedência) e D4 (NOT_RUN ⇒ NOT_VERIFIED). Nenhum arquivo de src/ foi aberto para derivá-la. NADA aqui foi executado. Mudar uma célula exige entrada em history (data, motivo, quem pediu).",
     "history": [
-      "2026-10-13 E6.6-0b: ao escrever os testes acrescentei 3 exigências de ASSINATURA que a 0a só insinuava (a tabela de vereditos NÃO mudou): (1) buildVerdict(verify:{status,codes}, source:{status,codes}) devolve só {verify:{status,codes}, source:{status,codes}, combined}, sem copiar campos extras da entrada e ignorando qualquer `combined` que o chamador embuta; (2) buildVerdict com entrada nula/indefinida/status inválido LANÇA; (3) combineVerdict com 1 argumento ou com objetos LANÇA. Pedido: proposta minha, a confirmar na revisão do 0b."
+      "2026-10-13 E6.6-0b: ao escrever os testes acrescentei 3 exigências de ASSINATURA que a 0a só insinuava (a tabela de vereditos NÃO mudou): (1) buildVerdict(verify:{status,codes}, source:{status,codes}) devolve só {verify:{status,codes}, source:{status,codes}, combined}, sem copiar campos extras da entrada e ignorando qualquer `combined` que o chamador embuta; (2) buildVerdict com entrada nula/indefinida/status inválido LANÇA; (3) combineVerdict com 1 argumento ou com objetos LANÇA. Pedido: proposta minha. APROVADO pelo Marcelo em 13/10/2026 na revisão do 0b (as 3 exigências e o 0b)."
     ]
   },
   "rules_in_words": {
