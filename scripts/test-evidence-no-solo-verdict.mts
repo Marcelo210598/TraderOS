@@ -158,7 +158,8 @@ test("E6.5 / SG2 (extensão para o AGENTE): o veredito do contrato tem EXATAMENT
   // todo arquivo do agente que cita SOURCE_VERIFIED também define o status do verify (os dois componentes juntos)
   for (const f of walk(join(ROOT, "src/lib/agent")).filter((x) => x.endsWith(".ts"))) {
     const code = readFileSync(f, "utf8").replace(/\/\/.*$/gm, "")
-    if (/SOURCE_VERIFIED/.test(code)) assert.ok(/VerifyStatusSchema/.test(code) && /"VALID"/.test(code), `${f.replace(ROOT, "")}: cita o estado do E5b sem o do verify`)
+    // E6.6-0c (Marcelo, Opção 1, 13/10/2026): `VERIFY_STATUSES` (verdict.ts, lista local que evita ciclo com o contrato) vale como `VerifyStatusSchema`. Prova PRESENÇA textual, não uso real (limitação conhecida dos guardas textuais).
+    if (/SOURCE_VERIFIED/.test(code)) assert.ok(/VerifyStatusSchema|VERIFY_STATUSES/.test(code) && /"VALID"/.test(code), `${f.replace(ROOT, "")}: cita o estado do E5b sem o do verify`)
   }
 })
 

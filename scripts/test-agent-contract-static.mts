@@ -115,7 +115,9 @@ test("KG1 — LACUNA CONHECIDA (PRÉ-REQUISITO OBRIGATÓRIO do E6.6): hoje o sch
   const handle = { evidenceRef: `ev_${"a".repeat(32)}`, evidenceHash: "b".repeat(64), subject: { type: "METRIC", id: "netPnl" }, scope: "TOTAL", population: { declared: 1, verifiability: "FULL" }, refEpoch: "s1", freshness: "CURRENT",
     verdict: { verify: { status: "TAMPERED", codes: [] }, source: { status: "SOURCE_MISMATCH", codes: [] }, combined: "VERIFIED" } }
   assert.equal(EvidenceHandleSchema.safeParse(handle).success, true, "LACUNA FECHADA? Ótimo — agora este teste deve virar um teste de REJEIÇÃO (pré-requisito do E6.6 cumprido); atualize-o e o plano §6.1")
-  assert.equal(agentFiles.some((f) => /combineVerdict/.test(strip(readFileSync(f, "utf8")))), false, "combineVerdict apareceu em src/lib/agent/: o E6.6 começou — feche a lacuna e troque este teste")
+  // E6.6-0c (Marcelo, Opção 1, 13/10/2026): `combineVerdict` só pode viver em verdict.ts (única fonte do combined, Q1). Em qualquer OUTRO arquivo continua sendo alarme.
+  const withCombine = agentFiles.filter((f) => /combineVerdict/.test(strip(readFileSync(f, "utf8")))).map((f) => f.slice(f.lastIndexOf("/") + 1))
+  assert.deepEqual(withCombine, ["verdict.ts"], "combineVerdict fora de verdict.ts (ou ausente dele): o E6.6 avançou — feche a lacuna e troque este teste")
   assert.match(read("docs/ai-partner/agent-contract-plano.md"), /combined.*inconsistente|inconsistente.*combined/s)
 })
 

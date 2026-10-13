@@ -133,6 +133,8 @@ test("N3 — objetos {status,codes} no lugar do status LANÇAM (a assinatura rec
   assert.throws(() => combineVerdict({ status: "VALID", codes: [] }, "SOURCE_VERIFIED"))
   assert.throws(() => combineVerdict("VALID", { status: "SOURCE_VERIFIED", codes: [] }))
   assert.throws(() => (combineVerdict as Any)("VALID"), undefined, "um argumento só")
+  assert.throws(() => (combineVerdict as Any)(), undefined, "zero argumentos")
+  assert.throws(() => (combineVerdict as Any)("VALID", "SOURCE_VERIFIED", "extra"), undefined, "argumento a mais (aridade 3) não pode passar em silêncio")
 })
 
 const V = (status: string, codes: string[] = []) => ({ status, codes })
@@ -167,6 +169,28 @@ test("B3 — buildVerdict com status inválido LANÇA (mesmo critério do combin
   assert.throws(() => buildVerdict(V("VALID"), V("ok")))
   assert.throws(() => buildVerdict(null, V("SOURCE_VERIFIED")))
   assert.throws(() => buildVerdict(V("VALID"), undefined))
+})
+
+test("B4 — buildVerdict não ALIASA a entrada: os arrays `codes` da saída são cópias (mexer na saída não altera a entrada e vice-versa)", () => {
+  const vc = ["V_A"], sc = ["S_B"]
+  const out = buildVerdict({ status: "VALID", codes: vc }, { status: "SOURCE_VERIFIED", codes: sc })
+  assert.notEqual(out.verify.codes, vc)
+  assert.notEqual(out.source.codes, sc)
+  out.verify.codes.push("V_Z")
+  vc.push("V_Y")
+  assert.deepEqual(vc, ["V_A", "V_Y"])
+  assert.deepEqual(out.verify.codes, ["V_A", "V_Z"])
+  assert.deepEqual(sc, ["S_B"])
+})
+
+const contractMod: Any = await import("../src/lib/agent/contract.ts")
+test("E1 — as listas de status de verdict.ts são IDÊNTICAS aos enums do contrato e às do JSON (sem deriva; verdict.ts não importa o contrato em tempo de execução)", () => {
+  const c = contractMod
+  assert.deepEqual([...mod.VERIFY_STATUSES], c.VerifyStatusSchema.options)
+  assert.deepEqual([...mod.SOURCE_STATUSES], c.SourceStatusSchema.options)
+  assert.deepEqual([...mod.VERIFY_STATUSES], VERIFY)
+  assert.deepEqual([...mod.SOURCE_STATUSES], SOURCE)
+  assert.deepEqual(c.CombinedVerdictSchema.options, COMBINED)
 })
 
 console.log(`\n${passed} testes ok`)
