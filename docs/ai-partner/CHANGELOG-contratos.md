@@ -2,6 +2,11 @@
 
 Registra **mudanças de contrato** observáveis por quem lê os tipos/relatórios (campos, estados, hashes). Ordem: mais recente primeiro. `evidence/1` nunca virou `evidence/2`: todas as mudanças abaixo são aditivas, salvo onde dito.
 
+## 2026-10-13 — E6.6-2a: `REJECTION_REASONS` ganha `STRUCTURE_INVALID` (contrato do AGENTE; `evidence/1`, bundles e hashes INALTERADOS)
+- **Mudança (acrescenta):** 16 → 17 motivos de rejeição do validador. `STRUCTURE_INVALID` = a resposta não passa no `AgentAnswerSchema` (passo 1; nada mais é avaliado) ou viola uma regra de forma do validador estrutural (slot×claim 1:1, modo incoerente com o veredito, higiene de frases). Decisão do Marcelo (C1) de fazer o bump no 2a, e não no 2b.
+- **Expectativas:** `agent-contract.expected.json` → `validator_cases.AV24_answer_malformed` + `history`; `agent-capabilities.md` §5.1 atualizado. Nenhum arquivo de `evidence/`, `metrics/`, `ingest/`, `domain/` mudou.
+- **Pendente (E6.6-2b):** `OPERATIONAL_ADVICE` (Q15), bump separado.
+
 ## 2026-10-13 — E6.6-0: `combineVerdict` e `VerdictSchema` rejeitando `combined` inconsistente (contrato do AGENTE; `evidence/1`, bundles e hashes INALTERADOS)
 - **Escopo:** só `src/lib/agent/` + testes + docs. Nenhum arquivo de `src/lib/evidence`, `metrics`, `ingest` ou `domain` mudou; `verify`/`verifyEvidence`/`verifySource` e os 9 bundles pinados idênticos.
 - **Novo:** `verdict.ts` com `combineVerdict(verify, source)` (precedência `TAMPERED_OR_MISMATCH > NOT_VERIFIED > VERIFIED_PARTIAL > VERIFIED`; `source = NOT_RUN ⇒ NOT_VERIFIED`; entrada fora do enum ou aridade ≠ 2 LANÇA) e `buildVerdict` (só `{verify, source, combined}`, sem copiar campo extra, ignora `combined` embutido). Matriz de 20 células derivada à mão antes do código e conferida por 2 oráculos.

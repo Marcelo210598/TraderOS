@@ -4,6 +4,7 @@
     "after_execution": false,
     "note": "E6.5-0 (docs/ai-partner/agent-contract-plano.md). Escrito ANTES de qualquer tipo/código. NADA aqui foi executado: o E6.5 é só desenho + tipos; o validador, o combineVerdict e as PromptViews são E6.6 (aprovação própria). `status: approved` = decidido pelo Marcelo; `status: proposed` = proposta minha pendente. Mudar uma expectativa exige entrada em history.",
     "history": [
+      "2026-10-13 E6.6-2a (C1, decisão do Marcelo): REJECTION_REASONS ganha STRUCTURE_INVALID (16 → 17) e validator_cases ganha AV24_answer_malformed. O motivo cobre a resposta que não passa no AgentAnswerSchema e as violações de forma do validador estrutural (slot×claim 1:1, modo incoerente com o veredito, higiene de frases). Bump do contrato AGENTE (REJECTION_REASONS), sem tocar evidence/1.",
       "2026-10-12 E6.5-1: O-A/O-B/O-C/O-D aprovados pelo Marcelo; AV21 e PV6 → approved; N=2 e K=20 fixados em agent-capabilities.md §0 (A3 cumprido); lista de códigos específicos CORRIGIDA para o que o código realmente emite (a lista do E6.5-0 era uma estimativa minha: faltavam S_NO_METRICS, S_REFS_BROKEN, S_PROVENANCE_INCOMPLETE, S_ORDER_NOT_RECORDED, S_NO_ANCHOR_CHECK, S_QUERY_INVALID, S_CHECK_NOT_EXECUTED, S_ENCODING_UNSUPPORTED, S_SALT_*). Propostas novas O-E/O-F/O-G.",
       "2026-10-12 E6.5-1 (ajustes pós-revisão do Marcelo): O-E aprovado COM exigência de parada explícita (AV22, stop_reasons); O-F aprovado COM confirmação de que é só exibição — e CORRIGIDO por mim: casas decimais da exibição = as do motor (R 4, razão 4, pontos até 6), não 2 para tudo (erro meu na proposta, achado ao ler exact.ts); AV23 (empate) adicionado.",
       "2026-10-12 E6.5-2: schema_cases SC1–SC12 escritos antes dos tipos. Duas frases de escopo que o §6.1 do documento exigia mas não catalogava foram acrescentadas por mim (POPULATION_DECLARED, INDICATIVE_ONLY) e entram no catálogo/documento.",
@@ -327,6 +328,13 @@
       "setup": "ranking cujo item adjacente não está marcado empatado pelo motor (tiedWithPrevious=false)",
       "expected": "o agente NÃO pode dizer 'empate'/'iguais'; só pode dizer empate quando o motor marca tiedWithPrevious=true",
       "reason": "TIE_OVERCLAIM"
+    },
+    "AV24_answer_malformed": {
+      "status": "approved",
+      "requested_by": "Marcelo 13/10/2026 (C1 do E6.6-2a: o motivo pertence ao validador estrutural, bump já no 2a)",
+      "setup": "a resposta do modelo não passa no AgentAnswerSchema (segmentos/claims fora de forma), OU viola uma regra de forma do validador estrutural: slot sem claim 1:1, claim LABELED sobre handle verificado, frase por-ref sem ref, frase de parada emitida pelo modelo ou fora do contexto, código de frase que o handle não justifica",
+      "expected": "REJECT_WITH_FEEDBACK; passo 1 (schema) devolve SÓ este motivo e nada mais é avaliado",
+      "reason": "STRUCTURE_INVALID"
     }
   },
   "privacy_cases": {

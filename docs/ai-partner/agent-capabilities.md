@@ -101,7 +101,7 @@ Valor `null` ⇒ `indisponível` **mais** o motivo (`reason` do motor), nunca `0
 
 ## 5. Validador e protocolo de regeração (implementação em E6.6)
 ### 5.1 Regras e motivos de rejeição
-`INCOMPLETE_PRESENTED_AS_COMPLETE` · `TIE_OVERCLAIM` · `NUMBER_OUTSIDE_SLOT` · `REF_NOT_IN_LEDGER` · `SLOT_PATH_INVALID` · `MODEL_ARITHMETIC` · `NUMBER_FROM_UNVERIFIED_EVIDENCE` · `MISSING_NOT_VERIFIED_LABEL` · `UNVERIFIED_USED_FOR_CONCLUSION` · `REF_EPOCH_MIX` · `STALE_REF` · `CAUSAL_CLAIM` · `EXIT_REASON_OVERCLAIM` · `SCOPE_OVERCLAIM` · `MISSING_PARTIAL_PHRASE` · `INCONCLUSIVE_AS_CONCLUSIVE`. Casos AV1–AV23 no arquivo de expectativas.
+`INCOMPLETE_PRESENTED_AS_COMPLETE` · `TIE_OVERCLAIM` · `NUMBER_OUTSIDE_SLOT` · `REF_NOT_IN_LEDGER` · `SLOT_PATH_INVALID` · `MODEL_ARITHMETIC` · `NUMBER_FROM_UNVERIFIED_EVIDENCE` · `MISSING_NOT_VERIFIED_LABEL` · `UNVERIFIED_USED_FOR_CONCLUSION` · `REF_EPOCH_MIX` · `STALE_REF` · `CAUSAL_CLAIM` · `EXIT_REASON_OVERCLAIM` · `SCOPE_OVERCLAIM` · `MISSING_PARTIAL_PHRASE` · `INCONCLUSIVE_AS_CONCLUSIVE` · `STRUCTURE_INVALID` (E6.6-2a: resposta fora do `AgentAnswerSchema` ou violação de forma do validador estrutural). Casos AV1–AV24 no arquivo de expectativas.
 ### 5.2 Ordem
 (1) estrutura/zod → (2) refs no ledger e frescor → (3) slots/paths → (4) veredito × modo (§6) → (5) texto livre (dígitos, aritmética, causa, escopo) → (6) frases obrigatórias presentes.
 ### 5.3 Regeração (**N = 2**)
