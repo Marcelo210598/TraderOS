@@ -28,7 +28,8 @@ const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(
 
 test("SG1 — ISOLAMENTO: ninguém fora de src/lib/agent/ importa o contrato (import estático, import(), require, re-export, alias @/); dentro, só 'zod' e './'; sem LLM/rede/banco/Prisma/env", () => {
   const src = walk(join(ROOT, "src")).filter((f) => /\.tsx?$/.test(f) && !f.includes("/src/lib/agent/"))
-  const refs = (code: string) => [...code.matchAll(/(?:from|import\s*\(|require\s*\()\s*["']([^"']+)["']/g)].map((m) => m[1])
+  // E6.6-1: `from` não conta quando vem colado a '.'/letra/aspas (ex.: a chave "period.from" de slot-path.ts lia como import); import real tem espaço ou '}' antes
+  const refs = (code: string) => [...code.matchAll(/(?:(?<![.\w"'])from|import\s*\(|require\s*\()\s*["']([^"']+)["']/g)].map((m) => m[1])
   const offenders = src.filter((f) => refs(strip(readFileSync(f, "utf8"))).some((p) => /(?:^|\/)agent(?:\/|$)/.test(p) && /agent\/(?:contract|views|phrases)|lib\/agent|\/agent$/.test(p)))
   assert.deepEqual(offenders, [], "módulo do agente importado fora dele")
   for (const f of agentFiles) {
@@ -88,7 +89,8 @@ test("SG5 — PROJEÇÃO DE RÓTULO ÚNICA: todo campo 'label' das views usa a M
   for (const [name, type] of labelFields) assert.equal(type, "LabelViewSchema", `campo ${name} não usa LabelViewSchema`)
   assert.equal(LegViewSchema.shape.label, LabelViewSchema, "a perna do explain usa a MESMA instância do LabelViewSchema")
   const vocab = agentFiles.filter((f) => /Target\\d|Zerar|rótulo personalizado/.test(strip(readFileSync(f, "utf8"))))
-  assert.deepEqual(vocab.map((f) => f.replace(ROOT, "")), ["src/lib/agent/views.ts"], "vocabulário de rótulo definido em mais de um lugar")
+  // E6.6-1: o ÚNICO projetor nasceu em label.ts (o vocabulário canônico e o alias moram nele); fora views.ts (schema) e label.ts (projetor), nenhum arquivo pode defini-lo
+  assert.deepEqual(vocab.map((f) => f.replace(ROOT, "")), ["src/lib/agent/label.ts", "src/lib/agent/views.ts"], "vocabulário de rótulo definido em mais de um lugar")
   const projectors = agentFiles.flatMap((f) => [...strip(readFileSync(f, "utf8")).matchAll(/export\s+(?:async\s+)?function\s+(\w*[pP]roject\w*[lL]abel\w*|\w*[lL]abel\w*[pP]roject\w*)/g)].map((m) => `${f}:${m[1]}`))
   assert.ok(projectors.length <= 1, `mais de um projetor de rótulo: ${projectors.join(", ")}`)
 })

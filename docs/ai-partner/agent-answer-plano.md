@@ -67,7 +67,7 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 | Passo | Conteúdo | Bloqueado por |
 |---|---|---|
 | **E6.6-P** | **este commit** (doc + expectativas, sem código) | — |
-| **E6.6-1** | formatador de slots (+ catálogo de motivos), resolvedor de `path` e tabela de unidades por folha, projetor A2 e alias; oráculo do formatador em BigInt, matriz de rótulos literal; 14 mutações previstas | aprovação do plano, **Q16**, **Q17** |
+| **E6.6-1** | **FEITO (13/10/2026, aguardando aprovação)** — formatador de slots (+ catálogo de 29 motivos), resolvedor de `path` e tabela de folhas, projetor A2 e alias; oráculo do formatador em BigInt, matriz de rótulos literal; 35 mutações (14 previstas). Ver §7 | aprovação do plano, **Q16**, **Q17** |
 | **E6.6-2a** | ledger puro e validador estrutural (§5.2 passos 1–4 e 6): AV2, 3, 4, 7, 8, 10, 11, 15, 16, 17, 20 (aceite), 22 + partes estruturais de AV9 e AV18 | E6.6-1 |
 | **E6.6-2b** | validador de texto livre: AV1, 5, 6, 12, 13, 14, 21, 23 + partes lexicais de AV9 e AV18; reporta placar de falso-positivo e falsos-negativos | **aprovação do léxico**, **Q15** |
 | **E6.6-3** | máquina de parada (N=2), respostas canônicas, mapeamento total (§2.1), render (`RenderedSegment[]`, banner = pior veredito); AV19, AV20 | E6.6-2 |
@@ -84,3 +84,10 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 - Guardas estáticos provam **texto**, não fluxo de dados.
 - Até existir o armazenamento do arquivo original, todo resultado é `NOT_VERIFIED` estrutural.
 - Prosa pt-BR das palavras de enum (`exitReason`, `sampleFlag`…) e dos motivos é proposta minha (revisão de redação, como o O-G); os **códigos** são o contrato.
+
+## 7. Resultado do E6.6-1 (13/10/2026)
+**Código novo** (só `src/lib/agent/`, só `zod`/`./`): `format.ts` (formatador exato em texto, nunca arredonda, 8 unidades de exibição incl. `fraction` e `price`; catálogo de 29 motivos; datas; palavras de enum), `slot-path.ts` (resolvedor só por propriedades próprias + tabela de folhas por capacidade + `renderSlot` que valida a view no schema antes de ler), `label.ts` (o ÚNICO projetor de rótulo + tabela de alias imutável por época). **Nada** em `evidence/`, `metrics/`, `ingest/`, `domain/` mudou; `views.ts` e `contract.ts` também não.
+**Testes:** 771 → **814** ✓ (+43), nenhuma linha do baseline alterada. 35 mutações: todas pegas, exceto 1 **equivalente** declarada (limite de 200 caracteres do path: o path só vale se casar com um padrão curto da tabela, então o limite não muda nenhum resultado).
+**Testes existentes que tive de ajustar** (só asserções; títulos e linhas de saída idênticos): G0 (lista exata de arquivos de `agent/`: 4 → 7), SG5 (vocabulário de rótulo: `label.ts` + `views.ts`, como o SG5 já previa), SG1 (regex de import com lookbehind para não ler a chave `"period.from"` como import).
+**Decisões minhas, para você rever:** (1) `metrics[].basis` **não** é folha de slot (o motor devolve também `R_NET`/`R_POINTS`, fora da tabela); (2) folha numérica `null` **sem** campo `reason` irmão ⇒ `FORMAT_INVALID` (nunca zero, nunca em branco). **Achado:** a PromptView de `metrics.compare` não carrega o `reason` do delta, então citar um delta `null` falha fechado (`CAPABILITY_FAILED`) em vez de dizer "indisponível"; a correção (acrescentar `reason` na view, com bump registrado) fica para o E6.6-8; (3) `entryLocal`/`exitLocal`/`instrument`/`metricId` fora dos slots (YAGNI); (4) a folha `reason` renderiza o texto cru do catálogo, e a folha `value` null renderiza `indisponível (…)`.
+**Limitações:** a varredura estática do catálogo usa prefixos (heurística) e a de execução só cobre os cenários montados; o catálogo de motivos tem prosa proposta por mim (os códigos são o contrato).

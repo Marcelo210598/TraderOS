@@ -27,7 +27,8 @@ const MEMBER_ASSIGN = /\.combined\s*=(?!=)/
 const CAST = /\bas\s+(?:Verdict|EvidenceHandle)\b/
 
 test("G0 — o varredor enxerga o diretório (verdict.ts, contract.ts, views.ts, phrases.ts) e as regexes pegam o que devem (sanidade do próprio guarda)", () => {
-  assert.deepEqual(files.map((f) => f.name).sort(), ["contract.ts", "phrases.ts", "verdict.ts", "views.ts"])
+  // E6.6-1: format.ts, label.ts e slot-path.ts entraram no diretório; a lista exata continua travada (arquivo novo sem aviso derruba este teste) e G1–G3 passam a varrê-los.
+  assert.deepEqual(files.map((f) => f.name).sort(), ["contract.ts", "format.ts", "label.ts", "phrases.ts", "slot-path.ts", "verdict.ts", "views.ts"])
   for (const bad of ['{ combined: "VERIFIED" }', "{ combined:'NOT_VERIFIED' }", "{ combined: `TAMPERED_OR_MISMATCH` }", 'x.combined = "VERIFIED_PARTIAL"', 'x["combined"] = y', "{ \"combined\": \"VERIFIED\" }"]) {
     assert.ok(ASSIGN_LITERAL.test(bad) || INDEX_ASSIGN.test(bad) || MEMBER_ASSIGN.test(bad), `regex não pegou: ${bad}`)
   }
