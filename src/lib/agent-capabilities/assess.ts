@@ -18,6 +18,8 @@ export interface AssessOptions {
   source?: { files: SourceFiles; options?: VerifySourceOptions } | null
   /** Campos de população que o motor conhece e o bundle não guarda; mesclados POR CIMA (só chaves definidas). */
   population?: { sampleFlag?: "OK" | "LOW" | "TINY"; conclusive?: boolean; confidence?: "OK" | "LIMITED" | "UNRELIABLE" }
+  /** Escopo do handle quando a capacidade sabe mais que a 1ª métrica do bundle (ex.: bundle de grupos cuja 1ª métrica é o TOTAL, E6.6-6). */
+  scope?: "TOTAL" | "GROUP"
 }
 export type AssessResult = { readonly ok: true; readonly handle: EvidenceHandle; readonly limits: Limit[] } | { readonly ok: false; readonly code: "ENGINE_REFUSED" }
 const REFUSED: AssessResult = { ok: false, code: "ENGINE_REFUSED" }
@@ -87,6 +89,7 @@ export function assessBundle(bundle: unknown, options: AssessOptions): AssessRes
     } else {
       declared = b.evidence.trades.length; verifiability = "FULL"; scope = "TOTAL"
     }
+    if (options.scope !== undefined) scope = options.scope
     const population: Record<string, unknown> = { declared, verifiability }
     const over = options.population ?? {}
     const sf = over.sampleFlag !== undefined ? over.sampleFlag : sampleFlag

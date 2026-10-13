@@ -16,8 +16,8 @@ const agent = walk(join(ROOT, "src/lib/agent")).filter((f) => /\.ts$/.test(f)).m
 let passed = 0
 const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(`✓ ${name}`) }
 
-test("Q0 — sanidade: o diretório agent-capabilities/ existe com os 4 arquivos esperados e o varredor enxerga o agent/", () => {
-  assert.deepEqual(cap.map((f) => f.name).sort(), ["assess.ts", "envelope.ts", "metrics-query.ts", "project.ts"])
+test("Q0 — sanidade: o diretório agent-capabilities/ existe com os 6 arquivos esperados e o varredor enxerga o agent/", () => {
+  assert.deepEqual(cap.map((f) => f.name).sort(), ["assess.ts", "envelope.ts", "group-key.ts", "metrics-groups.ts", "metrics-query.ts", "project.ts"])
   assert.ok(agent.length >= 12)
 })
 
@@ -44,7 +44,7 @@ test("Q3 — NÃO LIGADO: ninguém fora de agent-capabilities/ e dos testes (scr
 })
 
 test("Q4 — projeção por lista branca: envelope.ts e project.ts NÃO usam spread (`...`), nem Object.assign, nem JSON.parse(JSON.stringify()): é cópia explícita campo a campo", () => {
-  for (const f of cap.filter((x) => ["envelope.ts", "project.ts"].includes(x.name))) {
+  for (const f of cap.filter((x) => ["envelope.ts", "project.ts", "group-key.ts"].includes(x.name))) {
     assert.equal(/\.\.\./.test(f.code), false, `${f.name}: spread`)
     assert.equal(/Object\.assign|structuredClone|JSON\.parse\s*\(\s*JSON\.stringify|Object\.fromEntries\s*\(\s*Object\.entries/.test(f.code), false, `${f.name}: cópia genérica`)
   }

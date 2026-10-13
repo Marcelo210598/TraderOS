@@ -74,7 +74,7 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 | **E6.6-3** | **FEITO (13/10/2026, aguardando aprovação)** — ver §13 —  máquina de parada (N=2), respostas canônicas, mapeamento total (§2.1), render (`RenderedSegment[]`, banner = pior veredito); AV19, AV20 | E6.6-2 |
 | **E6.6-4** | **FEITO (13/10/2026, aguardando aprovação)** — ver §14 —  `agent-capabilities/`: pipeline comum bundle → `verify` → source(`NOT_RUN`) → `buildVerdict` → handle e limits; projeção por lista branca; os 9 bundles pinados inalterados | E6.6-3, Q17 |
 | **E6.6-5** | **FEITO (13/10/2026, aguardando aprovação)** — ver §15 —  `metrics.query@1` (fatia vertical, fim a fim com o validador; oráculo = `calculateMetrics` direto) | E6.6-4 |
-| **E6.6-6 a 10** | `metrics.groups`, `exit.breakdown`, `metrics.compare`, `rank.groups`, `exit.analysis` (um por passo) | E6.6-5 |
+| **E6.6-6 FEITO (13/10/2026, aguardando aprovação; §16); E6.6-7 a 10 pendentes** | `metrics.groups`, `exit.breakdown`, `metrics.compare`, `rank.groups`, `exit.analysis` (um por passo) | E6.6-5 |
 | **E6.6-11** | `evidence.explain@1` + teste dedicado da A2 (rótulo adversarial nunca sai bruto, K = 20, sem `rowNo`/`rowHash`) | E6.6-10, **Q18** |
 | **E6.6-12** | `evidence.refresh@1` (só `FILE_NOT_AVAILABLE` e `STALE`) + fechamento (guardas estáticos globais, docs, CHANGELOG) | E6.6-11 |
 
@@ -134,4 +134,9 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 **Oráculo cumprido:** 39 métricas × 2 populações == `calculateMetrics` direto; texto do slot == formatador sobre o valor direto; fim a fim capacidade → ledger → validador → render com o veredito certo (VERIFIED com arquivo; NOT_VERIFIED + rodapé sem arquivo). **Suíte:** 927 → **942** ✓ (+15), baseline de 771 idêntico. **Mutações:** 35; 3 lacunas viraram teste; 8 equivalentes declaradas.
 **Pendência E6.6-5-A:** filtro por conta/estratégia/setup/timeframe (precisa do resolvedor de alias do servidor). **Decisões D5-1 a D5-5** no `e66_5`.
 **Também neste ciclo:** emenda D7 (tentativa de capacidade inexistente consome orçamento) e reforço dos guardas Q7 (o `import "x"` nu escapava).
+
+## 16. Resultado do E6.6-6 (13/10/2026)
+**Código novo** (`src/lib/agent-capabilities/`): `metrics-groups.ts` (`metricsGroups(args, ctx) → { result, entry, aliases }`) e `group-key.ts` (texto seguro da chave por dimensão). **Suíte:** 942 → **958** ✓ (+16), baseline de 771 idêntico. **Mutações:** 48; 5 lacunas viraram teste; 9 equivalentes declaradas.
+**Declaração sobre a pendência E6.6-5-A (pedida pelo Marcelo):** agrupar por **conta** e **estratégia FUNCIONA** (alias de saída pela tabela da conversa: 'Conta A', 'Estratégia A'; o nome real nunca chega ao modelo; achado: `group.key`/`group.label` do motor trazem o NOME da conta, por isso a chave vem só da Evidence). **Continua BLOQUEADO:** FILTRAR/`where` por conta, estratégia, setup e timeframe (alias de ENTRADA) até existir o resolvedor de alias do servidor. **Excluídos por decisão (D6-1):** agrupar por `strategyVersion`, `setup` e `timeframe` (texto livre do usuário). **Limite D6-2:** mais de 50 grupos ⇒ `ARGS_INVALID` (nunca trunca).
+**Bundle:** TOTAL + (grupo × métrica), verificado VALID e SOURCE_VERIFIED; `scope` GROUP; `declared` = total; `sampleFlag` = o pior entre os grupos (D6-4).
 

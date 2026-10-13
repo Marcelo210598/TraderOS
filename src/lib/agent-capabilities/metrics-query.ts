@@ -20,22 +20,26 @@ const MAX_LIST = 8
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const list = <T extends z.ZodType>(t: T) => z.union([t, z.array(t).min(1).max(MAX_LIST)])
 
+/** Filtros e opções que o MODELO pode pedir (compartilhados com metrics.groups). Sem conta/estratégia/setup/timeframe: pendência E6.6-5-A (resolvedor de alias de ENTRADA). */
+export const QUERY_FILTERS_SCHEMA = z
+  .strictObject({
+    from: DATE, to: DATE,
+    symbol: list(z.string().regex(/^[A-Za-z0-9 ._-]{1,32}$/)),
+    direction: z.enum(["LONG", "SHORT"]),
+    session: list(z.enum(["AM", "PM", "OVERNIGHT"])),
+    hour: list(z.number().int().min(0).max(23)),
+    dayOfWeek: list(z.number().int().min(0).max(6)),
+    tradingDay: list(DATE),
+    exitReason: list(z.enum(["TARGET", "STOP", "MANUAL", "MIXED", "UNKNOWN"])),
+  })
+  .partial()
+  .optional()
+export const QUERY_OPTIONS_SCHEMA = z.strictObject({ pnlBasis: z.enum(["NET", "GROSS"]), rBasis: z.enum(["NET", "POINTS"]) }).partial().optional()
+
 export const MetricsQueryArgsSchema = z.strictObject({
   metricIds: z.array(z.string()).min(1).max(MAX_METRIC_IDS).refine((ids) => new Set(ids).size === ids.length && ids.every((id) => METRIC_IDS.includes(id))),
-  filters: z
-    .strictObject({
-      from: DATE, to: DATE,
-      symbol: list(z.string().regex(/^[A-Za-z0-9 ._-]{1,32}$/)),
-      direction: z.enum(["LONG", "SHORT"]),
-      session: list(z.enum(["AM", "PM", "OVERNIGHT"])),
-      hour: list(z.number().int().min(0).max(23)),
-      dayOfWeek: list(z.number().int().min(0).max(6)),
-      tradingDay: list(DATE),
-      exitReason: list(z.enum(["TARGET", "STOP", "MANUAL", "MIXED", "UNKNOWN"])),
-    })
-    .partial()
-    .optional(),
-  options: z.strictObject({ pnlBasis: z.enum(["NET", "GROSS"]), rBasis: z.enum(["NET", "POINTS"]) }).partial().optional(),
+  filters: QUERY_FILTERS_SCHEMA,
+  options: QUERY_OPTIONS_SCHEMA,
 })
 
 export interface MetricsQueryContext {

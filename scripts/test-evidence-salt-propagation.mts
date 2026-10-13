@@ -125,6 +125,7 @@ const APPROVED_GENERATOR_IMPORTERS: Record<string, string> = {
   "src/lib/evidence/explain-derived.ts": "importa explainTrades e repassa o sal (camada 2)",
   "src/lib/evidence/verify-source.ts": "reingestão do E5b: sal efetivo derivado do import (camada 2, teste S2)",
   "src/lib/agent-capabilities/metrics-query.ts": "capacidade metrics.query@1 (E6.6-5): repassa ctx.accountRefSalt ao explainMetric e RECUSA (ENGINE_REFUSED) import SALGADO sem sal; teste Q14 de test-agent-metrics-query.mts",
+  "src/lib/agent-capabilities/metrics-groups.ts": "capacidade metrics.groups@1 (E6.6-6): repassa ctx.accountRefSalt ao explainMetric (TOTAL e cada grupo) e RECUSA (ENGINE_REFUSED) import SALGADO sem sal; teste G11 de test-agent-metrics-groups.mts",
   "src/lib/dev/evidence-lab/salt.ts": "cenários de sal do Lab (P5, só dev): imports gerenciados e legado com sal esquecido DE PROPÓSITO (cenário salt-forgotten)",
   "src/lib/dev/evidence-lab/model.ts": "demo do Lab SEM sal por projeto (UNSALTED_BY_DESIGN)",
   "src/lib/dev/evidence-lab/derived.ts": "demo dos derivados do Lab SEM sal por projeto (UNSALTED_BY_DESIGN)",
