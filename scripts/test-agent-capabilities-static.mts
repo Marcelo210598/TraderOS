@@ -16,8 +16,8 @@ const agent = walk(join(ROOT, "src/lib/agent")).filter((f) => /\.ts$/.test(f)).m
 let passed = 0
 const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(`✓ ${name}`) }
 
-test("Q0 — sanidade: o diretório agent-capabilities/ existe com os 3 arquivos esperados e o varredor enxerga o agent/", () => {
-  assert.deepEqual(cap.map((f) => f.name).sort(), ["assess.ts", "envelope.ts", "project.ts"])
+test("Q0 — sanidade: o diretório agent-capabilities/ existe com os 4 arquivos esperados e o varredor enxerga o agent/", () => {
+  assert.deepEqual(cap.map((f) => f.name).sort(), ["assess.ts", "envelope.ts", "metrics-query.ts", "project.ts"])
   assert.ok(agent.length >= 12)
 })
 

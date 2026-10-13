@@ -73,7 +73,7 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 | **E6.6-2b** | **FEITO (13/10/2026, aguardando aprovação)** — B1–B9 aprovadas; ver §12 —  validador de texto livre: AV1, 5, 6, 12, 13, 14, 21, 23 + partes lexicais de AV9 e AV18; reporta placar de falso-positivo e falsos-negativos | **aprovação do léxico**, **Q15** |
 | **E6.6-3** | **FEITO (13/10/2026, aguardando aprovação)** — ver §13 —  máquina de parada (N=2), respostas canônicas, mapeamento total (§2.1), render (`RenderedSegment[]`, banner = pior veredito); AV19, AV20 | E6.6-2 |
 | **E6.6-4** | **FEITO (13/10/2026, aguardando aprovação)** — ver §14 —  `agent-capabilities/`: pipeline comum bundle → `verify` → source(`NOT_RUN`) → `buildVerdict` → handle e limits; projeção por lista branca; os 9 bundles pinados inalterados | E6.6-3, Q17 |
-| **E6.6-5** | `metrics.query@1` (fatia vertical, fim a fim com o validador; oráculo = `calculateMetrics` direto) | E6.6-4 |
+| **E6.6-5** | **FEITO (13/10/2026, aguardando aprovação)** — ver §15 —  `metrics.query@1` (fatia vertical, fim a fim com o validador; oráculo = `calculateMetrics` direto) | E6.6-4 |
 | **E6.6-6 a 10** | `metrics.groups`, `exit.breakdown`, `metrics.compare`, `rank.groups`, `exit.analysis` (um por passo) | E6.6-5 |
 | **E6.6-11** | `evidence.explain@1` + teste dedicado da A2 (rótulo adversarial nunca sai bruto, K = 20, sem `rowNo`/`rowHash`) | E6.6-10, **Q18** |
 | **E6.6-12** | `evidence.refresh@1` (só `FILE_NOT_AVAILABLE` e `STALE`) + fechamento (guardas estáticos globais, docs, CHANGELOG) | E6.6-11 |
@@ -128,4 +128,10 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 **Decisões minhas (D4-1 a D4-4):** escopo do derivado (GROUP só para `GROUP_*`/`LEG_GROUP_RANKING`); bundle com vários itens usa o PRIMEIRO; bundle ilegível ⇒ `ENGINE_REFUSED` agora (a metade `INVALID_FORMAT ⇒ UNVERIFIABLE` da Q11 existe como função testada, alcançável só com bundles persistidos); `codes` sem `S_NOT_APPLICABLE`.
 **Pergunta do Marcelo sobre o D7 (registrada):** a chamada que falha CONSOME orçamento. **Achado:** só o id de capacidade inexistente não consome (`ARGS_INVALID`, T2); proposta de contá-lo no orçamento, NÃO aplicada (muda o E6.6-3 aprovado).
 **Limitação:** o caminho `L_SALT_*` do source só foi testado com relatórios montados (`sourceCodesOf`), não com um cenário real de política de sal.
+
+## 15. Resultado do E6.6-5 (13/10/2026)
+**Código novo:** `src/lib/agent-capabilities/metrics-query.ts` — `metricsQuery(args, ctx) → { result, entry }` (o `result` vai ao modelo sem o selo; o `entry` vai ao ledger do servidor). Args estritos (até 20 métricas do catálogo, filtros sem conta/estratégia, `pnlBasis`/`rBasis`); contexto, preferências do usuário, época do sal e arquivo original vêm do servidor (Q12). Um bundle por chamada com as N métricas (sondado: verifica VALID e SOURCE_VERIFIED).
+**Oráculo cumprido:** 39 métricas × 2 populações == `calculateMetrics` direto; texto do slot == formatador sobre o valor direto; fim a fim capacidade → ledger → validador → render com o veredito certo (VERIFIED com arquivo; NOT_VERIFIED + rodapé sem arquivo). **Suíte:** 927 → **942** ✓ (+15), baseline de 771 idêntico. **Mutações:** 35; 3 lacunas viraram teste; 8 equivalentes declaradas.
+**Pendência E6.6-5-A:** filtro por conta/estratégia/setup/timeframe (precisa do resolvedor de alias do servidor). **Decisões D5-1 a D5-5** no `e66_5`.
+**Também neste ciclo:** emenda D7 (tentativa de capacidade inexistente consome orçamento) e reforço dos guardas Q7 (o `import "x"` nu escapava).
 
