@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-13 E6.6-P revisão do léxico (pedido do Marcelo: justificar 4 exclusões). Testei cada uma com frases (script descartável). DELIBERADAS e mantidas: 'diferença entre' (a subtração do modelo sempre sai como número, já rejeitado por RULE_DIGITS/NUM_WORDS; sem número é qualitativo e legítimo) e 'vezes' solto (às vezes/muitas vezes). LACUNAS REAIS que a exclusão deixava: 'motivo' causal ('o motivo da perda foi…', 'o motivo disso') e 'logo,' causal passavam; 'várias vezes mais' (multiplicativo vago sem numeral) passava. Fechadas SEM a palavra solta: 8 frases estreitas com 'motivo' em CAUSAL, o padrão LOGO_CAUSAL ('logo' seguido de vírgula) e 5 termos 'vezes mais/menos/maior/menor/o' + 'vez e meia' em ARITH (com exceção de frequência por palavra anterior). Corpus ampliado (+5 rejeições, +6 boas). 'logo' estava sem justificativa escrita no arquivo: falha minha de documentação.",
       "2026-10-13 E6.6-P: arquivo criado. Ao conferir À MÃO o corpus lexicon_must_accept/must_reject contra as listas, achei 3 erros MEUS e corrigi antes do commit: (1) a frase boa 'entre os dois grupos' era rejeitada por 'dois' (frase trocada e o falso-positivo registrado em known_conflicts_to_resolve_in_2b); (2) 'O alvo foi atingido de verdade' NÃO casa com EXIT_OVERCLAIM (virou falso-negativo registrado; a frase de teste virou 'Foi um alvo de verdade'); (3) faltava 'empataram' em TIE. Também achei o gap Q15 (sem motivo para recomendação), a ambiguidade Q16 (frações) e a Q18 (unidade de preço); todos como PENDENTE, sem decisão minha."
     ]
   },
@@ -94,13 +95,17 @@
     },
     "ARITH": {
       "reason": "MODEL_ARITHMETIC",
-      "terms": ["somando", "somados", "somadas", "somado", "somada", "somei", "soma de", "a soma", "subtraindo", "subtraido", "subtraida", "subtrai", "multiplicando", "multiplicado", "multiplicada", "multipliquei", "dividindo", "dividido por", "dividida por", "dividi", "em media", "na media", "media entre", "arredondando", "arredondado", "arredondada", "arredondei", "arredondamos", "arredondo", "truncando", "truncado", "descontando", "acumulando"],
-      "deliberately_not_listed": ["diferenca entre (uso qualitativo comum)", "media (substantivo isolado: nome de métrica)", "total de", "vezes (às vezes)"]
+      "terms": ["somando", "somados", "somadas", "somado", "somada", "somei", "soma de", "a soma", "subtraindo", "subtraido", "subtraida", "subtrai", "multiplicando", "multiplicado", "multiplicada", "multipliquei", "dividindo", "dividido por", "dividida por", "dividi", "em media", "na media", "media entre", "arredondando", "arredondado", "arredondada", "arredondei", "arredondamos", "arredondo", "truncando", "truncado", "descontando", "acumulando", "vezes mais", "vezes menos", "vezes maior", "vezes menor", "vezes o", "vez e meia"],
+      "prev_word_exceptions": { "terms": ["vezes mais", "vezes menos", "vezes maior", "vezes menor", "vezes o"], "not_rejected_if_previous_word_is": ["as", "muitas", "algumas", "poucas", "outras", "certas"], "why": "frequência ('às vezes mais perdas', 'muitas vezes o stop'); o multiplicativo traz numeral/dígito (já rejeitado) ou 'várias'/'tantas' (rejeitado aqui)" },
+      "deliberately_not_listed": ["diferenca entre (a subtração do modelo SEMPRE produz um número escrito: dígito ou numeral, que RULE_DIGITS/NUM_WORDS já rejeitam; sem número a frase é qualitativa e legítima: 'há diferença entre os grupos')", "media (substantivo isolado: nome de métrica)", "total de", "vezes SOLTO ('às vezes', 'muitas vezes'; só entram 'vezes mais/menos/maior/menor/o' e 'vez e meia')"]
     },
     "CAUSAL": {
       "reason": "CAUSAL_CLAIM",
-      "terms": ["porque", "por que", "pois", "por causa", "por conta de", "devido a", "devido ao", "devido aos", "devido as", "em razao de", "em funcao de", "gracas a", "culpa", "culpado", "culpada", "responsavel por", "causou", "causada", "causado", "causando", "causa de", "provocou", "provocado", "provocada", "provocando", "resultou de", "resultou em", "levou a", "levou o", "fez com que", "explica", "explicado por", "explicada por", "se deve a", "deve se a", "por isso", "consequentemente", "em consequencia", "consequencia de", "ja que", "visto que", "uma vez que", "decorrente de", "decorre de", "gerou", "gerado por", "gerada por", "originou", "a razao e", "a razao disso"],
-      "deliberately_not_listed": ["motivo (aparece em motivo de saida, que é dado legítimo)", "resultado de", "razao (razão como proporção)", "logo", "portanto (vai em COMPARISON_CONCLUSION)"]
+      "terms": ["porque", "por que", "pois", "por causa", "por conta de", "devido a", "devido ao", "devido aos", "devido as", "em razao de", "em funcao de", "gracas a", "culpa", "culpado", "culpada", "responsavel por", "causou", "causada", "causado", "causando", "causa de", "provocou", "provocado", "provocada", "provocando", "resultou de", "resultou em", "levou a", "levou o", "fez com que", "explica", "explicado por", "explicada por", "se deve a", "deve se a", "por isso", "consequentemente", "em consequencia", "consequencia de", "ja que", "visto que", "uma vez que", "decorrente de", "decorre de", "gerou", "gerado por", "gerada por", "originou", "a razao e", "a razao disso", "o motivo disso", "o motivo pelo qual", "motivo pelo qual", "esse e o motivo", "este e o motivo", "o motivo da perda", "o motivo do prejuizo", "o motivo da queda"],
+      "patterns": [
+        { "id": "LOGO_CAUSAL", "regex": "\\blogo\\s*,", "applies_to": "texto normalizado por N ANTES do FLAT (a vírgula ainda existe)", "meaning": "logo seguido de vírgula = conectivo conclusivo/causal ('..., logo, perdeu'; 'Logo, ...'). O logo temporal ('logo após a abertura', 'logo depois da entrada') NÃO tem vírgula e passa." }
+      ],
+      "deliberately_not_listed": ["motivo SOLTO (nome do campo legítimo: 'motivo de saída', 'o motivo é desconhecido', 'motivos de saída'); só entram as FRASES causais estreitas acima", "resultado de", "razao SOLTA (razão como proporção)", "logo SOLTO (temporal: 'logo após a abertura', 'logo depois da entrada'); só entra 'logo,' pelo padrão LOGO_CAUSAL", "portanto (conclusão, não atribuição de causa: vai em COMPARISON_CONCLUSION, condicional a claim LABELED; com dado VERIFIED e conclusivo, concluir é permitido)"]
     },
     "SCOPE": {
       "reason": "SCOPE_OVERCLAIM",
@@ -138,8 +143,8 @@
     "digits": ["O lucro foi 1500", "Foram 10h de operação", "Foram １５００ trades", "Foram ١٥٠٠ trades", "Foram 1​500 trades"],
     "symbols": ["Ganho de 50%", "Veja a + b", "Valor R$ alto"],
     "num_words": ["cerca de dois mil dólares", "A metade dos trades perdeu", "O dobro do período anterior", "vinte por cento do total"],
-    "arithmetic": ["Somando os dois grupos o total melhora", "Multiplicando pelo tamanho do lote", "Em média ele ganha mais"],
-    "causal": ["Perdeu porque entrou tarde", "Isso aconteceu devido à volatilidade", "Isso explica a queda", "Foi por causa do stop"],
+    "arithmetic": ["Foi várias vezes mais", "Somando os dois grupos o total melhora", "Multiplicando pelo tamanho do lote", "Em média ele ganha mais"],
+    "causal": ["O motivo da perda foi a entrada tardia", "O motivo disso é o stop curto", "O stop foi curto, logo, perdeu", "Logo, a conta A é pior", "Perdeu porque entrou tarde", "Isso aconteceu devido à volatilidade", "Isso explica a queda", "Foi por causa do stop"],
     "scope": ["Você sempre perde na abertura", "Considerando seu histórico inteiro", "Isso é garantido"],
     "inconclusive_when_conclusive_false": ["O resultado é conclusivo", "Isso comprova o padrão"],
     "exit_overclaim": ["Foi o stop real", "Foi um alvo de verdade"],
@@ -161,6 +166,12 @@
       "Segundo a consulta, o primeiro grupo lidera.",
       "A sessão da tarde ficou atrás da sessão da manhã.",
       "O mapa de motivos de saída que você definiu foi aplicado.",
+      "O motivo de saída é desconhecido neste recorte.",
+      "Logo após a abertura o resultado muda.",
+      "O trade fechou logo depois da entrada.",
+      "Há diferença entre os grupos nos valores abaixo.",
+      "Muitas vezes a saída é manual.",
+      "Às vezes mais perdas ocorrem na abertura.",
       "Esse recorte é indicativo, não conclusivo."
     ],
     "known_conflicts_to_resolve_in_2b": [
