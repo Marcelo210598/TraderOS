@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url"
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const strip = (code: string) => code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
 const walk = (dir: string): string[] => (existsSync(dir) ? readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p] }) : [])
-const importsOf = (code: string): string[] => [...code.matchAll(/^(?:import|export)\s[^"'\n]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1])
+// import/export com `from`, import de EFEITO COLATERAL (`import "x"`), import() e require(): nenhuma forma escapa do guarda (achado por mutação: o `import "x"` nu escapava)
+const importsOf = (code: string): string[] => [...code.matchAll(/^(?:import|export)\s[^"'\n]*?\bfrom\s*["']([^"']+)["']|^import\s*["']([^"']+)["']|\bimport\s*\(\s*["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']/gm)].map((m) => m[1] ?? m[2] ?? m[3] ?? m[4])
 const cap = walk(join(ROOT, "src/lib/agent-capabilities")).filter((f) => /\.ts$/.test(f)).map((f) => ({ name: f.slice(f.lastIndexOf("/") + 1), code: strip(readFileSync(f, "utf8")) }))
 const agent = walk(join(ROOT, "src/lib/agent")).filter((f) => /\.ts$/.test(f)).map((f) => ({ name: f.slice(f.lastIndexOf("/") + 1), code: strip(readFileSync(f, "utf8")) }))
 let passed = 0
