@@ -21,7 +21,7 @@ const REF = (c: string): string => `ev_${HEX[c].repeat(32)}`
 
 // ── fixtures: um handle por situação de veredito ─────────────────────────────
 const qview = (): Any => ({ metrics: [{ metricId: "netPnl", value: 10, unit: "usd", basis: "NET", sampleSize: 3, coverage: { used: 3, total: 3, ratio: 1 }, reason: null }], period: { from: "2026-01-05", to: "2026-01-30" } })
-const cview = (): Any => ({ a: { key: ["Conta A"], sampleSize: 4 }, b: { key: ["Conta B"], sampleSize: 6 }, deltas: [{ metricId: "netPnl", unit: "usd", a: 1, b: 2, delta: -1, ratio: 0.5 }], conclusive: true })
+const cview = (): Any => ({ a: { key: ["Conta A"], sampleSize: 4 }, b: { key: ["Conta B"], sampleSize: 6 }, deltas: [{ metricId: "netPnl", unit: "usd", a: 1, aReason: null, b: 2, bReason: null, delta: -1, ratio: 0.5, reason: null }], conclusive: true })
 interface H { verify?: string; source?: string; vcodes?: string[]; scodes?: string[]; pop?: Any; subject?: string; cap?: string; epoch?: string }
 const PATH = "metrics[0].value"
 const entry = (c: string, o: H = {}): Any => ({

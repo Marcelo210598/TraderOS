@@ -18,12 +18,13 @@ const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 const cov = (used: number, total: number, ratio: number) => ({ used, total, ratio })
 const mv = (metricId: string, value: number | null, unit: string, reason: string | null, extra: Any = {}): Any => ({ metricId, value, unit, basis: null, sampleSize: value === null ? 0 : 10, coverage: cov(value === null ? 0 : 10, 10, value === null ? 0 : 1), reason, ...extra })
 const V_QUERY: Any = { metrics: [mv("netPnl", 1234.56, "usd", null, { basis: "NET" }), mv("profitFactor", null, "ratio", "DENOMINATOR_ZERO"), mv("totalPoints", 12.5, "points", null), mv("winRate", 55.56, "percent", null), mv("averageR", -0.5, "R", null)], period: { from: "2026-01-05", to: "2026-01-30" } }
-const bucket = (reason: string, count: number, pnlNet: number | null, share: number | null): Any => ({ reason, unit: "TRADE", count, pnlNet, share, coverage: cov(count, count, 1) })
+// E6.6-V: o motivo da indisponibilidade viaja ao lado (null sem motivo continua sendo erro de formato — W-cases em test-agent-views-reason.mts)
+const bucket = (reason: string, count: number, pnlNet: number | null, share: number | null): Any => ({ reason, unit: "TRADE", count, pnlNet, pnlNetReason: null, share, shareReason: null, coverage: cov(count, count, 1) })
 const V_EXIT: Any = { buckets: [bucket("TARGET", 3, 150, 0.25), bucket("STOP", 1, null, null)], reconciliation: "RECONCILED" }
 const V_GROUPS: Any = { groupBy: ["account"], groups: [{ key: ["Conta A"], sampleFlag: "LOW", sampleSize: 4, metrics: [mv("netPnl", 80, "usd", null)] }] }
-const DELTAS = [{ metricId: "netPnl", unit: "usd", a: 100, b: 150, delta: -50, ratio: 0.6667 }, { metricId: "profitFactor", unit: "ratio", a: null, b: 1.5, delta: null, ratio: null }]
+const DELTAS = [{ metricId: "netPnl", unit: "usd", a: 100, aReason: null, b: 150, bReason: null, delta: -50, ratio: 0.6667, reason: null }, { metricId: "profitFactor", unit: "ratio", a: null, aReason: null, b: 1.5, bReason: null, delta: null, ratio: null, reason: null }]
 const V_COMPARE: Any = { a: { key: ["Conta A"], sampleSize: 4 }, b: { key: ["Conta B"], sampleSize: 6 }, deltas: DELTAS, conclusive: false }
-const V_RANK: Any = { rows: [{ rank: 1, key: ["Conta A"], value: mv("netPnl", 80, "usd", null), sampleFlag: "OK", tiedWithPrevious: false, contribution: 0.2556 }], orderedBy: "netPnl" }
+const V_RANK: Any = { rows: [{ rank: 1, key: ["Conta A"], value: mv("netPnl", 80, "usd", null), sampleFlag: "OK", tiedWithPrevious: false, contribution: 0.2556, contributionReason: null }], orderedBy: "netPnl" }
 const V_ANALYSIS_NULL: Any = { buckets: [bucket("TARGET", 3, 150, 0.25)], comparison: null }
 const V_ANALYSIS: Any = { buckets: [bucket("TARGET", 3, 150, 0.25)], comparison: V_COMPARE }
 const leg = (role: string, price: number | null, label: string): Any => ({ role, price, quantity: 2, label, pnlNet: role === "EXIT" ? 40 : null })

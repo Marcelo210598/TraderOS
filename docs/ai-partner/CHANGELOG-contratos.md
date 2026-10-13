@@ -2,6 +2,11 @@
 
 Registra **mudanças de contrato** observáveis por quem lê os tipos/relatórios (campos, estados, hashes). Ordem: mais recente primeiro. `evidence/1` nunca virou `evidence/2`: todas as mudanças abaixo são aditivas, salvo onde dito.
 
+## 2026-10-13 — E6.6-V: PromptViews ganham o MOTIVO da indisponibilidade (contrato do AGENTE; `evidence/1`, bundles e hashes INALTERADOS)
+- **Mudança (acrescenta campos OBRIGATÓRIOS, `.strict()`; view no formato antigo passa a ser `VIEW_INVALID`):** `ExitBucketView` + `pnlNetReason`, `shareReason`; `CompareView.deltas[]` + `aReason`, `bReason`, `reason` (motivo de `delta` e `ratio`); `RankRowView` + `contributionReason`. `exit.analysis` herda. Origem: `Cell.reason`, `Fraction.reason` e `MetricComparison.reason` do motor, que a view antes descartava (PD-2, opção (a) do Marcelo).
+- **Efeito:** valor `null` com motivo conhecido renderiza `indisponível (…)`; antes falhava fechado (`FORMAT_INVALID`). `reason` pode vir com valor não-null (aviso de cobertura parcial): o slot de valor mostra o número e o aviso é citável pelo slot do motivo. Sem refine novo de schema.
+- **Não mudou:** `MetricValueView`, `ExplainView` (PD-3 aberta: nulls do `evidence.explain` sem motivo, decisão do Marcelo antes do E6.6-11), nada em `evidence/`, `metrics/`, `ingest/`, `domain/`.
+
 ## 2026-10-13 — E6.6-2a: `REJECTION_REASONS` ganha `STRUCTURE_INVALID` (contrato do AGENTE; `evidence/1`, bundles e hashes INALTERADOS)
 - **Mudança (acrescenta):** 16 → 17 motivos de rejeição do validador. `STRUCTURE_INVALID` = a resposta não passa no `AgentAnswerSchema` (passo 1; nada mais é avaliado) ou viola uma regra de forma do validador estrutural (slot×claim 1:1, modo incoerente com o veredito, higiene de frases). Decisão do Marcelo (C1) de fazer o bump no 2a, e não no 2b.
 - **Expectativas:** `agent-contract.expected.json` → `validator_cases.AV24_answer_malformed` + `history`; `agent-capabilities.md` §5.1 atualizado. Nenhum arquivo de `evidence/`, `metrics/`, `ingest/`, `domain/` mudou.

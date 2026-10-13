@@ -11,7 +11,7 @@ export type SlotViewId = keyof typeof PROMPT_VIEWS
 export type SlotError = { readonly ok: false; readonly code: "SLOT_PATH_INVALID" | "VIEW_INVALID" | "FORMAT_INVALID" }
 
 type Spec =
-  | { kind: "number"; unit: DisplayUnit | "sibling"; withReason?: true }
+  | { kind: "number"; unit: DisplayUnit | "sibling"; reasonField?: string } // reasonField = nome do irmão que traz o motivo da indisponibilidade (E6.6-V)
   | { kind: "reason" }
   | { kind: "date" }
   | { kind: "enum"; table: EnumTable }
@@ -29,7 +29,7 @@ const text: Spec = { kind: "text" }
 
 /** Valor de métrica completo (ocorre em metrics[], groups[].metrics[], rows[].value). */
 const metricValue = (p: string): Record<string, Spec> => ({
-  [`${p}.value`]: { kind: "number", unit: "sibling", withReason: true },
+  [`${p}.value`]: { kind: "number", unit: "sibling", reasonField: "reason" },
   [`${p}.sampleSize`]: count,
   [`${p}.coverage.used`]: count,
   [`${p}.coverage.total`]: count,
@@ -39,8 +39,10 @@ const metricValue = (p: string): Record<string, Spec> => ({
 const buckets: Record<string, Spec> = {
   "buckets[].reason": { kind: "enum", table: "exitReason" },
   "buckets[].count": count,
-  "buckets[].pnlNet": { kind: "number", unit: "usd" },
-  "buckets[].share": fraction,
+  "buckets[].pnlNet": { kind: "number", unit: "usd", reasonField: "pnlNetReason" },
+  "buckets[].pnlNetReason": { kind: "reason" },
+  "buckets[].share": { kind: "number", unit: "fraction", reasonField: "shareReason" },
+  "buckets[].shareReason": { kind: "reason" },
   "buckets[].coverage.used": count,
   "buckets[].coverage.total": count,
   "buckets[].coverage.ratio": fraction,
@@ -50,10 +52,13 @@ const compare = (p: string): Record<string, Spec> => ({
   [`${p}b.sampleSize`]: count,
   [`${p}a.key[]`]: text,
   [`${p}b.key[]`]: text,
-  [`${p}deltas[].a`]: { kind: "number", unit: "sibling" },
-  [`${p}deltas[].b`]: { kind: "number", unit: "sibling" },
-  [`${p}deltas[].delta`]: { kind: "number", unit: "sibling" },
-  [`${p}deltas[].ratio`]: { kind: "number", unit: "ratio" },
+  [`${p}deltas[].a`]: { kind: "number", unit: "sibling", reasonField: "aReason" },
+  [`${p}deltas[].aReason`]: { kind: "reason" },
+  [`${p}deltas[].b`]: { kind: "number", unit: "sibling", reasonField: "bReason" },
+  [`${p}deltas[].bReason`]: { kind: "reason" },
+  [`${p}deltas[].delta`]: { kind: "number", unit: "sibling", reasonField: "reason" },
+  [`${p}deltas[].ratio`]: { kind: "number", unit: "ratio", reasonField: "reason" },
+  [`${p}deltas[].reason`]: { kind: "reason" },
 })
 const price: Spec = { kind: "number", unit: "price" }
 const usd: Spec = { kind: "number", unit: "usd" }
@@ -64,7 +69,7 @@ const LEAVES: Readonly<Record<SlotViewId, Readonly<Record<string, Spec>>>> = Obj
   "metrics.groups@1": { "groups[].sampleSize": count, "groups[].sampleFlag": { kind: "enum", table: "sampleFlag" }, "groups[].key[]": text, ...metricValue("groups[].metrics[]") },
   "exit.breakdown@1": { ...buckets, reconciliation: { kind: "enum", table: "reconciliation" } },
   "metrics.compare@1": compare(""),
-  "rank.groups@1": { "rows[].rank": count, "rows[].key[]": text, ...metricValue("rows[].value"), "rows[].sampleFlag": { kind: "enum", table: "sampleFlag" }, "rows[].contribution": fraction },
+  "rank.groups@1": { "rows[].rank": count, "rows[].key[]": text, ...metricValue("rows[].value"), "rows[].sampleFlag": { kind: "enum", table: "sampleFlag" }, "rows[].contribution": { kind: "number", unit: "fraction", reasonField: "contributionReason" }, "rows[].contributionReason": { kind: "reason" } },
   "exit.analysis@1": { ...buckets, ...compare("comparison.") },
   "evidence.explain@1": {
     page: count, pageCount: count, total: count,
@@ -78,6 +83,9 @@ const MAX_PATH = 200
 const SEGMENT = /^([A-Za-z][A-Za-z0-9_]*)(?:\[(0|[1-9][0-9]{0,2})\])?$/
 const bad = (): { ok: false; code: "SLOT_PATH_INVALID" } => ({ ok: false, code: "SLOT_PATH_INVALID" })
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x)
+
+/** Tabela de folhas (exportada só para o guarda de completude dos testes). */
+export const LEAF_TABLE = LEAVES
 
 /** Anda pelo path (só propriedades próprias) e devolve a FOLHA da tabela, sem formatar. */
 export function resolveSlot(viewId: SlotViewId, view: unknown, path: string): { ok: true; leaf: Leaf } | { ok: false; code: "SLOT_PATH_INVALID" } {
@@ -113,7 +121,12 @@ export function resolveSlot(viewId: SlotViewId, view: unknown, path: string): { 
       if (!u || !u.success) return bad()
       unit = u.data
     } else unit = spec.unit
-    const reason = spec.withReason && parent !== null && Object.hasOwn(parent, "reason") ? (parent.reason as string | null) : undefined
+    let reason: string | null | undefined
+    if (spec.reasonField !== undefined) { // o irmão-motivo tem de ser PRÓPRIO e string|null (herdado, ausente ou de outro tipo ⇒ inválido)
+      const r = parent !== null && Object.hasOwn(parent, spec.reasonField) ? parent[spec.reasonField] : undefined
+      if (r !== null && typeof r !== "string") return bad()
+      reason = r
+    }
     return { ok: true, leaf: { kind: "number", value: cur as number | null, unit, reason } }
   }
   if (cur !== null && typeof cur !== "string") return bad()

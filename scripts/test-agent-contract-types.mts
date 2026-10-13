@@ -87,7 +87,7 @@ test("SC6 — TODA PromptView é lista branca strict: qualquer campo T0, em qual
   const samples: Record<string, Any> = {
     metricValue: [MetricValueViewSchema, metric()],
     metricsQuery: [MetricsQueryViewSchema, { metrics: [metric()], period: { from: "2026-03-02", to: "2026-03-03" } }],
-    rank: [RankViewSchema, { rows: [{ rank: 1, key: ["Conta A"], value: metric(), sampleFlag: "OK", tiedWithPrevious: false, contribution: 0.5 }], orderedBy: "netPnl" }],
+    rank: [RankViewSchema, { rows: [{ rank: 1, key: ["Conta A"], value: metric(), sampleFlag: "OK", tiedWithPrevious: false, contribution: 0.5, contributionReason: null }], orderedBy: "netPnl" }],
     explainTrade: [ExplainTradeViewSchema, trade],
     explain: [ExplainViewSchema, { page: 0, pageCount: 1, total: 1, trades: [trade] }],
   }

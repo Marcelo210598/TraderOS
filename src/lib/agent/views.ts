@@ -24,7 +24,12 @@ export const MetricsGroupsViewSchema = z.object({ groupBy: z.array(z.string()), 
 export const ExitReasonSchema = z.enum(["TARGET", "STOP", "MANUAL", "MIXED", "UNKNOWN"])
 /** Quebra por motivo de saída. `unit` TRADE e LEG NUNCA se misturam numa mesma linha. */
 export const ExitBucketViewSchema = z
-  .object({ reason: ExitReasonSchema, unit: z.enum(["TRADE", "LEG"]), count: z.number().int().nonnegative(), pnlNet: z.number().nullable(), share: z.number().nullable(), coverage: Coverage })
+  .object({
+    reason: ExitReasonSchema, unit: z.enum(["TRADE", "LEG"]), count: z.number().int().nonnegative(),
+    pnlNet: z.number().nullable(), /** E6.6-V: motivo do `pnlNet` null (Cell.reason do motor); nome próprio porque `reason` acima é o motivo de SAÍDA. */ pnlNetReason: z.string().nullable(),
+    share: z.number().nullable(), /** E6.6-V: motivo do `share` null OU aviso (ex.: DENOMINATOR_PARTIAL_COVERAGE com valor). */ shareReason: z.string().nullable(),
+    coverage: Coverage,
+  })
   .strict()
 export const ExitBreakdownViewSchema = z.object({ buckets: z.array(ExitBucketViewSchema), reconciliation: z.enum(["RECONCILED", "DIVERGENT", "NOT_COMPARABLE"]) }).strict()
 
@@ -32,14 +37,24 @@ export const CompareViewSchema = z
   .object({
     a: z.object({ key: z.array(GroupKeyPartSchema), sampleSize: z.number().int().nonnegative() }).strict(),
     b: z.object({ key: z.array(GroupKeyPartSchema), sampleSize: z.number().int().nonnegative() }).strict(),
-    deltas: z.array(z.object({ metricId: z.string(), unit: UnitSchema, a: z.number().nullable(), b: z.number().nullable(), delta: z.number().nullable(), ratio: z.number().nullable() }).strict()),
+    deltas: z.array(
+      z
+        .object({
+          metricId: z.string(), unit: UnitSchema,
+          a: z.number().nullable(), /** E6.6-V: motivo do lado A/B null (Cell.reason). */ aReason: z.string().nullable(),
+          b: z.number().nullable(), bReason: z.string().nullable(),
+          delta: z.number().nullable(), ratio: z.number().nullable(),
+          /** E6.6-V: motivo de `delta` e `ratio` null (MetricComparison.reason: UNAVAILABLE_* ou RATIO_*): UM motivo para os dois. */ reason: z.string().nullable(),
+        })
+        .strict(),
+    ),
     conclusive: z.boolean(),
   })
   .strict()
 
 /** `tiedWithPrevious` vem do motor: só ele autoriza o agente a dizer "empate" (TIE_OVERCLAIM). */
 export const RankRowViewSchema = z
-  .object({ rank: z.number().int().positive(), key: z.array(GroupKeyPartSchema), value: MetricValueViewSchema, sampleFlag: SampleFlag, tiedWithPrevious: z.boolean(), contribution: z.number().nullable() })
+  .object({ rank: z.number().int().positive(), key: z.array(GroupKeyPartSchema), value: MetricValueViewSchema, sampleFlag: SampleFlag, tiedWithPrevious: z.boolean(), contribution: z.number().nullable(), /** E6.6-V: motivo do `contribution` null (Fraction.reason). */ contributionReason: z.string().nullable() })
   .strict()
 export const RankViewSchema = z.object({ rows: z.array(RankRowViewSchema), orderedBy: z.string() }).strict()
 
