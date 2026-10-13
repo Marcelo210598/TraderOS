@@ -12,6 +12,7 @@ import { assessBundle } from "./assess.ts"
 import { errorResult, okResult } from "./envelope.ts"
 import { GROUP_DIMENSIONS, groupKeyPart, type GroupDimension } from "./group-key.ts"
 import { QUERY_FILTERS_SCHEMA, QUERY_OPTIONS_SCHEMA, type MetricsQueryContext } from "./metrics-query.ts"
+import { generatorOpts, saltMissing } from "./salt.ts"
 import { projectMetricValue } from "./project.ts"
 
 const CAPABILITY: CapabilityId = "metrics.groups@1"
@@ -49,7 +50,7 @@ export function metricsGroups(rawArgs: unknown, ctx: MetricsGroupsContext): Metr
     if (!parsed.success) return fail("ARGS_INVALID")
     const { groupBy, metricIds, filters, options } = parsed.data
     if (typeof ctx !== "object" || ctx === null || !Array.isArray(ctx.trades) || !Array.isArray(ctx.importRecords)) return fail("ENGINE_REFUSED")
-    if (ctx.importRecords.some((r) => r.reproducibility?.accountRefSalted === true) && (typeof ctx.accountRefSalt !== "string" || ctx.accountRefSalt === "")) return fail("ENGINE_REFUSED") // import salgado sem o sal (como no E6.6-5)
+    if (saltMissing(ctx)) return fail("ENGINE_REFUSED") // import SALGADO sem o sal: falha FECHADA (salt.ts)
 
     let calc: ReturnType<typeof aggregateTradesTraced>
     try {
@@ -61,12 +62,12 @@ export function metricsGroups(rawArgs: unknown, ctx: MetricsGroupsContext): Metr
     if (result.groups.length > MAX_GROUPS) return fail("ARGS_INVALID") // nunca trunca e responde como completo (D6-2)
     if (result.groups.reduce((n, g) => n + g.sampleSize, 0) !== result.total.population.afterFilters) return fail("ENGINE_REFUSED") // os grupos particionam a população
 
-    const total = explainMetric({ metricId: metricIds[0], source: { kind: "AGGREGATE", result, trace, scope: { kind: "TOTAL" } }, trades: ctx.trades, importRecords: ctx.importRecords, ...(ctx.accountRefSalt !== undefined ? { opts: { accountRefSalt: ctx.accountRefSalt } } : {}) })
+    const total = explainMetric({ metricId: metricIds[0], source: { kind: "AGGREGATE", result, trace, scope: { kind: "TOTAL" } }, trades: ctx.trades, importRecords: ctx.importRecords, ...generatorOpts(ctx) })
     if (!total.ok) return fail("ENGINE_REFUSED")
     const evidences: Explained[] = [total]
     const groupEvidence: Explained[][] = []
     for (let i = 0; i < result.groups.length; i++) {
-      const row = metricIds.map((metricId) => explainMetric({ metricId, source: { kind: "AGGREGATE", result, trace, scope: { kind: "GROUP", index: i } }, trades: ctx.trades, importRecords: ctx.importRecords, ...(ctx.accountRefSalt !== undefined ? { opts: { accountRefSalt: ctx.accountRefSalt } } : {}) }))
+      const row = metricIds.map((metricId) => explainMetric({ metricId, source: { kind: "AGGREGATE", result, trace, scope: { kind: "GROUP", index: i } }, trades: ctx.trades, importRecords: ctx.importRecords, ...generatorOpts(ctx) }))
       if (row.some((x) => !x.ok)) return fail("ENGINE_REFUSED")
       groupEvidence.push(row)
       evidences.push(...row)

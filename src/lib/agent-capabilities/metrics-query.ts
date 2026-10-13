@@ -9,6 +9,7 @@ import { EVIDENCE_SCHEMA, sealEvidence } from "../evidence/hash.ts"
 import { METRIC_IDS, MetricsInputError, calculateMetricsTraced, type AnalyticsTrade } from "../metrics/index.ts"
 import { assessBundle } from "./assess.ts"
 import { errorResult, okResult } from "./envelope.ts"
+import { generatorOpts, saltMissing } from "./salt.ts"
 import { projectMetricValue } from "./project.ts"
 import type { SourceFiles, VerifySourceOptions } from "../evidence/verify-source.ts"
 
@@ -69,8 +70,7 @@ export function metricsQuery(rawArgs: unknown, ctx: MetricsQueryContext): Metric
     if (!parsed.success) return fail("ARGS_INVALID")
     const { metricIds, filters, options } = parsed.data
     if (typeof ctx !== "object" || ctx === null || !Array.isArray(ctx.trades) || !Array.isArray(ctx.importRecords)) return fail("ENGINE_REFUSED")
-    // import SALGADO sem o sal: a Evidence sairia com refs sem sal e o E5b acusaria um falso SOURCE_MISMATCH (lacuna conhecida do guarda de sal): falha FECHADA
-    if (ctx.importRecords.some((r) => r.reproducibility?.accountRefSalted === true) && (typeof ctx.accountRefSalt !== "string" || ctx.accountRefSalt === "")) return fail("ENGINE_REFUSED")
+    if (saltMissing(ctx)) return fail("ENGINE_REFUSED") // import SALGADO sem o sal: falha FECHADA (salt.ts)
 
     let calc: ReturnType<typeof calculateMetricsTraced>
     try {
@@ -80,7 +80,7 @@ export function metricsQuery(rawArgs: unknown, ctx: MetricsQueryContext): Metric
     }
     const { result, trace } = calc
 
-    const explained = metricIds.map((metricId) => explainMetric({ metricId, source: { kind: "METRICS", result, trace }, trades: ctx.trades, importRecords: ctx.importRecords, ...(ctx.accountRefSalt !== undefined ? { opts: { accountRefSalt: ctx.accountRefSalt } } : {}) }))
+    const explained = metricIds.map((metricId) => explainMetric({ metricId, source: { kind: "METRICS", result, trace }, trades: ctx.trades, importRecords: ctx.importRecords, ...generatorOpts(ctx) }))
     const oks = explained.flatMap((x) => (x.ok ? [x] : []))
     if (oks.length !== explained.length) return fail("ENGINE_REFUSED")
     const first = oks[0]

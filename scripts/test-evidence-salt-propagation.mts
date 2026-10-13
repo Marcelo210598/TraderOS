@@ -99,7 +99,7 @@ test("(2) ESTÁTICA — todo call site de explainTrade(s)/explainMetric/explainD
       const name = `explain${m[1]}`
       const call = callText(src, (m.index ?? 0) + name.length)
       sites.push(`${rel(f)} → ${name}`)
-      if (/accountRefSalt|\.\.\.opts|\bopts\b/.test(call)) continue // repassa o sal (ou todo o opts)
+      if (/accountRefSalt|\.\.\.opts|\bopts\b|\.\.\.generatorOpts\(/.test(call)) continue // repassa o sal (ou todo o opts, ou o utilitário ÚNICO das capacidades: ver (2d))
       const why = UNSALTED_BY_DESIGN[rel(f).replace(/^\//, "")]
       if (why) {
         assert.equal(/accountRefSalt/.test(readFileSync(f, "utf8").replace(/\/\/.*$/gm, "")), false, `${rel(f)}: exceção 'sem sal' inválida — o arquivo passa a usar sal`)
@@ -114,6 +114,31 @@ test("(2) ESTÁTICA — todo call site de explainTrade(s)/explainMetric/explainD
   for (const f of Object.keys(UNSALTED_BY_DESIGN)) assert.ok(sites.some((s) => s.startsWith(f)), `exceção sem uso: ${f}`)
   // e a propagação interna: explain-metric/explain-derived/verify-source repassam o sal ao explainTrades
   for (const f of ["src/lib/evidence/explain-metric.ts", "src/lib/evidence/explain-derived.ts", "src/lib/evidence/verify-source.ts"]) assert.ok(sites.some((s) => s.startsWith(`${f} → explainTrades`)), f)
+})
+
+// ── (2d) o UTILITÁRIO ÚNICO do sal das capacidades (E6.6-7) ────────────────────
+// Dentro de src/lib/agent-capabilities/ o repasse do sal é SÓ por `...generatorOpts(ctx)` (salt.ts) e a recusa de import salgado sem sal é SÓ por `saltMissing(ctx)`:
+// nada de variável intermediária nem de expressão própria por capacidade. Assim uma capacidade nova não depende de acertar o estilo textual.
+test("(2d) ESTÁTICA — nas capacidades, todo call site de explainMetric/explainDerived usa `...generatorOpts(ctx)` e o arquivo chama `saltMissing(ctx)`; salt.ts é a ÚNICA definição e não importa gerador", () => {
+  const caps = SRC.filter((f) => rel(f).startsWith("src/lib/agent-capabilities/"))
+  const users: string[] = []
+  for (const f of caps) {
+    const src = codeOf(f)
+    if (rel(f).endsWith("/salt.ts")) continue
+    const sites = [...src.matchAll(/(?<![\w.])explain(Metric|Derived|Trades?)\(/g)]
+    if (sites.length === 0) continue
+    users.push(rel(f))
+    for (const m of sites) assert.match(callText(src, (m.index ?? 0) + `explain${m[1]}`.length), /\.\.\.generatorOpts\(ctx\)/, `${rel(f)}: call site sem o utilitário único do sal`)
+    assert.match(src, /saltMissing\(ctx\)/, `${rel(f)}: sem a recusa de import salgado sem sal`)
+    assert.match(src, /from "\.\/salt\.ts"/, `${rel(f)}: não importa o utilitário`)
+    assert.equal(/\.accountRefSalt\b|\{\s*accountRefSalt\s*[:,}]|\baccountRefSalt\s*:\s*(?!string)/.test(src), false, `${rel(f)}: acessa/monta accountRefSalt direto (só salt.ts pode; declarar o campo no tipo do contexto é permitido)`)
+  }
+  assert.ok(users.length >= 2, `capacidades que geram Evidence: ${users.length}`)
+  const salt = codeOf(join(ROOT, "src/lib/agent-capabilities/salt.ts"))
+  assert.equal(/explain-(?:trade|metric|derived)/.test(salt), false, "salt.ts importa gerador")
+  assert.equal((salt.match(/export function generatorOpts/g) ?? []).length, 1)
+  assert.equal((salt.match(/export function saltMissing/g) ?? []).length, 1)
+  for (const f of SRC) if (!rel(f).startsWith("src/lib/agent-capabilities/")) assert.equal(/generatorOpts|saltMissing/.test(codeOf(f)), false, `${rel(f)}: usa o utilitário fora das capacidades`)
 })
 
 // ── (2c) estática: QUEM pode importar um gerador de Evidence ─────────────────
