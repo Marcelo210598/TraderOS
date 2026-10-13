@@ -2,6 +2,11 @@
 
 Registra **mudanças de contrato** observáveis por quem lê os tipos/relatórios (campos, estados, hashes). Ordem: mais recente primeiro. `evidence/1` nunca virou `evidence/2`: todas as mudanças abaixo são aditivas, salvo onde dito.
 
+## 2026-10-13 — E6.6-2b: validador de texto livre e `basis` como folha de slot (contrato do AGENTE; sem mudança de schema; `evidence/1` inalterado)
+- **Novo (comportamento, não schema):** `validate-text.ts`/`validate-answer.ts`/`lexicon.ts`. Texto do modelo com claim LABELED passa a ser mais estrito (`mais`, `menos`, avaliativos, tendência e posição são rejeitados): custo aceito pelo Marcelo (B3/B6).
+- **Slot novo:** `metrics[].basis` (e `groups[].metrics[].basis`, `rows[].value.basis`) renderiza líquido/bruto/R líquido/R em pontos; as mesmas palavras em texto, numa resposta com claim, são rejeitadas (`NUMBER_OUTSIDE_SLOT`, B2).
+- **Reuso de motivo:** `STRUCTURE_INVALID` também cobre alfabeto fora do permitido, ref no texto e limites de tamanho (B1/B4/B5).
+
 ## 2026-10-13 — E6.6-2b (parte 1): `REJECTION_REASONS` ganha `OPERATIONAL_ADVICE` (contrato do AGENTE; `evidence/1`, bundles e hashes INALTERADOS)
 - **Mudança (acrescenta):** 17 → 18 motivos. `OPERATIONAL_ADVICE` = o texto livre recomenda ou aconselha uma ação operacional (o §4.4 já proibia, mas a regra não tinha código; Q15). Primeiro item do E6.6-2b, a pedido do Marcelo, antes de qualquer linha do validador de texto.
 - **Expectativas:** `agent-contract.expected.json` → `validator_cases.AV25_operational_advice` + `history`; `agent-capabilities.md` §5.1 atualizado. Nada em `evidence/`, `metrics/`, `ingest/`, `domain/` mudou.

@@ -5,7 +5,9 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
-      "2026-10-13 E6.6-2b — EXPECTATIVA escrita e PARADA (bloco e66_2b). Registrado: bump OPERATIONAL_ADVICE feito (primeiro item); PD-1 = opção (b) (decisão do Marcelo); PD-3 = DATA_NOT_PROVIDED com abertura 'não informado' (condição do Marcelo conferida). O corpus (223 casos, 14 classes: dígitos/símbolos/citação, palavras-número, aritmética, causa, escopo, inconclusivo, motivo de saída, conselho, empate, comparação sobre NOT_VERIFIED, mistura slot/texto, alfabeto/homóglifo/formato/tamanho) foi conferido contra um modelo de referência descartável. MEUS ERROS na 1ª versão do corpus, corrigidos antes de registrar: (1) esperei NUMBER para '½' mas o NFKC gera a barra de fração (U+2044), que o alfabeto não permite ⇒ [STRUCTURE_INVALID, NUMBER]; (2) d19 tinha esperado e nota contraditórios (era NUMBER); (3) esperei ADVICE para 'rec0mendo' mas o dígito já derruba e o termo não casa; (4) m28 tinha uma palavra impossível ('melh'+slot não forma 'melhor'); (5) m49 esperava ADVICE para 'faço' (o termo listado é 'faça'); (6) h11 esperava EXIT para 'stoßado' (ß→ss não dá 'stopado'; troquei por ø); (7) o modelo de referência derrubava '≠' por decompô-lo em '=' + marca combinante (a contagem de marcas passou a considerar só marcas de LETRAS); (8) a corrida de letras soltas ('A é m e l h o r') engolia as palavras 'a' e 'é' vizinhas e escondia 'melhor' (V3 passou a testar também TRECHO dentro da corrida); (9) a contagem de >2 marcas ignorava marcas que o NFKC já compôs (h04; passou a contar a decomposição da letra). ACHADO AO CONFERIR: no corpus de frases boas já aprovado, 5 de 18 passam a ser rejeitadas quando há claim LABELED (efeito desejado de B3/B6).",
+      "2026-10-13 E6.6-2b EXECUTADO (validate-text.ts, validate-answer.ts, lexicon.ts, basis em format.ts/slot-path.ts; testes test-agent-validate-text.mts e test-agent-basis-slot.mts). Placar 855 → 871 (+16), baseline de 771 idêntico; o corpus de 225 casos passou 225/225 NA PRIMEIRA execução do código TypeScript (portado do modelo de referência). MUTAÇÃO: 54 mutações (47 do validador de texto, 4 de validateAnswer e 3 de basis); 11 ESCAPARAM na primeira rodada. 6 eram LACUNA DE TESTE e viraram casos novos (corpus 225 → 231: q01 e q02 só o espremido pega; m70 só a junção com espaço pega; i15 pontuação quebra a negação; i16 e i17 V5/V2 com termo fora da lista do espremido) mais 2 asserções (limite de 24 caracteres da citação AV21 e conclusive=false sem sampleFlag). 5 são mutantes EQUIVALENTES, declarados: T04 (tirar Cf da classe `bad`: o caractere cai de qualquer forma no `return false` do alfabeto fechado), T06 (limite de 2 marcas na decomposição de UMA letra: inalcançável, a sequência já conta), T14 (QUOTED_NUMBER: a igualdade com um número da pergunta já implica número puro), A04 (parse repetido em validateAnswer: o validador estrutural e o de texto já devolvem STRUCTURE_INVALID), B03 (basis null: formatEnum recusa o código vazio de qualquer forma). MEDIDA que o plano pedia ('cada palavra relacional tem um caso que a prenda') NÃO é verdadeira para o corpus escrito à mão: removendo um termo por vez (627 termos) 551 não derrubam nenhum caso (a maioria é redundante com outra palavra da mesma categoria: 'melhor que' ⊂ 'melhor'). Em vez disso o teste T1 gera UMA frase por termo ('Veja <termo> agora.') no contexto certo: os 627 funcionam (nenhum digitado/normalizado errado) e as listas do código == as das expectativas (L0). MEUS ERROS DE TESTE: contei 14 classes quando são 13; disse '67 casos' de comparação quando são 69 (55 rejeições e 14 aceites; os 67 incluíam textos bons); fixtures com ref 'z' (não hex) de novo no V1; a premissa de que LABELED com ref desconhecido NÃO liga a regra estava invertida (contexto só aperta, nunca afrouxa). Testes existentes ajustados (só asserção): format T2 (a tabela `basis` deixou de ser inválida), slot-path P6 (`metrics[0].basis` deixou de ser inválida), G0 e S0 (lista exata de arquivos: 12). O e66_1 dizia que `basis` não era folha de slot: SUPERADO pela PD-1(b).",
+      "2026-10-13 E6.6-2b — B1–B9 APROVADOS como recomendado (Marcelo). B6 confirmado como esperado: 'mais'/'menos' soltos geram falso-positivo em texto explicativo ('veja mais detalhes abaixo') SEMPRE que a RESPOSTA (não o segmento) tiver claim LABELED; custo aceito (preferir regenerar a deixar passar). Corpus 223 → 225: m68 documenta esse FP e m69 a reescrita induzida. T6 (espremido) generalizado por categoria na redação do passo e no modelo de referência (sem mudar nenhum resultado do corpus).",
+      "2026-10-13 E6.6-2b — EXPECTATIVA escrita e PARADA (bloco e66_2b). Registrado: bump OPERATIONAL_ADVICE feito (primeiro item); PD-1 = opção (b) (decisão do Marcelo); PD-3 = DATA_NOT_PROVIDED com abertura 'não informado' (condição do Marcelo conferida). O corpus (223 casos, 13 classes: dígitos/símbolos/citação, palavras-número, aritmética, causa, escopo, inconclusivo, motivo de saída, conselho, empate, comparação sobre NOT_VERIFIED, mistura slot/texto, alfabeto/homóglifo/formato/tamanho) foi conferido contra um modelo de referência descartável. MEUS ERROS na 1ª versão do corpus, corrigidos antes de registrar: (1) esperei NUMBER para '½' mas o NFKC gera a barra de fração (U+2044), que o alfabeto não permite ⇒ [STRUCTURE_INVALID, NUMBER]; (2) d19 tinha esperado e nota contraditórios (era NUMBER); (3) esperei ADVICE para 'rec0mendo' mas o dígito já derruba e o termo não casa; (4) m28 tinha uma palavra impossível ('melh'+slot não forma 'melhor'); (5) m49 esperava ADVICE para 'faço' (o termo listado é 'faça'); (6) h11 esperava EXIT para 'stoßado' (ß→ss não dá 'stopado'; troquei por ø); (7) o modelo de referência derrubava '≠' por decompô-lo em '=' + marca combinante (a contagem de marcas passou a considerar só marcas de LETRAS); (8) a corrida de letras soltas ('A é m e l h o r') engolia as palavras 'a' e 'é' vizinhas e escondia 'melhor' (V3 passou a testar também TRECHO dentro da corrida); (9) a contagem de >2 marcas ignorava marcas que o NFKC já compôs (h04; passou a contar a decomposição da letra). ACHADO AO CONFERIR: no corpus de frases boas já aprovado, 5 de 18 passam a ser rejeitadas quando há claim LABELED (efeito desejado de B3/B6).",
       "2026-10-13 E6.6-V EXECUTADO. views.ts (+6 campos de motivo), slot-path.ts (`withReason` → `reasonField`, folhas de motivo novas, LEAF_TABLE exportada), test-agent-views-reason.mts (9 testes: W1–W11). Placar 846 → 855 (+9), baseline de 771 idêntico. FIXTURES de testes existentes atualizadas (só dado de entrada; títulos e asserções intactos): test-agent-slot-path.mts (bucket, DELTAS, linha do rank), test-agent-validate-structure.mts (cview), test-agent-contract-types.mts (rank). 19 mutações, todas pegas. LIMITAÇÃO declarada: o guarda de completude W11 (varre o schema zod atrás de `number|null` sem reasonField) só é exercitado indiretamente pelas mutações (a M15 cai antes, em W1); não o isolei com uma mutação própria. W10 (invariante do motor: null ⇒ reason) cobre só os cenários montados. PD-3 segue aberta (nulls do evidence.explain sem motivo; decisão do Marcelo antes do E6.6-11).",
       "2026-10-13 E6.6-V — EXPECTATIVA escrita antes do código (bloco e66_V). Decisão do Marcelo: PD-2 opção (a), E6.6-V antes do E6.6-2b. Achado novo registrado como PD-3 (nulls do evidence.explain sem motivo; fora do escopo aprovado).",
       "2026-10-13 E6.6-2a EXECUTADO (ledger.ts, validate-structure.ts, 2 testes; bump STRUCTURE_INVALID no contrato, C1). Placar: 814 → 846 (+32: 9 ledger, 23 validador); 0 linhas do baseline de 771 alteradas; o título do S0 (meu E6.6-1) mudou de '7 arquivos' para '9 arquivos'. C10 = B implementado: o validador estrutural NUNCA emite UNVERIFIED_USED_FOR_CONCLUSION (travado por V6, V22 e V23); a pergunta do Marcelo (a barreira de 'concluir' é estrutural?) foi respondida em decisions_2a.C10: NÃO, é só lexical. DETALHE DE ORDEM: STRUCTURE_INVALID de FORMA (slot×claim, C3, higiene) sai depois de SLOT_PATH_INVALID e antes dos motivos de veredito; o do passo 1 sai sozinho. MEUS ERROS DE TESTE, corrigidos antes do commit: (1) usei letras g..k, y, z como 'ids' de ref nas fixtures, mas ref é hex (/^ev_[0-9a-f]{32}$/): os casos 'ref inexistente' viraram STRUCTURE_INVALID; criei o mapa HEX; (2) esperei SLOT_PATH_INVALID para o path `__proto__`, mas ele nem casa com a gramática (começa com `_`) ⇒ STRUCTURE_INVALID (falha de forma); troquei por constructor/toString e deixei um caso próprio para __proto__; (3) duas asserções que escrevi de forma convoluta (V10, V13) e reescrevi com o resultado que a regra implica. CÓDIGO: o guarda G2 (nenhum literal de CombinedVerdict fora de verdict.ts/contract.ts) barrou meu validator-structure.ts, que comparava `v.combined === \"VERIFIED\"`; passei a ler os valores de CombinedVerdictSchema.enum (guarda intacto). Testes existentes ajustados (só asserção): G0 (lista de arquivos 7 → 9). MUTAÇÕES: 39 (31 do validador, 8 do ledger); 37 pegas na 1ª rodada. ESCAPOU V26 (remover o try/catch): meu teste do getter hostil usava uma chave que o zod nem lê; acrescentei getter em `segments` e um ledger Proxy hostil ⇒ passou a ser pega. L10 (lookupRef sem a regex do ref) é mutante EQUIVALENTE: com Object.hasOwn só chaves próprias valem, e as únicas chaves próprias são refs válidos; a regex fica como defesa em profundidade. LIMITAÇÕES: guardas textuais provam texto; o validador estrutural NÃO vê o sentido do texto livre (2b).",
@@ -693,7 +695,7 @@
       "T3 refs no texto: /\\b(ev|acc|str|lbl|pat)_[0-9a-f]{8,}/ em JA minúsculo \u21d2 STRUCTURE_INVALID (o modelo nunca vê nem repete ref)",
       "T4 dígitos e símbolos (sobre JA): remove as citações numéricas válidas (AV21: entre \" \" ou \u201c \u201d ou « », conteúdo \u2264 24 caracteres, conteúdo aparado = só o número, igual a um número da pergunta); sobrou Nd \u21d2 NUMBER_OUTSIDE_SLOT; qualquer de % + = × ÷ \u2212 \u2248 ~ $ ± ou qualquer símbolo de moeda (Sc) \u21d2 NUMBER_OUTSIDE_SLOT; < > \u2265 \u2264 \u2260 \u21d2 MODEL_ARITHMETIC",
       "T5 normalização N de cada versão: dobra de letras, minúsculas, NFD sem acento. Quatro variantes de PALAVRAS, e o termo vale se casar em QUALQUER uma: V1 = JA; V2 = JB (pega palavra partida por slot ou por fronteira de segmento); V3 = corrida de \u2265 3 letras soltas separadas por espaço (m e l h o r) \u2014 vale como palavra colada E como trecho dentro da corrida (termos com \u2265 5 letras sem espaço); V5 = V1 sem - _ . * · ' ` ~ ^ \u2022 entre duas letras (mel-hor, mel.hor).",
-      "T6 casamento: palavra/frase INTEIRA nas variantes (nunca pedaço de palavra), exceto o casamento 'espremido' de uma lista curta de termos longos (conclusivo, conclusiva, conclusao, recomendo, aconselho, sugiro, experimente, considere, consequentemente, estatisticamente, definitivamente, comprovadamente, aproximadamente, invariavelmente, portanto), que procura o termo no texto sem separadores (pega 're c o m e n d o').",
+      "T6 casamento: palavra/frase INTEIRA nas variantes (nunca pedaço de palavra), exceto o casamento 'espremido' de uma lista curta de termos longos (conclusivo, conclusiva, conclusao, recomendo, aconselho, sugiro, experimente, considere, consequentemente, estatisticamente, definitivamente, comprovadamente, aproximadamente, invariavelmente, portanto), que procura o termo no texto sem separadores (pega 're c o m e n d o'). O espremido vale para cada categoria cujo termo (palavra única) conste dessa lista: aproximadamente em NUM/APPROX; consequentemente em CAUSAL e COMPARISON; comprovadamente e invariavelmente em SCOPE; recomendo, aconselho, sugiro, experimente e considere em ADVICE; portanto e conclusao em COMPARISON; conclusivo, conclusiva, definitivamente e estatisticamente em INCONCLUSIVE.",
       "T7 exceções: ARITH 'vezes mais/menos/maior/menor/o' e 'vez e meia' não valem se a palavra anterior é as/muitas/algumas/poucas/outras/certas (em cada variante). INCONCLUSIVE não vale se, na V1, uma das DUAS palavras anteriores é nao/nem/sem/ainda (EN: not/isnt/isn/without/yet) E não há pontuação entre ela e o termo; nas demais variantes, a janela é de duas palavras sem olhar pontuação; um termo achado só por corrida/espremido NUNCA tem exceção de negação.",
       "T8 regras por categoria e contexto: ver rules."
     ],
@@ -1117,7 +1119,7 @@
       "effect_on_approved_good_corpus": "as 18 frases boas aprovadas continuam aceitas em V (18/18). Em L (com claim LABELED) 5 passam a ser REJEITADAS, de propósito: 'a maior parte das perdas', 'melhor desempenho que', 'o primeiro grupo lidera', 'ficou atrás', 'às vezes mais perdas'. As 37 rejeições aprovadas seguem todas rejeitadas."
     },
     "corpus": {
-      "count": 223,
+      "count": 231,
       "classes": [
         "aritmetica",
         "causal",
@@ -3042,6 +3044,25 @@
           "note": "quatro motivos de uma vez, na ordem"
         },
         {
+          "id": "m68",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Veja mais detalhes abaixo.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "B6: 'mais' solto em texto explicativo legítimo com claim LABELED: falso-positivo ESPERADO e aceito (o modelo reescreve: 'Veja os detalhes abaixo.')",
+          "mark": "FP"
+        },
+        {
+          "id": "m69",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Veja os detalhes abaixo.",
+          "expect": [],
+          "note": "a reescrita que o feedback induz"
+        },
+        {
           "id": "k01",
           "classe": "slots",
           "ctx": "V",
@@ -3262,6 +3283,66 @@
           "note": "aspas tipográficas não escondem o termo"
         },
         {
+          "id": "q01",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "re co mendo isso",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "só o casamento ESPREMIDO pega (sem corrida de letras, sem hífen)"
+        },
+        {
+          "id": "q02",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "con clu si vo",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "só o espremido pega"
+        },
+        {
+          "id": "m70",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melhor[[S]]que B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "slot entre 'melhor' e 'que' sem espaço no texto: só a junção com espaço (V1) forma a frase"
+        },
+        {
+          "id": "i15",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "Não, conclusivo.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "vírgula entre a negação e o termo: a pontuação QUEBRA a exceção (só a V1 enxerga a pontuação)"
+        },
+        {
+          "id": "i16",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "Isso é clara-mente forte.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "hífen intrapalavra (V5) com termo fora da lista do espremido"
+        },
+        {
+          "id": "i17",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "Isso é clara[[S]]mente forte.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "slot no meio (V2) com termo fora da lista do espremido"
+        },
+        {
           "id": "z01",
           "classe": "tamanho",
           "ctx": "V",
@@ -3294,7 +3375,8 @@
     "accepted_false_positives": [
       "n01: dois (FP aceito já registrado)",
       "c17: repetir a pergunta do usuário também é rejeitado (FP aceito)",
-      "m60: 'mais' em contexto LABELED: FP aceito"
+      "m60: 'mais' em contexto LABELED: FP aceito",
+    "m68: B6: 'mais' solto em texto explicativo legítimo com claim LABELED: falso-positivo ESPERADO e aceito (o modelo reescreve: 'Veja os detalhes abaixo.')"
     ],
     "residual_risk_not_in_corpus": [
       "Sinônimos e eufemismos que não estão em lista nenhuma (sobressai-se, 'está numa classe à parte', 'deixa a desejar', 'impressiona') \u2014 o léxico NUNCA fecha o espaço de paráfrases; por isso a defesa de COMPARISON_CONCLUSION em L é a mais estrita possível: proíbe também 'mais', 'menos', avaliativos, tendência e posição.",

@@ -20,7 +20,7 @@ export type Leaf =
   | { kind: "number"; value: number | null; unit: DisplayUnit; reason: string | null | undefined }
   | { kind: "reason"; code: string | null }
   | { kind: "date"; value: string | null }
-  | { kind: "enum"; table: EnumTable; code: string }
+  | { kind: "enum"; table: EnumTable; code: string | null }
   | { kind: "text"; value: string | null }
 
 const count: Spec = { kind: "number", unit: "count" }
@@ -35,6 +35,7 @@ const metricValue = (p: string): Record<string, Spec> => ({
   [`${p}.coverage.total`]: count,
   [`${p}.coverage.ratio`]: fraction,
   [`${p}.reason`]: { kind: "reason" },
+  [`${p}.basis`]: { kind: "enum", table: "basis" },
 })
 const buckets: Record<string, Spec> = {
   "buckets[].reason": { kind: "enum", table: "exitReason" },
@@ -132,7 +133,7 @@ export function resolveSlot(viewId: SlotViewId, view: unknown, path: string): { 
   if (cur !== null && typeof cur !== "string") return bad()
   if (spec.kind === "reason") return { ok: true, leaf: { kind: "reason", code: cur as string | null } }
   if (spec.kind === "date") return { ok: true, leaf: { kind: "date", value: cur as string | null } }
-  if (spec.kind === "enum") return typeof cur === "string" ? { ok: true, leaf: { kind: "enum", table: spec.table, code: cur } } : bad()
+  if (spec.kind === "enum") return { ok: true, leaf: { kind: "enum", table: spec.table, code: cur } } // null (ex.: basis null) ⇒ o formato recusa (FORMAT_INVALID); nunca em branco
   return { ok: true, leaf: { kind: "text", value: cur as string | null } }
 }
 
@@ -144,7 +145,7 @@ function formatLeaf(leaf: Leaf): FormatResult {
       return formatNumber(leaf.value, leaf.unit)
     case "reason": return reasonText(leaf.code)
     case "date": return leaf.value === null ? { ok: false, code: "FORMAT_INVALID" } : formatDate(leaf.value)
-    case "enum": return formatEnum(leaf.table, leaf.code)
+    case "enum": return formatEnum(leaf.table, leaf.code as string) // null não é código: o formatador recusa
     case "text": return typeof leaf.value === "string" && leaf.value.length > 0 ? { ok: true, text: leaf.value } : { ok: false, code: "FORMAT_INVALID" }
   }
 }

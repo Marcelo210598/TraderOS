@@ -135,7 +135,7 @@ test("P6 — path_cases.invalid_SLOT_PATH_INVALID: cada caso inválido da expect
   const cases: string[] = [
     "metrics[5].value", "metrics.value", "metrics[0]", "metrics[0].coverage", "metrics[0].nope", "metrics[0].value.x", "__proto__", "constructor", "toString", "hasOwnProperty", "metrics[0].__proto__",
     "evidenceHash", "metrics[01].value", "metrics[ 0 ].value", long,
-    "metrics[0].metricId", "metrics[0].basis", "metrics[0].unit", "", ".", "metrics[0].", ".metrics[0].value", "metrics[0]value", "metrics[-1].value", "metrics[0].value ", "metrics[1000].value", "constructor.name", "prototype", "__defineGetter__", "valueOf", "metrics[0].constructor", "metrics[0].coverage.__proto__",
+    "metrics[0].metricId", "metrics[0].unit" /* `basis` virou folha de slot no E6.6-2b (PD-1 b): ver test-agent-basis-slot.mts */, "", ".", "metrics[0].", ".metrics[0].value", "metrics[0]value", "metrics[-1].value", "metrics[0].value ", "metrics[1000].value", "constructor.name", "prototype", "__defineGetter__", "valueOf", "metrics[0].constructor", "metrics[0].coverage.__proto__",
   ]
   assert.equal(exp.path_cases.invalid_SLOT_PATH_INVALID.length, 15)
   for (const p of cases) {

@@ -209,7 +209,8 @@ test("T2 — palavras de enum (exitReason, sampleFlag, reconciliation, direction
     for (const x of ["target", "Target", "", "__proto__", "constructor", "toString", "hasOwnProperty", "NOPE", null, undefined, 5]) assert.deepEqual(formatEnum(table as never, x as never), { ok: false, code: "FORMAT_INVALID" }, `${table}:${String(x)}`)
   }
   assert.equal(n, 5 + 3 + 3 + 2)
-  for (const t of ["basis", "unknown", "", "__proto__", "constructor", null, undefined]) assert.deepEqual(formatEnum(t as never, "NET"), { ok: false, code: "FORMAT_INVALID" }, `tabela ${String(t)}`)
+  // E6.6-2b (PD-1 b): `basis` passou a ser tabela VÁLIDA (test-agent-basis-slot.mts); a lista de tabelas inválidas troca "basis" por "net"
+  for (const t of ["net", "unknown", "", "__proto__", "constructor", null, undefined]) assert.deepEqual(formatEnum(t as never, "NET"), { ok: false, code: "FORMAT_INVALID" }, `tabela ${String(t)}`)
   for (const w of Object.values(W.exitReason).concat(Object.values(W.sampleFlag), Object.values(W.reconciliation), Object.values(W.direction))) assert.equal(/\d/.test(w), false, w)
 })
 
