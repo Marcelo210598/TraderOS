@@ -39,15 +39,24 @@ test("T1 — orçamento: 8 chamadas executam; a 9ª NÃO executa (BUDGET_EXCEEDE
   assert.equal(validatorStop(nine.state), "BUDGET_CALLS")
 })
 
-test("T2 — capacidade fora de CAPABILITY_IDS ⇒ ARGS_INVALID sem consumir orçamento (nem tried)", () => {
+test("T2 — emenda D7: capacidade fora de CAPABILITY_IDS ⇒ ARGS_INVALID e CONSOME 1 chamada (tried/failed não mudam); 8 ids inventados esgotam o orçamento e o 9º já é BUDGET_EXCEEDED", () => {
   const s: Any = newTurn()
   for (const c of ["x@1", "", "__proto__", "constructor", null, undefined, 5, "metrics.query"]) {
     const r = call(s, c as never)
     assert.deepEqual([r.ok, r.error], [false, { code: "ARGS_INVALID" }], String(c))
-    assert.equal(r.state.calls, 0)
+    assert.equal(r.state.calls, 1, `${String(c)}: a tentativa inválida custa uma chamada`)
     assert.deepEqual(r.state.tried, [])
+    assert.deepEqual(r.state.failed, [])
     assert.equal(r.state.budgetExceeded, false)
+    assert.equal(s.calls, 0, "o estado de entrada não muda")
   }
+  let t: Any = newTurn()
+  for (let i = 0; i < 8; i++) { const r = call(t, `inventada${i}`); assert.deepEqual(r.error, { code: "ARGS_INVALID" }, `tentativa ${i + 1}`); t = r.state }
+  assert.equal(t.calls, 8)
+  const ninth = call(t, "mais-uma")
+  assert.deepEqual(ninth.error, { code: "BUDGET_EXCEEDED" })
+  assert.equal(ninth.state.budgetExceeded, true)
+  assert.equal(call(t, Q).ok, false, "com o orçamento gasto em ids inventados, nem a capacidade real executa")
 })
 
 test("T3 — AV19: rejeições 1 e 2 ⇒ REGENERATE (feedback = códigos sem duplicata); a 3ª ⇒ STOP REGEN_EXHAUSTED; depois da parada outra rejeição também é STOP; N vem da constante do contrato", () => {

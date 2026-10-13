@@ -23,10 +23,11 @@ export function newTurn(): TurnState {
   return freeze({ calls: 0, rejections: 0, tried: [], failed: [], budgetExceeded: false, lastReasons: [] })
 }
 
-/** Pede para executar uma capacidade: a 9ª NÃO executa (BUDGET_EXCEEDED); capacidade desconhecida ⇒ ARGS_INVALID sem consumir orçamento. */
+/** Pede para executar uma capacidade: a 9ª NÃO executa (BUDGET_EXCEEDED); capacidade desconhecida ⇒ ARGS_INVALID e CONSOME uma chamada (emenda D7). */
 export function requestCall(state: TurnState, capability: CapabilityId): { ok: true; state: TurnState } | { ok: false; error: { code: "BUDGET_EXCEEDED" | "ARGS_INVALID" }; state: TurnState } {
-  if (!isCapability(capability)) return { ok: false, error: { code: "ARGS_INVALID" }, state }
   if (state.budgetExceeded || state.calls >= AGENT_MAX_CALLS_PER_TURN) return { ok: false, error: { code: "BUDGET_EXCEEDED" }, state: state.budgetExceeded ? state : freeze({ ...state, budgetExceeded: true }) }
+  // emenda D7: a tentativa de capacidade INEXISTENTE também consome uma chamada (senão um laço de ids inventados seria "de graça")
+  if (!isCapability(capability)) return { ok: false, error: { code: "ARGS_INVALID" }, state: freeze({ ...state, calls: state.calls + 1 }) }
   return { ok: true, state: freeze({ ...state, calls: state.calls + 1, tried: state.tried.includes(capability) ? state.tried : [...state.tried, capability] }) }
 }
 
