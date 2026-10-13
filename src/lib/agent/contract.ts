@@ -139,6 +139,8 @@ export const REJECTION_REASONS = [
   "INCONCLUSIVE_AS_CONCLUSIVE", "INCOMPLETE_PRESENTED_AS_COMPLETE", "TIE_OVERCLAIM",
   /** E6.6-2a: a resposta não passa no AgentAnswerSchema ou viola uma regra de FORMA do validador estrutural (slot×claim, modo×veredito, higiene de frases). */
   "STRUCTURE_INVALID",
+  /** E6.6-2b (Q15): o texto livre recomenda/aconselha uma ação operacional (§4.4 proíbe). */
+  "OPERATIONAL_ADVICE",
 ] as const
 export const RejectionReasonSchema = z.enum(REJECTION_REASONS)
 export const STOP_REASONS = ["BUDGET_CALLS", "REGEN_EXHAUSTED", "CAPABILITY_FAILED", "FILE_NOT_AVAILABLE"] as const

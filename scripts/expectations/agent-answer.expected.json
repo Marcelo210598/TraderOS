@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-13 E6.6-2b — EXPECTATIVA escrita e PARADA (bloco e66_2b). Registrado: bump OPERATIONAL_ADVICE feito (primeiro item); PD-1 = opção (b) (decisão do Marcelo); PD-3 = DATA_NOT_PROVIDED com abertura 'não informado' (condição do Marcelo conferida). O corpus (223 casos, 14 classes: dígitos/símbolos/citação, palavras-número, aritmética, causa, escopo, inconclusivo, motivo de saída, conselho, empate, comparação sobre NOT_VERIFIED, mistura slot/texto, alfabeto/homóglifo/formato/tamanho) foi conferido contra um modelo de referência descartável. MEUS ERROS na 1ª versão do corpus, corrigidos antes de registrar: (1) esperei NUMBER para '½' mas o NFKC gera a barra de fração (U+2044), que o alfabeto não permite ⇒ [STRUCTURE_INVALID, NUMBER]; (2) d19 tinha esperado e nota contraditórios (era NUMBER); (3) esperei ADVICE para 'rec0mendo' mas o dígito já derruba e o termo não casa; (4) m28 tinha uma palavra impossível ('melh'+slot não forma 'melhor'); (5) m49 esperava ADVICE para 'faço' (o termo listado é 'faça'); (6) h11 esperava EXIT para 'stoßado' (ß→ss não dá 'stopado'; troquei por ø); (7) o modelo de referência derrubava '≠' por decompô-lo em '=' + marca combinante (a contagem de marcas passou a considerar só marcas de LETRAS); (8) a corrida de letras soltas ('A é m e l h o r') engolia as palavras 'a' e 'é' vizinhas e escondia 'melhor' (V3 passou a testar também TRECHO dentro da corrida); (9) a contagem de >2 marcas ignorava marcas que o NFKC já compôs (h04; passou a contar a decomposição da letra). ACHADO AO CONFERIR: no corpus de frases boas já aprovado, 5 de 18 passam a ser rejeitadas quando há claim LABELED (efeito desejado de B3/B6).",
       "2026-10-13 E6.6-V EXECUTADO. views.ts (+6 campos de motivo), slot-path.ts (`withReason` → `reasonField`, folhas de motivo novas, LEAF_TABLE exportada), test-agent-views-reason.mts (9 testes: W1–W11). Placar 846 → 855 (+9), baseline de 771 idêntico. FIXTURES de testes existentes atualizadas (só dado de entrada; títulos e asserções intactos): test-agent-slot-path.mts (bucket, DELTAS, linha do rank), test-agent-validate-structure.mts (cview), test-agent-contract-types.mts (rank). 19 mutações, todas pegas. LIMITAÇÃO declarada: o guarda de completude W11 (varre o schema zod atrás de `number|null` sem reasonField) só é exercitado indiretamente pelas mutações (a M15 cai antes, em W1); não o isolei com uma mutação própria. W10 (invariante do motor: null ⇒ reason) cobre só os cenários montados. PD-3 segue aberta (nulls do evidence.explain sem motivo; decisão do Marcelo antes do E6.6-11).",
       "2026-10-13 E6.6-V — EXPECTATIVA escrita antes do código (bloco e66_V). Decisão do Marcelo: PD-2 opção (a), E6.6-V antes do E6.6-2b. Achado novo registrado como PD-3 (nulls do evidence.explain sem motivo; fora do escopo aprovado).",
       "2026-10-13 E6.6-2a EXECUTADO (ledger.ts, validate-structure.ts, 2 testes; bump STRUCTURE_INVALID no contrato, C1). Placar: 814 → 846 (+32: 9 ledger, 23 validador); 0 linhas do baseline de 771 alteradas; o título do S0 (meu E6.6-1) mudou de '7 arquivos' para '9 arquivos'. C10 = B implementado: o validador estrutural NUNCA emite UNVERIFIED_USED_FOR_CONCLUSION (travado por V6, V22 e V23); a pergunta do Marcelo (a barreira de 'concluir' é estrutural?) foi respondida em decisions_2a.C10: NÃO, é só lexical. DETALHE DE ORDEM: STRUCTURE_INVALID de FORMA (slot×claim, C3, higiene) sai depois de SLOT_PATH_INVALID e antes dos motivos de veredito; o do passo 1 sai sozinho. MEUS ERROS DE TESTE, corrigidos antes do commit: (1) usei letras g..k, y, z como 'ids' de ref nas fixtures, mas ref é hex (/^ev_[0-9a-f]{32}$/): os casos 'ref inexistente' viraram STRUCTURE_INVALID; criei o mapa HEX; (2) esperei SLOT_PATH_INVALID para o path `__proto__`, mas ele nem casa com a gramática (começa com `_`) ⇒ STRUCTURE_INVALID (falha de forma); troquei por constructor/toString e deixei um caso próprio para __proto__; (3) duas asserções que escrevi de forma convoluta (V10, V13) e reescrevi com o resultado que a regra implica. CÓDIGO: o guarda G2 (nenhum literal de CombinedVerdict fora de verdict.ts/contract.ts) barrou meu validator-structure.ts, que comparava `v.combined === \"VERIFIED\"`; passei a ler os valores de CombinedVerdictSchema.enum (guarda intacto). Testes existentes ajustados (só asserção): G0 (lista de arquivos 7 → 9). MUTAÇÕES: 39 (31 do validador, 8 do ledger); 37 pegas na 1ª rodada. ESCAPOU V26 (remover o try/catch): meu teste do getter hostil usava uma chave que o zod nem lê; acrescentei getter em `segments` e um ledger Proxy hostil ⇒ passou a ser pega. L10 (lookupRef sem a regex do ref) é mutante EQUIVALENTE: com Object.hasOwn só chaves próprias valem, e as únicas chaves próprias são refs válidos; a regex fica como defesa em profundidade. LIMITAÇÕES: guardas textuais provam texto; o validador estrutural NÃO vê o sentido do texto livre (2b).",
@@ -628,6 +629,2720 @@
     "pending_found": {
       "PD-3": "evidence.explain (E6.6-11): trades[].entryPrice/exitPrice/quantity/pnlNet/pnlGross e legs[].price/quantity/pnlNet podem ser null SEM motivo no canônico (dado ausente no arquivo). Hoje citar um desses null falha fechado (FORMAT_INVALID). NÃO faz parte da PD-2 aprovada e NÃO é resolvido aqui. Opções para o E6.6-11: (a) motivo canônico fixo 'dado ausente no arquivo' (um código novo no catálogo, DATA_NOT_PROVIDED) para null de explain; (b) manter a falha fechada. Decisão do Marcelo, antes do E6.6-11."
     }
+  },
+  "e66_2b": {
+    "status": "EXPECTATIVA (13/10/2026) escrita ANTES do código do E6.6-2b. PARADA para o Marcelo (celulas B1\u2013B9). Nada foi implementado além do bump OPERATIONAL_ADVICE (contrato, já feito e testado). O corpus foi conferido contra um MODELO DE REFERÊNCIA descartável (Python, fora do repo): 223 casos, 0 divergências depois de eu corrigir 9 erros MEUS (listados em history).",
+    "decisions_recorded": {
+      "OPERATIONAL_ADVICE": "FEITO (primeiro item): REJECTION_REASONS 17 \u2192 18, AV25, §5.1, CHANGELOG.",
+      "PD-1": "DECIDIDA pelo Marcelo: opção (b). `metrics[].basis` vira folha de slot de enum com 4 palavras (NET líquido, GROSS bruto, R_NET 'R líquido', R_POINTS 'R em pontos'; basis null \u21d2 FORMAT_INVALID) E o validador exige o slot: as palavras de base em texto livre, numa resposta com claim, são rejeitadas (B2). Implementação em format.ts/slot-path.ts no 2b.",
+      "PD-3": "DECIDIDA pelo Marcelo: opção (a), DATA_NOT_PROVIDED (E6.6-11). CONDIÇÃO do Marcelo \u2014 a frase tem de ser claramente distinguível de falha de verificação \u2014 ver e66_2b.pd3_distinctness (conferido: só a palavra 'arquivo' é comum com as 28 frases de verificação)."
+    },
+    "pd3_distinctness": {
+      "code": "DATA_NOT_PROVIDED (catálogo de motivos; 30º código; entra no E6.6-11)",
+      "text": "o arquivo importado não trouxe este dado",
+      "lead": "não informado (e NÃO 'indisponível'): renderiza 'não informado (o arquivo importado não trouxe este dado)'. Motivo: as frases de verificação usam 'disponível' ('essa verificação ainda não está disponível'); 'indisponível' aproximaria as duas categorias. Só este código usa a palavra de abertura 'não informado'; os 29 atuais seguem com 'indisponível'.",
+      "checked_now": "conferido contra as 28 frases lidas de phrases.ts (21 específicas, 3 parciais, 3 integridade, estrutural): a ÚNICA palavra de conteúdo em comum é 'arquivo'; nenhuma das raízes confer-, verific-, integridade, selo, adulter-, diverg-, inconsist-, possível, consegui, falh-, ilegível, disponível aparece.",
+      "tests_for_E6.6-11": [
+        "texto e abertura do DATA_NOT_PROVIDED não contêm NENHUMA das raízes de vocabulário de verificação (lista fechada no teste)",
+        "a abertura difere da dos outros 29 códigos",
+        "o código não é emitido em nenhum lugar de verify/verify-source (não é código S_/V_/L_)",
+        "uma view com null e DATA_NOT_PROVIDED NÃO altera o veredito do handle (é dado ausente no CSV, não falha de verificação)"
+      ]
+    },
+    "scope": "validador de TEXTO LIVRE (§5.2 passo 5): AV1, 5, 6, 9 (inteiro, C10 = B), 12, 13, 14, 16 (parte léxica), 18 (parte léxica), 21, 23, ADVICE e a regra PD-1(b). O corpus de COMPARISON_CONCLUSION é DEFESA PRIMÁRIA (decisão do Marcelo: nenhuma barreira estrutural contra 'concluir' sobre NOT_VERIFIED).",
+    "api": {
+      "validateText({ answer, ledger, question })": "\u2192 { ok:true } | { ok:false, reasons: RejectionReason[] }; `question` (texto do usuário) só serve para extrair os números citáveis (AV21: ASCII após NFKC, sequência \\d+([.,]\\d+)*); nunca lança; sem eco",
+      "validateAnswer(input)": "= validateStructure + validateText com os motivos acumulados, sem duplicata, na ordem de combined_order; parse falho do AgentAnswerSchema \u21d2 só STRUCTURE_INVALID (o texto nem é lido)",
+      "combined_order": [
+        "REF_NOT_IN_LEDGER",
+        "STALE_REF",
+        "REF_EPOCH_MIX",
+        "SLOT_PATH_INVALID",
+        "STRUCTURE_INVALID",
+        "NUMBER_FROM_UNVERIFIED_EVIDENCE",
+        "MISSING_NOT_VERIFIED_LABEL",
+        "NUMBER_OUTSIDE_SLOT",
+        "MODEL_ARITHMETIC",
+        "CAUSAL_CLAIM",
+        "SCOPE_OVERCLAIM",
+        "MISSING_PARTIAL_PHRASE",
+        "INCONCLUSIVE_AS_CONCLUSIVE",
+        "EXIT_REASON_OVERCLAIM",
+        "TIE_OVERCLAIM",
+        "UNVERIFIED_USED_FOR_CONCLUSION",
+        "OPERATIONAL_ADVICE",
+        "INCOMPLETE_PRESENTED_AS_COMPLETE"
+      ],
+      "text_order_used_in_corpus": [
+        "STRUCTURE_INVALID",
+        "NUMBER_OUTSIDE_SLOT",
+        "MODEL_ARITHMETIC",
+        "CAUSAL_CLAIM",
+        "SCOPE_OVERCLAIM",
+        "INCONCLUSIVE_AS_CONCLUSIVE",
+        "EXIT_REASON_OVERCLAIM",
+        "TIE_OVERCLAIM",
+        "UNVERIFIED_USED_FOR_CONCLUSION",
+        "OPERATIONAL_ADVICE"
+      ]
+    },
+    "pipeline": [
+      "T0 limites: texto total > 4000 caracteres OU > 200 segmentos \u21d2 STRUCTURE_INVALID e nada mais é lido (B5)",
+      "T1 junção: segmentos `text` seguidos são UM texto (juntados SEM separador); slot e phrase são FRONTEIRAS. Duas versões: JA (fronteira = 1 espaço) e JB (fronteira = nada). Os dois viram NFKC.",
+      "T2 alfabeto (B4), sobre JA e JB: só letras latinas cuja decomposição é a\u2013z (dobras: ß\u2192ss æ\u2192ae œ\u2192oe ø\u2192o ł\u2192l đ\u2192d ħ\u2192h ı\u2192i), dígitos (Nd), espaços Zs, \\n e \\t, ASCII imprimível e o conjunto ¡ ¿ « » \u201c \u201d \u2018 \u2019 \u201e \u201a \u2013 \u2014 \u2026 \u2022 · \u2010 \u2011 \u00b0; símbolos de moeda e os de RULE_SYMBOLS/comparadores são aceitos AQUI (viram motivo na regra própria). Qualquer outro caractere (Cc/Cf/Cs/Co/Cn/Zl/Zp/Me/Mc, letra não latina, emoji, seta, marca combinante sem letra-base ou >2 marcas numa letra) \u21d2 STRUCTURE_INVALID. Falha de alfabeto: o léxico de PALAVRAS não roda (texto não analisável), mas dígitos e símbolos ainda são avaliados.",
+      "T3 refs no texto: /\\b(ev|acc|str|lbl|pat)_[0-9a-f]{8,}/ em JA minúsculo \u21d2 STRUCTURE_INVALID (o modelo nunca vê nem repete ref)",
+      "T4 dígitos e símbolos (sobre JA): remove as citações numéricas válidas (AV21: entre \" \" ou \u201c \u201d ou « », conteúdo \u2264 24 caracteres, conteúdo aparado = só o número, igual a um número da pergunta); sobrou Nd \u21d2 NUMBER_OUTSIDE_SLOT; qualquer de % + = × ÷ \u2212 \u2248 ~ $ ± ou qualquer símbolo de moeda (Sc) \u21d2 NUMBER_OUTSIDE_SLOT; < > \u2265 \u2264 \u2260 \u21d2 MODEL_ARITHMETIC",
+      "T5 normalização N de cada versão: dobra de letras, minúsculas, NFD sem acento. Quatro variantes de PALAVRAS, e o termo vale se casar em QUALQUER uma: V1 = JA; V2 = JB (pega palavra partida por slot ou por fronteira de segmento); V3 = corrida de \u2265 3 letras soltas separadas por espaço (m e l h o r) \u2014 vale como palavra colada E como trecho dentro da corrida (termos com \u2265 5 letras sem espaço); V5 = V1 sem - _ . * · ' ` ~ ^ \u2022 entre duas letras (mel-hor, mel.hor).",
+      "T6 casamento: palavra/frase INTEIRA nas variantes (nunca pedaço de palavra), exceto o casamento 'espremido' de uma lista curta de termos longos (conclusivo, conclusiva, conclusao, recomendo, aconselho, sugiro, experimente, considere, consequentemente, estatisticamente, definitivamente, comprovadamente, aproximadamente, invariavelmente, portanto), que procura o termo no texto sem separadores (pega 're c o m e n d o').",
+      "T7 exceções: ARITH 'vezes mais/menos/maior/menor/o' e 'vez e meia' não valem se a palavra anterior é as/muitas/algumas/poucas/outras/certas (em cada variante). INCONCLUSIVE não vale se, na V1, uma das DUAS palavras anteriores é nao/nem/sem/ainda (EN: not/isnt/isn/without/yet) E não há pontuação entre ela e o termo; nas demais variantes, a janela é de duas palavras sem olhar pontuação; um termo achado só por corrida/espremido NUNCA tem exceção de negação.",
+      "T8 regras por categoria e contexto: ver rules."
+    ],
+    "rules": {
+      "NUM_WORDS e APPROX": [
+        "NUMBER_OUTSIDE_SLOT",
+        "sempre"
+      ],
+      "ARITH": [
+        "MODEL_ARITHMETIC",
+        "sempre"
+      ],
+      "CAUSAL (+ LOGO_CAUSAL)": [
+        "CAUSAL_CLAIM",
+        "sempre"
+      ],
+      "SCOPE": [
+        "SCOPE_OVERCLAIM",
+        "sempre"
+      ],
+      "EXIT_OVERCLAIM": [
+        "EXIT_REASON_OVERCLAIM",
+        "sempre"
+      ],
+      "ADVICE": [
+        "OPERATIONAL_ADVICE",
+        "sempre"
+      ],
+      "INCONCLUSIVE": [
+        "INCONCLUSIVE_AS_CONCLUSIVE",
+        "se algum claim cita handle com conclusive=false ou sampleFlag LOW/TINY"
+      ],
+      "TIE": [
+        "TIE_OVERCLAIM",
+        "se NENHUM claim cita linha de ranking com tiedWithPrevious=true (claim com path que começa em rows[i]. e a view dessa linha tem tiedWithPrevious=true)"
+      ],
+      "COMPARISON_CONCLUSION (palavras, frases e conectivos)": [
+        "UNVERIFIED_USED_FOR_CONCLUSION",
+        "se a resposta tem ALGUM claim LABELED (nível da resposta, não do ref)"
+      ],
+      "BASIS (PD-1 b)": [
+        "NUMBER_OUTSIDE_SLOT (B2)",
+        "se a resposta tem ALGUM claim (explicação sem claim é livre)"
+      ]
+    },
+    "contexts": {
+      "V": "claims ASSERT em handle VERIFIED conclusivo; sem LABELED; sem linha empatada; question ''",
+      "L": "há claim LABELED (NOT_VERIFIED, verify VALID)",
+      "LOW": "claim ASSERT em handle VERIFIED com sampleFlag LOW (inconclusivo)",
+      "TIE": "claim sobre linha de ranking com tiedWithPrevious=true",
+      "N": "resposta SEM claims (explicação de conceito)",
+      "Q": "como V, com question 'Perdi 100 e ganhei 1.500,50 hoje' (números citáveis: 100 e 1.500,50)"
+    },
+    "lexicon_extension": {
+      "note": "ACRÉSCIMOS ao léxico aprovado (nada foi retirado). Formas já FLAT. As listas abaixo valem EM ADIÇÃO às de `lexicon`. Precisam de nova aprovação do Marcelo (B3).",
+      "COMPARISON_CONCLUSION_widened": {
+        "words (palavra inteira)": [
+          "melhor",
+          "melhores",
+          "pior",
+          "piores",
+          "maior",
+          "maiores",
+          "menor",
+          "menores",
+          "superior",
+          "superiores",
+          "inferior",
+          "inferiores",
+          "mais",
+          "menos",
+          "atras",
+          "lider",
+          "lideres",
+          "lidera",
+          "lideram",
+          "vence",
+          "vencem",
+          "venceu",
+          "ganha",
+          "ganham",
+          "ganhou",
+          "perde",
+          "perdem",
+          "perdeu",
+          "supera",
+          "superam",
+          "superou",
+          "bate",
+          "batem",
+          "bateu",
+          "destaca",
+          "destaque",
+          "destacam",
+          "vantagem",
+          "desvantagem",
+          "campea",
+          "campeao",
+          "vencedor",
+          "vencedora",
+          "perdedor",
+          "perdedora",
+          "primeiro",
+          "primeira",
+          "ultimo",
+          "ultima",
+          "penultimo",
+          "topo",
+          "podio",
+          "lugar",
+          "bom",
+          "boa",
+          "bons",
+          "boas",
+          "otimo",
+          "otima",
+          "excelente",
+          "ruim",
+          "ruins",
+          "pessimo",
+          "pessima",
+          "fraco",
+          "fraca",
+          "forte",
+          "fortes",
+          "saudavel",
+          "lucrativo",
+          "lucrativa",
+          "lucrativos",
+          "lucrativas",
+          "rentavel",
+          "rentaveis",
+          "melhora",
+          "melhorou",
+          "melhorando",
+          "piora",
+          "piorou",
+          "piorando",
+          "cresce",
+          "cresceu",
+          "crescendo",
+          "cai",
+          "caiu",
+          "caindo",
+          "sobe",
+          "subiu",
+          "subindo",
+          "desce",
+          "desceu",
+          "aumento",
+          "aumentou",
+          "aumenta",
+          "diminuiu",
+          "diminui",
+          "evolucao",
+          "evoluiu",
+          "tendencia",
+          "tendencias",
+          "domina",
+          "dominam",
+          "sobressai",
+          "desponta",
+          "portanto",
+          "versus",
+          "vs",
+          "better",
+          "worse",
+          "best",
+          "worst",
+          "outperforms",
+          "outperform",
+          "leads",
+          "leading",
+          "wins",
+          "beats",
+          "beat",
+          "ahead",
+          "behind",
+          "stronger",
+          "weaker",
+          "good",
+          "bad",
+          "profitable",
+          "improved",
+          "declined",
+          "therefore",
+          "thus",
+          "hence",
+          "mejor",
+          "peor",
+          "rentable",
+          "bueno",
+          "malo"
+        ],
+        "phrases": [
+          "comparado a",
+          "comparada a",
+          "comparado com",
+          "comparada com",
+          "em comparacao",
+          "em relacao a",
+          "em relacao ao",
+          "a frente de",
+          "na frente de",
+          "a frente",
+          "acima de",
+          "abaixo de",
+          "por lo tanto",
+          "compared to",
+          "compared with",
+          "greater than",
+          "less than",
+          "more than",
+          "higher than",
+          "lower than",
+          "superior to",
+          "inferior to",
+          "ahead of",
+          "mejor que",
+          "peor que",
+          "mayor que",
+          "menor que",
+          "menos que",
+          "as a result"
+        ],
+        "why_no_positional_words": "'acima', 'abaixo', 'frente' soltos NÃO entram: 'o valor abaixo vem do motor' é a frase mais comum de uma resposta NOT_VERIFIED (está no corpus aprovado); entram só 'acima de', 'abaixo de', 'a frente de', 'na frente de'."
+      },
+      "NUM_WORDS_add": [
+        "milhar",
+        "milhares",
+        "cuatro",
+        "siete",
+        "ocho",
+        "nueve",
+        "diez",
+        "cien",
+        "ciento",
+        "millon",
+        "mitad",
+        "docena",
+        "veinte",
+        "treinta",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+        "eleven",
+        "twelve",
+        "twenty",
+        "thirty",
+        "forty",
+        "fifty",
+        "sixty",
+        "seventy",
+        "eighty",
+        "ninety",
+        "hundred",
+        "thousand",
+        "million",
+        "billion",
+        "half",
+        "dozen",
+        "double",
+        "triple",
+        "percent"
+      ],
+      "APPROX_add": [
+        "approximately",
+        "roughly",
+        "circa"
+      ],
+      "ARITH_add": [
+        "sum of",
+        "divided by",
+        "multiplied by",
+        "subtracting",
+        "rounded",
+        "rounding",
+        "on average",
+        "average of"
+      ],
+      "CAUSAL_add": [
+        "acontece quando",
+        "ocorre quando",
+        "because",
+        "due to",
+        "caused by",
+        "owing to",
+        "as a result",
+        "that is why",
+        "debido a",
+        "por eso",
+        "ya que",
+        "gracias a",
+        "causado por"
+      ],
+      "SCOPE_add": [
+        "always",
+        "never",
+        "entire history",
+        "whole history",
+        "all your trades",
+        "guaranteed",
+        "consistently",
+        "proven",
+        "siempre",
+        "todo tu historial",
+        "garantizado"
+      ],
+      "INCONCLUSIVE_add": [
+        "conclusive",
+        "definitely",
+        "clearly",
+        "statistically significant",
+        "without a doubt",
+        "proves",
+        "concluyente"
+      ],
+      "INCONCLUSIVE_negation_words_add": [
+        "not",
+        "isnt",
+        "isn",
+        "without",
+        "yet",
+        "nem",
+        "nao",
+        "sem",
+        "ainda"
+      ],
+      "EXIT_OVERCLAIM_add": [
+        "real stop",
+        "actual stop",
+        "hit the stop",
+        "stopped out",
+        "hit the target",
+        "true stop"
+      ],
+      "ADVICE_add": [
+        "revise",
+        "reveja",
+        "verifique",
+        "confira",
+        "estude",
+        "analise",
+        "observe",
+        "atente",
+        "fique atento",
+        "cuidado",
+        "vale revisar",
+        "vale verificar",
+        "vale checar",
+        "vale olhar",
+        "merece atencao",
+        "merece revisao",
+        "o que fazer",
+        "proximo passo",
+        "proximos passos",
+        "faca",
+        "recommend",
+        "recommended",
+        "suggest",
+        "should",
+        "you must",
+        "consider",
+        "avoid",
+        "try",
+        "advise",
+        "recomiendo",
+        "sugiero",
+        "deberias",
+        "debes",
+        "evita",
+        "considera",
+        "intenta"
+      ],
+      "TIE_add": [
+        "tie",
+        "tied",
+        "tying",
+        "equal",
+        "identical",
+        "same value",
+        "iguales"
+      ],
+      "BASIS_words": [
+        "liquido",
+        "liquida",
+        "liquidos",
+        "liquidas",
+        "bruto",
+        "bruta",
+        "brutos",
+        "brutas",
+        "r liquido",
+        "r em pontos",
+        "net",
+        "gross"
+      ],
+      "SQUEEZE_terms": [
+        "conclusivo",
+        "conclusiva",
+        "conclusao",
+        "recomendo",
+        "aconselho",
+        "consequentemente",
+        "estatisticamente",
+        "definitivamente",
+        "comprovadamente",
+        "aproximadamente",
+        "invariavelmente",
+        "portanto",
+        "sugiro",
+        "experimente",
+        "considere"
+      ],
+      "effect_on_approved_good_corpus": "as 18 frases boas aprovadas continuam aceitas em V (18/18). Em L (com claim LABELED) 5 passam a ser REJEITADAS, de propósito: 'a maior parte das perdas', 'melhor desempenho que', 'o primeiro grupo lidera', 'ficou atrás', 'às vezes mais perdas'. As 37 rejeições aprovadas seguem todas rejeitadas."
+    },
+    "corpus": {
+      "count": 223,
+      "classes": [
+        "aritmetica",
+        "causal",
+        "charset",
+        "comparacao",
+        "conselho",
+        "digitos",
+        "empate",
+        "escopo",
+        "inconclusivo",
+        "numeros",
+        "saida",
+        "slots",
+        "tamanho"
+      ],
+      "mark_legend": "FN = falso-negativo CONHECIDO (esperado [] documentado); FP = falso-positivo ACEITO",
+      "cases": [
+        {
+          "id": "d01",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "O resultado foi 150.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "AV1: número sem slot"
+        },
+        {
+          "id": "d02",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Foi \uff11\uff15\uff10 no dia.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "largura total \u2192 NFKC"
+        },
+        {
+          "id": "d03",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Foi \u0661\u0665\u0660 no dia.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "árabe-índico (Nd)"
+        },
+        {
+          "id": "d04",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Foi \u2460 trade.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "círculo numerado \u2192 NFKC '1'"
+        },
+        {
+          "id": "d05",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Cresceu x² no período.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "sobrescrito \u2192 NFKC '2'"
+        },
+        {
+          "id": "d06",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Cerca de ½ da amostra.",
+          "expect": [
+            "STRUCTURE_INVALID",
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "fração vulgar \u2192 NFKC '1\u20442': a barra de fração (U+2044) não é permitida e os dígitos são rejeitados"
+        },
+        {
+          "id": "d07",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Foi 1\ufe0f\u20e3 trade.",
+          "expect": [
+            "STRUCTURE_INVALID",
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "keycap: marca sobre dígito e Me \u21d2 STRUCTURE (curto-circuita)"
+        },
+        {
+          "id": "d08",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Subiu 100%.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "número e símbolo"
+        },
+        {
+          "id": "d09",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Custou US$ 5.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "$ e dígito"
+        },
+        {
+          "id": "d10",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Custou em \u20ac.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "qualquer símbolo de moeda (Sc)"
+        },
+        {
+          "id": "d11",
+          "classe": "digitos",
+          "ctx": "Q",
+          "text": "Você citou \"100\" na pergunta.",
+          "expect": [],
+          "note": "AV21: citação do número do usuário"
+        },
+        {
+          "id": "d12",
+          "classe": "digitos",
+          "ctx": "Q",
+          "text": "Você citou \"1.500,50\".",
+          "expect": [],
+          "note": "AV21 com separadores"
+        },
+        {
+          "id": "d13",
+          "classe": "digitos",
+          "ctx": "Q",
+          "text": "Você citou \"200\".",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "número que NÃO está na pergunta"
+        },
+        {
+          "id": "d14",
+          "classe": "digitos",
+          "ctx": "Q",
+          "text": "Você citou \"100\" e \"200\".",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "uma citação boa não salva a outra"
+        },
+        {
+          "id": "d15",
+          "classe": "digitos",
+          "ctx": "Q",
+          "text": "Valor: \"100 reais\"",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "conteúdo não é só o número"
+        },
+        {
+          "id": "d16",
+          "classe": "digitos",
+          "ctx": "Q",
+          "text": "Você citou \"100",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "aspas sem fechar"
+        },
+        {
+          "id": "d17",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Você citou \"100\".",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "sem pergunta com esse número"
+        },
+        {
+          "id": "d18",
+          "classe": "digitos",
+          "ctx": "Q",
+          "text": "Você citou \u201c100\u201d e «1.500,50».",
+          "expect": [],
+          "note": "aspas tipográficas e « »"
+        },
+        {
+          "id": "d19",
+          "classe": "digitos",
+          "ctx": "Q",
+          "text": "Você citou \"1\u200000\".",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "espaço U+2000 (Zs, permitido) DENTRO do número: o conteúdo não é só o número \u21d2 a citação não vale"
+        },
+        {
+          "id": "d20",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "A < B",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": "comparador por símbolo é aritmética"
+        },
+        {
+          "id": "d21",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "A \u2265 B",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": "\u2265"
+        },
+        {
+          "id": "d22",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "A \u2260 B",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": "\u2260"
+        },
+        {
+          "id": "d23",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "ganho + perda",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "+"
+        },
+        {
+          "id": "d24",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "A × B",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "×"
+        },
+        {
+          "id": "d25",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "A * B e stop/alvo",
+          "expect": [],
+          "note": "* e / ficam livres"
+        },
+        {
+          "id": "d26",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "a ~ b",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "~"
+        },
+        {
+          "id": "d27",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Veja ev_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "ref vazando no texto"
+        },
+        {
+          "id": "d28",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Veja acc_deadbeefdeadbeefdeadbeef.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "token de conta no texto"
+        },
+        {
+          "id": "d29",
+          "classe": "digitos",
+          "ctx": "V",
+          "text": "Veja {{metrics[0].value}}.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "pseudo-slot em texto: o 0 é dígito"
+        },
+        {
+          "id": "n01",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Os dois grupos aparecem.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "dois (FP aceito já registrado)",
+          "mark": "FP"
+        },
+        {
+          "id": "n02",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "DOIS grupos.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "caixa"
+        },
+        {
+          "id": "n03",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "d o i s grupos",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "letras espaçadas (V3)"
+        },
+        {
+          "id": "n04",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "do-is grupos",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "hífen intrapalavra (V5)"
+        },
+        {
+          "id": "n05",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "d.o.i.s grupos",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "pontos intrapalavra"
+        },
+        {
+          "id": "n06",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "d\u043eis grupos",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "o cirílico (homóglifo) \u21d2 alfabeto não latino"
+        },
+        {
+          "id": "n07",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Teve cem trades.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": ""
+        },
+        {
+          "id": "n08",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Foi uma dúzia de trades.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "dúzia"
+        },
+        {
+          "id": "n09",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "O resultado foi o dobro.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "dobro"
+        },
+        {
+          "id": "n10",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Ficou com a metade.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": ""
+        },
+        {
+          "id": "n11",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Teve milhares de trades.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "milhares (extensão)"
+        },
+        {
+          "id": "n12",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Had ten trades.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "n13",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "One hundred trades.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "EN hundred"
+        },
+        {
+          "id": "n14",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Tuvo cuatro trades.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "ES"
+        },
+        {
+          "id": "n15",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Cerca de uma dezena.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "cerca de + dezena"
+        },
+        {
+          "id": "n16",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Approximately all of them.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "EN aproximação"
+        },
+        {
+          "id": "n17",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Há uma conta e um grupo.",
+          "expect": [],
+          "note": "artigos um/uma livres"
+        },
+        {
+          "id": "n18",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "O primeiro grupo aparece.",
+          "expect": [],
+          "note": "ordinal permitido em contexto verificado"
+        },
+        {
+          "id": "n19",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "O trade III foi o pior.",
+          "expect": [],
+          "note": "romano: FALSO-NEGATIVO conhecido",
+          "mark": "FN"
+        },
+        {
+          "id": "n20",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "\u4e09 trades.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "ideograma \u21d2 alfabeto não latino"
+        },
+        {
+          "id": "n21",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Foi zero.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "zero"
+        },
+        {
+          "id": "n22",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Foram duas vezes.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "duas"
+        },
+        {
+          "id": "n23",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Um terço do total.",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "terço"
+        },
+        {
+          "id": "n24",
+          "classe": "numeros",
+          "ctx": "V",
+          "text": "Ten\u200bs trades.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "ZWSP (Cf)"
+        },
+        {
+          "id": "a01",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "Somando A e B temos o total.",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": "AV6"
+        },
+        {
+          "id": "a02",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "A soma de A com B.",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": ""
+        },
+        {
+          "id": "a03",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "Dividido por B.",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": ""
+        },
+        {
+          "id": "a04",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "Em média as saídas são manuais.",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": "em média"
+        },
+        {
+          "id": "a05",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "soman[[S]]do os grupos",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": "termo partido por slot (V2)"
+        },
+        {
+          "id": "a06",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "Foi várias vezes mais que ontem.",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": "vezes mais"
+        },
+        {
+          "id": "a07",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "Às vezes mais perdas ocorrem.",
+          "expect": [],
+          "note": "frequência, não multiplicação"
+        },
+        {
+          "id": "a08",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "Muitas vezes o stop é manual.",
+          "expect": [],
+          "note": "frequência"
+        },
+        {
+          "id": "a09",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "Há diferença entre os grupos.",
+          "expect": [],
+          "note": "qualitativo (exclusão deliberada)"
+        },
+        {
+          "id": "a10",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "Sum of both accounts.",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "a11",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "arredond[[T]]ando para cima",
+          "expect": [
+            "MODEL_ARITHMETIC"
+          ],
+          "note": "dois segmentos de texto adjacentes (V2)"
+        },
+        {
+          "id": "a12",
+          "classe": "aritmetica",
+          "ctx": "V",
+          "text": "Ou seja, [[S]] a mais que [[S]].",
+          "expect": [],
+          "note": "aritmética por justaposição de slots: FALSO-NEGATIVO conhecido",
+          "mark": "FN"
+        },
+        {
+          "id": "c01",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Perdeu porque entrou tarde.",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "AV12"
+        },
+        {
+          "id": "c02",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "p o r q u e entrou tarde",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "letras espaçadas"
+        },
+        {
+          "id": "c03",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "por-que entrou tarde",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "hífen"
+        },
+        {
+          "id": "c04",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "por[[S]]que entrou tarde",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "partido por slot"
+        },
+        {
+          "id": "c05",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Isso se deve a entradas tardias.",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": ""
+        },
+        {
+          "id": "c06",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "O que explica a queda é a abertura.",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "explica"
+        },
+        {
+          "id": "c07",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "A explicação do cálculo está na documentação.",
+          "expect": [],
+          "note": "explicação \u2260 explica (palavra inteira)"
+        },
+        {
+          "id": "c08",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Logo, perdeu.",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "logo causal"
+        },
+        {
+          "id": "c09",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Logo após a abertura muda.",
+          "expect": [],
+          "note": "logo temporal"
+        },
+        {
+          "id": "c10",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Isso acontece quando a entrada é tardia.",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "acontece quando (extensão)"
+        },
+        {
+          "id": "c11",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Devido a isso, caiu.",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": ""
+        },
+        {
+          "id": "c12",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Because it was late.",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "c13",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Debido a la apertura.",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "ES"
+        },
+        {
+          "id": "c14",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "O motivo de saída é desconhecido.",
+          "expect": [],
+          "note": "campo legítimo"
+        },
+        {
+          "id": "c15",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Isso depende muito do horário.",
+          "expect": [],
+          "note": "depende de: FALSO-NEGATIVO conhecido",
+          "mark": "FN"
+        },
+        {
+          "id": "c16",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Lo\u200bgo, perdeu.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "ZWSP"
+        },
+        {
+          "id": "c17",
+          "classe": "causal",
+          "ctx": "V",
+          "text": "Por que a conta caiu?",
+          "expect": [
+            "CAUSAL_CLAIM"
+          ],
+          "note": "repetir a pergunta do usuário também é rejeitado (FP aceito)",
+          "mark": "FP"
+        },
+        {
+          "id": "s01",
+          "classe": "escopo",
+          "ctx": "V",
+          "text": "Isso vale para todo o seu histórico.",
+          "expect": [
+            "SCOPE_OVERCLAIM"
+          ],
+          "note": "AV16"
+        },
+        {
+          "id": "s02",
+          "classe": "escopo",
+          "ctx": "V",
+          "text": "Sempre perde na abertura.",
+          "expect": [
+            "SCOPE_OVERCLAIM"
+          ],
+          "note": ""
+        },
+        {
+          "id": "s03",
+          "classe": "escopo",
+          "ctx": "V",
+          "text": "sem[[S]]pre perde.",
+          "expect": [
+            "SCOPE_OVERCLAIM"
+          ],
+          "note": "partido por slot"
+        },
+        {
+          "id": "s04",
+          "classe": "escopo",
+          "ctx": "V",
+          "text": "Em todos os casos perde.",
+          "expect": [
+            "SCOPE_OVERCLAIM"
+          ],
+          "note": ""
+        },
+        {
+          "id": "s05",
+          "classe": "escopo",
+          "ctx": "V",
+          "text": "It is guaranteed.",
+          "expect": [
+            "SCOPE_OVERCLAIM"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "s06",
+          "classe": "escopo",
+          "ctx": "V",
+          "text": "Considerando a população declarada, o resultado é indicativo.",
+          "expect": [],
+          "note": "AV14/AV15: texto bom"
+        },
+        {
+          "id": "s07",
+          "classe": "escopo",
+          "ctx": "V",
+          "text": "Em todos os seus trades, nunca falha.",
+          "expect": [
+            "SCOPE_OVERCLAIM"
+          ],
+          "note": "duas ocorrências"
+        },
+        {
+          "id": "i01",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "O resultado é conclusivo.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "AV18"
+        },
+        {
+          "id": "i02",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "O resultado não é conclusivo.",
+          "expect": [],
+          "note": "negação adjacente"
+        },
+        {
+          "id": "i03",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "Ainda não conclusivo.",
+          "expect": [],
+          "note": ""
+        },
+        {
+          "id": "i04",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "Não, é conclusivo.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "pontuação quebra a negação"
+        },
+        {
+          "id": "i05",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "Não deixa de ser conclusivo.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "dupla negação não é exceção"
+        },
+        {
+          "id": "i06",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "Não há dúvida de que é conclusivo.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "negação longe do termo"
+        },
+        {
+          "id": "i07",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "Isso comprova o padrão.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "comprova"
+        },
+        {
+          "id": "i08",
+          "classe": "inconclusivo",
+          "ctx": "V",
+          "text": "O resultado é conclusivo.",
+          "expect": [],
+          "note": "contexto conclusivo: permitido"
+        },
+        {
+          "id": "i09",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "Claramente é forte.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "claramente"
+        },
+        {
+          "id": "i10",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "con[[S]]clusivo",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "partido por slot"
+        },
+        {
+          "id": "i11",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "It is not conclusive.",
+          "expect": [],
+          "note": "EN negação"
+        },
+        {
+          "id": "i12",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "It is conclusive.",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "i13",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "c o n c l u s i v o",
+          "expect": [
+            "INCONCLUSIVE_AS_CONCLUSIVE"
+          ],
+          "note": "letras espaçadas"
+        },
+        {
+          "id": "i14",
+          "classe": "inconclusivo",
+          "ctx": "LOW",
+          "text": "É inconclusivo.",
+          "expect": [],
+          "note": "inconclusivo é palavra distinta"
+        },
+        {
+          "id": "x01",
+          "classe": "saida",
+          "ctx": "V",
+          "text": "Foi o stop real.",
+          "expect": [
+            "EXIT_REASON_OVERCLAIM"
+          ],
+          "note": "AV13"
+        },
+        {
+          "id": "x02",
+          "classe": "saida",
+          "ctx": "V",
+          "text": "Bateu no stop.",
+          "expect": [
+            "EXIT_REASON_OVERCLAIM"
+          ],
+          "note": ""
+        },
+        {
+          "id": "x03",
+          "classe": "saida",
+          "ctx": "V",
+          "text": "A ordem foi stopada.",
+          "expect": [
+            "EXIT_REASON_OVERCLAIM"
+          ],
+          "note": ""
+        },
+        {
+          "id": "x04",
+          "classe": "saida",
+          "ctx": "V",
+          "text": "s t o p real",
+          "expect": [
+            "EXIT_REASON_OVERCLAIM"
+          ],
+          "note": "letras espaçadas"
+        },
+        {
+          "id": "x05",
+          "classe": "saida",
+          "ctx": "V",
+          "text": "O motivo de saída classificado como stop.",
+          "expect": [],
+          "note": "bucket citado como classificação"
+        },
+        {
+          "id": "x06",
+          "classe": "saida",
+          "ctx": "V",
+          "text": "It hit the stop.",
+          "expect": [
+            "EXIT_REASON_OVERCLAIM"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "r01",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "Recomendo operar menos.",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": ""
+        },
+        {
+          "id": "r02",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "Você deveria revisar o stop.",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": ""
+        },
+        {
+          "id": "r03",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "r e c o m e n d o",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "letras espaçadas"
+        },
+        {
+          "id": "r04",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "re-comendo isso",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "hífen"
+        },
+        {
+          "id": "r05",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "reco[[S]]mendo isso",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "slot no meio"
+        },
+        {
+          "id": "r06",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "Revise o stop da conta A.",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "imperativo (extensão)"
+        },
+        {
+          "id": "r07",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "Vale revisar a abertura.",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": ""
+        },
+        {
+          "id": "r08",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "Considerando a população declarada.",
+          "expect": [],
+          "note": "considerando \u2260 considere"
+        },
+        {
+          "id": "r09",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "Isto não é uma recomendação.",
+          "expect": [],
+          "note": "substantivo permitido"
+        },
+        {
+          "id": "r10",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "I recommend trading less.",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "r11",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "You should stop.",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "r12",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "Evita operar así.",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "ES"
+        },
+        {
+          "id": "r13",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "Talvez fosse bom olhar a abertura.",
+          "expect": [],
+          "note": "paráfrase sem termo listado: FALSO-NEGATIVO conhecido",
+          "mark": "FN"
+        },
+        {
+          "id": "r14",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "rec0mendo isso",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "o 0 é dígito (rejeitado); a grafia com dígito não casa o termo, e o dígito já derruba"
+        },
+        {
+          "id": "r15",
+          "classe": "conselho",
+          "ctx": "V",
+          "text": "Sugıro isso.",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "i sem ponto (ı \u2192 i)"
+        },
+        {
+          "id": "t01",
+          "classe": "empate",
+          "ctx": "V",
+          "text": "Houve empate entre os grupos.",
+          "expect": [
+            "TIE_OVERCLAIM"
+          ],
+          "note": "AV23: nenhuma linha empatada"
+        },
+        {
+          "id": "t02",
+          "classe": "empate",
+          "ctx": "TIE",
+          "text": "Houve empate entre os grupos.",
+          "expect": [],
+          "note": "linha com tiedWithPrevious=true citada"
+        },
+        {
+          "id": "t03",
+          "classe": "empate",
+          "ctx": "V",
+          "text": "Os valores são iguais.",
+          "expect": [
+            "TIE_OVERCLAIM"
+          ],
+          "note": ""
+        },
+        {
+          "id": "t04",
+          "classe": "empate",
+          "ctx": "V",
+          "text": "em-pate entre eles",
+          "expect": [
+            "TIE_OVERCLAIM"
+          ],
+          "note": "hífen"
+        },
+        {
+          "id": "t05",
+          "classe": "empate",
+          "ctx": "V",
+          "text": "They are tied.",
+          "expect": [
+            "TIE_OVERCLAIM"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "t06",
+          "classe": "empate",
+          "ctx": "V",
+          "text": "Ficaram lado a lado.",
+          "expect": [],
+          "note": "paráfrase: FALSO-NEGATIVO conhecido",
+          "mark": "FN"
+        },
+        {
+          "id": "m01",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melhor que B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "AV9 frase do léxico atual"
+        },
+        {
+          "id": "m02",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melhor do que B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": ""
+        },
+        {
+          "id": "m03",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A rendeu mais que B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "paráfrase: 'mais'"
+        },
+        {
+          "id": "m04",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A ficou à frente de B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "à frente de"
+        },
+        {
+          "id": "m05",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "B ficou atrás.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "atrás"
+        },
+        {
+          "id": "m06",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A ganhou de B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "ganhou"
+        },
+        {
+          "id": "m07",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A foi mais lucrativa.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "mais/lucrativa"
+        },
+        {
+          "id": "m08",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é a campeã.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "campeã"
+        },
+        {
+          "id": "m09",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Destaque para a conta A.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "destaque"
+        },
+        {
+          "id": "m10",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A leva vantagem.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "vantagem"
+        },
+        {
+          "id": "m11",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "B tem desvantagem.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": ""
+        },
+        {
+          "id": "m12",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é forte.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "avaliativo"
+        },
+        {
+          "id": "m13",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A está acima de B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "acima de"
+        },
+        {
+          "id": "m14",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é a primeira.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "ordinal de posição"
+        },
+        {
+          "id": "m15",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "O topo é A.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "topo"
+        },
+        {
+          "id": "m16",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A melhorou.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "tendência"
+        },
+        {
+          "id": "m17",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Tendência de queda.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "tendência"
+        },
+        {
+          "id": "m18",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Bom resultado.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "avaliativo"
+        },
+        {
+          "id": "m19",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A vs B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "vs"
+        },
+        {
+          "id": "m20",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Comparado à conta B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "comparado a"
+        },
+        {
+          "id": "m21",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Em relação a B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": ""
+        },
+        {
+          "id": "m22",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A is better than B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "m23",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A outperforms B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "m24",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "The best account.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "m25",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A es mejor que B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "ES"
+        },
+        {
+          "id": "m26",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Portanto A.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "conectivo conclusivo"
+        },
+        {
+          "id": "m27",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Therefore A.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "m28",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melh[[S]]or que B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "slot no meio da palavra (junta sem espaço)"
+        },
+        {
+          "id": "m29",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melhor [[S]] que B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "slot entre as palavras da frase"
+        },
+        {
+          "id": "m30",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é mel[[S]]hor.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "slot dentro da palavra"
+        },
+        {
+          "id": "m31",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é m e l h o r.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "letras espaçadas"
+        },
+        {
+          "id": "m32",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é mel-hor.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "hífen"
+        },
+        {
+          "id": "m33",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é mel.hor.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "ponto"
+        },
+        {
+          "id": "m34",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melh[[T]]or.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "dois segmentos de texto adjacentes"
+        },
+        {
+          "id": "m35",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é \uff4d\uff45\uff4c\uff48\uff4f\uff52.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "largura total"
+        },
+        {
+          "id": "m36",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é \ud835\udc26\ud835\udc1e\ud835\udc25\ud835\udc21\ud835\udc28\ud835\udc2b.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "alfabeto matemático em negrito"
+        },
+        {
+          "id": "m37",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melhór.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "acento extra"
+        },
+        {
+          "id": "m38",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melho\u0301r.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "marca combinante"
+        },
+        {
+          "id": "m39",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melh\u043er.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "o cirílico"
+        },
+        {
+          "id": "m40",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é mel\u03bfhor.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "\u03bf grego"
+        },
+        {
+          "id": "m41",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é mel\u00adhor.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "hífen suave (Cf)"
+        },
+        {
+          "id": "m42",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melhor\u202e que B.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "override bidi"
+        },
+        {
+          "id": "m43",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A é melhor\u00a0que B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "NBSP"
+        },
+        {
+          "id": "m44",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Não posso dizer que A é melhor que B.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "negação NÃO salva comparação"
+        },
+        {
+          "id": "m45",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Será que A é melhor?",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "pergunta"
+        },
+        {
+          "id": "m46",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "O usuário disse \"A é melhor\".",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "citação textual"
+        },
+        {
+          "id": "m47",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Os valores abaixo vêm do motor e ainda não foram conferidos contra o arquivo original.",
+          "expect": [],
+          "note": "texto bom (abaixo livre)"
+        },
+        {
+          "id": "m48",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Segue o resultado por conta, sem comparação entre elas.",
+          "expect": [],
+          "note": "texto bom"
+        },
+        {
+          "id": "m49",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Não faço conclusões com dados não verificados.",
+          "expect": [],
+          "note": "texto bom: 'faço' \u2260 'faça' (imperativo listado)"
+        },
+        {
+          "id": "m50",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Aqui estão os valores por conta:",
+          "expect": [],
+          "note": "texto bom"
+        },
+        {
+          "id": "m51",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Esses números são indicativos e não verificados.",
+          "expect": [],
+          "note": "texto bom"
+        },
+        {
+          "id": "m52",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A lista abaixo mostra o resultado de cada conta.",
+          "expect": [],
+          "note": "texto bom"
+        },
+        {
+          "id": "m53",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Veja os valores a seguir.",
+          "expect": [],
+          "note": "texto bom"
+        },
+        {
+          "id": "m54",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Consigo listar os valores, mas não concluir nada a partir deles.",
+          "expect": [],
+          "note": "texto bom ('concluir' livre)"
+        },
+        {
+          "id": "m55",
+          "classe": "comparacao",
+          "ctx": "V",
+          "text": "A é melhor que B.",
+          "expect": [],
+          "note": "contexto verificado e conclusivo: permitido"
+        },
+        {
+          "id": "m56",
+          "classe": "comparacao",
+          "ctx": "V",
+          "text": "A conta A teve melhor desempenho que a conta B neste período.",
+          "expect": [],
+          "note": "AV14 (corpus aprovado)"
+        },
+        {
+          "id": "m57",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A conta A teve melhor desempenho que a conta B neste período.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "o MESMO texto aprovado vira REJEIÇÃO com claim LABELED"
+        },
+        {
+          "id": "m58",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "O primeiro grupo lidera.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "corpus aprovado: com LABELED agora rejeita"
+        },
+        {
+          "id": "m59",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A sessão da tarde ficou atrás da sessão da manhã.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "idem"
+        },
+        {
+          "id": "m60",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Às vezes mais perdas ocorrem na abertura.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "'mais' em contexto LABELED: FP aceito",
+          "mark": "FP"
+        },
+        {
+          "id": "m61",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A deixa a desejar.",
+          "expect": [],
+          "note": "paráfrase: FALSO-NEGATIVO conhecido",
+          "mark": "FN"
+        },
+        {
+          "id": "m62",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "B está numa classe à parte.",
+          "expect": [],
+          "note": "paráfrase: FALSO-NEGATIVO conhecido",
+          "mark": "FN"
+        },
+        {
+          "id": "m63",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "O resultado de A impressiona.",
+          "expect": [],
+          "note": "paráfrase avaliativa: FALSO-NEGATIVO conhecido",
+          "mark": "FN"
+        },
+        {
+          "id": "m64",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A is ahead.",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "m65",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "A \u2192 B.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "seta"
+        },
+        {
+          "id": "m66",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "\ud83d\udc4d A.",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "emoji"
+        },
+        {
+          "id": "m67",
+          "classe": "comparacao",
+          "ctx": "L",
+          "text": "Recomendo A porque é melhor que B, sempre.",
+          "expect": [
+            "CAUSAL_CLAIM",
+            "SCOPE_OVERCLAIM",
+            "UNVERIFIED_USED_FOR_CONCLUSION",
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "quatro motivos de uma vez, na ordem"
+        },
+        {
+          "id": "k01",
+          "classe": "slots",
+          "ctx": "V",
+          "text": "Resultado: [[S]]",
+          "expect": [],
+          "note": "só slot"
+        },
+        {
+          "id": "k02",
+          "classe": "slots",
+          "ctx": "V",
+          "text": "[[S]]%",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "% colado ao slot"
+        },
+        {
+          "id": "k03",
+          "classe": "slots",
+          "ctx": "V",
+          "text": "[[S]] reais",
+          "expect": [],
+          "note": "unidade em palavra (sem número)"
+        },
+        {
+          "id": "k04",
+          "classe": "slots",
+          "ctx": "V",
+          "text": "Total [[P]] e [[S]].",
+          "expect": [],
+          "note": "frase entre texto e slot"
+        },
+        {
+          "id": "k05",
+          "classe": "slots",
+          "ctx": "L",
+          "text": "A conta A: [[S]]; a conta B: [[S]].",
+          "expect": [],
+          "note": "lista de valores rotulados: permitido"
+        },
+        {
+          "id": "k06",
+          "classe": "slots",
+          "ctx": "V",
+          "text": "O resultado líquido da conta A é [[S]].",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "PD-1(b): 'líquido' em texto com claim"
+        },
+        {
+          "id": "k07",
+          "classe": "slots",
+          "ctx": "V",
+          "text": "O resultado [[S]] da conta A é [[S]].",
+          "expect": [],
+          "note": "PD-1(b): base por slot"
+        },
+        {
+          "id": "k08",
+          "classe": "slots",
+          "ctx": "N",
+          "text": "O resultado líquido é o bruto menos os custos.",
+          "expect": [],
+          "note": "explicação sem claim: livre"
+        },
+        {
+          "id": "k09",
+          "classe": "slots",
+          "ctx": "V",
+          "text": "Resultado bruto: [[S]].",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "bruto"
+        },
+        {
+          "id": "k10",
+          "classe": "slots",
+          "ctx": "V",
+          "text": "Net pnl: [[S]].",
+          "expect": [
+            "NUMBER_OUTSIDE_SLOT"
+          ],
+          "note": "EN"
+        },
+        {
+          "id": "h01",
+          "classe": "charset",
+          "ctx": "L",
+          "text": "melh\u043er que",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "cirílico"
+        },
+        {
+          "id": "h02",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "a\u0007b",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "controle"
+        },
+        {
+          "id": "h03",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "a\nb\tc",
+          "expect": [],
+          "note": "nova linha e tab permitidos"
+        },
+        {
+          "id": "h04",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "m\u0301\u0302\u0303elhor",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "3 marcas empilhadas"
+        },
+        {
+          "id": "h05",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "\u0301abc",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "marca sem base"
+        },
+        {
+          "id": "h06",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "café ça ão",
+          "expect": [],
+          "note": "acentos normais"
+        },
+        {
+          "id": "h07",
+          "classe": "charset",
+          "ctx": "L",
+          "text": "me\ufe0flhor que",
+          "expect": [
+            "UNVERIFIED_USED_FOR_CONCLUSION"
+          ],
+          "note": "VS16 após letra (Mn) é removido"
+        },
+        {
+          "id": "h08",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "a\udb40\udc41b",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "caractere de tag (Cf)"
+        },
+        {
+          "id": "h09",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "\ue000abc",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "uso privado"
+        },
+        {
+          "id": "h10",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "\u0627\u0644",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "árabe"
+        },
+        {
+          "id": "h11",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "foi støpado",
+          "expect": [
+            "EXIT_REASON_OVERCLAIM"
+          ],
+          "note": "ø \u2192 o (dobra de letras latinas)"
+        },
+        {
+          "id": "h12",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "¿Qué pasó?",
+          "expect": [],
+          "note": "pontuação espanhola permitida"
+        },
+        {
+          "id": "h13",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "a\u2014b \u2013 c\u2026",
+          "expect": [],
+          "note": "travessões e reticências"
+        },
+        {
+          "id": "h14",
+          "classe": "charset",
+          "ctx": "V",
+          "text": "\u201cRecomendo\u201d",
+          "expect": [
+            "OPERATIONAL_ADVICE"
+          ],
+          "note": "aspas tipográficas não escondem o termo"
+        },
+        {
+          "id": "z01",
+          "classe": "tamanho",
+          "ctx": "V",
+          "text": "<'a' repetido 4001 vezes>",
+          "expect": [
+            "STRUCTURE_INVALID"
+          ],
+          "note": "texto > 4000"
+        },
+        {
+          "id": "z02",
+          "classe": "tamanho",
+          "ctx": "V",
+          "text": "<'a' repetido 4000 vezes>",
+          "expect": [],
+          "note": "exatamente 4000 ok"
+        }
+      ]
+    },
+    "known_false_negatives": [
+      "n19: romano: FALSO-NEGATIVO conhecido",
+      "a12: aritmética por justaposição de slots: FALSO-NEGATIVO conhecido",
+      "c15: depende de: FALSO-NEGATIVO conhecido",
+      "r13: paráfrase sem termo listado: FALSO-NEGATIVO conhecido",
+      "t06: paráfrase: FALSO-NEGATIVO conhecido",
+      "m61: paráfrase: FALSO-NEGATIVO conhecido",
+      "m62: paráfrase: FALSO-NEGATIVO conhecido",
+      "m63: paráfrase avaliativa: FALSO-NEGATIVO conhecido"
+    ],
+    "accepted_false_positives": [
+      "n01: dois (FP aceito já registrado)",
+      "c17: repetir a pergunta do usuário também é rejeitado (FP aceito)",
+      "m60: 'mais' em contexto LABELED: FP aceito"
+    ],
+    "residual_risk_not_in_corpus": [
+      "Sinônimos e eufemismos que não estão em lista nenhuma (sobressai-se, 'está numa classe à parte', 'deixa a desejar', 'impressiona') \u2014 o léxico NUNCA fecha o espaço de paráfrases; por isso a defesa de COMPARISON_CONCLUSION em L é a mais estrita possível: proíbe também 'mais', 'menos', avaliativos, tendência e posição.",
+      "Outros idiomas em escrita latina que não EN/ES (francês, italiano, alemão...). Alfabetos não latinos são barrados pelo alfabeto.",
+      "Números romanos (III), 'o último', 'o mesmo' e referências a números por contexto ('esse valor', 'o anterior').",
+      "Aritmética por justaposição de slots (a mais, a menos) e causa implícita ('depende de') sem termo listado.",
+      "Texto partido em MUITOS segmentos com palavras cortadas no meio e slots entre as partes: coberto para slot único e fronteira simples (V2); N fronteiras no meio de UMA palavra também (V2 junta tudo), mas a palavra tem de existir no léxico."
+    ],
+    "open_cells": {
+      "B1": {
+        "pergunta": "STRUCTURE_INVALID também para texto fora do alfabeto/formato, ref vazando no texto e limite de tamanho (reuso do código, sem bump)?",
+        "recomendacao": "sim: é violação de forma do que o modelo pode escrever; o feedback ao modelo é o mesmo ('reescreva em português simples, só letras latinas')."
+      },
+      "B2": {
+        "pergunta": "PD-1(b): a regra 'palavras de base (líquido/bruto/R líquido/R em pontos, e net/gross) em texto, numa resposta com claim' usa NUMBER_OUTSIDE_SLOT (reuso) em vez de motivo novo?",
+        "recomendacao": "sim, reuso: a base muda o significado do número e tem de vir de slot. Consequência a aceitar: o modelo não escreve 'resultado líquido' em texto quando há claim; escreve 'resultado' + slot da base. Explicação sem claim (conceito) segue livre."
+      },
+      "B3": {
+        "pergunta": "Aprovar a EXTENSÃO do léxico (palavras relacionais/avaliativas/de tendência em L, EN/ES, imperativos de conselho, novas aproximações) \u2014 com o custo de 5 das 18 frases boas aprovadas passarem a ser rejeitadas em L?",
+        "recomendacao": "sim, é o preço de a defesa de 'concluir' ser primária. O corpus de L mede o falso-positivo: ver m47\u2013m54 (texto bom aceito) e m57\u2013m60 (texto aprovado que passa a ser rejeitado)."
+      },
+      "B4": {
+        "pergunta": "Alfabeto fechado (letras latinas + conjunto curto de pontuação; nada de emoji, seta, letra não latina, caractere de formato, >2 marcas por letra)?",
+        "recomendacao": "sim. Custo: o agente não usa emoji nem setas. Ganho: fecha homóglifos, ZWSP, bidi, tags e 'zalgo' de uma vez, em vez de lista de confusáveis."
+      },
+      "B5": {
+        "pergunta": "Limites 4000 caracteres e 200 segmentos?",
+        "recomendacao": "sim (evita custo quadrático e esconder uma frase no meio de texto enorme); valores ajustáveis."
+      },
+      "B6": {
+        "pergunta": "'mais' e 'menos' proibidos como palavra solta quando há claim LABELED (custo: 'às vezes mais perdas' e 'a maior parte' passam a cair em L)?",
+        "recomendacao": "sim, é o que pega 'A rendeu mais que B' sem lista de comparativos."
+      },
+      "B7": {
+        "pergunta": "AV21: números citáveis = números da PERGUNTA do usuário só (não de turnos anteriores)?",
+        "recomendacao": "sim por ora: o validador recebe `question` do turno; histórico entra se você pedir."
+      },
+      "B8": {
+        "pergunta": "O texto de frases `phrase` (renderizado pelo servidor) NUNCA passa pelo léxico, e os textos de slots também não (só `text` do modelo)?",
+        "recomendacao": "sim: o léxico é para o que o MODELO escreve."
+      },
+      "B9": {
+        "pergunta": "validateAnswer devolve motivos estruturais E de texto juntos (acúmulo, C6)?",
+        "recomendacao": "sim, na ordem de combined_order."
+      }
+    },
+    "mutations_planned": "~40: cada categoria, cada variante (V2, V3 corrida, V3 trecho, V5, espremido), alfabeto (cada classe de caractere), marcas >2, citação AV21 (limite 24, conteúdo, aspas, número do usuário), contexto (labeled, inconclusive, tie, hasClaims), negação (janela, pontuação), exceção de frequência do ARITH, LOGO_CAUSAL, limites, ref no texto, ordem/dedup dos motivos, e remover cada palavra relacional da extensão (cada uma tem de ter ao menos um caso que a prenda).",
+    "reference_model": "scratchpad (descartável, fora do repo): ref.py + corpus; 223 casos, 0 divergências. NÃO é o oráculo do teste final: o teste do 2b lê ESTE corpus e roda o validador TypeScript."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",

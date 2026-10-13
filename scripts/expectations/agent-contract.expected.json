@@ -4,6 +4,7 @@
     "after_execution": false,
     "note": "E6.5-0 (docs/ai-partner/agent-contract-plano.md). Escrito ANTES de qualquer tipo/código. NADA aqui foi executado: o E6.5 é só desenho + tipos; o validador, o combineVerdict e as PromptViews são E6.6 (aprovação própria). `status: approved` = decidido pelo Marcelo; `status: proposed` = proposta minha pendente. Mudar uma expectativa exige entrada em history.",
     "history": [
+      "2026-10-13 E6.6-2b (parte 1, primeiro item pedido pelo Marcelo): REJECTION_REASONS ganha OPERATIONAL_ADVICE (17 → 18) e validator_cases ganha AV25_operational_advice (Q15). Antes: a recomendação operacional proibida pelo §4.4 não tinha código próprio. Bump do contrato AGENTE; evidence/1 inalterado.",
       "2026-10-13 E6.6-V (PD-2, opção (a) do Marcelo): PromptViews ganham o motivo da indisponibilidade ao lado das folhas numéricas anuláveis (ExitBucketView.pnlNetReason/shareReason, CompareView.deltas[].aReason/bReason/reason, RankRowView.contributionReason; campos obrigatórios, strict). Expectativas detalhadas em agent-answer.expected.json → e66_V. Fixtures de test-agent-contract-types.mts atualizadas (só dado de entrada do `rank`).",
       "2026-10-13 E6.6-2a (C1, decisão do Marcelo): REJECTION_REASONS ganha STRUCTURE_INVALID (16 → 17) e validator_cases ganha AV24_answer_malformed. O motivo cobre a resposta que não passa no AgentAnswerSchema e as violações de forma do validador estrutural (slot×claim 1:1, modo incoerente com o veredito, higiene de frases). Bump do contrato AGENTE (REJECTION_REASONS), sem tocar evidence/1.",
       "2026-10-12 E6.5-1: O-A/O-B/O-C/O-D aprovados pelo Marcelo; AV21 e PV6 → approved; N=2 e K=20 fixados em agent-capabilities.md §0 (A3 cumprido); lista de códigos específicos CORRIGIDA para o que o código realmente emite (a lista do E6.5-0 era uma estimativa minha: faltavam S_NO_METRICS, S_REFS_BROKEN, S_PROVENANCE_INCOMPLETE, S_ORDER_NOT_RECORDED, S_NO_ANCHOR_CHECK, S_QUERY_INVALID, S_CHECK_NOT_EXECUTED, S_ENCODING_UNSUPPORTED, S_SALT_*). Propostas novas O-E/O-F/O-G.",
@@ -336,6 +337,13 @@
       "setup": "a resposta do modelo não passa no AgentAnswerSchema (segmentos/claims fora de forma), OU viola uma regra de forma do validador estrutural: slot sem claim 1:1, claim LABELED sobre handle verificado, frase por-ref sem ref, frase de parada emitida pelo modelo ou fora do contexto, código de frase que o handle não justifica",
       "expected": "REJECT_WITH_FEEDBACK; passo 1 (schema) devolve SÓ este motivo e nada mais é avaliado",
       "reason": "STRUCTURE_INVALID"
+    },
+    "AV25_operational_advice": {
+      "status": "approved",
+      "requested_by": "Marcelo 13/10/2026 (Q15 aprovada; bump feito como primeiro item do E6.6-2b)",
+      "setup": "o texto livre do modelo recomenda ou aconselha uma ação operacional (§4.4: 'recomendação operacional' é proibida): 'recomendo operar menos', 'você deveria revisar o stop', 'evite a abertura', 'vale revisar…'",
+      "expected": "REJECT_WITH_FEEDBACK",
+      "reason": "OPERATIONAL_ADVICE"
     }
   },
   "privacy_cases": {

@@ -70,7 +70,7 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 | **E6.6-1** | **FEITO (13/10/2026, aguardando aprovação)** — formatador de slots (+ catálogo de 29 motivos), resolvedor de `path` e tabela de folhas, projetor A2 e alias; oráculo do formatador em BigInt, matriz de rótulos literal; 35 mutações (14 previstas). Ver §7 | aprovação do plano, **Q16**, **Q17** |
 | **E6.6-V** | **FEITO (13/10/2026, aguardando aprovação)** — **bump das PromptViews (PD-2, opção (a) aprovada em 13/10/2026):** `reason` irmão em `buckets[].pnlNet`/`share` (E6.6-7), `deltas[]` (E6.6-8), `rows[].contribution` (E6.6-9) e `comparison` (E6.6-10); expectativa + `history` + CHANGELOG antes do código; passo próprio, **antes do E6.6-7**; não bloqueia o 2a | aprovação do Marcelo para abrir o passo |
 | **E6.6-2a** | **FEITO (13/10/2026, aguardando aprovação)** — C1–C10 decididas (`e66_2a.decisions_2a`); bump `STRUCTURE_INVALID`; o AV9 estrutural saiu do 2a (C10 = B) — ledger puro e validador estrutural (§5.2 passos 1–4 e 6): AV2, 3, 4, 7, 8, 10, 11, 15, 16, 17, 20 (aceite), 22 + partes estruturais de AV9 e AV18 | E6.6-1 |
-| **E6.6-2b** | validador de texto livre: AV1, 5, 6, 12, 13, 14, 21, 23 + partes lexicais de AV9 e AV18; reporta placar de falso-positivo e falsos-negativos | **aprovação do léxico**, **Q15** |
+| **E6.6-2b** | **PARTE 1 FEITA (bump `OPERATIONAL_ADVICE`) e EXPECTATIVA escrita, PARADO nas células B1–B9 (`agent-answer.expected.json` → `e66_2b.open_cells`)** —  validador de texto livre: AV1, 5, 6, 12, 13, 14, 21, 23 + partes lexicais de AV9 e AV18; reporta placar de falso-positivo e falsos-negativos | **aprovação do léxico**, **Q15** |
 | **E6.6-3** | máquina de parada (N=2), respostas canônicas, mapeamento total (§2.1), render (`RenderedSegment[]`, banner = pior veredito); AV19, AV20 | E6.6-2 |
 | **E6.6-4** | `agent-capabilities/`: pipeline comum bundle → `verify` → source(`NOT_RUN`) → `buildVerdict` → handle e limits; projeção por lista branca; os 9 bundles pinados inalterados | E6.6-3, Q17 |
 | **E6.6-5** | `metrics.query@1` (fatia vertical, fim a fim com o validador; oráculo = `calculateMetrics` direto) | E6.6-4 |
@@ -105,4 +105,10 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 
 ## 10. Resultado do E6.6-V (13/10/2026)
 `views.ts`: +6 campos de motivo (obrigatórios, strict). `slot-path.ts`: `reasonField` por folha, folhas de motivo citáveis, `LEAF_TABLE` exportada. Suíte 846 → **855** ✓ (baseline de 771 idêntico), 19 mutações pegas. **PD-2 fechada.** **PD-3 (nova, aberta):** nulls do `evidence.explain` (`entryPrice`, `exitPrice`, `quantity`, `pnlNet`, `pnlGross`, `legs[].*`) não têm motivo no canônico; citar um falha fechado. Opções para o E6.6-11: (a) motivo canônico fixo `DATA_NOT_PROVIDED` ("dado ausente no arquivo") no catálogo, ou (b) manter a falha fechada. Decisão do Marcelo antes do E6.6-11.
+
+## 11. E6.6-2b — parte 1 (13/10/2026): bump + expectativa; decisões PD-1 e PD-3
+- **Bump feito:** `OPERATIONAL_ADVICE` em `REJECTION_REASONS` (17 → 18), AV25, §5.1, CHANGELOG.
+- **PD-1 = (b)** (decisão do Marcelo): `metrics[].basis` vira folha de slot de enum (líquido, bruto, R líquido, R em pontos) e o validador exige o slot para essas palavras numa resposta com claim.
+- **PD-3 = (a)** `DATA_NOT_PROVIDED` (E6.6-11). Condição do Marcelo conferida: a abertura renderizada é **"não informado (o arquivo importado não trouxe este dado)"**, e não "indisponível", porque as frases de verificação usam "disponível". Contra as 28 frases de verificação, a única palavra de conteúdo em comum é "arquivo".
+- **Expectativa do validador de texto** (corpus de 223 casos em 14 classes; conferido contra um modelo de referência descartável, 0 divergências): pipeline T0–T8, contextos, extensão do léxico, riscos residuais e células **B1–B9**. O corpus de comparação/conclusão sobre NOT_VERIFIED é tratado como **defesa primária**.
 

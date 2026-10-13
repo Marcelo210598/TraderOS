@@ -2,6 +2,10 @@
 
 Registra **mudanças de contrato** observáveis por quem lê os tipos/relatórios (campos, estados, hashes). Ordem: mais recente primeiro. `evidence/1` nunca virou `evidence/2`: todas as mudanças abaixo são aditivas, salvo onde dito.
 
+## 2026-10-13 — E6.6-2b (parte 1): `REJECTION_REASONS` ganha `OPERATIONAL_ADVICE` (contrato do AGENTE; `evidence/1`, bundles e hashes INALTERADOS)
+- **Mudança (acrescenta):** 17 → 18 motivos. `OPERATIONAL_ADVICE` = o texto livre recomenda ou aconselha uma ação operacional (o §4.4 já proibia, mas a regra não tinha código; Q15). Primeiro item do E6.6-2b, a pedido do Marcelo, antes de qualquer linha do validador de texto.
+- **Expectativas:** `agent-contract.expected.json` → `validator_cases.AV25_operational_advice` + `history`; `agent-capabilities.md` §5.1 atualizado. Nada em `evidence/`, `metrics/`, `ingest/`, `domain/` mudou.
+
 ## 2026-10-13 — E6.6-V: PromptViews ganham o MOTIVO da indisponibilidade (contrato do AGENTE; `evidence/1`, bundles e hashes INALTERADOS)
 - **Mudança (acrescenta campos OBRIGATÓRIOS, `.strict()`; view no formato antigo passa a ser `VIEW_INVALID`):** `ExitBucketView` + `pnlNetReason`, `shareReason`; `CompareView.deltas[]` + `aReason`, `bReason`, `reason` (motivo de `delta` e `ratio`); `RankRowView` + `contributionReason`. `exit.analysis` herda. Origem: `Cell.reason`, `Fraction.reason` e `MetricComparison.reason` do motor, que a view antes descartava (PD-2, opção (a) do Marcelo).
 - **Efeito:** valor `null` com motivo conhecido renderiza `indisponível (…)`; antes falhava fechado (`FORMAT_INVALID`). `reason` pode vir com valor não-null (aviso de cobertura parcial): o slot de valor mostra o número e o aviso é citável pelo slot do motivo. Sem refine novo de schema.
