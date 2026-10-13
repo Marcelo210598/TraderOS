@@ -4,7 +4,9 @@
     "after_execution": false,
     "step": "E6.6-0a (docs/ai-partner/agent-contract-plano.md §6.1; plano aprovado pelo Marcelo em 13/10/2026: Q1-Q6 e passos 0a-0e)",
     "note": "Escrito ANTES de qualquer teste ou código do combineVerdict. A tabela abaixo foi derivada À MÃO apenas das regras em texto: E6-G6-plano.md §6.1 item 4, agent-capabilities.md linha 48 (precedência) e D4 (NOT_RUN ⇒ NOT_VERIFIED). Nenhum arquivo de src/ foi aberto para derivá-la. NADA aqui foi executado. Mudar uma célula exige entrada em history (data, motivo, quem pediu).",
-    "history": []
+    "history": [
+      "2026-10-13 E6.6-0b: ao escrever os testes acrescentei 3 exigências de ASSINATURA que a 0a só insinuava (a tabela de vereditos NÃO mudou): (1) buildVerdict(verify:{status,codes}, source:{status,codes}) devolve só {verify:{status,codes}, source:{status,codes}, combined}, sem copiar campos extras da entrada e ignorando qualquer `combined` que o chamador embuta; (2) buildVerdict com entrada nula/indefinida/status inválido LANÇA; (3) combineVerdict com 1 argumento ou com objetos LANÇA. Pedido: proposta minha, a confirmar na revisão do 0b."
+    ]
   },
   "rules_in_words": {
     "R1_TAMPERED_OR_MISMATCH": "verify ∈ {TAMPERED, INVALID_FORMAT} OU source = SOURCE_MISMATCH",
@@ -15,9 +17,25 @@
     "closed_world": "A função é TOTAL: toda combinação do produto cartesiano tem exatamente 1 valor; sem 'default'. Valor fora dos enums de entrada é erro (não vira NOT_VERIFIED em silêncio)."
   },
   "axes": {
-    "verify": ["VALID", "TAMPERED", "UNVERIFIABLE", "INVALID_FORMAT"],
-    "source": ["SOURCE_VERIFIED", "SOURCE_VERIFIED_PARTIAL", "SOURCE_MISMATCH", "UNVERIFIABLE", "NOT_RUN"],
-    "combined": ["VERIFIED", "VERIFIED_PARTIAL", "NOT_VERIFIED", "TAMPERED_OR_MISMATCH"]
+    "verify": [
+      "VALID",
+      "TAMPERED",
+      "UNVERIFIABLE",
+      "INVALID_FORMAT"
+    ],
+    "source": [
+      "SOURCE_VERIFIED",
+      "SOURCE_VERIFIED_PARTIAL",
+      "SOURCE_MISMATCH",
+      "UNVERIFIABLE",
+      "NOT_RUN"
+    ],
+    "combined": [
+      "VERIFIED",
+      "VERIFIED_PARTIAL",
+      "NOT_VERIFIED",
+      "TAMPERED_OR_MISMATCH"
+    ]
   },
   "matrix": {
     "VALID": {
@@ -52,11 +70,31 @@
   "cells_decided_by_precedence_not_by_literal_text": {
     "why": "O texto do §6.1 item 4 diz 'NOT_VERIFIED = qualquer UNVERIFIABLE' E 'TAMPERED_OR_MISMATCH = verify TAMPERED/INVALID_FORMAT ∨ source MISMATCH'. Nas células abaixo as duas frases se aplicam; quem decide é a precedência de agent-capabilities.md (TAMPERED_OR_MISMATCH > NOT_VERIFIED), já aprovada como Q2 em 13/10/2026. Provada divergência vence ausência de verificação.",
     "cells": [
-      ["UNVERIFIABLE", "SOURCE_MISMATCH", "TAMPERED_OR_MISMATCH"],
-      ["TAMPERED", "UNVERIFIABLE", "TAMPERED_OR_MISMATCH"],
-      ["TAMPERED", "NOT_RUN", "TAMPERED_OR_MISMATCH"],
-      ["INVALID_FORMAT", "UNVERIFIABLE", "TAMPERED_OR_MISMATCH"],
-      ["INVALID_FORMAT", "NOT_RUN", "TAMPERED_OR_MISMATCH"]
+      [
+        "UNVERIFIABLE",
+        "SOURCE_MISMATCH",
+        "TAMPERED_OR_MISMATCH"
+      ],
+      [
+        "TAMPERED",
+        "UNVERIFIABLE",
+        "TAMPERED_OR_MISMATCH"
+      ],
+      [
+        "TAMPERED",
+        "NOT_RUN",
+        "TAMPERED_OR_MISMATCH"
+      ],
+      [
+        "INVALID_FORMAT",
+        "UNVERIFIABLE",
+        "TAMPERED_OR_MISMATCH"
+      ],
+      [
+        "INVALID_FORMAT",
+        "NOT_RUN",
+        "TAMPERED_OR_MISMATCH"
+      ]
     ]
   },
   "tallies": {
