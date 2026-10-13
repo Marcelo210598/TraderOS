@@ -17,9 +17,9 @@ const mine = all.filter((f) => NEW.includes(f.name))
 let passed = 0
 const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(`✓ ${name}`) }
 
-test("S0 — sanidade: os 3 arquivos novos existem e o varredor os enxerga; o diretório tem EXATAMENTE os 12 arquivos esperados", () => {
+test("S0 — sanidade: os 3 arquivos novos existem e o varredor os enxerga; o diretório tem EXATAMENTE os 15 arquivos esperados", () => {
   for (const f of NEW) assert.equal(existsSync(join(ROOT, "src/lib/agent", f)), true, f)
-  assert.deepEqual(all.map((f) => f.name).sort(), ["contract.ts", "format.ts", "label.ts", "ledger.ts", "lexicon.ts", "phrases.ts", "slot-path.ts", "validate-answer.ts", "validate-structure.ts", "validate-text.ts", "verdict.ts", "views.ts"])
+  assert.deepEqual(all.map((f) => f.name).sort(), ["catalog.ts", "contract.ts", "format.ts", "label.ts", "ledger.ts", "lexicon.ts", "phrases.ts", "render.ts", "slot-path.ts", "turn.ts", "validate-answer.ts", "validate-structure.ts", "validate-text.ts", "verdict.ts", "views.ts"])
   assert.equal(mine.length, 3)
 })
 

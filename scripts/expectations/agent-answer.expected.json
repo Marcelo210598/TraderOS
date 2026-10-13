@@ -5,6 +5,8 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-13 E6.6-3 EXECUTADO (turn.ts, catalog.ts, render.ts; testes test-agent-turn.mts e test-agent-render.mts). Placar 871 → 902 (+31: 9 turno, 22 render/falha), baseline de 771 idêntico; só o título do meu S0 mudou (12 → 15 arquivos). MUTAÇÃO: 48 mutações (20 do turno, 2 de catálogo, 19 do render, 7 da resposta de falha); 3 ESCAPARAM na 1ª rodada: R19 (exceção vaza no render: nenhum teste lançava DENTRO do render; acrescentei um Proxy hostil na lista de avisos), F04 (a linha do motivo da última rejeição só era testada com UM motivo; acrescentei F1b com vários) e U03 (tirar `budgetExceeded ||` do requestCall) que é EQUIVALENTE: budgetExceeded implica calls ≥ 8, então `calls >= 8` já nega. MEUS ERROS DE TESTE: R14 usava 'dois' e 'três' como texto neutro (o próprio léxico os rejeita). DECISÕES D1–D8 implementadas como na expectativa; a única escolha nova: a linha 'Motivo da última rejeição' cita o PRIMEIRO motivo da lista da última rejeição (ordem do validador).",
+      "2026-10-13 E6.6-3 — EXPECTATIVA escrita antes do código (bloco e66_3): máquina de turno (8 chamadas, N=2, mapeamento total), catálogos de prosa, render com banner e resposta canônica de falha. Decisões D1–D8 minhas (onde §5.5/§6.2 é omisso), registradas para revisão do Marcelo.",
       "2026-10-13 E6.6-2b EXECUTADO (validate-text.ts, validate-answer.ts, lexicon.ts, basis em format.ts/slot-path.ts; testes test-agent-validate-text.mts e test-agent-basis-slot.mts). Placar 855 → 871 (+16), baseline de 771 idêntico; o corpus de 225 casos passou 225/225 NA PRIMEIRA execução do código TypeScript (portado do modelo de referência). MUTAÇÃO: 54 mutações (47 do validador de texto, 4 de validateAnswer e 3 de basis); 11 ESCAPARAM na primeira rodada. 6 eram LACUNA DE TESTE e viraram casos novos (corpus 225 → 231: q01 e q02 só o espremido pega; m70 só a junção com espaço pega; i15 pontuação quebra a negação; i16 e i17 V5/V2 com termo fora da lista do espremido) mais 2 asserções (limite de 24 caracteres da citação AV21 e conclusive=false sem sampleFlag). 5 são mutantes EQUIVALENTES, declarados: T04 (tirar Cf da classe `bad`: o caractere cai de qualquer forma no `return false` do alfabeto fechado), T06 (limite de 2 marcas na decomposição de UMA letra: inalcançável, a sequência já conta), T14 (QUOTED_NUMBER: a igualdade com um número da pergunta já implica número puro), A04 (parse repetido em validateAnswer: o validador estrutural e o de texto já devolvem STRUCTURE_INVALID), B03 (basis null: formatEnum recusa o código vazio de qualquer forma). MEDIDA que o plano pedia ('cada palavra relacional tem um caso que a prenda') NÃO é verdadeira para o corpus escrito à mão: removendo um termo por vez (627 termos) 551 não derrubam nenhum caso (a maioria é redundante com outra palavra da mesma categoria: 'melhor que' ⊂ 'melhor'). Em vez disso o teste T1 gera UMA frase por termo ('Veja <termo> agora.') no contexto certo: os 627 funcionam (nenhum digitado/normalizado errado) e as listas do código == as das expectativas (L0). MEUS ERROS DE TESTE: contei 14 classes quando são 13; disse '67 casos' de comparação quando são 69 (55 rejeições e 14 aceites; os 67 incluíam textos bons); fixtures com ref 'z' (não hex) de novo no V1; a premissa de que LABELED com ref desconhecido NÃO liga a regra estava invertida (contexto só aperta, nunca afrouxa). Testes existentes ajustados (só asserção): format T2 (a tabela `basis` deixou de ser inválida), slot-path P6 (`metrics[0].basis` deixou de ser inválida), G0 e S0 (lista exata de arquivos: 12). O e66_1 dizia que `basis` não era folha de slot: SUPERADO pela PD-1(b).",
       "2026-10-13 E6.6-2b — B1–B9 APROVADOS como recomendado (Marcelo). B6 confirmado como esperado: 'mais'/'menos' soltos geram falso-positivo em texto explicativo ('veja mais detalhes abaixo') SEMPRE que a RESPOSTA (não o segmento) tiver claim LABELED; custo aceito (preferir regenerar a deixar passar). Corpus 223 → 225: m68 documenta esse FP e m69 a reescrita induzida. T6 (espremido) generalizado por categoria na redação do passo e no modelo de referência (sem mudar nenhum resultado do corpus).",
       "2026-10-13 E6.6-2b — EXPECTATIVA escrita e PARADA (bloco e66_2b). Registrado: bump OPERATIONAL_ADVICE feito (primeiro item); PD-1 = opção (b) (decisão do Marcelo); PD-3 = DATA_NOT_PROVIDED com abertura 'não informado' (condição do Marcelo conferida). O corpus (223 casos, 13 classes: dígitos/símbolos/citação, palavras-número, aritmética, causa, escopo, inconclusivo, motivo de saída, conselho, empate, comparação sobre NOT_VERIFIED, mistura slot/texto, alfabeto/homóglifo/formato/tamanho) foi conferido contra um modelo de referência descartável. MEUS ERROS na 1ª versão do corpus, corrigidos antes de registrar: (1) esperei NUMBER para '½' mas o NFKC gera a barra de fração (U+2044), que o alfabeto não permite ⇒ [STRUCTURE_INVALID, NUMBER]; (2) d19 tinha esperado e nota contraditórios (era NUMBER); (3) esperei ADVICE para 'rec0mendo' mas o dígito já derruba e o termo não casa; (4) m28 tinha uma palavra impossível ('melh'+slot não forma 'melhor'); (5) m49 esperava ADVICE para 'faço' (o termo listado é 'faça'); (6) h11 esperava EXIT para 'stoßado' (ß→ss não dá 'stopado'; troquei por ø); (7) o modelo de referência derrubava '≠' por decompô-lo em '=' + marca combinante (a contagem de marcas passou a considerar só marcas de LETRAS); (8) a corrida de letras soltas ('A é m e l h o r') engolia as palavras 'a' e 'é' vizinhas e escondia 'melhor' (V3 passou a testar também TRECHO dentro da corrida); (9) a contagem de >2 marcas ignorava marcas que o NFKC já compôs (h04; passou a contar a decomposição da letra). ACHADO AO CONFERIR: no corpus de frases boas já aprovado, 5 de 18 passam a ser rejeitadas quando há claim LABELED (efeito desejado de B3/B6).",
@@ -3425,6 +3427,143 @@
     },
     "mutations_planned": "~40: cada categoria, cada variante (V2, V3 corrida, V3 trecho, V5, espremido), alfabeto (cada classe de caractere), marcas >2, citação AV21 (limite 24, conteúdo, aspas, número do usuário), contexto (labeled, inconclusive, tie, hasClaims), negação (janela, pontuação), exceção de frequência do ARITH, LOGO_CAUSAL, limites, ref no texto, ordem/dedup dos motivos, e remover cada palavra relacional da extensão (cada uma tem de ter ao menos um caso que a prenda).",
     "reference_model": "scratchpad (descartável, fora do repo): ref.py + corpus; 223 casos, 0 divergências. NÃO é o oráculo do teste final: o teste do 2b lê ESTE corpus e roda o validador TypeScript."
+  },
+  "e66_3": {
+    "status": "EXPECTATIVA (13/10/2026) escrita ANTES do código do E6.6-3. Nada executado. Escopo = Q10 + Q14: máquina de estados PURA da parada/regeração (N=2) e do orçamento (8 chamadas), mapeamento TOTAL erro→parada, respostas canônicas de parada e render (RenderedSegment[] + banner). SEM laço que chama o modelo. Decisões D1–D8 são MINHAS onde o §5.5/§6.2 é omisso; ficam marcadas para o Marcelo rever.",
+    "files_planned": {
+      "src/lib/agent/turn.ts": "estado do turno, registerCall/recordError/recordRejection, stopReasonForError (total), notices",
+      "src/lib/agent/catalog.ts": "prosa pt-BR (dado puro): motivo de rejeição→frase, capacidade→rótulo, veredito→rótulo do banner",
+      "src/lib/agent/render.ts": "renderAnswer, stopResponse, tipos RenderedSegment/Banner",
+      "tests": [
+        "scripts/test-agent-turn.mts",
+        "scripts/test-agent-render.mts"
+      ]
+    },
+    "turn_machine": {
+      "TurnState": "{ calls, rejections, tried (capacidades EXECUTADAS, distintas, na ordem da 1ª chamada), failed [{capability, code}], budgetExceeded, lastReasons } — congelado; cada operação devolve OUTRO estado (como o ledger)",
+      "requestCall(state, capability)": "calls < 8 ⇒ { ok:true, state com calls+1 e a capacidade em tried }; calls == 8 ⇒ { ok:false, error:{ code:'BUDGET_EXCEEDED' }, state com budgetExceeded=true } e a capacidade NÃO entra em tried (a 9ª não executa); capacidade fora de CAPABILITY_IDS ⇒ erro ARGS_INVALID sem consumir orçamento",
+      "recordError(state, capability, code)": "registra a falha da capacidade EXECUTADA (code ∈ ARGS_INVALID, NOT_FOUND, ENGINE_REFUSED, FILE_NOT_AVAILABLE); BUDGET_EXCEEDED NÃO vem por aqui (vem de requestCall); a falha NÃO encerra o turno por si (o modelo ainda responde dizendo que falhou)",
+      "recordRejection(state, reasons)": "rejections+1; se rejections ≤ 2 ⇒ { action:'REGENERATE', feedback: motivos SEM duplicata, só os CÓDIGOS (nunca valor, ref, path nem texto) }; na 3ª rejeição (N=2 regerações esgotadas) ⇒ { action:'STOP', stopReason:'REGEN_EXHAUSTED' }; lastReasons guarda o motivo da ÚLTIMA rejeição",
+      "validatorStop(state)": "state.budgetExceeded ? 'BUDGET_CALLS' : null (é o `stop` do validateAnswer)",
+      "stopReasonForError(code)": "MAPEAMENTO TOTAL: ARGS_INVALID, NOT_FOUND, ENGINE_REFUSED ⇒ CAPABILITY_FAILED; BUDGET_EXCEEDED ⇒ BUDGET_CALLS; FILE_NOT_AVAILABLE ⇒ FILE_NOT_AVAILABLE. REGEN_EXHAUSTED não é imagem de nenhum código (nasce no validador).",
+      "notices(state)": "motivos de parada que o SERVIDOR acrescenta à resposta (o modelo não os escreve, C5): CAPABILITY_FAILED se alguma falha mapeia para ele; FILE_NOT_AVAILABLE (vira o texto estrutural) se alguma falha mapeia para ele; sem duplicata; ordem fixa [CAPABILITY_FAILED, FILE_NOT_AVAILABLE]"
+    },
+    "render": {
+      "RenderedSegment": [
+        "{ kind:'text', text } — texto do modelo, já validado, intocado",
+        "{ kind:'value', ref, path, text, combined, mode } — slot renderizado (formatador do E6.6-1) com o veredito e o modo do PRÓPRIO claim (AV20)",
+        "{ kind:'phrase', code, text } — frase canônica do servidor ({n} preenchido)",
+        "{ kind:'server_text', text } — linha composta pelo servidor (resposta canônica de falha)"
+      ],
+      "Banner": "{ combined: CombinedVerdict | null, label: string | null }; combined = o PIOR (TAMPERED_OR_MISMATCH > NOT_VERIFIED > VERIFIED_PARTIAL > VERIFIED) entre TODOS os refs citados (slot, claim ou frase); sem ref citado ⇒ { null, null }",
+      "renderAnswer({ answer, ledger, notices })": "{ ok:true, rendered:{ segments, banner, stopReason:null } } | { ok:false, code:'RENDER_FAILED' } (slot que não renderiza = violação de invariante ⇒ o chamador usa a parada CAPABILITY_FAILED, Q17; sem detalhe); só renderiza resposta que passou em validateAnswer (entrada inválida ⇒ RENDER_FAILED)",
+      "placement": [
+        "D1 frase ESPECÍFICA (S_*): inserida pelo SERVIDOR, UMA vez por ref, imediatamente ANTES do 1º slot desse ref; vem dos codes do handle (verify.codes ∪ source.codes ∩ SPECIFIC_PHRASES), na ordem do catálogo; qualquer frase do mesmo (código, ref) que o modelo tenha emitido é REMOVIDA do corpo (exatamente uma, na posição canônica)",
+        "D2 frase ESTRUTURAL (VERIFICATION_INFRA_MISSING): UMA vez, no FIM da resposta (rodapé), com o texto idêntico de STRUCTURAL_TEXT, se algum ref COM slot tem source NOT_RUN; as emitidas pelo modelo saem do corpo",
+        "D3 avisos de parada (notices): CAPABILITY_FAILED (frase) logo antes do rodapé; FILE_NOT_AVAILABLE usa o MESMO texto estrutural (não duplica o rodapé); o rodapé estrutural é SEMPRE o último segmento",
+        "D4 frase POPULATION_DECLARED: {n} = handle.population.declared formatado como contagem ('10'); o resto das frases do modelo (parciais, integridade, INDICATIVE_ONLY, BUDGET_LIMIT_REACHED) fica onde o modelo pôs, com o texto do catálogo",
+        "texto do modelo e ordem relativa dos segmentos: preservados"
+      ]
+    },
+    "stop_response (resposta canônica de falha)": {
+      "stopResponse(state)": "recebe SÓ o estado do turno (nenhum texto do modelo entra: a assinatura não tem parâmetro de resposta); segmentos na ordem: (1) phrase REGEN_EXHAUSTED 'Não consigo afirmar isso com evidência verificável agora.'; (2) server_text 'Consultas tentadas: <rótulos separados por vírgula>.' ou 'Nenhuma consulta foi concluída.'; (3) server_text 'Motivo da última rejeição: <frase do catálogo>.'; (4) phrase BUDGET_LIMIT_REACHED se budgetExceeded (AV22: a falha CARREGA a frase de limite); (5) phrase CAPABILITY_FAILED se houver falha mapeada; (6) o texto estrutural se houver FILE_NOT_AVAILABLE; banner { null, null }; stopReason 'REGEN_EXHAUSTED'",
+      "invariants": [
+        "nenhum dígito, nenhum ref, nenhum trecho de texto do modelo na resposta",
+        "é função só do estado (mesmo estado ⇒ mesma resposta)",
+        "sem rejeição registrada o 'motivo da última rejeição' não aparece"
+      ]
+    },
+    "catalog_prose (proposta minha, revisão de redação como o O-G)": {
+      "rejection_phrases": {
+        "REF_NOT_IN_LEDGER": "a resposta citava um resultado que não existe nesta conversa",
+        "SLOT_PATH_INVALID": "a resposta apontava para um dado que o resultado não tem",
+        "MODEL_ARITHMETIC": "a resposta fazia conta própria em vez de usar um resultado calculado",
+        "NUMBER_FROM_UNVERIFIED_EVIDENCE": "a resposta citava números de um resultado que não passou na verificação",
+        "MISSING_NOT_VERIFIED_LABEL": "a resposta não marcava como não verificado um valor ainda não conferido",
+        "UNVERIFIED_USED_FOR_CONCLUSION": "a resposta tirava conclusão de valores ainda não conferidos",
+        "REF_EPOCH_MIX": "a resposta misturava resultados de momentos de identificação diferentes",
+        "STALE_REF": "a resposta usava um resultado desatualizado",
+        "CAUSAL_CLAIM": "a resposta afirmava uma causa que os dados não sustentam",
+        "EXIT_REASON_OVERCLAIM": "a resposta tratava o motivo de saída como o tipo real da ordem",
+        "SCOPE_OVERCLAIM": "a resposta ia além da população analisada",
+        "MISSING_PARTIAL_PHRASE": "a resposta omitia o aviso de verificação parcial",
+        "INCONCLUSIVE_AS_CONCLUSIVE": "a resposta tratava como conclusivo um resultado de amostra pequena",
+        "INCOMPLETE_PRESENTED_AS_COMPLETE": "a resposta apresentava como completa uma apuração interrompida",
+        "TIE_OVERCLAIM": "a resposta falava em empate sem o motor marcar empate",
+        "STRUCTURE_INVALID": "a resposta veio fora do formato esperado",
+        "OPERATIONAL_ADVICE": "a resposta dava recomendação operacional",
+        "NUMBER_OUTSIDE_SLOT": "a resposta escrevia números fora do resultado calculado"
+      },
+      "capability_labels": {
+        "metrics.query@1": "consulta de métricas",
+        "metrics.groups@1": "métricas por grupo",
+        "exit.breakdown@1": "quebra por motivo de saída",
+        "metrics.compare@1": "comparação de grupos ou períodos",
+        "rank.groups@1": "ranking de grupos",
+        "exit.analysis@1": "análise por motivo de saída",
+        "evidence.explain@1": "detalhe dos trades",
+        "evidence.refresh@1": "regeração da evidência"
+      },
+      "banner_labels": {
+        "VERIFIED": "Verificado",
+        "VERIFIED_PARTIAL": "Verificado parcialmente",
+        "NOT_VERIFIED": "Não verificado",
+        "TAMPERED_OR_MISMATCH": "Não confere"
+      },
+      "tests": [
+        "as chaves de cada catálogo == o conjunto do contrato (REJECTION_REASONS, CAPABILITY_IDS, as 4 do veredito): item novo sem prosa derruba o build",
+        "nenhuma frase tem dígito, ref ou '{'",
+        "as frases de cada catálogo são distintas entre si e das frases do catálogo de phrases.ts"
+      ]
+    },
+    "cases": {
+      "state (AV19, AV22, mapeamento)": [
+        "T1 8 chamadas executam (calls 1..8, tried cresce só com capacidades distintas); a 9ª ⇒ BUDGET_EXCEEDED, calls fica 8, budgetExceeded=true, tried NÃO ganha a 9ª; novo requestCall depois do estouro continua negado",
+        "T2 capacidade desconhecida ⇒ ARGS_INVALID sem consumir orçamento",
+        "T3 AV19: rejeição 1 e 2 ⇒ REGENERATE com feedback = códigos sem duplicata; rejeição 3 ⇒ STOP REGEN_EXHAUSTED; depois da parada outra rejeição também é STOP; N usa a constante do contrato (AGENT_MAX_REGENERATIONS = 2)",
+        "T4 feedback só tem códigos de REJECTION_REASONS (nenhum ref/path/valor), mesmo que a lista de entrada traga lixo (itens fora do contrato são descartados e, se sobrar vazio, o feedback é ['STRUCTURE_INVALID'])",
+        "T5 mapeamento total: os 5 códigos de erro mapeiam; imagem = {CAPABILITY_FAILED, BUDGET_CALLS, FILE_NOT_AVAILABLE}; REGEN_EXHAUSTED fora da imagem; cada motivo de parada exceto REGEN_EXHAUSTED tem ≥ 1 código",
+        "T6 recordError não encerra o turno; notices respeita a ordem e a ausência de duplicata; BUDGET_EXCEEDED passado a recordError é recusado",
+        "T7 estados congelados; operação devolve OUTRO estado; o estado de entrada não muda",
+        "T8 validatorStop reflete budgetExceeded"
+      ],
+      "render (AV15, AV20, D1–D4)": [
+        "R1 AV15/VERIFIED: [texto, slot, frase POPULATION_DECLARED] ⇒ [text, value 'US$ 10,00' (combined VERIFIED, mode ASSERT), phrase 'Considerando a população declarada de 10 trades.']; banner { VERIFIED, 'Verificado' }; SEM rodapé (source verificado)",
+        "R2 AV20: dois claims, um VERIFIED e um NOT_VERIFIED(LABELED, source NOT_RUN): cada value com o PRÓPRIO combined e mode; banner NOT_VERIFIED ('Não verificado'); rodapé estrutural no FIM",
+        "R3 D2: o texto do rodapé === STRUCTURAL_TEXT em toda resposta; uma vez só, mesmo com 2 refs NOT_RUN; é o último segmento; frase VERIFICATION_INFRA_MISSING emitida pelo modelo sai do corpo (1 só ocorrência)",
+        "R4 D1: handle NOT_VERIFIED(verify VALID) com source UNVERIFIABLE e code S_SOURCE_NOT_PROVIDED: a frase específica aparece UMA vez, antes do 1º slot do ref, mesmo com 2 slots do mesmo ref; sem rodapé (source ≠ NOT_RUN)",
+        "R5 D1+D2: handle NOT_RUN com code específico no source: específica ANTES do slot e estrutural no FIM (específico primeiro, nunca fundidas)",
+        "R6 D1: frase específica emitida pelo modelo para o ref é removida do corpo e reaparece na posição canônica (exatamente 1)",
+        "R7 PARTIAL: frase parcial do modelo preservada na posição do modelo com o texto do catálogo; banner VERIFIED_PARTIAL",
+        "R8 só frase de integridade (TAMPERED, sem slot): segmentos = [phrase INTEGRITY_SEAL]; banner TAMPERED_OR_MISMATCH ('Não confere'); sem rodapé",
+        "R9 nenhum ref citado: banner { null, null }; texto intocado",
+        "R10 valor null com motivo (view com null e reason): value.text = 'indisponível (…)'; slot de enum/alias/rótulo/data também renderizam",
+        "R11 slot que não renderiza (null sem motivo) ⇒ { ok:false, code:'RENDER_FAILED' } sem detalhe; resposta que não passa no schema ⇒ RENDER_FAILED; nunca lança",
+        "R12 notices: CAPABILITY_FAILED aparece como frase ANTES do rodapé; FILE_NOT_AVAILABLE usa o texto estrutural e não duplica o rodapé; ordem [corpo, CAPABILITY_FAILED, estrutural]",
+        "R13 AV22: resposta com BUDGET_LIMIT_REACHED do modelo ⇒ a frase fica onde o modelo pôs, com o texto do catálogo",
+        "R14 o render preserva o texto do modelo e a ordem relativa; não altera a resposta nem o ledger de entrada; determinístico",
+        "R15 {n} da população: 1 ⇒ '1', 1234 ⇒ '1.234' (formatador de contagem); frase sem {n} não muda",
+        "R16 nenhum segmento de saída contém hash completo (64 hex) nem o campo evidenceHash; ref e path só em segmentos `value`"
+      ],
+      "stop_response (AV19, AV22)": [
+        "F1 AV19: estado com 3 rejeições, tried [metrics.query, rank.groups], última rejeição CAUSAL_CLAIM ⇒ [phrase REGEN_EXHAUSTED, server_text 'Consultas tentadas: consulta de métricas, ranking de grupos.', server_text 'Motivo da última rejeição: a resposta afirmava uma causa que os dados não sustentam.']; banner nulo; stopReason REGEN_EXHAUSTED",
+        "F2 sem capacidade executada ⇒ 'Nenhuma consulta foi concluída.'",
+        "F3 AV22: a falha com orçamento estourado TAMBÉM carrega BUDGET_LIMIT_REACHED",
+        "F4 falha de capacidade ⇒ + phrase CAPABILITY_FAILED; FILE_NOT_AVAILABLE ⇒ + texto estrutural",
+        "F5 invariantes: nenhum dígito, ref ou texto do modelo; mesma saída para o mesmo estado; a função não aceita resposta do modelo"
+      ]
+    },
+    "mutations_planned": "~35: limite de 8 e de N=2 (off-by-one nos dois lados), 9ª que executa, tried com a 9ª, feedback com duplicata/valor, mapeamento trocado, notices fora de ordem ou duplicados, banner = melhor em vez de pior, banner ignora refs só de frase, value com o combined do banner, específica antes/depois/duplicada/uma por slot, estrutural no meio/duplicado/texto diferente, frase do modelo mantida em duplicata, {n} errado, null sem motivo vira texto, RENDER_FAILED vira texto vazio, stopResponse inclui texto do modelo/dígito/ref, falta BUDGET na falha, ordem da falha, catálogo incompleto.",
+    "open_decisions_D1_D8": {
+      "D1": "específica: servidor insere, uma vez por ref, antes do 1º slot; modelo não precisa emiti-la",
+      "D2": "estrutural: rodapé único, último segmento, texto idêntico",
+      "D3": "avisos de parada do servidor: CAPABILITY_FAILED antes do rodapé; FILE_NOT_AVAILABLE = o próprio texto estrutural",
+      "D4": "{n} = população declarada como contagem",
+      "D5": "prosa dos 3 catálogos é minha (revisão de redação); os CÓDIGOS são o contrato",
+      "D6": "só rejeição do validador conta para N=2 (falha de capacidade não conta)",
+      "D7": "falha de capacidade NÃO encerra o turno; o servidor acrescenta o aviso canônico à resposta final (o modelo não pode emitir CAPABILITY_FAILED, C5)",
+      "D8": "banner = pior entre TODOS os refs citados (inclusive os só de frase)"
+    }
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
