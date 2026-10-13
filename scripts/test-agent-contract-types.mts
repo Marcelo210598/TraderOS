@@ -49,7 +49,9 @@ test("SC2/SC3 — EvidenceHandle exige verify E source E combined (nunca só um)
   bad(EvidenceHandleSchema, { ...handle(), verified: true }, "campo verified agregado no handle")
   bad(EvidenceHandleSchema, handle({ verdict: { ...v, combined: "OK" } }), "combinado fora do enum")
   bad(EvidenceHandleSchema, handle({ verdict: { ...v, source: { status: "SKIPPED", codes: [] } } }), "status de source inexistente")
-  for (const s of ["SOURCE_VERIFIED", "SOURCE_VERIFIED_PARTIAL", "SOURCE_MISMATCH", "UNVERIFIABLE", "NOT_RUN"]) ok(EvidenceHandleSchema, handle({ verdict: { ...v, source: { status: s, codes: [] } } }))
+  // E6.6-0d: com verify=VALID, cada status de source tem UM combined consistente (tabela escrita à mão a partir de E6-G6 §6.1/D4; não chama combineVerdict). Antes do 0d este loop reaproveitava combined=NOT_VERIFIED em todos.
+  const COMBINED_FOR_VALID: Record<string, string> = { SOURCE_VERIFIED: "VERIFIED", SOURCE_VERIFIED_PARTIAL: "VERIFIED_PARTIAL", SOURCE_MISMATCH: "TAMPERED_OR_MISMATCH", UNVERIFIABLE: "NOT_VERIFIED", NOT_RUN: "NOT_VERIFIED" }
+  for (const s of ["SOURCE_VERIFIED", "SOURCE_VERIFIED_PARTIAL", "SOURCE_MISMATCH", "UNVERIFIABLE", "NOT_RUN"]) ok(EvidenceHandleSchema, handle({ verdict: { ...v, source: { status: s, codes: [] }, combined: COMBINED_FOR_VALID[s] } }))
   const noHash: Any = handle(); delete noHash.evidenceHash
   ok(EvidenceHandleViewSchema, noHash); bad(EvidenceHandleViewSchema, handle(), "a visão do modelo não pode carregar o evidenceHash"); bad(EvidenceHandleSchema, noHash, "o handle de servidor exige o hash")
 })

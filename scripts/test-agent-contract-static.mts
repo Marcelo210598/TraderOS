@@ -111,13 +111,16 @@ test("X1 — EXPECTATIVAS × CONTRATO: motivos de rejeição, de parada, N, K e 
   assert.match(read("docs/ai-partner/agent-contract-plano.md"), /PRÉ-REQUISITO OBRIGATÓRIO do E6\.6/)
 })
 
-test("KG1 — LACUNA CONHECIDA (PRÉ-REQUISITO OBRIGATÓRIO do E6.6): hoje o schema ACEITA um handle com combined inconsistente (verify=TAMPERED + combined=VERIFIED). Este teste TRAVA o estado atual e QUEBRA DE PROPÓSITO quando o E6.6 fechar a lacuna: troque-o então pela rejeição + matriz verify×source×combined", () => {
+test("KG1 — LACUNA FECHADA (E6.6-0d): o schema REJEITA um handle com combined inconsistente (verify=TAMPERED + combined=VERIFIED); a função que decide mora só em verdict.ts e o contrato a usa. A matriz completa verify×source×combined está em test-agent-verdict-schema.mts", () => {
   const handle = { evidenceRef: `ev_${"a".repeat(32)}`, evidenceHash: "b".repeat(64), subject: { type: "METRIC", id: "netPnl" }, scope: "TOTAL", population: { declared: 1, verifiability: "FULL" }, refEpoch: "s1", freshness: "CURRENT",
     verdict: { verify: { status: "TAMPERED", codes: [] }, source: { status: "SOURCE_MISMATCH", codes: [] }, combined: "VERIFIED" } }
-  assert.equal(EvidenceHandleSchema.safeParse(handle).success, true, "LACUNA FECHADA? Ótimo — agora este teste deve virar um teste de REJEIÇÃO (pré-requisito do E6.6 cumprido); atualize-o e o plano §6.1")
-  // E6.6-0c (Marcelo, Opção 1, 13/10/2026): `combineVerdict` só pode viver em verdict.ts (única fonte do combined, Q1). Em qualquer OUTRO arquivo continua sendo alarme.
-  const withCombine = agentFiles.filter((f) => /combineVerdict/.test(strip(readFileSync(f, "utf8")))).map((f) => f.slice(f.lastIndexOf("/") + 1))
-  assert.deepEqual(withCombine, ["verdict.ts"], "combineVerdict fora de verdict.ts (ou ausente dele): o E6.6 avançou — feche a lacuna e troque este teste")
+  assert.equal(EvidenceHandleSchema.safeParse(handle).success, false, "LACUNA REABERTA: o schema voltou a aceitar combined inconsistente")
+  // quem DEFINE combineVerdict é só verdict.ts (única fonte, Q1); o contrato a IMPORTA e a aplica no refine do Verdict
+  const definers = agentFiles.filter((f) => /(function|const)\s+combineVerdict\b/.test(strip(readFileSync(f, "utf8")))).map((f) => f.slice(f.lastIndexOf("/") + 1))
+  assert.deepEqual(definers, ["verdict.ts"], "combineVerdict definido fora de verdict.ts")
+  const contractCode = strip(readFileSync(join(ROOT, "src/lib/agent/contract.ts"), "utf8"))
+  assert.match(contractCode, /import \{ combineVerdict \} from "\.\/verdict\.ts"/)
+  assert.match(contractCode, /combineVerdict\(v\.verify\.status, v\.source\.status\)/)
   assert.match(read("docs/ai-partner/agent-contract-plano.md"), /combined.*inconsistente|inconsistente.*combined/s)
 })
 

@@ -3,6 +3,7 @@
 // fora de src/lib/agent/ (travado por teste). Sem LLM, sem rede, sem banco, sem Prisma, sem process.env.
 import { z } from "zod"
 import { PHRASE_CODES } from "./phrases.ts"
+import { combineVerdict } from "./verdict.ts"
 
 // ── constantes fixadas (agent-capabilities.md §0, §2, §8) ────────────────────
 export const AGENT_CONTRACT_VERSION = "agent-capabilities/1" as const
@@ -47,14 +48,21 @@ export type SourceStatus = z.infer<typeof SourceStatusSchema>
 export type CombinedVerdict = z.infer<typeof CombinedVerdictSchema>
 
 const CodesSchema = z.array(z.string().regex(/^[SVL]_[A-Z_]+$/))
-/** Não existe campo `ok`/`verified` agregado: o objeto é strict e traz SEMPRE os dois componentes + o combinado (CP1/CP2). O combinado é produzido por UMA função pura no E6.6 (D8); aqui só o tipo. */
-export const VerdictSchema = z
+/** Base SEM refinamento (zod 4 não permite `.omit()`/`.pick()` em schema refinado). Não use direto: `VerdictSchema` é o contrato. */
+const VerdictBase = z
   .object({
     verify: z.object({ status: VerifyStatusSchema, codes: CodesSchema }).strict(),
     source: z.object({ status: SourceStatusSchema, codes: CodesSchema }).strict(),
     combined: CombinedVerdictSchema,
   })
   .strict()
+/** Não existe campo `ok`/`verified` agregado: o objeto é strict e traz SEMPRE os dois componentes + o combinado (CP1/CP2).
+ *  E6.6-0d: o `combined` TEM de ser `combineVerdict(verify, source)` (única fonte, D8; verdict.ts). Mensagem fixa, sem ecoar valores de entrada.
+ *  Quem constrói um Verdict deve usar `buildVerdict` (verdict.ts). */
+export const VerdictSchema = VerdictBase.superRefine((v, ctx) => {
+  // com status fora do enum a base já falhou e o zod NÃO executa este refine (travado em test-agent-verdict-schema.mts, S6: safeParse nunca lança)
+  if (v.combined !== combineVerdict(v.verify.status, v.source.status)) ctx.addIssue({ code: "custom", message: "COMBINED_INCONSISTENT", path: ["combined"] })
+})
 export type Verdict = z.infer<typeof VerdictSchema>
 
 export const PopulationSchema = z
