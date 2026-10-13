@@ -1,0 +1,125 @@
+{
+  "_meta": {
+    "frozen": "2026-10-13",
+    "after_execution": false,
+    "step": "E6.6-0a (docs/ai-partner/agent-contract-plano.md §6.1; plano aprovado pelo Marcelo em 13/10/2026: Q1-Q6 e passos 0a-0e)",
+    "note": "Escrito ANTES de qualquer teste ou código do combineVerdict. A tabela abaixo foi derivada À MÃO apenas das regras em texto: E6-G6-plano.md §6.1 item 4, agent-capabilities.md linha 48 (precedência) e D4 (NOT_RUN ⇒ NOT_VERIFIED). Nenhum arquivo de src/ foi aberto para derivá-la. NADA aqui foi executado. Mudar uma célula exige entrada em history (data, motivo, quem pediu).",
+    "history": []
+  },
+  "rules_in_words": {
+    "R1_TAMPERED_OR_MISMATCH": "verify ∈ {TAMPERED, INVALID_FORMAT} OU source = SOURCE_MISMATCH",
+    "R2_NOT_VERIFIED": "(não R1) E (verify = UNVERIFIABLE OU source ∈ {UNVERIFIABLE, NOT_RUN})",
+    "R3_VERIFIED_PARTIAL": "(não R1, não R2) E source = SOURCE_VERIFIED_PARTIAL (então verify = VALID)",
+    "R4_VERIFIED": "verify = VALID E source = SOURCE_VERIFIED",
+    "precedence": "TAMPERED_OR_MISMATCH > NOT_VERIFIED > VERIFIED_PARTIAL > VERIFIED",
+    "closed_world": "A função é TOTAL: toda combinação do produto cartesiano tem exatamente 1 valor; sem 'default'. Valor fora dos enums de entrada é erro (não vira NOT_VERIFIED em silêncio)."
+  },
+  "axes": {
+    "verify": ["VALID", "TAMPERED", "UNVERIFIABLE", "INVALID_FORMAT"],
+    "source": ["SOURCE_VERIFIED", "SOURCE_VERIFIED_PARTIAL", "SOURCE_MISMATCH", "UNVERIFIABLE", "NOT_RUN"],
+    "combined": ["VERIFIED", "VERIFIED_PARTIAL", "NOT_VERIFIED", "TAMPERED_OR_MISMATCH"]
+  },
+  "matrix": {
+    "VALID": {
+      "SOURCE_VERIFIED": "VERIFIED",
+      "SOURCE_VERIFIED_PARTIAL": "VERIFIED_PARTIAL",
+      "SOURCE_MISMATCH": "TAMPERED_OR_MISMATCH",
+      "UNVERIFIABLE": "NOT_VERIFIED",
+      "NOT_RUN": "NOT_VERIFIED"
+    },
+    "TAMPERED": {
+      "SOURCE_VERIFIED": "TAMPERED_OR_MISMATCH",
+      "SOURCE_VERIFIED_PARTIAL": "TAMPERED_OR_MISMATCH",
+      "SOURCE_MISMATCH": "TAMPERED_OR_MISMATCH",
+      "UNVERIFIABLE": "TAMPERED_OR_MISMATCH",
+      "NOT_RUN": "TAMPERED_OR_MISMATCH"
+    },
+    "UNVERIFIABLE": {
+      "SOURCE_VERIFIED": "NOT_VERIFIED",
+      "SOURCE_VERIFIED_PARTIAL": "NOT_VERIFIED",
+      "SOURCE_MISMATCH": "TAMPERED_OR_MISMATCH",
+      "UNVERIFIABLE": "NOT_VERIFIED",
+      "NOT_RUN": "NOT_VERIFIED"
+    },
+    "INVALID_FORMAT": {
+      "SOURCE_VERIFIED": "TAMPERED_OR_MISMATCH",
+      "SOURCE_VERIFIED_PARTIAL": "TAMPERED_OR_MISMATCH",
+      "SOURCE_MISMATCH": "TAMPERED_OR_MISMATCH",
+      "UNVERIFIABLE": "TAMPERED_OR_MISMATCH",
+      "NOT_RUN": "TAMPERED_OR_MISMATCH"
+    }
+  },
+  "cells_decided_by_precedence_not_by_literal_text": {
+    "why": "O texto do §6.1 item 4 diz 'NOT_VERIFIED = qualquer UNVERIFIABLE' E 'TAMPERED_OR_MISMATCH = verify TAMPERED/INVALID_FORMAT ∨ source MISMATCH'. Nas células abaixo as duas frases se aplicam; quem decide é a precedência de agent-capabilities.md (TAMPERED_OR_MISMATCH > NOT_VERIFIED), já aprovada como Q2 em 13/10/2026. Provada divergência vence ausência de verificação.",
+    "cells": [
+      ["UNVERIFIABLE", "SOURCE_MISMATCH", "TAMPERED_OR_MISMATCH"],
+      ["TAMPERED", "UNVERIFIABLE", "TAMPERED_OR_MISMATCH"],
+      ["TAMPERED", "NOT_RUN", "TAMPERED_OR_MISMATCH"],
+      ["INVALID_FORMAT", "UNVERIFIABLE", "TAMPERED_OR_MISMATCH"],
+      ["INVALID_FORMAT", "NOT_RUN", "TAMPERED_OR_MISMATCH"]
+    ]
+  },
+  "tallies": {
+    "total_cells": 20,
+    "VERIFIED": 1,
+    "VERIFIED_PARTIAL": 1,
+    "NOT_VERIFIED": 6,
+    "TAMPERED_OR_MISMATCH": 12,
+    "check_count_for_test": "20 células × 4 valores candidatos de `combined` = 80 verificações de aceitação/rejeição: exatamente 1 candidato aceito por célula (20 aceitos) e 3 rejeitados (60 rejeitados)"
+  },
+  "invariants": {
+    "I1": "combined = VERIFIED ⇔ (verify = VALID ∧ source = SOURCE_VERIFIED); 1 célula só",
+    "I2": "combined = VERIFIED_PARTIAL ⇔ (verify = VALID ∧ source = SOURCE_VERIFIED_PARTIAL); 1 célula só",
+    "I3": "source = NOT_RUN ⇒ combined ∉ {VERIFIED, VERIFIED_PARTIAL} (D4); em toda a linha NOT_RUN os valores possíveis são só NOT_VERIFIED ou TAMPERED_OR_MISMATCH",
+    "I4": "verify ≠ VALID ⇒ combined ∉ {VERIFIED, VERIFIED_PARTIAL}",
+    "I5": "source = SOURCE_MISMATCH ⇒ combined = TAMPERED_OR_MISMATCH, qualquer verify",
+    "I6": "verify ∈ {TAMPERED, INVALID_FORMAT} ⇒ combined = TAMPERED_OR_MISMATCH, qualquer source",
+    "I7": "monotonia: piorar verify ou source nunca melhora combined (ordem VERIFIED < VERIFIED_PARTIAL < NOT_VERIFIED < TAMPERED_OR_MISMATCH; ordem de piora verify: VALID < UNVERIFIABLE < TAMPERED = INVALID_FORMAT; de source: SOURCE_VERIFIED < SOURCE_VERIFIED_PARTIAL < UNVERIFIABLE = NOT_RUN < SOURCE_MISMATCH)",
+    "I8": "a função é pura e determinística: sem estado, sem I/O, sem relógio; mesma entrada ⇒ mesma saída; não muta os argumentos",
+    "I9": "o resultado só tem os 4 valores do enum `CombinedVerdict`; nunca 'INVALID_FORMAT', 'OK', undefined ou null"
+  },
+  "negative_input_cases": {
+    "N1": "verify fora do enum (ex.: 'valid', 'OK', '', null, undefined) ⇒ a função LANÇA erro; não devolve NOT_VERIFIED",
+    "N2": "source fora do enum (ex.: 'NOT_EXECUTED', 'skipped', null, undefined) ⇒ a função LANÇA erro",
+    "N3": "objeto no lugar de string, ou extra propriedade ⇒ erro (a assinatura recebe os dois STATUS, não os objetos com `codes`)"
+  },
+  "schema_rejection_cases_for_0d": {
+    "note": "Valem a partir do E6.6-0d (hoje o schema ACEITA — KG1). Vale para `VerdictSchema`, para `EvidenceHandleSchema` e para `EvidenceHandleViewSchema`.",
+    "S1": "para cada uma das 20 células: o veredito com `combined` correto é ACEITO e os 3 incorretos são REJEITADOS (80 verificações) em cada um dos 3 schemas",
+    "S2": "caso do KG1: verify=TAMPERED + source=SOURCE_MISMATCH + combined=VERIFIED ⇒ REJEITADO",
+    "S3": "verify=VALID + source=NOT_RUN + combined=VERIFIED ⇒ REJEITADO (D4)",
+    "S4": "a mensagem de erro é fixa (COMBINED_INCONSISTENT) e NÃO contém os valores de entrada",
+    "S5": "a visão do modelo (sem `evidenceHash`) aplica o MESMO refine; um handle de visão com combined inconsistente é REJEITADO",
+    "S6": "importar o módulo não lança (a quebra por `.omit()` em schema com refine não ocorre)"
+  },
+  "static_cases_for_0e": {
+    "G1": "nenhum literal `combined:` com valor de CombinedVerdict em src/lib/agent/ fora de verdict.ts (e dos testes); handles/vereditos nascem de `buildVerdict`",
+    "G2": "`combineVerdict` só em verdict.ts (uma implementação); contract.ts e os futuros projetores o importam",
+    "G3": "verdict.ts importa só dos enums do contrato (Q1): sem evidence/, sem fs, sem rede, sem process.env, sem Date/Math.random"
+  },
+  "independent_oracle_for_0c": {
+    "what": "o teste do 0c compara a função contra ESTA tabela `matrix` (literal), lida do JSON; não recalcula por regra. Segundo oráculo independente: tabela escrita à mão em outra forma (lista de pares) dentro do próprio teste, também sem chamar a função. Os dois precisam concordar entre si ANTES de comparar com a função.",
+    "mutations_that_must_be_caught": [
+      "M1 inverter a precedência: NOT_VERIFIED acima de TAMPERED_OR_MISMATCH",
+      "M2 NOT_RUN ⇒ VERIFIED (ou VERIFIED_PARTIAL)",
+      "M3 SOURCE_VERIFIED_PARTIAL ⇒ VERIFIED",
+      "M4 remover o ramo INVALID_FORMAT (cai em NOT_VERIFIED)",
+      "M5 verify=UNVERIFIABLE + SOURCE_VERIFIED ⇒ VERIFIED",
+      "M6 SOURCE_MISMATCH ignorado quando verify=VALID",
+      "M7 default silencioso para NOT_VERIFIED em entrada fora do enum",
+      "M8 trocar VERIFIED_PARTIAL por NOT_VERIFIED na célula (VALID, SOURCE_VERIFIED_PARTIAL)",
+      "M9 função muta ou memoriza o argumento"
+    ]
+  },
+  "baselines_that_must_not_change": [
+    "motor de métricas, Evidence (hashes, ids, tradeSetHash) e `verify`/`verify-source`: nenhum arquivo em src/lib/evidence, src/lib/metrics, src/lib/ingest, src/lib/domain alterado neste passo",
+    "a saída linha a linha do `npm run test:domain` anterior ao E6.6-0 (746 ✓) permanece idêntica; só se acrescentam linhas novas"
+  ],
+  "open_points": [
+    {
+      "id": "OP1",
+      "text": "Combinações (INVALID_FORMAT, SOURCE_VERIFIED[_PARTIAL]) e (TAMPERED, SOURCE_VERIFIED[_PARTIAL]) são provavelmente inalcançáveis na prática (source costuma não rodar/ser UNVERIFIABLE quando o verify falha). A função continua total e devolve TAMPERED_OR_MISMATCH nelas; o teste cobre por completude, não por alcance.",
+      "status": "informativo; não é ambiguidade do documento"
+    }
+  ]
+}
