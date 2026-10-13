@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-13 E6.6-2a — EXPECTATIVA (rascunho) escrita e PARADA antes do código: ao derivar a tabela à mão encontrei 10 células ambíguas (open_cells C1–C10) que não são minhas para decidir; a mais pesada é C10 (AV9 estrutural aplicado literalmente deixaria compare/rank/exit.analysis sem poder mostrar número enquanto source = NOT_RUN). Também registrado: PD-2 aprovada como opção (a) pelo Marcelo (bump das views com reason irmão, passo próprio ANTES do E6.6-7) e PD-1 decidida no E6.6-2b (inclinação do Marcelo: opção b, enum basis com slot).",
       "2026-10-13 E6.6-1 EXECUTADO (format.ts, slot-path.ts, label.ts + 4 testes). Placar: 771 → 814 (+43: 15 formatador, 11 resolvedor, 12 projetor/alias, 5 guardas estáticos); 0 linhas do baseline alteradas. Nenhuma célula das tabelas à mão precisou mudar: o código bateu com todas. MEUS ERROS DE TESTE (não do código), corrigidos antes do commit: (1) F1 afirmava '>= 45 células' e o certo é 41 (6+9+6+5+5+10, contadas à mão); (2) A6 usava o ref acc_<hex(1).toUpperCase()> como INVÁLIDO, mas hex(1) só tem dígitos e maiúscula não muda nada, então era válido; (3) o guarda S1 lia a chave \"period.from\" como se fosse `import … from`; (4) o guarda S2 esperava '(sem rótulo)' literal em views.ts, mas lá está escapado. ALTERAÇÕES EM TESTES EXISTENTES (só asserções, os títulos e portanto as linhas de saída não mudaram): G0 de test-agent-verdict-static (lista exata de arquivos do agent/ passou de 4 para 7); SG5 de test-agent-contract-static (vocabulário de rótulo agora em label.ts e views.ts, como o próprio SG5 previa: 'o E6.6 cria o único'); SG1 de test-agent-contract-static (regex de import ganhou lookbehind para não ler a chave 'period.from' como import; ainda pega from/import()/require). MUTAÇÕES: 35 (24 planejadas + 11 extras: `in` em vez de hasOwn no catálogo e nos enums, unidade irmã não validada, zero à esquerda no path, ref de outro tipo, 3 letras, guardas estáticos Math.round/import do motor/texto de alias duplicado, moldura 'indisponível'). 34 pegas; M13 (hasOwn) ESCAPOU na primeira rodada porque a checagem do `unit` irmão encobria a herança: acrescentei ao P7 um caso de folha sem unidade irmã e M13 passou a ser pega. M33 (limite de 200 caracteres do path) é mutante EQUIVALENTE: o path só vale se casar com um padrão curto da tabela, então o limite não muda nenhum resultado; fica como defesa em profundidade contra string gigante, sem teste de comportamento (declarado). LIMITAÇÕES: D2 (varredura estática do catálogo) usa prefixos como heurística; D3 só cobre os cenários montados; guardas textuais provam texto, não fluxo.",
       "2026-10-13 E6.6-1 (expectativa antes do código; Marcelo liberou o passo após aprovar o léxico). Q15, Q16, Q17, Q18 e o léxico passaram de PENDENTE para APROVADO nos campos de status (aprovações dadas em 13/10/2026). Novo bloco `e66_1` com: API, regras de formato, células de fraction/price/limites, oráculo BigInt, catálogo de 29 motivos (levantado à mão do motor), tabela de folhas COMPLETA (amplia leaf_unit_table: P.reason, enums, keypart, alias, label, date, MetricValue completo em rows[].value), células novas de rótulo (Zérar/Targét1: achado ao ler normalizeLabel), alias, 24 mutações (o plano dizia 14) e guardas estáticos. DECISÕES MINHAS neste passo, a rever: (1) metrics[].basis fora dos slots (R_NET/R_POINTS não estão na tabela); (2) folha numérica null sem `reason` irmão ⇒ erro FORMAT_INVALID (achado: a view de compare não carrega o reason do delta; correção é do E6.6-8 com bump); (3) entryLocal/exitLocal/instrument/metricId fora dos slots (YAGNI). A chave 'fraction_PENDENTE_Q16' foi renomeada 'fraction_Q16_aprovada'.",
       "2026-10-13 E6.6-P revisão do léxico (pedido do Marcelo: justificar 4 exclusões). Testei cada uma com frases (script descartável). DELIBERADAS e mantidas: 'diferença entre' (a subtração do modelo sempre sai como número, já rejeitado por RULE_DIGITS/NUM_WORDS; sem número é qualitativo e legítimo) e 'vezes' solto (às vezes/muitas vezes). LACUNAS REAIS que a exclusão deixava: 'motivo' causal ('o motivo da perda foi…', 'o motivo disso') e 'logo,' causal passavam; 'várias vezes mais' (multiplicativo vago sem numeral) passava. Fechadas SEM a palavra solta: 8 frases estreitas com 'motivo' em CAUSAL, o padrão LOGO_CAUSAL ('logo' seguido de vírgula) e 5 termos 'vezes mais/menos/maior/menor/o' + 'vez e meia' em ARITH (com exceção de frequência por palavra anterior). Corpus ampliado (+5 rejeições, +6 boas). 'logo' estava sem justificativa escrita no arquivo: falha minha de documentação.",
@@ -481,6 +482,92 @@
       "S3": "format.ts, slot-path.ts e label.ts não usam toFixed, Math.round, Intl, toLocale*, Date, Math.random, process, fetch (formatador exato e determinístico)",
       "S4": "nenhum arquivo novo importa evidence/, metrics/, ingest/ ou domain/",
       "limitation": "guardas textuais provam presença/ausência de texto, não fluxo de dados"
+    }
+  },
+  "e66_2a": {
+    "status": "EXPECTATIVA (rascunho) escrita ANTES do código do E6.6-2a. PARADA para o Marcelo decidir as células C1–C10 (open_cells). Nada foi implementado. As recomendações abaixo são MINHAS; nenhuma vira código sem o OK.",
+    "scope": "ledger puro + validador ESTRUTURAL (agent-capabilities.md §5.2 passos 1–4 e 6). Sem léxico, sem texto livre (E6.6-2b), sem parada/regeração/render (E6.6-3).",
+    "files_planned": { "src/lib/agent/ledger.ts": "newLedger, addEvidence, rotateEpoch, lookupRef, isStale (imutável, congelado)", "src/lib/agent/validate-structure.ts": "validateStructure(input) → { ok:true, claims } | { ok:false, reasons }", "tests": ["scripts/test-agent-ledger.mts", "scripts/test-agent-validate-structure.mts"] },
+    "ledger_api": {
+      "newLedger(epoch)": "ledger vazio e congelado; `epoch` = refEpoch vigente (mesma regex do contrato)",
+      "addEvidence(ledger, { capability, handle, view })": "valida `handle` em EvidenceHandleSchema, `capability` ∈ as 7 com view (evidence.refresh não tem), `view` em PROMPT_VIEWS[capability], handle.refEpoch == ledger.epoch, handle.freshness == CURRENT; ref já existente com conteúdo DIFERENTE ⇒ LEDGER_CONFLICT; igual ⇒ idempotente. Erro = { ok:false, code:'LEDGER_ENTRY_INVALID' | 'LEDGER_CONFLICT' } sem eco. Copia profunda + congela (mutar a entrada depois não altera o ledger).",
+      "rotateEpoch(ledger, epoch)": "novo ledger com a época nova; as entradas antigas FICAM (auditoria) e passam a ser STALE; época igual à atual ⇒ erro; entrada nunca é apagada",
+      "lookupRef(ledger, ref)": "só propriedade própria; ref fora do formato ou ausente ⇒ null",
+      "isStale(ledger, entry)": "entry.handle.refEpoch !== ledger.epoch",
+      "separation": "um ledger por conversa E por usuário: o ref de outro usuário simplesmente não existe neste ledger (AV3); o ledger não guarda userId"
+    },
+    "validator_api": {
+      "validateStructure({ answer, ledger, stop })": "answer: unknown; stop: null | 'BUDGET_CALLS' (turno que estourou as 8 chamadas)",
+      "result_ok": "{ ok:true, claims: Array<{ ref, path, mode, combined }> } — `combined` vem do handle (o banner = pior é do E6.6-3)",
+      "result_error": "{ ok:false, reasons: Array<RejectionReason | 'STRUCTURE_INVALID'> } — lista SEM duplicata, em ordem de passo, nunca com valor/ref/path de entrada",
+      "never_throws": true
+    },
+    "rules_by_step": {
+      "1_structure": "AgentAnswerSchema.safeParse falha ⇒ reasons = ['STRUCTURE_INVALID'] e NADA mais é avaliado (C1)",
+      "2_refs": "para todo ref citado (slot, claim, phrase.ref): ausente do ledger ⇒ REF_NOT_IN_LEDGER; presente e STALE ⇒ STALE_REF; os refs citados (presentes) abrangem >1 refEpoch ⇒ REF_EPOCH_MIX (os dois podem sair juntos) (C8)",
+      "3_slots": "para todo slot e claim cujo ref está no ledger: resolveSlot(capability, view, path) falha ⇒ SLOT_PATH_INVALID (só caminho; falha de FORMATO não é motivo de rejeição: o modelo não consegue consertá-la, é do render/E6.6-3)",
+      "3b_slot_claim_relation": "todo slot tem um claim (mesmo ref+path); todo claim tem um slot; sem duplicata de claim; violação ⇒ STRUCTURE_INVALID (C2)",
+      "4_verdict_x_mode": {
+        "TAMPERED_OR_MISMATCH": "qualquer slot/claim (inclusive enum e alias) ⇒ NUMBER_FROM_UNVERIFIED_EVIDENCE (AV7) (C9)",
+        "NOT_VERIFIED_com_verify_diferente_de_VALID": "idem ⇒ NUMBER_FROM_UNVERIFIED_EVIDENCE",
+        "NOT_VERIFIED_com_verify_VALID": "claim ASSERT ⇒ MISSING_NOT_VERIFIED_LABEL (AV8); claim LABELED aceito; se o handle é subject DERIVED, claim LABELED ⇒ UNVERIFIED_USED_FOR_CONCLUSION (AV9 estrutural) (C10)",
+        "VERIFIED_ou_VERIFIED_PARTIAL": "claim ASSERT aceito; claim LABELED ⇒ STRUCTURE_INVALID (C3)"
+      },
+      "6_required_phrases": {
+        "VERIFIED": "phrase POPULATION_DECLARED COM ref desse handle; ausente ⇒ SCOPE_OVERCLAIM (AV16 estrutural; a parte 'histórico inteiro' é léxica, E6.6-2b) (C7)",
+        "VERIFIED_PARTIAL": "uma phrase de cada código PARTIAL_PHRASES presente nos codes do handle (se nenhum, S_POPULATION_PARTIAL), COM ref; ausente ⇒ MISSING_PARTIAL_PHRASE (AV17) (C7)",
+        "conclusive_false_ou_LOW_TINY": "handle citado com números (slot) e population.conclusive === false OU population.sampleFlag ∈ {LOW,TINY} ⇒ phrase INDICATIVE_ONLY COM ref; ausente ⇒ INCONCLUSIVE_AS_CONCLUSIVE (AV18 estrutural) (C7)",
+        "stop_BUDGET_CALLS": "stop = 'BUDGET_CALLS' ⇒ phrase BUDGET_LIMIT_REACHED (sem ref); ausente ⇒ INCOMPLETE_PRESENTED_AS_COMPLETE (AV22)"
+      },
+      "phrase_hygiene": "phrase por-ref (todas menos as 3 de parada) SEM ref ⇒ STRUCTURE_INVALID; phrase de parada COM ref ⇒ STRUCTURE_INVALID; REGEN_EXHAUSTED e CAPABILITY_FAILED emitidas pelo MODELO ⇒ STRUCTURE_INVALID (são só do servidor); BUDGET_LIMIT_REACHED sem stop = BUDGET_CALLS ⇒ STRUCTURE_INVALID; código de phrase que NÃO cabe ao handle (S_*/L_* que não está nos codes dele; INTEGRITY_* que o veredito não justifica; VERIFICATION_INFRA_MISSING com source ≠ NOT_RUN) ⇒ STRUCTURE_INVALID (C4, C5)"
+    },
+    "open_cells": {
+      "C1": { "pergunta": "Que motivo devolver quando a resposta nem passa no AgentAnswerSchema (passo 1)? REJECTION_REASONS não tem um.", "recomendacao": "código `STRUCTURE_INVALID` exportado pelo validador (fora de REJECTION_REASONS) e incorporado a REJECTION_REASONS no MESMO bump do OPERATIONAL_ADVICE (E6.6-2b), para a lista ficar única. Alternativa: bump já agora (2a)." },
+      "C2": { "pergunta": "Relação slot × claim: o §4.1 não diz se todo slot precisa de claim nem se claim sem slot é válido.", "recomendacao": "1:1 — todo slot tem claim (ref+path) e todo claim tem slot; sem duplicata; violação ⇒ STRUCTURE_INVALID. Sem isso o modo (ASSERT/LABELED) de um slot fica indeterminado." },
+      "C3": { "pergunta": "Claim LABELED sobre handle VERIFIED/PARTIAL: aceitar ou rejeitar?", "recomendacao": "rejeitar (STRUCTURE_INVALID): o rótulo 'não verificado' sobre valor verificado engana o usuário; modo tem de ser coerente com o veredito." },
+      "C4": { "pergunta": "As frases obrigatórias carregam ref e precisam casar com o handle? E frase que o handle não justifica (ex.: INTEGRITY_SEAL num handle VERIFIED) é rejeitada?", "recomendacao": "sim aos dois: frase por-ref exige ref e o código tem de caber ao handle (senão o modelo 'afirma' uma limitação falsa). Violação ⇒ STRUCTURE_INVALID." },
+      "C5": { "pergunta": "O modelo pode emitir as frases de parada?", "recomendacao": "REGEN_EXHAUSTED e CAPABILITY_FAILED: nunca (só o servidor). BUDGET_LIMIT_REACHED: só com stop = BUDGET_CALLS (e então é obrigatória)." },
+      "C6": { "pergunta": "Devolver só o PRIMEIRO motivo ou TODOS?", "recomendacao": "todos, sem duplicata, na ordem dos passos (o §5.3 diz 'lista de motivos'); ajuda a regerar de uma vez." },
+      "C7": { "pergunta": "Granularidade das frases obrigatórias (POPULATION_DECLARED só para VERIFIED; partial = uma por código parcial do handle; INDICATIVE_ONLY por ref)?", "recomendacao": "como descrito em rules_by_step.6; segue a matriz §6.1 (VERIFIED_PARTIAL NÃO exige a frase de população)." },
+      "C8": { "pergunta": "Citar um ref STALE junto com um atual ⇒ só STALE_REF, ou também REF_EPOCH_MIX?", "recomendacao": "os dois (cada regra é verdadeira). Sem isso REF_EPOCH_MIX nunca dispararia: com UMA época vigente, todo ref não-STALE tem a mesma época." },
+      "C9": { "pergunta": "Em handle TAMPERED/NOT_VERIFIED-sem-VALID, slot de texto (alias, palavra de enum, rótulo) também é bloqueado, ou só número?", "recomendacao": "TODO slot é bloqueado: o dado não é confiável, e separar 'número' de 'texto' abriria uma exceção a mais." },
+      "C10": { "pergunta": "AV9 estrutural diz 'claim LABELED sobre handle DERIVED'. Hoje TODO resultado é NOT_VERIFIED (source = NOT_RUN). Aplicada literalmente, a regra faz metrics.compare, rank.groups e exit.analysis (E6.6-8, 9, 10) NUNCA poderem mostrar número: o agente só conseguiria bloquear.", "recomendacao": "NÃO é uma decisão para eu tomar sozinho. Opção A (literal): bloquear derivados enquanto source = NOT_RUN. Opção B: aceitar LABELED em derivados (números rotulados) e deixar a proibição de CONCLUIR/COMPARAR/RECOMENDAR para o léxico (categoria COMPARISON_CONCLUSION, que já exige claim LABELED, E6.6-2b). Eu recomendo B: a A torna 3 capacidades inúteis até existir armazenamento do arquivo; mas A é o texto do AV9." }
+    },
+    "cases": {
+      "note": "Cada caso: handle(combined, verify, source, subject, population) + resposta → reasons esperados. Derivados à mão da tabela acima NA VERSÃO RECOMENDADA; mudam se o Marcelo decidir diferente.",
+      "L (ledger)": [
+        "L1 addEvidence de handle+view válidos ⇒ ok; lookupRef acha; o ledger anterior não mudou",
+        "L2 handle com campo extra / view inválida / capability evidence.refresh / refEpoch ≠ época / freshness STALE ⇒ LEDGER_ENTRY_INVALID",
+        "L3 mesmo ref com conteúdo diferente ⇒ LEDGER_CONFLICT; idêntico ⇒ ok idempotente",
+        "L4 rotateEpoch: entradas antigas continuam, isStale = true; época igual ⇒ erro; ledger antigo intacto",
+        "L5 mutar o objeto passado a addEvidence depois NÃO altera o ledger (cópia profunda); ledger e entradas congelados",
+        "L6 lookupRef('__proto__'|'constructor'|ref malformado) ⇒ null"
+      ],
+      "V (validator)": [
+        "V0 AV15: handle VERIFIED + slot ASSERT + phrase POPULATION_DECLARED(ref) ⇒ ok",
+        "V1 AV2: ref inexistente ⇒ [REF_NOT_IN_LEDGER]",
+        "V2 AV3: ref de outro ledger ⇒ [REF_NOT_IN_LEDGER]",
+        "V3 AV4: path inexistente / folha fora da tabela / __proto__ ⇒ [SLOT_PATH_INVALID]",
+        "V4 AV7: handle TAMPERED_OR_MISMATCH + slot ⇒ [NUMBER_FROM_UNVERIFIED_EVIDENCE]; com verify=INVALID_FORMAT idem; NOT_VERIFIED com verify=UNVERIFIABLE + slot idem; só phrase INTEGRITY_SEAL (sem slot) ⇒ ok",
+        "V5 AV8: NOT_VERIFIED(verify VALID) + claim ASSERT ⇒ [MISSING_NOT_VERIFIED_LABEL]; claim LABELED ⇒ ok",
+        "V6 AV9: NOT_VERIFIED(VALID) DERIVED + LABELED ⇒ [UNVERIFIED_USED_FOR_CONCLUSION] (se C10 = A); ok (se C10 = B)",
+        "V7 AV10: dois handles de épocas diferentes citados ⇒ inclui REF_EPOCH_MIX",
+        "V8 AV11: handle STALE (após rotateEpoch) ⇒ [STALE_REF]",
+        "V9 AV16: VERIFIED sem phrase POPULATION_DECLARED(ref) ⇒ [SCOPE_OVERCLAIM]; phrase sem ref ou com ref de outro handle ⇒ idem (e STRUCTURE_INVALID para a sem ref)",
+        "V10 AV17: VERIFIED_PARTIAL sem a phrase do código parcial do handle ⇒ [MISSING_PARTIAL_PHRASE]; com ela ⇒ ok",
+        "V11 AV18: VERIFIED com population.conclusive=false (ou sampleFlag LOW/TINY) sem INDICATIVE_ONLY(ref) ⇒ [INCONCLUSIVE_AS_CONCLUSIVE]; com ela ⇒ ok",
+        "V12 AV20 (aceite): dois claims, VERIFIED + NOT_VERIFIED(LABELED) ⇒ ok, claims[] com cada combined",
+        "V13 AV22: stop=BUDGET_CALLS sem BUDGET_LIMIT_REACHED ⇒ [INCOMPLETE_PRESENTED_AS_COMPLETE]; com ela ⇒ ok; frase sem stop ⇒ [STRUCTURE_INVALID]",
+        "V14 estrutura: objeto vazio, segments vazio, campo extra, kind desconhecido, claim sem mode ⇒ [STRUCTURE_INVALID] (e só ele)",
+        "V15 slot sem claim, claim sem slot, claim duplicado ⇒ [STRUCTURE_INVALID]",
+        "V16 VERIFIED + claim LABELED ⇒ [STRUCTURE_INVALID] (C3)",
+        "V17 phrase por-ref sem ref; phrase de parada com ref; REGEN_EXHAUSTED/CAPABILITY_FAILED do modelo; INTEGRITY_SEAL num handle VERIFIED; S_SALT_RETIRED que o handle não tem ⇒ [STRUCTURE_INVALID]",
+        "V18 acúmulo (C6): resposta com ref ausente + path inválido noutro ref + ASSERT em NOT_VERIFIED ⇒ [REF_NOT_IN_LEDGER, SLOT_PATH_INVALID, MISSING_NOT_VERIFIED_LABEL] nessa ordem, sem duplicata",
+        "V19 sem eco: o resultado de erro só tem `ok` e `reasons`; nenhum ref/path/texto de entrada aparece",
+        "V20 nunca lança com entradas malucas (null, 5, [], objeto com getter que lança, ciclos)",
+        "V21 puro: a mesma entrada dá o mesmo resultado; a resposta e o ledger de entrada não são alterados"
+      ],
+      "mutations_planned": "remover cada regra (cada passo, cada motivo, a coerência de modo, a 1:1 slot×claim, a higiene de frases, a cópia profunda do ledger, o congelamento, o hasOwn do lookup, a ordem/dedup dos motivos, o vazamento de eco) deve derrubar ao menos 1 teste; ~25 mutações."
     }
   },
   "baselines_that_must_not_change": [

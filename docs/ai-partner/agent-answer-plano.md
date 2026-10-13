@@ -68,7 +68,8 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 |---|---|---|
 | **E6.6-P** | **este commit** (doc + expectativas, sem código) | — |
 | **E6.6-1** | **FEITO (13/10/2026, aguardando aprovação)** — formatador de slots (+ catálogo de 29 motivos), resolvedor de `path` e tabela de folhas, projetor A2 e alias; oráculo do formatador em BigInt, matriz de rótulos literal; 35 mutações (14 previstas). Ver §7 | aprovação do plano, **Q16**, **Q17** |
-| **E6.6-2a** | ledger puro e validador estrutural (§5.2 passos 1–4 e 6): AV2, 3, 4, 7, 8, 10, 11, 15, 16, 17, 20 (aceite), 22 + partes estruturais de AV9 e AV18 | E6.6-1 |
+| **E6.6-V** | **bump das PromptViews (PD-2, opção (a) aprovada em 13/10/2026):** `reason` irmão em `buckets[].pnlNet`/`share` (E6.6-7), `deltas[]` (E6.6-8), `rows[].contribution` (E6.6-9) e `comparison` (E6.6-10); expectativa + `history` + CHANGELOG antes do código; passo próprio, **antes do E6.6-7**; não bloqueia o 2a | aprovação do Marcelo para abrir o passo |
+| **E6.6-2a** | **EXPECTATIVA escrita, PARADO nas células C1–C10 (ver `agent-answer.expected.json` → `e66_2a.open_cells`)** — ledger puro e validador estrutural (§5.2 passos 1–4 e 6): AV2, 3, 4, 7, 8, 10, 11, 15, 16, 17, 20 (aceite), 22 + partes estruturais de AV9 e AV18 | E6.6-1 |
 | **E6.6-2b** | validador de texto livre: AV1, 5, 6, 12, 13, 14, 21, 23 + partes lexicais de AV9 e AV18; reporta placar de falso-positivo e falsos-negativos | **aprovação do léxico**, **Q15** |
 | **E6.6-3** | máquina de parada (N=2), respostas canônicas, mapeamento total (§2.1), render (`RenderedSegment[]`, banner = pior veredito); AV19, AV20 | E6.6-2 |
 | **E6.6-4** | `agent-capabilities/`: pipeline comum bundle → `verify` → source(`NOT_RUN`) → `buildVerdict` → handle e limits; projeção por lista branca; os 9 bundles pinados inalterados | E6.6-3, Q17 |
