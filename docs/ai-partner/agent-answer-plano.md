@@ -145,3 +145,14 @@ Arquivo: `agent-answer.expected.json` → `lexicon`, `lexicon_must_reject`, `lex
 **Por baixo:** o derivado `EXIT_REASON_ANALYSIS`, verificado VALID e SOURCE_VERIFIED; a view sai do `result` do próprio derivado. Perna e trade lado a lado, nunca misturados (LEG antes de TRADE). **Decisões D7-1 a D7-5** no `e66_7` (PARTIAL e NO_LEGS ⇒ "não comparável"; `sampleFlag` = o pior entre as linhas com contagem > 0).
 **Limitação de desempenho** (herdada): uma chamada de `explainDerived` por consulta aqui; a de até 500 `explainMetric` é do `metrics.groups`.
 
+
+## 18. Resultado do E6.6-7a (14/10/2026) — só testes, a partir do review do Gemini
+
+O Marcelo levou o E6.6-7 a um revisor adversarial independente (Gemini, no Antigravity, **só leitura**; prompt em `PROMPT-REVIEW-GEMINI.md`). Achou 7 itens; **confirmei #1–#6 na prática** antes de agir (#1 com 13 de 15 frases de mercado passando no validador; #3 com a linha do `rBasis` apagada e a suíte inteira verde). X16 conferido por leitura; X11 aceito sem prova. Este passo cobre #3, #4, #5; **`src/` não mudou**.
+
+- **X13** (`rBasis`): POINTS muda o `evidenceRef`; NET explícito == padrão; combinado com `pnlBasis`. **X14** (`DIVERGENT` ponta a ponta): trade com líquido +5 em cópia do canônico ⇒ motor e capacidade `DIVERGENT`, slot "divergente", pernas iguais e a linha de TRADE refletindo o ajuste (152,80 ⇒ 157,80). **X15** (literais à mão da fixture CY): 8 pernas (4/3/1/0) e 6 trades (2/2/1/1/0) com valores derivados em pontos (US$ 10/pt, comissão US$ 2,40/perna); bateram com o motor.
+- **Mutações (6/6 pegas, cada uma pelo caso previsto, isoladas dos testes antigos):** M1 apagar `rBasis` ⇒ X13 · M2/M3 `DIVERGENT` ⇒ outro status ⇒ X14 · M4 unidade TRADE⇒LEG ⇒ X14+X15 · M5 +1 perna ⇒ X15 · M6 sinal do pnlNet ⇒ X15.
+- Suíte 972 ⇒ **975 ✓** (as 972 linhas idênticas, +3); `tsc` 0; ESLint limpo; `git diff` de `src/` vazio.
+- **Erro meu registrado:** no E6.6-7 provei que `pnlBasis` muda o `evidenceRef` e esqueci o `rBasis`; quem achou foi o Gemini. Também deixei uma asserção tautológica no 1º rascunho do X14 (comparava um valor com ele mesmo) — achei ao reler e troquei por uma que compara a cópia adulterada com o original.
+- **Ambiente:** o `node_modules` tinha sumido (limpeza do iCloud); reinstalado com `npm ci` (cache temporário: `~/.npm` tem arquivos de root) e `prisma generate`.
+- **Abertos (cada um com aprovação):** E6.6-7b = #2 (`undefined` em args = `ARGS_INVALID`, decisão do Marcelo; atualizar texto do X9 em `e66_7` e o `history`) + #6 (`buckets[].unit` citável: palavra fixa no `format.ts`, folha no `slot-path.ts`, teste do slot; "pernas"/"trades"); E6.6-2c = #1 (imperativos de mercado no léxico; verbos unívocos soltos, homônimos "venda/entre/corte/saia" só como frase composta; falsos negativos assumidos declarados).

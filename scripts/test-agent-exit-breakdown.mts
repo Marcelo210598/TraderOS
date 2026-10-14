@@ -268,4 +268,62 @@ test("X12 — a expectativa conhece os 13 casos e as 5 decisões D7", () => {
   assert.deepEqual(Object.keys(exp.e66_7.decisions_D7), ["D7-1", "D7-2", "D7-3", "D7-4", "D7-5"])
 })
 
+// ── E6.6-7a (review do Gemini, achados #3, #4, #5): SÓ TESTES. Expectativa: expected.json → e66_7a ──────────────────────────────────────
+test("X13 — rBasis chega ao motor: POINTS ⇒ evidenceRef diferente de NET; NET explícito == padrão; combinado com pnlBasis também difere (achado #3: apagar a linha do rBasis deixava a suíte verde)", () => {
+  const ref = (options?: Any): string => okOf(call(options === undefined ? {} : { options })).evidence.evidenceRef
+  const base = ref(), net = ref({ rBasis: "NET" }), pts = ref({ rBasis: "POINTS" })
+  assert.equal(net, base, "NET explícito é o padrão")
+  assert.notEqual(pts, net, "rBasis POINTS precisa mudar o evidenceRef")
+  assert.notEqual(ref({ rBasis: "POINTS", pnlBasis: "GROSS" }), ref({ pnlBasis: "GROSS" }), "rBasis também conta junto com pnlBasis")
+  assert.notEqual(ref({ rBasis: "POINTS", pnlBasis: "GROSS" }), pts, "e pnlBasis também conta junto com rBasis")
+})
+
+test("X14 — DIVERGENT ponta a ponta (achado #4): um trade com o líquido adulterado (+5, em CÓPIA do canônico) ⇒ motor DIVERGENT; capacidade ok com reconciliation DIVERGENT e slot 'divergente'; as linhas de PERNA não mudam; a de TRADE reflete o trade adulterado; unidades separadas", () => {
+  const tampered: Any[] = structuredClone(imp.trades)
+  tampered[0].pnl.net = tampered[0].pnl.net + 5
+  const tT = toAnalyticsTrades(withRisk(tampered))
+  const d: Any = exitReasonAnalysis(tT, { ...AN } as Any)
+  assert.equal(d.reconciliation.status, "DIVERGENT", "premissa: o motor enxerga a divergência")
+  const r = okOf(call({}, ctx({ trades: tT })))
+  assert.equal(r.data.reconciliation, "DIVERGENT")
+  assert.equal(r.data.reconciliation, mapReconciliation(d.reconciliation.status))
+  assert.deepEqual(slot(r.data, "reconciliation"), { ok: true, text: "divergente" })
+  const base = okOf(call({}))
+  const legs = (x: Any): Any[] => x.data.buckets.filter((b: Any) => b.unit === "LEG")
+  const trades = (x: Any): Any[] => x.data.buckets.filter((b: Any) => b.unit === "TRADE")
+  assert.deepEqual(legs(r), legs(base), "a divergência é MOSTRADA, não corrigida: as pernas seguem iguais")
+  const tTarget = (x: Any): Any => trades(x).find((b: Any) => b.reason === "TARGET")
+  assert.equal(tTarget(base).pnlNet.toFixed(2), "152.80")
+  assert.equal(tTarget(r).pnlNet.toFixed(2), "157.80", "o trade adulterado é o 1º (TARGET): +5 só na unidade TRADE")
+  assert.equal(r.data.buckets.length, 9)
+  assert.notEqual(r.evidence.evidenceRef, base.evidence.evidenceRef, "outro conjunto de trades ⇒ outra evidência")
+  assert.notEqual(tampered[0].pnl.net, imp.trades[0].pnl.net, "a cópia foi adulterada e o canônico original não")
+})
+
+test("X15 — LITERAIS da fixture CY escritos à mão (achado #5): 8 pernas (TARGET 4, STOP 3, MANUAL 1, UNKNOWN 0) e 6 trades (TARGET 2, STOP 2, MANUAL 1, MIXED 1, UNKNOWN 0), com os valores derivados em pontos (US$ 10/pt, comissão US$ 2,40 por perna)", () => {
+  const r = okOf(call({}))
+  const cell = (unit: string, reason: string): Any => r.data.buckets.find((b: Any) => b.unit === unit && b.reason === reason)
+  // [unidade, motivo, contagem, líquido em US$ (string de 2 casas) | null]
+  const LITERAL: [string, string, number, string | null][] = [
+    ["LEG", "TARGET", 4, "210.40"], // +4 +8 +6 +4 = 22 pts · 220,00 − 4×2,40
+    ["LEG", "STOP", 3, "-197.20"], // −4 −5 −10 = −19 pts · −190,00 − 3×2,40
+    ["LEG", "MANUAL", 1, "7.60"], // +1 pt · 10,00 − 2,40
+    ["LEG", "UNKNOWN", 0, null],
+    ["TRADE", "TARGET", 2, "152.80"], // (+4+8) e (+4) = 16 pts · 160,00 − 3×2,40
+    ["TRADE", "STOP", 2, "-144.80"], // −4 e −10 = −14 pts · −140,00 − 2×2,40
+    ["TRADE", "MANUAL", 1, "7.60"],
+    ["TRADE", "MIXED", 1, "5.20"], // +6 −5 = +1 pt · 10,00 − 2×2,40
+    ["TRADE", "UNKNOWN", 0, null],
+  ]
+  assert.equal(r.data.buckets.length, LITERAL.length)
+  for (const [unit, reason, count, net] of LITERAL) {
+    const b = cell(unit, reason)
+    assert.ok(b, `${unit}/${reason} ausente`)
+    assert.equal(b.count, count, `${unit}/${reason} count`)
+    assert.equal(b.pnlNet === null ? null : b.pnlNet.toFixed(2), net, `${unit}/${reason} pnlNet`)
+  }
+  assert.equal(LITERAL.filter(([u]) => u === "LEG").reduce((a, x) => a + x[2], 0), 8, "Σ pernas")
+  assert.equal(LITERAL.filter(([u]) => u === "TRADE").reduce((a, x) => a + x[2], 0), 6, "Σ trades")
+})
+
 console.log(`\n${passed} testes ok`)
