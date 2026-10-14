@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 14/10/2026 — AI Partner: E6.6-7a, 7a', 2c + review adversarial do Gemini — backup até `ce767a3`; 2c só local
+Gemini (Antigravity, só leitura) revisa cada passo; eu reproduzo cada achado antes de agir (rodada 1: 6/7 confirmados; rodada 2: 3/4, 1 refutado). **E6.6-7a/7a'**: X13–X15c + G15b (rBasis, DIVERGENT por valor e quantidade, literais, cobertura parcial, minSample). **E6.6-2c**: validador barra ordens de mercado (`ADVICE` 83 → 178; homônimos só em locução; 10 falsos negativos pinados). Suíte **984 ✓**, tsc 0. Próximos: rodada 3 do Gemini, push, E6.6-7b (`undefined` ⇒ ARGS_INVALID + `buckets[].unit`), decidir FP `analise`, E6.6-8…12. Retomar por `docs/ai-partner/MEUTRADE-CHECKPOINT-2026-10-14.md`.
+
 ## ✅ 12/10/2026 — E5b × bundles de LINHAS (`rowTrades`) CORRIGIDO — só local, sem push
 Causa raiz: o índice de ids da reingestão só tinha ciclos. Conserto de 1 linha em `verify-source.ts` + `test-evidence-source-rowtrades.mts` (10 testes); baselines idênticos. Detalhe no CHANGELOG.
 
