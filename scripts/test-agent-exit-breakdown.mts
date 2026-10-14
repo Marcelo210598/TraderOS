@@ -326,4 +326,42 @@ test("X15 — LITERAIS da fixture CY escritos à mão (achado #5): 8 pernas (TAR
   assert.equal(LITERAL.filter(([u]) => u === "TRADE").reduce((a, x) => a + x[2], 0), 6, "Σ trades")
 })
 
+// ── E6.6-7a' (review do Gemini, rodada 2): SÓ TESTES. Expectativa: expected.json → e66_7a2 ───────────────────────────────────────────────
+test("X14b — DIVERGENT por QUANTIDADE ponta a ponta: o trade com a quantidade adulterada (+1, em CÓPIA do canônico) ⇒ motor DIVERGENT (divergentTotal 1); capacidade ok com reconciliation DIVERGENT e slot 'divergente'; as linhas de PERNA não mudam", () => {
+  const tampered: Any[] = structuredClone(imp.trades)
+  tampered[0].quantity = tampered[0].quantity + 1
+  const tT = toAnalyticsTrades(withRisk(tampered))
+  const d: Any = exitReasonAnalysis(tT, { ...AN } as Any)
+  assert.equal(d.reconciliation.status, "DIVERGENT", "premissa: o motor enxerga a divergência de quantidade")
+  assert.equal(d.reconciliation.divergentTotal, 1)
+  const r = okOf(call({}, ctx({ trades: tT })))
+  assert.equal(r.data.reconciliation, "DIVERGENT")
+  assert.deepEqual(slot(r.data, "reconciliation"), { ok: true, text: "divergente" })
+  const legs = (x: Any): Any[] => x.data.buckets.filter((b: Any) => b.unit === "LEG")
+  assert.deepEqual(legs(r), legs(okOf(call({}))), "a divergência é mostrada, não corrigida: as pernas seguem iguais")
+  assert.notEqual(tampered[0].quantity, imp.trades[0].quantity, "a cópia foi adulterada e o canônico original não")
+})
+
+test("X15b — LITERAIS de coverage e sampleFlag da fixture CY (achado #2 da rodada 2): toda célula com contagem > 0 tem used == total == count e ratio 1; as células vazias têm 0/0/0; a evidência declara 6 trades e sampleFlag TINY (há linhas de 1 trade/perna, abaixo do minSample 4)", () => {
+  const r = okOf(call({}))
+  const EMPTY = new Set(["LEG/UNKNOWN", "TRADE/UNKNOWN"])
+  for (const b of r.data.buckets) {
+    const full = !EMPTY.has(`${b.unit}/${b.reason}`)
+    assert.deepEqual(b.coverage, full ? { used: b.count, total: b.count, ratio: 1 } : { used: 0, total: 0, ratio: 0 }, `${b.unit}/${b.reason} coverage`)
+    assert.equal(b.count > 0, full, `${b.unit}/${b.reason}: só as UNKNOWN estão vazias nesta fixture`)
+  }
+  assert.equal(r.evidence.population.declared, 6)
+  assert.equal(r.evidence.population.sampleFlag, "TINY")
+})
+
+test("X15c — a projeção PRESERVA cobertura parcial (used ≠ total): resultado do motor montado à mão com coverage {3, 4, 0.75} numa linha de perna e {1, 5, 0.2} numa de trade sai idêntico na view (a fixture CY é toda completa e não distingue used de total; mutação N4 do review escapou do X15b)", () => {
+  const d: Any = JSON.parse(JSON.stringify(direct()))
+  d.legs.rows[0].net.coverage = { used: 3, total: 4, ratio: 0.75 }
+  d.trades.rows[0].net.coverage = { used: 1, total: 5, ratio: 0.2 }
+  const p: Any = projectExitBreakdown(d)
+  assert.notEqual(p, null)
+  assert.deepEqual(p.buckets[0].coverage, { used: 3, total: 4, ratio: 0.75 })
+  assert.deepEqual(p.buckets.find((b: Any) => b.unit === "TRADE" && b.reason === d.trades.rows[0].bucket).coverage, { used: 1, total: 5, ratio: 0.2 })
+})
+
 console.log(`\n${passed} testes ok`)

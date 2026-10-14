@@ -304,4 +304,10 @@ test("G14 — a expectativa conhece os 16 casos e as 5 decisões D6; erro ⇒ en
   assert.equal(e.aliases, t0)
 })
 
+test("G15b — minSample do ctx.analysis chega ao motor e fica no bundle (espelho do Q15 de metrics.query): 4 ≠ 30 ⇒ evidenceRef diferente; o mesmo minSample ⇒ o mesmo evidenceRef", () => {
+  const ref = (minSample: number): string => okOf(call({ groupBy: ["hour"], metricIds: ["netPnl"] }, ctx({ analysis: { timeZone: BRT, minSample } }))).evidence.evidenceRef
+  assert.notEqual(ref(4), ref(30), "minSample está nas opções registradas no bundle")
+  assert.equal(ref(4), ref(4))
+})
+
 console.log(`\n${passed} testes ok`)
