@@ -17,6 +17,7 @@ type Any = any
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const exp: Any = JSON.parse(readFileSync(`${ROOT}scripts/expectations/agent-answer.expected.json`, "utf8"))
 const E2B: Any = exp.e66_2b
+const E2C: Any = exp.e66_2c
 let passed = 0
 const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(`✓ ${name}`) }
 const REF = (c: string): string => `ev_${c.repeat(32)}`
@@ -123,7 +124,7 @@ test("L0 — o léxico do CÓDIGO == o léxico das expectativas (aprovado + exte
   same("INCONCLUSIVE", LEXICON.INCONCLUSIVE, [...L.INCONCLUSIVE.terms, ...X.INCONCLUSIVE_add])
   same("NEGATION", LEXICON.NEGATION_WORDS, X.INCONCLUSIVE_negation_words_add)
   same("EXIT_OVERCLAIM", LEXICON.EXIT_OVERCLAIM, [...L.EXIT_OVERCLAIM.terms, ...X.EXIT_OVERCLAIM_add])
-  same("ADVICE", LEXICON.ADVICE, [...L.ADVICE.terms, ...X.ADVICE_add])
+  same("ADVICE", LEXICON.ADVICE, [...L.ADVICE.terms, ...X.ADVICE_add, ...E2C.ADVICE_add])
   same("TIE", LEXICON.TIE, [...L.TIE.terms, ...X.TIE_add])
   same("COMPARISON", LEXICON.COMPARISON, [...L.COMPARISON_CONCLUSION.terms, ...X.COMPARISON_CONCLUSION_widened["words (palavra inteira)"], ...X.COMPARISON_CONCLUSION_widened.phrases])
   same("BASIS", LEXICON.BASIS, X.BASIS_words)
@@ -133,7 +134,7 @@ test("L0 — o léxico do CÓDIGO == o léxico das expectativas (aprovado + exte
   for (const [k, list] of Object.entries(LEXICON)) for (const t of list as string[]) assert.match(t, /^[a-z]+(?: [a-z]+)*$/, `${k}: termo fora da forma FLAT: ${t}`)
 })
 
-test("T1 — CADA TERMO funciona: para cada um dos 627 termos de lista (todas as categorias), a frase neutra 'Veja <termo> agora.' no contexto da categoria é rejeitada com o motivo da categoria (prova que nenhum termo está digitado/normalizado errado; o corpus escrito à mão prende só parte dos termos, medido por remoção: ver history)", () => {
+test("T1 — CADA TERMO funciona: para cada um dos 722 termos de lista (todas as categorias), a frase neutra 'Veja <termo> agora.' no contexto da categoria é rejeitada com o motivo da categoria (prova que nenhum termo está digitado/normalizado errado; o corpus escrito à mão prende só parte dos termos, medido por remoção: ver history)", () => {
   const plan: Array<[keyof typeof LEXICON, string, string]> = [
     ["NUM_WORDS", "V", "NUMBER_OUTSIDE_SLOT"], ["APPROX", "V", "NUMBER_OUTSIDE_SLOT"], ["ARITH", "V", "MODEL_ARITHMETIC"], ["CAUSAL", "V", "CAUSAL_CLAIM"], ["SCOPE", "V", "SCOPE_OVERCLAIM"],
     ["INCONCLUSIVE", "LOW", "INCONCLUSIVE_AS_CONCLUSIVE"], ["EXIT_OVERCLAIM", "V", "EXIT_REASON_OVERCLAIM"], ["ADVICE", "V", "OPERATIONAL_ADVICE"], ["TIE", "V", "TIE_OVERCLAIM"],
@@ -146,7 +147,7 @@ test("T1 — CADA TERMO funciona: para cada um dos 627 termos de lista (todas as
     const r = run(answerOf(`Veja ${term} agora.`, ctx))
     if (r.ok || !r.reasons.includes(reason)) wrong.push(`${cat}: "${term}" → ${JSON.stringify(r)}`)
   }
-  assert.equal(n, 627)
+  assert.equal(n, 722, "627 do e66_2b + 95 do e66_2c (literal escrito à mão)")
   assert.deepEqual(wrong, [])
   // e o mesmo termo NÃO é rejeitado fora do contexto que o liga (COMPARISON só em L; INCONCLUSIVE só em LOW; TIE some em TIE)
   for (const term of LEXICON.COMPARISON) assert.equal(run(answerOf(`Veja ${term} agora.`, "V")).ok === false && (run(answerOf(`Veja ${term} agora.`, "V")) as Any).reasons.includes("UNVERIFIED_USED_FOR_CONCLUSION"), false, `COMPARISON "${term}" não deve ligar em V`)
@@ -258,6 +259,48 @@ test("S1 — guardas estáticos: validate-text.ts, validate-answer.ts e lexicon.
   }
   const lex = strip(readFileSync(`${ROOT}src/lib/agent/lexicon.ts`, "utf8"))
   assert.equal(/\bfunction\b|=>|\bif\s*\(/.test(lex), false, "lexicon.ts deve ser só dado")
+})
+
+// ── E6.6-2c (achado #1 do review do Gemini): imperativos de mercado. Expectativa: expected.json → e66_2c ───────────────────────────────────
+test("H2 — E6.6-2c: TODA frase de ordem de mercado do corpus (as 13 do Gemini + as extras) é rejeitada com EXATAMENTE ['OPERATIONAL_ADVICE'] no contexto V", () => {
+  const sentences: string[] = E2C.must_reject.sentences
+  assert.ok(sentences.length >= 13)
+  const wrong: string[] = []
+  for (const t of sentences) {
+    const r = run(answerOf(t, "V"))
+    if (r.ok || JSON.stringify(r.reasons) !== JSON.stringify(["OPERATIONAL_ADVICE"])) wrong.push(`"${t}" → ${JSON.stringify(r)}`)
+  }
+  assert.deepEqual(wrong, [], `\n${wrong.join("\n")}`)
+})
+
+test("H3 — E6.6-2c: as frases ANALÍTICAS legítimas com os homônimos (venda, entre, corte, saída, compra…) continuam aceitas em V; as 18 do e66_2b também (C3 intacto)", () => {
+  const sentences: string[] = E2C.must_accept.sentences
+  assert.equal(sentences.length, 17)
+  const wrong = sentences.filter((t) => !run(answerOf(t, "V")).ok)
+  assert.deepEqual(wrong, [])
+  for (const guard of ["entre comprado e vendido", "a venda de", "o corte de prejuízo", "A saída ocorreu"]) assert.ok(sentences.some((t) => t.toLowerCase().includes(guard.toLowerCase())), `guarda de homônimo ausente do corpus: ${guard}`)
+})
+
+test("H4 — E6.6-2c: HOMÔNIMOS nunca soltos: nenhum termo de ADVICE é a palavra venda/entre/corte/saia/compra/vende/feche/realize/segure/fique/opere; todo termo novo que COMEÇA por um homônimo tem ≥ 2 palavras", () => {
+  const BARE = ["venda", "entre", "corte", "saia", "compra", "vende", "feche", "realize", "segure", "fique", "opere"]
+  for (const b of BARE) assert.equal((LEXICON.ADVICE as readonly string[]).includes(b), false, `"${b}" solto em ADVICE`)
+  for (const t of E2C.ADVICE_add as string[]) if (BARE.includes(t.split(" ")[0])) assert.ok(t.split(" ").length >= 2, `"${t}" é homônimo solto`)
+})
+
+test("H5 — E6.6-2c: os FALSOS NEGATIVOS declarados continuam ok:true (pinados): se um passar a ser rejeitado, a lista é revisada DE PROPÓSITO", () => {
+  const sentences: string[] = E2C.known_false_negatives_2c.sentences
+  assert.equal(sentences.length, 10)
+  const nowRejected = sentences.filter((t) => !run(answerOf(t, "V")).ok)
+  assert.deepEqual(nowRejected, [])
+})
+
+test("H6 — E6.6-2c: contagens à mão: ADVICE ganhou exatamente 95 termos (83 → 178), sem duplicata; os 11 grupos que o T1 percorre somam 722 (627 + 95)", () => {
+  assert.equal((E2C.ADVICE_add as string[]).length, 95)
+  assert.equal(new Set(E2C.ADVICE_add as string[]).size, 95)
+  assert.equal(new Set(LEXICON.ADVICE as readonly string[]).size, 178, "sem duplicata dentro de ADVICE")
+  assert.equal(LEXICON.ADVICE.length, 178)
+  const GROUPS = ["NUM_WORDS", "APPROX", "ARITH", "CAUSAL", "SCOPE", "INCONCLUSIVE", "EXIT_OVERCLAIM", "ADVICE", "TIE", "COMPARISON", "BASIS"] as const
+  assert.equal(GROUPS.reduce((a, g) => a + (LEXICON[g] as readonly string[]).length, 0), 722)
 })
 
 console.log(`\n${passed} testes ok`)

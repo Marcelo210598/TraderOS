@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-14 E6.6-2c — CORREÇÃO MINHA na expectativa, achada pelo teste H5 na fase vermelha: 'Corte a mão pela metade.' NÃO era falso negativo (já é rejeitada hoje por 'metade'); trocada por 'Corte a mão.', que passa de fato. A expectativa tinha sido commitada (ba63147) sem eu ter rodado as 10 frases de known_false_negatives_2c contra o validador; as 17 de must_accept eu tinha rodado.",
       "2026-10-14 E6.6-2c — EXPECTATIVA escrita antes do código (bloco e66_2c). Achado #1 do review do Gemini (13 de 15 ordens de mercado passavam). Aprovação do Marcelo (delegada) em 14/10. Termos novos: 95 (verbos unívocos soltos; homônimos só em locução composta; falsos negativos declarados e pinados). FALSO POSITIVO PREEXISTENTE achado de passagem: 'analise' rejeita o substantivo 'análise'; NÃO tratado aqui, fica para decisão do Marcelo.",
       "2026-10-14 E6.6-7a' — EXPECTATIVA escrita antes dos testes (bloco e66_7a2). Review do Gemini, rodada 2: 4 achados; conferi na prática: #1 minSample em metrics.groups REFUTADO (a mutação é pega por sampleFlag), #2 worstFlag/coverage/share CONFIRMADO só para o X13–X15 isolado (o arquivo inteiro pega), #3 quantidade CONFIRMADO, #4 VERIFIED_PARTIAL CONFIRMADO o fato (0 ocorrências nas 3 capacidades), fora de escopo agora. Aprovação do Marcelo (delegada ao Gemini) em 14/10: E6.6-7, 52a1303 e E6.6-7a; push para o backup privado feito (5ea5a82).",
       "2026-10-14 E6.6-7a — EXPECTATIVA escrita antes dos testes (bloco e66_7a). Review do Gemini (Antigravity, só leitura) achou 7 itens no E6.6-7; confirmei #1–#6 na prática. Este passo cobre #3, #4, #5 (só testes). #2 (undefined em args = INVÁLIDO, decisão do Marcelo) e #6 (buckets[].unit citável) ficam para o E6.6-7b; #1 (imperativos de mercado no validador) para o E6.6-2c. RETIFICAÇÃO #2 (a registrar no 7b): no E6.6-7 eu inverti a asserção do X9 para undefined ⇒ ARGS_INVALID e NÃO atualizei o texto do X9 nem registrei aqui; o texto do X9 em e66_7 ainda diz 'args ausentes ({} ou undefined) = pedido completo válido'.",
@@ -4015,7 +4016,7 @@
         "Entre comprado agora.",
         "Venda no fechamento.",
         "Saia.",
-        "Corte a mão pela metade.",
+        "Corte a mão.",
         "Comprar no suporte.",
         "Venda a posição.",
         "Feche.",

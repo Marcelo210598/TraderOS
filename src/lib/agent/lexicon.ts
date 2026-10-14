@@ -1,5 +1,5 @@
 // Léxico do validador de TEXTO LIVRE (E6.6-2b). DADO PURO: listas de termos já na forma FLAT (minúsculas, sem acento, palavras separadas por 1 espaço).
-// Fonte: scripts/expectations/agent-answer.expected.json → `lexicon` (aprovado em 13/10/2026) + `e66_2b.lexicon_extension` (B3, aprovado). Um teste
+// Fonte: scripts/expectations/agent-answer.expected.json → `lexicon` (aprovado em 13/10/2026) + `e66_2b.lexicon_extension` (B3, aprovado) + `e66_2c.ADVICE_add` (14/10/2026). Um teste
 // (test-agent-validate-text.mts, L0) compara estas listas com as das expectativas termo a termo: não podem derivar. Sem lógica neste arquivo.
 export const LEXICON = {
   /** 108 termos */
@@ -70,7 +70,7 @@ export const LEXICON = {
     "foi stopado", "acionou o stop", "atingiu o stop", "bateu no stop", "bateu o stop", "acionou o alvo", "atingiu o alvo", "bateu no alvo",
     "bateu o alvo", "real stop", "actual stop", "hit the stop", "stopped out", "hit the target", "true stop",
   ],
-  /** 83 termos */
+  /** 178 termos (83 do e66_2b + 95 do e66_2c) */
   ADVICE: [
     "recomendo", "recomenda", "recomendamos", "sugiro", "sugere", "sugerimos", "aconselho", "aconselha", "voce deveria", "voce deve", "voce devia",
     "voce precisa", "deveria", "devia", "o ideal e", "o melhor e", "seria bom", "seria melhor", "e preferivel", "o certo e", "vale a pena", "convem",
@@ -80,6 +80,28 @@ export const LEXICON = {
     "vale revisar", "vale verificar", "vale checar", "vale olhar", "merece atencao", "merece revisao", "o que fazer", "proximo passo",
     "proximos passos", "faca", "recommend", "recommended", "suggest", "should", "you must", "consider", "avoid", "try", "advise", "recomiendo",
     "sugiero", "deberias", "debes", "evita", "considera", "intenta",
+    // E6.6-2c (achado #1 do review do Gemini): imperativos de mercado. 95 termos novos.
+    // verbos unívocos (soltos)
+    "compre", "zere", "alavanque", "desalavanque", "proteja", "aguarde",
+    // stop, alvo e lucro
+    "suba o stop", "suba o alvo", "mova o stop", "mova o alvo", "baixe o stop", "abaixe o stop", "aperte o stop", "afrouxe o stop", "amplie o stop",
+    "remova o stop", "tire o stop", "coloque o stop", "coloque stop", "posicione o stop", "defina o stop", "trave o lucro", "trave lucro",
+    // posição
+    "feche o trade", "feche a posicao", "feche a operacao", "feche tudo", "feche metade", "feche parcial", "segure a posicao", "segure o trade",
+    "segure ate o alvo", "mantenha a posicao", "mantenha o trade", "mantenha o stop", "dobre a mao", "dobre a posicao", "adicione contratos",
+    "adicione a posicao", "realize o lucro", "realize lucro", "realize a parcial", "realize parcial", "deixe correr", "deixe o lucro correr",
+    "fique de fora", "fique fora", "fique comprado", "fique vendido",
+    // homônimos: SÓ em locução composta (nunca venda, entre, corte, saia soltos)
+    "venda agora", "venda tudo", "venda metade", "venda no suporte", "venda na resistencia", "venda no topo", "venda no rompimento",
+    "venda no pullback", "nao venda", "entre agora", "entre na proxima", "entre no pullback", "entre no rompimento", "nao entre em", "nao entre no",
+    "corte o prejuizo", "corte os prejuizos", "corte a perda", "corte as perdas", "corte cedo", "corte a posicao", "saia da posicao",
+    "saia do trade", "saia da operacao", "saia do mercado", "saia agora", "saia cedo", "saia antes", "saia na abertura", "saia no alvo",
+    "opere pequeno",
+    // tamanho de mão
+    "opere grande", "opere apenas", "opere somente", "buy now",
+    // inglês
+    "sell now", "buy the dip", "sell the rally", "close the trade", "close your position", "move your stop", "raise your stop", "lower your stop",
+    "stay out", "hold the position", "cut your losses",
   ],
   /** 24 termos */
   TIE: [
