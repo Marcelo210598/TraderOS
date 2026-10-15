@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-15 E6.6-8 — EXPECTATIVA escrita antes do código (bloco e66_8). D8-1…D8-6 aprovadas (Gemini, delegação do Marcelo); alias de ENTRADA opção (A): conta/estratégia fora, E6.6-5-A em passo próprio. Fatos do motor pré-conferidos (exploração não commitada): chaves por dimensão ('09', '2026-03-02' segunda, '2026-03', '1'), GROUP_NOT_FOUND vira bReason, session ⇒ verify UNVERIFIABLE, handle scope GROUP/TOTAL, conclusive; fixture nova CZ (24 trades) com literais medidos. CÉLULA CONGELADA a mudar no commit de código: e66_1.reason_catalog (+GROUP_NOT_FOUND, 29 → 30) com entrada no history. LIMITAÇÕES DECLARADAS: exitReason UNKNOWN fora do 8; conclusive: as duas condições (métricas e confiança) não foram separadas por nenhuma fixture medida.",
       "2026-10-15 E6.6-7b — EXPECTATIVA escrita antes do código (bloco e66_7b). Autorizado pelo Gemini (delegação do Marcelo) em 15/10. (1) #2: o comportamento (undefined ⇒ ARGS_INVALID) já existia e é testado; o ERRO era de TEXTO — a expectativa do X9 e o TÍTULO do teste X9 diziam 'undefined = pedido válido' enquanto o corpo assere o contrário. Texto do X9 corrigido agora. (2) #6: `buckets[].unit` vira folha de slot enum (tabela bucketUnit: TRADE='trades', LEG='pernas'); REVOGA a decisão e66_1.leaf_table.not_slot_leaves_by_decision['buckets[].unit'] e muda 1 linha do P3. `unit` de métrica continua fora dos slots. Erro meu a registrar: eu dei o #2 como 'texto do X9 + history', sem perceber que o título do teste também mentia.",
       "2026-10-15 E6.6-2c-fix-B — EXPECTATIVA escrita antes do código (bloco e66_2c_fixB). Rodada 3 do Gemini #1 e #4 (burlas): plurais, 'vamos…', 'hora de…', ES/EN óbvios. 39 locuções. Decisões do Gemini (delegação do Marcelo): manter H11 pinado; imperativos antigos = limitação conhecida; infinitivos e sílaba quebrada = FN declarado. Pré-conferi as 41 frases numa cópia patchada ANTES de commitar e medi a fase vermelha (24 de 24 ordens passam hoje).",
       "2026-10-15 E6.6-2c-fix-A — EXPECTATIVA escrita antes do código (bloco e66_2c_fixA). Rodada 3 do Gemini: dos 6 achados, os 6 reproduzidos por mim. Este passo trata #2 (subjuntivo do 2c: compre/zere/proteja/aguarde) e #3 (FP antigos: considera/evita/sugere/cuidado/faca/analise). Decisão (Gemini, delegação do Marcelo): remover os 10 como termos soltos, trocar por locução; 'Compre.' etc. = FN declarado; validate-text.ts intocado. Antes de commitar conferi as 34 frases numa cópia patchada do léxico (todas se comportam como escritas). ACHADO NOVO: 5 locuções do 2c (mantenha a posicao, fique de fora, nao entre no, feche o trade, realize o lucro) também colidem com o subjuntivo e a troca por locução NÃO as resolve; ficam como FALSOS POSITIVOS pinados (H11) até decisão. O burlas (#1, #4, #5) ficam para o fix-B.",
@@ -4360,6 +4361,202 @@
           "V3 baseline: 993 ⇒ 998 ✓ (+4 U1–U4, +1 X9b); P3 e X9 mudam só o TÍTULO e o valor assertado de uma linha."
       ],
       "baselines": "993 linhas ✓ do test:domain (saída salva antes) permanecem idênticas exceto: título do P3, título do X9, +U1–U4, +X9b e o contador do arquivo novo. src/ muda SÓ em format.ts (1 tabela) e slot-path.ts (1 linha). Nenhum arquivo de evidence/ metrics/ ingest/ domain/ agent-capabilities/ muda."
+  },
+  "e66_8": {
+      "status": "EXPECTATIVA (15/10/2026) escrita ANTES do código do E6.6-8 (`metrics.compare@1`). Decisões D8-1 a D8-6 APROVADAS (Gemini, delegação do Marcelo) como propostas; alias de ENTRADA = opção (A): conta/estratégia FORA do 8, E6.6-5-A em passo próprio logo depois (resolveAlias em label.ts, NÃO misturar). FATOS DO MOTOR PRÉ-CONFERIDOS em 15/10 num script de exploração (não commitado) com as fixtures CY e CZ: chaves por dimensão, GROUP_NOT_FOUND, session ⇒ UNVERIFIABLE, handle do derivado, conclusive.",
+      "files": [
+          "src/lib/agent-capabilities/metrics-compare.ts (novo)",
+          "src/lib/agent-capabilities/project.ts (projectCompare, lista branca; sem spread)",
+          "src/lib/agent/format.ts (só REASON_TEXTS: +GROUP_NOT_FOUND)",
+          "scripts/test-agent-metrics-compare.mts (novo, registrado no test:domain depois do test-agent-exit-breakdown)",
+          "scripts/test-agent-format.mts + e66_1.reason_catalog (texts +1, expected_count 29 → 30; MUDANÇA DE CÉLULA CONGELADA, vai no commit de código com entrada no history)"
+      ],
+      "nao_muda": "views.ts (CompareViewSchema já pronto), slot-path.ts (compare('') já mapeado), validate-text.ts, evidence/, metrics/, ingest/, domain/. Se um destes precisar mudar, PARAR e pedir aprovação.",
+      "signature": "metricsCompare(rawArgs: unknown, ctx: MetricsQueryContext): { result: Envelope; entry: { capability: 'metrics.compare@1'; handle; view } | null }. Contexto, preferências do usuário, sal e arquivo vêm do SERVIDOR (Q12); sem userId; nunca lança. Aliases NÃO entram (sem tabela de alias: conta/estratégia fora).",
+      "args": {
+          "forma": "união discriminada ESTRITA por `mode` (D8-1). strictObject em tudo; campo extra, mode ausente/desconhecido, args que não são objeto e `undefined` ⇒ ARGS_INVALID.",
+          "GROUP": {
+              "mode": "'GROUP'",
+              "groupBy": "1 ou 2 dimensões distintas de: day, tradingDay, week, month, dayOfWeek, hour, symbol, direction, exitReason",
+              "a": "objeto com EXATAMENTE as dimensões de groupBy (nem mais, nem menos)",
+              "b": "idem",
+              "metricIds": "1–10, sem repetição, todas em METRIC_IDS",
+              "filters": "QUERY_FILTERS_SCHEMA (compartilhado)",
+              "options": "QUERY_OPTIONS_SCHEMA"
+          },
+          "PERIOD": {
+              "mode": "'PERIOD'",
+              "a": "{from,to} datas ISO de calendário real, from ≤ to",
+              "b": "idem",
+              "metricIds": "idem",
+              "filters": "QUERY_FILTERS_SCHEMA SEM from/to (presentes ⇒ ARGS_INVALID: o motor sobrescreve)",
+              "options": "idem"
+          },
+          "valores_na_entrada_D8_3": {
+              "day / tradingDay": "'AAAA-MM-DD' data real; motor recebe a mesma string",
+              "week": "'AAAA-MM-DD' data real que seja SEGUNDA-FEIRA (a chave do motor é a segunda; outra data ⇒ ARGS_INVALID)",
+              "month": "'AAAA-MM' (mês 01–12)",
+              "dayOfWeek": "inteiro 0–6; motor recebe a string do dígito (1 ⇒ '1')",
+              "hour": "inteiro 0–23; motor recebe 2 dígitos (9 ⇒ '09')",
+              "symbol": "regex /^[A-Za-z0-9 ._-]{1,32}$/ (a mesma do filtro)",
+              "direction": "'LONG'|'SHORT'",
+              "exitReason": "'TARGET'|'STOP'|'MANUAL'|'MIXED' (UNKNOWN fora: a chave do motor para 'desconhecido' não foi pré-conferida ⇒ fail-closed; limitação DECLARADA)"
+          },
+          "excluidas_por_decisao": [
+              "account",
+              "strategy (alias de ENTRADA: E6.6-5-A)",
+              "session (a Evidence não tem referência: V6.query fica SKIPPED ⇒ UNVERIFIABLE; medido em 15/10: verdict.verify = UNVERIFIABLE/S_ASSOCIATION_UNVERIFIABLE)",
+              "strategyVersion, setup, timeframe (D6-1, texto livre)"
+          ],
+          "validacao_D8_2": [
+              "a e b iguais DEPOIS da coerção ⇒ ARGS_INVALID",
+              "PERIOD com intervalos que se sobrepõem (a.from ≤ b.to e b.from ≤ a.to) ⇒ ARGS_INVALID (o modelo não vê a limitação PERIODS_OVERLAP do motor, então o servidor fecha)",
+              "from > to num lado ⇒ ARGS_INVALID",
+              "erro de ENTRADA do motor (MetricsInputError) ⇒ ARGS_INVALID; qualquer outro erro/invariante ⇒ ENGINE_REFUSED; sal ausente (import salgado sem sal) ⇒ ENGINE_REFUSED"
+          ]
+      },
+      "flow": "valida e coage args ⇒ explainDerived(op GROUP_COMPARISON | PERIOD_COMPARISON; args {groupBy,a,b,metrics}|{a,b,metrics}; filters; options do servidor + pnlBasis/rBasis do modelo) ⇒ projectCompare(explained.derived.result) por LISTA BRANCA ⇒ assessBundle(derivedEvidenceBundle(explained), {refEpoch, source, population:{sampleFlag: PIOR de A e B, conclusive: view.conclusive}}) ⇒ okResult(view). Nenhuma segunda chamada ao motor: a view sai do `result` do PRÓPRIO derivado (o que o V6 reexecuta).",
+      "view_mapping": {
+          "a.sampleSize / b.sampleSize": "result.a.sampleSize / result.b.sampleSize",
+          "a.key / b.key GROUP": "para cada dimensão d: groupKeyPart(d, result.a.key.key[d], tabela vazia, refEpoch) (group-key.ts, a MESMA do metrics.groups: '09' ⇒ '09:00', '2026-03-02' ⇒ '02/03/2026' etc.). Valor fora do formato ⇒ ENGINE_REFUSED. `result.a.key.label`/`label` do motor NUNCA são lidos.",
+          "a.key / b.key PERIOD (D8-4)": "[ 'DD/MM/AAAA a DD/MM/AAAA' ] montado com formatDate sobre result.a.period.from/to. period cru, tradeSetHash, label ('A'/'B'), limitations e confidence do Side NÃO vão para a view.",
+          "deltas[i]": "{ metricId: m.metric, unit: m.unit, a: m.a.value, aReason: m.a.reason, b: m.b.value, bReason: m.b.reason, delta: m.delta, ratio: m.ratio, reason: m.reason } na ORDEM de metricIds",
+          "recusa_ENGINE_REFUSED": "unit fora do UnitSchema; lado null sem motivo; delta null sem `reason`; motivo fora do catálogo REASON_TEXTS; schema da view (strict) falha; nº de deltas ≠ nº de metricIds.",
+          "conclusive_D8_6": "true SÓ se metricIds ≥ 1 E todo `m.conclusive` do motor é true E summary.confidence === 'OK'. O mesmo valor vai para handle.population.conclusive.",
+          "handle": "subject DERIVED; scope GROUP no modo GROUP (GROUP_OPS do assess.ts) e TOTAL no modo PERIOD (PERIOD_COMPARISON não está em GROUP_OPS; comportamento do assess, não decisão nova); population.declared = afterFilters (população após filtros, as duas pontas juntas); sampleFlag = PIOR entre A e B; confidence = summary.confidence; verify VALID; sem arquivo ⇒ combined NOT_VERIFIED (+ limite VERIFICATION_INFRA_MISSING); com arquivo ⇒ VERIFIED; adulterado ⇒ TAMPERED_OR_MISMATCH."
+      },
+      "fixtures": {
+          "CY": "a do E6.6-7 (6 trades, 8 pernas, Sim101/Sim102, horas 9/10/14, 02–10/03/2026; analysis minSample 4). Medido: hour '09' vs '14' ⇒ A 3 trades LOW, B 2 trades TINY; confidence UNRELIABLE; profitFactor B indisponível NO_LOSERS ⇒ reason UNAVAILABLE_B; direction LONG vs SHORT ⇒ SHORT inexistente (GROUP_NOT_FOUND). PERIOD 02–06/03 vs 09–10/03 ⇒ A 4 trades OK, B 2 TINY.",
+          "CZ_nova": "24 trades de 1 perna, conta Sim101, entrada 2000, 12 dias úteis (02,03,04,05,06,09,10,11,12,13,16,17 de março de 2026) × 2 horários (09:00 e 14:00, saída 10 min depois). Saída 1996 (STOP, rótulo Stop1) quando: hora 09 e i%3==0; hora 14 e i%2==0 (i = índice do dia 0..11); senão 2004 (Target1). analysis {timeZone America/Sao_Paulo, minSample 10}. ASSIMÉTRICA de propósito (A≠B) para a troca de lados ser pega.",
+          "CZ_literais_medidos_em_15_10": {
+              "hour 09 vs 14, metricIds totalTrades,netPnl,winRate,profitFactor,averageTrade": {
+                  "sampleSize": [
+                      12,
+                      12
+                  ],
+                  "flags": [
+                      "OK",
+                      "OK"
+                  ],
+                  "confidence": "OK",
+                  "limitations": [],
+                  "totalTrades": {
+                      "a": 12,
+                      "b": 12,
+                      "delta": 0,
+                      "ratio": 1,
+                      "reason": null,
+                      "conclusive": true
+                  },
+                  "netPnl": {
+                      "a": 131.2,
+                      "b": -28.8,
+                      "delta": -160,
+                      "ratio": null,
+                      "reason": "RATIO_SIGN_DIFFERS",
+                      "conclusive": true
+                  },
+                  "winRate": {
+                      "a": 66.67,
+                      "b": 50,
+                      "delta": -16.67,
+                      "ratio": 0.75,
+                      "reason": null,
+                      "conclusive": true
+                  },
+                  "profitFactor": {
+                      "a": 1.7736,
+                      "b": 0.8868,
+                      "delta": -0.8868,
+                      "ratio": 0.5,
+                      "reason": null,
+                      "conclusive": true
+                  },
+                  "averageTrade": {
+                      "a": 10.93,
+                      "b": -2.4,
+                      "delta": -13.33,
+                      "ratio": null,
+                      "reason": "RATIO_SIGN_DIFFERS",
+                      "conclusive": true
+                  }
+              },
+              "week '2026-03-02' vs '2026-03-09', totalTrades": {
+                  "a": 4,
+                  "b": 2
+              },
+              "dayOfWeek+hour (1,'09') vs (2,'09')": {
+                  "keyA": [
+                      "1",
+                      "09"
+                  ],
+                  "keyB": [
+                      "2",
+                      "09"
+                  ],
+                  "totalTrades": [
+                      1,
+                      1
+                  ]
+              },
+              "PERIOD 02–06/03 vs 09–13/03, totalTrades,netPnl": {
+                  "sampleSize": [
+                      10,
+                      10
+                  ],
+                  "flags": [
+                      "OK",
+                      "OK"
+                  ],
+                  "confidence": "OK"
+              },
+              "hour 09 vs 14, averageR,totalR": {
+                  "confidence": "LIMITED",
+                  "limitations": [
+                      "COVERAGE_PARTIAL"
+                  ],
+                  "coverage_ratio": 0.3333,
+                  "conclusive": false
+              }
+          }
+      },
+      "decisions_D8": {
+          "D8-1": "união discriminada por mode",
+          "D8-2": "a==b, from>to, sobreposição e filters.from/to no PERIOD ⇒ ARGS_INVALID",
+          "D8-3": "coerção no servidor (tabela valores_na_entrada_D8_3); week só segunda; exitReason sem UNKNOWN",
+          "D8-4": "PERIOD: key = ['DD/MM/AAAA a DD/MM/AAAA']",
+          "D8-5": "REASON_TEXTS ganha GROUP_NOT_FOUND = 'o grupo não existe nos dados' (sem dígito); catálogo 29 → 30",
+          "D8-6": "conclusive = todas as métricas conclusive E confiança OK; sampleFlag = pior lado",
+          "D8-7_E6.6-5-A": "conta/estratégia fora; resolveAlias é passo próprio"
+      },
+      "cases": [
+          "K1 ORÁCULO GROUP (CZ, hour '09' vs '14', 5 métricas): view.a/b (sampleSize), cada delta (a, aReason, b, bReason, delta, ratio, reason) e `conclusive` == compareGroups DIRETO; os literais de CZ_literais_medidos escritos À MÃO no teste conferem; deltas na ordem de metricIds; texto de cada slot (a,b,delta,ratio e seus motivos) == formatador sobre o valor direto (ex.: netPnl.delta 'US$ -160,00'? ⇒ o teste usa o formatador; ratio null com reason RATIO_SIGN_DIFFERS ⇒ 'indisponível (os valores têm sinais opostos e a razão não se aplica)')",
+          "K2 ORÁCULO PERIOD (CZ, 02–06/03 vs 09–13/03): mesmo oráculo contra comparePeriods DIRETO; a.key == ['02/03/2026 a 06/03/2026'], b.key == ['09/03/2026 a 13/03/2026']",
+          "K3 DIMENSÕES: cada uma das 9 permitidas funciona (CZ: day, tradingDay, week, month, dayOfWeek, hour, symbol, direction, exitReason) e a chave sai como o groupKeyPart; 2 dimensões (dayOfWeek+hour) ⇒ key de 2 partes; coerção (hour 9 == '09'; dayOfWeek 1 == '1'); account, strategy, session, setup, timeframe, strategyVersion ⇒ ARGS_INVALID; week que não é segunda ⇒ ARGS_INVALID; exitReason UNKNOWN ⇒ ARGS_INVALID",
+          "K4 LADO AUSENTE (CY, direction LONG vs SHORT): resposta OK (nunca erro); b.sampleSize 0; todos os bReason == 'GROUP_NOT_FOUND'; delta/ratio null com reason UNAVAILABLE_B; o slot de b e de delta renderiza 'indisponível (o grupo não existe nos dados)' / 'indisponível (o valor não está disponível no lado B da comparação)'; conclusive false",
+          "K5 MOTIVOS DE DELTA/RATIO: RATIO_SIGN_DIFFERS (CZ netPnl), UNAVAILABLE_B + bReason NO_LOSERS (CY profitFactor), UNAVAILABLE_BOTH (CZ com filtro exitReason TARGET ⇒ profitFactor sem perdedor nos dois lados), RATIO_A_ZERO (a construir no teste a partir do resultado direto, se ocorrer; senão pinar a ausência): cada um renderiza o texto do catálogo no slot certo; delta não-null com ratio null: slot do delta renderiza o NÚMERO e o do ratio, o motivo",
+          "K6 HANDLE E VEREDITO: DERIVED, declared = afterFilters (24 em CZ), sampleFlag = PIOR lado (CY hour 09/14 ⇒ TINY; CZ ⇒ OK), confidence do summary (CY UNRELIABLE, CZ OK, CZ averageR/totalR LIMITED); conclusive: CZ 5 métricas ⇒ true; CY ⇒ false; CZ averageR,totalR ⇒ false (cobertura 0,3333); handle.population.conclusive == view.conclusive; scope GROUP em GROUP e TOTAL em PERIOD; verify VALID; sem arquivo NOT_VERIFIED + estrutural; COM arquivo VERIFIED (E5b real de derivado); arquivo adulterado ⇒ TAMPERED_OR_MISMATCH",
+          "K7 FILTROS E BASE: filters (symbol/direction/hour/exitReason/from-to) ⇒ == direto com os mesmos filtros; options.pnlBasis GROSS ≠ NET quando o motor diz ≠; from > to ⇒ ARGS_INVALID",
+          "K8 PRIVACIDADE: o envelope serializado NÃO contém 'Sim101/Sim102', nome de arquivo, tradeSetHash, hash completo, importId, 'acc_'/'str_', label do motor ('09:00' só aparece como a chave formatada permitida), nem period cru ('2026-03-02'); a view só tem a lista branca (a{key,sampleSize}, b, deltas, conclusive); ctx com campo T0 extra no resultado do motor não vaza (projeção por lista branca, mutação planejada)",
+          "K9 ARGS_INVALID: mode ausente/desconhecido, campo extra, a==b (inclusive depois da coerção: hour 9 e hour '09' não existe na entrada, mas 9 e 9 sim), lado com dimensão faltando ou sobrando, groupBy repetido/3 dimensões/vazio, metricIds vazio/repetido/>10/desconhecido, PERIOD com sobreposição (inclusive tocando no mesmo dia), from>to, filters.from/to no PERIOD, args que não são objeto, `undefined`, filtro de conta/estratégia; nunca lança. ENGINE_REFUSED: sal ausente, ctx sem trades/importRecords, ctx hostil (sem lançar), projeção que recusa",
+          "K10 PROJEÇÃO PURA: projectCompare recusa (null) unit fora do UnitSchema, lado null sem motivo, delta null sem reason, motivo fora do catálogo, número de deltas errado, key vazia, `result` sem a/b/metrics; nunca lança; entrada hostil; não altera a entrada",
+          "K11 FIM A FIM: ledger ⇒ validateAnswer ⇒ renderAnswer com slots de a.sampleSize, b.sampleSize, a.key[0], deltas[i].a/b/delta/ratio e motivos; a resposta com texto 'o resultado de B ficou menor' sem claim ⇒ regras do validador (COMPARISON_CONCLUSION) valem como nas outras capacidades (só ASSERT com verificado e conclusivo)",
+          "K12 CATÁLOGO: REASON_TEXTS tem GROUP_NOT_FOUND (30 entradas) e formatUnavailable('GROUP_NOT_FOUND') == 'indisponível (o grupo não existe nos dados)'; o texto não tem dígito"
+      ],
+      "mutations_planned": [
+          "M1 trocar A e B no mapeamento do view ⇒ K1/K2 falham (CZ é assimétrica)",
+          "M2 inverter o sinal do delta (a − b) ⇒ K1 falha",
+          "M3 aceitar `session` em groupBy ⇒ K3 falha",
+          "M4 aceitar sobreposição de períodos ⇒ K9 falha",
+          "M5 remover GROUP_NOT_FOUND do catálogo ⇒ K12/K4/T(catálogo) falham",
+          "M6 ler result.a.key.label (nome cru) em vez do groupKeyPart ⇒ K3/K8 falham",
+          "M7 conclusive := true sempre ⇒ K6 falha (CY e averageR/totalR)",
+          "M8 projeção sem lista branca (spread do side do motor) ⇒ K8 falha com campo T0 injetado",
+          "M9 `hour: 9` sem coerção para '09' ⇒ K3 falha (grupo não encontrado em vez de A)",
+          "M10 sampleFlag = o MELHOR lado em vez do pior ⇒ K6 falha (CY: TINY esperado)",
+          "EQUIVALENTE DECLARADA E1: conclusive := (confidence === 'OK') ignorando as métricas, ou := (todas as métricas conclusive) ignorando a confiança. Nas 3 configurações medidas (CY, CZ, CZ averageR/totalR) as duas condições coincidem, então uma mutação que ignora UMA delas escapa. Não consegui construir uma fixture que as separe sem inventar dado; o teste pina a conjunção nos 3 casos medidos e a lacuna fica registrada."
+      ],
+      "baselines": "998 linhas ✓ do test:domain (saída salva antes: 1204 linhas após o 7b) permanecem idênticas; só se acrescentam as linhas K1–K12 do arquivo novo e, no commit de código, o título/contagem do catálogo em test-agent-format (29 → 30). src/ muda em: metrics-compare.ts (novo), project.ts (+projectCompare), format.ts (+1 motivo). Nenhum arquivo de evidence/ metrics/ ingest/ domain/ muda."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
