@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-15 E6.6-2c-fix-B — EXPECTATIVA escrita antes do código (bloco e66_2c_fixB). Rodada 3 do Gemini #1 e #4 (burlas): plurais, 'vamos…', 'hora de…', ES/EN óbvios. 39 locuções. Decisões do Gemini (delegação do Marcelo): manter H11 pinado; imperativos antigos = limitação conhecida; infinitivos e sílaba quebrada = FN declarado. Pré-conferi as 41 frases numa cópia patchada ANTES de commitar e medi a fase vermelha (24 de 24 ordens passam hoje).",
       "2026-10-15 E6.6-2c-fix-A — EXPECTATIVA escrita antes do código (bloco e66_2c_fixA). Rodada 3 do Gemini: dos 6 achados, os 6 reproduzidos por mim. Este passo trata #2 (subjuntivo do 2c: compre/zere/proteja/aguarde) e #3 (FP antigos: considera/evita/sugere/cuidado/faca/analise). Decisão (Gemini, delegação do Marcelo): remover os 10 como termos soltos, trocar por locução; 'Compre.' etc. = FN declarado; validate-text.ts intocado. Antes de commitar conferi as 34 frases numa cópia patchada do léxico (todas se comportam como escritas). ACHADO NOVO: 5 locuções do 2c (mantenha a posicao, fique de fora, nao entre no, feche o trade, realize o lucro) também colidem com o subjuntivo e a troca por locução NÃO as resolve; ficam como FALSOS POSITIVOS pinados (H11) até decisão. O burlas (#1, #4, #5) ficam para o fix-B.",
       "2026-10-14 E6.6-2c — CORREÇÃO MINHA na expectativa, achada pelo teste H5 na fase vermelha: 'Corte a mão pela metade.' NÃO era falso negativo (já é rejeitada hoje por 'metade'); trocada por 'Corte a mão.', que passa de fato. A expectativa tinha sido commitada (ba63147) sem eu ter rodado as 10 frases de known_false_negatives_2c contra o validador; as 17 de must_accept eu tinha rodado.",
       "2026-10-14 E6.6-2c — EXPECTATIVA escrita antes do código (bloco e66_2c). Achado #1 do review do Gemini (13 de 15 ordens de mercado passavam). Aprovação do Marcelo (delegada) em 14/10. Termos novos: 95 (verbos unívocos soltos; homônimos só em locução composta; falsos negativos declarados e pinados). FALSO POSITIVO PREEXISTENTE achado de passagem: 'analise' rejeita o substantivo 'análise'; NÃO tratado aqui, fica para decisão do Marcelo.",
@@ -4177,6 +4178,142 @@
           "N8 tirar 'analise o grafico' ⇒ H8 falha"
       ],
       "baselines": "984 linhas ✓ do test:domain (saída salva antes: 1270 linhas) permanecem idênticas exceto: título do T1 (722→729), título do H6 e o novo conjunto H7–H11. src/ muda SÓ em lexicon.ts. Nenhum arquivo de evidence/ metrics/ ingest/ domain/ muda."
+  },
+  "e66_2c_fixB": {
+      "status": "EXPECTATIVA (15/10/2026) escrita ANTES do código do E6.6-2c-fix-B (burlas baratas, achados #1 e #4 da rodada 3 do Gemini, ambos reproduzidos por mim). Decisão (Gemini, com a delegação do Marcelo): fechar plurais imperativos, exortativos ('vamos…', 'bora…'), fórmulas de oportunidade ('hora de…', 'momento de…') e ordens óbvias em ES/EN; infinitivos soltos e sílaba quebrada ficam como FALSOS NEGATIVOS declarados e pinados; validate-text.ts NÃO muda. Também decidido: os 5 FP de locução (H11) ficam pinados e os imperativos antigos ficam como limitação conhecida (§21).",
+      "file": "src/lib/agent/lexicon.ts (só ADVICE). validate-text.ts NÃO muda. Testes em scripts/test-agent-validate-text.mts (seção E6.6-2c-fix-B).",
+      "ADVICE_add": [
+          "comprem agora",
+          "comprem no suporte",
+          "vendam agora",
+          "vendam tudo",
+          "vendam na resistencia",
+          "zerem a posicao",
+          "zerem tudo",
+          "fechem o trade",
+          "fechem a posicao",
+          "fechem tudo",
+          "protejam o capital",
+          "aguardem a confirmacao",
+          "realizem o lucro",
+          "mantenham a posicao",
+          "segurem a posicao",
+          "vamos comprar",
+          "vamos vender",
+          "vamos zerar",
+          "vamos fechar o trade",
+          "bora comprar",
+          "bora vender",
+          "hora de comprar",
+          "hora de vender",
+          "momento de comprar",
+          "momento de vender",
+          "buy at support",
+          "sell at resistance",
+          "close all positions",
+          "exit the trade",
+          "exit now",
+          "take profit now",
+          "place your stop",
+          "compra en el soporte",
+          "vende en la resistencia",
+          "cierra la posicion",
+          "cierra todo",
+          "mueve el stop",
+          "compra ahora",
+          "vende ahora"
+      ],
+      "counts": {
+          "ADVICE_add": 39,
+          "ADVICE_before": 185,
+          "ADVICE_after": 224,
+          "LEXICON_total_before": 729,
+          "LEXICON_total_after": 768,
+          "grupos": "15 plurais + 6 exortativos + 4 oportunidade + 7 EN + 7 ES"
+      },
+      "rule": "Toda forma plural/3ª pessoa do plural é ambígua com o subjuntivo ('que os investidores comprem'): SÓ em locução de ≥ 2 palavras, nunca 'comprem' solto. Custo ACEITADO: as locuções plurais herdam o falso positivo de subjuntivo já pinado no H11 ('as corretoras fechem o trade'). Pré-conferido em cópia patchada do léxico (15/10): as 41 frases abaixo (24+7+10) se comportam como descrito.",
+      "must_reject": {
+          "note": "Hoje as 24 PASSAM (ok:true; fase vermelha medida em 15/10). Depois: cada uma rejeitada com EXATAMENTE ['OPERATIONAL_ADVICE'] em V.",
+          "sentences": [
+              "Comprem no suporte.",
+              "Vendam na resistência.",
+              "Zerem a posição.",
+              "Fechem o trade.",
+              "Vamos comprar no rompimento.",
+              "Vamos vender tudo.",
+              "Vamos zerar a posição.",
+              "É hora de comprar no rompimento.",
+              "Hora de vender.",
+              "Momento de comprar.",
+              "Bora vender tudo.",
+              "Aguardem a confirmação.",
+              "Protejam o capital.",
+              "Buy at support.",
+              "Sell at resistance.",
+              "Close all positions.",
+              "Exit the trade.",
+              "Exit now.",
+              "Take profit now.",
+              "Place your stop.",
+              "Compra en el soporte.",
+              "Vende en la resistencia.",
+              "Cierra la posicion.",
+              "Mueve el stop a la entrada."
+          ]
+      },
+      "must_accept": {
+          "note": "Guardas contra FP dos termos novos: continuam aceitas (ok:true, V) hoje e depois.",
+          "sentences": [
+              "A hora de entrada aparece nas linhas abaixo.",
+              "O momento da compra foi registrado como entrada.",
+              "Vamos ver os valores descritos abaixo.",
+              "Os trades que fecharam o dia positivo aparecem abaixo.",
+              "The buy side and the sell side appear in separate lines.",
+              "The exit reason is manual in this slice.",
+              "La compra y la venta aparecen en lineas separadas."
+          ]
+      },
+      "known_false_negatives_fixB": {
+          "note": "ACEITOS e PINADOS (ok:true hoje e depois): infinitivos soltos, perífrases, plural sozinho, sílaba quebrada e 'take profit at'. Se um passar a ser rejeitado, a lista é revisada DE PROPÓSITO. Custo de fechar: FP em descrição ('o robô deve comprar…', 'fechar o trade' como evento).",
+          "sentences": [
+              "Fechar o trade antes da notícia.",
+              "Zerar a posição antes do fechamento.",
+              "Proteger o capital com stop curto.",
+              "Que tal comprar agora?",
+              "Basta comprar no suporte.",
+              "Deve comprar no rompimento.",
+              "co mpre no suporte.",
+              "com pre no suporte.",
+              "Comprem.",
+              "Take profit at the first target."
+          ]
+      },
+      "known_limitation_6": "Achado #6 (BAIXO): 'Feche metade agora.' dispara ['NUMBER_OUTSIDE_SLOT','OPERATIONAL_ADVICE'] porque 'metade' é de NUM_WORDS. Não é erro (a rejeição vale); só documentado.",
+      "test_changes": [
+          "L0: ADVICE passa a comparar com [...L, ...X, ...E2C].filter(sem FIXA.ADVICE_remove).concat(FIXA.ADVICE_add, FIXB.ADVICE_add).",
+          "T1: total literal 729 → 768 (escrito à mão).",
+          "H6: ADVICE 185 → 224 (literal), sem duplicata; total 768.",
+          "C1/C3 (231 casos), H3, H7: NÃO mudam; continuam passando."
+      ],
+      "cases": [
+          "B1 FASE VERMELHA: com o léxico ATUAL, as 24 frases de must_reject passam (ok:true); o teste novo H12 falha. Medido em 15/10 antes de escrever esta expectativa.",
+          "H12 must_reject: as 24 rejeitadas com exatamente ['OPERATIONAL_ADVICE'].",
+          "H13 must_accept: as 7 aceitas (ok:true) em V.",
+          "H14 regra: todo termo de ADVICE_add tem ≥ 2 palavras; nenhum repete termo já existente de ADVICE.",
+          "H15 FN pinados: as 10 de known_false_negatives_fixB seguem ok:true.",
+          "H6 ajustado (224 / 768)."
+      ],
+      "mutations_planned": [
+          "P1 tirar 'comprem no suporte' (código e expectativa trocando por typo 'comprem no suporto') ⇒ H12 falha",
+          "P2 'comprem' solto no lugar de 'comprem agora' (código e expectativa) ⇒ H14 falha",
+          "P3 'vamos' solto no lugar de 'vamos comprar' (código e expectativa) ⇒ H14/H13 falham ('Vamos ver os valores…')",
+          "P4 'hora de' solto ⇒ H13 falha ('A hora de entrada…')",
+          "P5 'buy' solto ⇒ H13 falha ('The buy side…')",
+          "P6 'compra' solto no lugar de 'compra ahora' ⇒ H13/H14 falham",
+          "P7 typo num termo só no código ('zerem a posiao') ⇒ L0/T1 falham",
+          "P8 adicionar 'comprar' solto (infinitivo) ⇒ H15 falha"
+      ],
+      "baselines": "989 linhas ✓ do test:domain (saída salva antes: 1275 linhas) permanecem idênticas exceto: título do T1 (729→768), título/contagem do H6, o contador final e o novo conjunto H12–H15. src/ muda SÓ em lexicon.ts. Nenhum arquivo de evidence/ metrics/ ingest/ domain/ muda."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
