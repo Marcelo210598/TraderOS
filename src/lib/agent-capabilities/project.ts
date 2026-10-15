@@ -101,7 +101,7 @@ export function projectExitBreakdown(result: unknown): ExitBreakdownProjection |
 // conhece os campos usados (label, tradeSetHash, period cru, limitations, coverage, comparable… nunca são lidos); a chave sai SÓ por groupKeyPart (nunca `key.label` do motor)
 // ou pelas datas formatadas. Qualquer coisa fora do contrato ⇒ null (a capacidade recusa com ENGINE_REFUSED).
 import { CompareViewSchema, RankViewSchema, UnitSchema } from "../agent/views.ts"
-import { REASON_TEXTS, formatDate } from "../agent/format.ts"
+import { REASON_TEXTS, formatDate, formatEnum } from "../agent/format.ts"
 import { newAliasTable, type AliasTable } from "../agent/label.ts"
 import { groupKeyPart, type GroupDimension } from "./group-key.ts"
 
@@ -251,6 +251,50 @@ export function projectRank(result: unknown, refEpoch: string, aliases?: AliasTa
     const order: Flag[] = ["OK", "LOW", "TINY"]
     const worst = r.rows.reduce<number>((w, row) => Math.max(w, order.indexOf(row.sampleFlag)), 0)
     return { view: view.data, worstFlag: order[worst], aliases: table }
+  } catch {
+    return null
+  }
+}
+
+// ── exit.analysis: a COMPARAÇÃO (E6.6-10) ────────────────────────────────────
+// Projeção do `result` do derivado EXIT_REASON_COMPARISON_LEGS / _TRADES (o que o V6 verifica) para a CompareView. Lista branca (o resto — label, key.label, tradeSetHash, period,
+// limitations, confidence por lado — nunca é lido). A chave de cada lado é [palavra do motivo, palavra da UNIDADE] (D10-4), SÓ por formatEnum: a unidade diz o que `sampleSize` conta.
+const ExitSideIn = z.object({ key: z.object({ key: z.array(z.string()).length(1) }), sampleSize: z.number().int().nonnegative(), sampleFlag: FlagIn })
+const ExitCmpIn = z.object({ kind: z.literal("EXIT_REASON_COMPARISON"), unit: z.enum(["LEG", "TRADE"]), a: ExitSideIn, b: ExitSideIn, metrics: z.array(CmpMetricIn).min(1), confidence: z.enum(["OK", "LIMITED", "UNRELIABLE"]) })
+const LEG_REASONS: readonly string[] = ["TARGET", "STOP", "MANUAL", "UNKNOWN"]
+const TRADE_REASONS: readonly string[] = ["TARGET", "STOP", "MANUAL", "MIXED", "UNKNOWN"]
+
+export function projectExitComparison(result: unknown, unit: "LEG" | "TRADE"): CompareProjection | null {
+  try {
+    if (unit !== "LEG" && unit !== "TRADE") return null
+    const parsed = ExitCmpIn.safeParse(result)
+    if (!parsed.success || parsed.data.unit !== unit) return null
+    const r = parsed.data
+    const allowed = unit === "LEG" ? LEG_REASONS : TRADE_REASONS
+    const keyOf = (side: z.infer<typeof ExitSideIn>): string[] | null => {
+      const reason = side.key.key[0]
+      if (!allowed.includes(reason)) return null
+      const word = formatEnum("exitReason", reason)
+      const unitWord = formatEnum("bucketUnit", unit)
+      return word.ok && unitWord.ok ? [word.text, unitWord.text] : null
+    }
+    const ka = keyOf(r.a)
+    const kb = keyOf(r.b)
+    if (ka === null || kb === null) return null
+    const deltas: Array<Record<string, unknown>> = []
+    for (const m of r.metrics) {
+      if (!UnitSchema.safeParse(m.unit).success) return null
+      if (!knownReason(m.a.reason) || !knownReason(m.b.reason) || !knownReason(m.reason)) return null
+      if ((m.a.value === null && m.a.reason === null) || (m.b.value === null && m.b.reason === null)) return null // indisponível sem motivo: nunca zero, nunca em branco
+      if ((m.delta === null || m.ratio === null) && m.reason === null) return null
+      deltas.push({ metricId: m.metric, unit: m.unit, a: m.a.value, aReason: m.a.reason, b: m.b.value, bReason: m.b.reason, delta: m.delta, ratio: m.ratio, reason: m.reason })
+    }
+    const conclusive = r.metrics.every((m) => m.conclusive) && r.confidence === "OK"
+    const view = CompareViewSchema.safeParse({ a: { key: ka, sampleSize: r.a.sampleSize }, b: { key: kb, sampleSize: r.b.sampleSize }, deltas, conclusive })
+    if (!view.success) return null
+    const order: Flag[] = ["OK", "LOW", "TINY"]
+    const worst = Math.max(order.indexOf(r.a.sampleFlag), order.indexOf(r.b.sampleFlag))
+    return { view: view.data, worstFlag: order[worst], confidence: r.confidence }
   } catch {
     return null
   }

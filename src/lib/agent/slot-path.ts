@@ -72,7 +72,7 @@ const LEAVES: Readonly<Record<SlotViewId, Readonly<Record<string, Spec>>>> = Obj
   "exit.breakdown@1": { ...buckets, reconciliation: { kind: "enum", table: "reconciliation" } },
   "metrics.compare@1": compare(""),
   "rank.groups@1": { "rows[].rank": count, "rows[].key[]": text, ...metricValue("rows[].value"), "rows[].sampleFlag": { kind: "enum", table: "sampleFlag" }, "rows[].contribution": { kind: "number", unit: "fraction", reasonField: "contributionReason" }, "rows[].contributionReason": { kind: "reason" } },
-  "exit.analysis@1": { ...buckets, ...compare("comparison.") },
+  "exit.analysis@1": { ...buckets, reconciliation: { kind: "enum", table: "reconciliation" }, ...compare("comparison.") },
   "evidence.explain@1": {
     page: count, pageCount: count, total: count,
     "trades[].ordinal": count, "trades[].quantity": count, "trades[].direction": { kind: "enum", table: "direction" }, "trades[].entryPrice": price, "trades[].exitPrice": price,

@@ -31,7 +31,8 @@ export const ExitBucketViewSchema = z
     coverage: Coverage,
   })
   .strict()
-export const ExitBreakdownViewSchema = z.object({ buckets: z.array(ExitBucketViewSchema), reconciliation: z.enum(["RECONCILED", "DIVERGENT", "NOT_COMPARABLE"]) }).strict()
+const ReconciliationWord = z.enum(["RECONCILED", "DIVERGENT", "NOT_COMPARABLE"])
+export const ExitBreakdownViewSchema = z.object({ buckets: z.array(ExitBucketViewSchema), reconciliation: ReconciliationWord }).strict()
 
 export const CompareViewSchema = z
   .object({
@@ -58,7 +59,8 @@ export const RankRowViewSchema = z
   .strict()
 export const RankViewSchema = z.object({ rows: z.array(RankRowViewSchema), orderedBy: z.string() }).strict()
 
-export const ExitAnalysisViewSchema = z.object({ buckets: z.array(ExitBucketViewSchema), comparison: CompareViewSchema.nullable() }).strict()
+/** E6.6-10 (D10-3): `reconciliation` (a da ANÁLISE, igual à do exit.breakdown) entra na view: pernas e trades lado a lado exigem dizer se conferem. */
+export const ExitAnalysisViewSchema = z.object({ buckets: z.array(ExitBucketViewSchema), comparison: CompareViewSchema.nullable(), reconciliation: ReconciliationWord }).strict()
 
 // ── evidence.explain (T2): MESMA projeção de rótulo; sem rowNo/rowHash/tradeId; ≤ K trades ──
 export const LegViewSchema = z

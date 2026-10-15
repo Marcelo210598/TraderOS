@@ -12,7 +12,7 @@ const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(
 const cov = { used: 3, total: 3, ratio: 1 }
 const bucket = (reason: string, unit: string): Any => ({ reason, unit, count: 3, pnlNet: 150, pnlNetReason: null, share: 0.25, shareReason: null, coverage: cov })
 const V_EXIT: Any = { buckets: [bucket("TARGET", "LEG"), bucket("TARGET", "TRADE")], reconciliation: "RECONCILED" }
-const V_ANALYSIS: Any = { buckets: [bucket("STOP", "LEG"), bucket("STOP", "TRADE")], comparison: null }
+const V_ANALYSIS: Any = { buckets: [bucket("STOP", "LEG"), bucket("STOP", "TRADE")], comparison: null, reconciliation: "RECONCILED" }
 const bad = (r: Any, code: string) => assert.deepEqual(r, { ok: false, code })
 
 test("U1 — formatEnum('bucketUnit'): TRADE = 'trades', LEG = 'pernas'; fora da tabela (singular, minúsculas, protótipo, null) ⇒ FORMAT_INVALID; palavras sem dígito e distintas", () => {

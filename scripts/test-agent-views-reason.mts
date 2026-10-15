@@ -59,9 +59,9 @@ test("W3/W4/W6 — metrics.compare e exit.analysis: a/b com o motivo do lado, de
   err(C, v, "deltas[2].reason", "FORMAT_INVALID")
   ok(C, v, "deltas[2].ratio", "1,5000")
   const both = compare([delta({ a: null, aReason: "NO_TRADES", b: null, bReason: "NO_TRADES", delta: null, ratio: null, reason: "UNAVAILABLE_BOTH" })])
-  ok("exit.analysis@1", { buckets: [bucket()], comparison: both }, "comparison.deltas[0].delta", "indisponível (o valor não está disponível em nenhum dos dois lados da comparação)")
-  ok("exit.analysis@1", { buckets: [bucket({ pnlNet: null, pnlNetReason: "NO_LEGS" })], comparison: null }, "buckets[0].pnlNet", "indisponível (não há ordens registradas)")
-  err("exit.analysis@1", { buckets: [bucket()], comparison: null }, "comparison.deltas[0].delta", "SLOT_PATH_INVALID")
+  ok("exit.analysis@1", { buckets: [bucket()], comparison: both, reconciliation: "RECONCILED" }, "comparison.deltas[0].delta", "indisponível (o valor não está disponível em nenhum dos dois lados da comparação)")
+  ok("exit.analysis@1", { buckets: [bucket({ pnlNet: null, pnlNetReason: "NO_LEGS" })], comparison: null, reconciliation: "RECONCILED" }, "buckets[0].pnlNet", "indisponível (não há ordens registradas)")
+  err("exit.analysis@1", { buckets: [bucket()], comparison: null, reconciliation: "RECONCILED" }, "comparison.deltas[0].delta", "SLOT_PATH_INVALID")
 })
 
 test("W5 — rank.groups: contribution null com motivo ⇒ 'indisponível (…)'; motivo citável", () => {
@@ -83,7 +83,7 @@ test("W7 — motivo FORA do catálogo ou null com valor null ⇒ FORMAT_INVALID 
 test("W8 — formato ANTIGO (sem os campos de motivo) ⇒ VIEW_INVALID em exit.breakdown, metrics.compare, rank.groups e exit.analysis; campo T0 extra continua VIEW_INVALID", () => {
   const oldB = (): Any => { const b = bucket(); delete b.pnlNetReason; delete b.shareReason; return b }
   err(EB, { buckets: [oldB()], reconciliation: "RECONCILED" }, "buckets[0].count", "VIEW_INVALID")
-  err("exit.analysis@1", { buckets: [oldB()], comparison: null }, "buckets[0].count", "VIEW_INVALID")
+  err("exit.analysis@1", { buckets: [oldB()], comparison: null, reconciliation: "RECONCILED" }, "buckets[0].count", "VIEW_INVALID")
   for (const k of ["aReason", "bReason", "reason"]) { const d = delta(); delete d[k]; err("metrics.compare@1", compare([d]), "deltas[0].a", "VIEW_INVALID") }
   const r = row(); delete r.contributionReason
   err("rank.groups@1", { rows: [r], orderedBy: "x" }, "rows[0].rank", "VIEW_INVALID")

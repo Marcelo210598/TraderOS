@@ -25,8 +25,8 @@ const V_GROUPS: Any = { groupBy: ["account"], groups: [{ key: ["Conta A"], sampl
 const DELTAS = [{ metricId: "netPnl", unit: "usd", a: 100, aReason: null, b: 150, bReason: null, delta: -50, ratio: 0.6667, reason: null }, { metricId: "profitFactor", unit: "ratio", a: null, aReason: null, b: 1.5, bReason: null, delta: null, ratio: null, reason: null }]
 const V_COMPARE: Any = { a: { key: ["Conta A"], sampleSize: 4 }, b: { key: ["Conta B"], sampleSize: 6 }, deltas: DELTAS, conclusive: false }
 const V_RANK: Any = { rows: [{ rank: 1, key: ["Conta A"], value: mv("netPnl", 80, "usd", null), sampleFlag: "OK", tiedWithPrevious: false, contribution: 0.2556, contributionReason: null }], orderedBy: "netPnl" }
-const V_ANALYSIS_NULL: Any = { buckets: [bucket("TARGET", 3, 150, 0.25)], comparison: null }
-const V_ANALYSIS: Any = { buckets: [bucket("TARGET", 3, 150, 0.25)], comparison: V_COMPARE }
+const V_ANALYSIS_NULL: Any = { buckets: [bucket("TARGET", 3, 150, 0.25)], comparison: null, reconciliation: "RECONCILED" }
+const V_ANALYSIS: Any = { buckets: [bucket("TARGET", 3, 150, 0.25)], comparison: V_COMPARE, reconciliation: "RECONCILED" }
 const leg = (role: string, price: number | null, label: string): Any => ({ role, price, quantity: 2, label, pnlNet: role === "EXIT" ? 40 : null })
 const V_EXPLAIN: Any = { page: 1, pageCount: 1, total: 1, trades: [{ ordinal: 1, instrument: "MNQ", direction: "LONG", quantity: 2, entryLocal: "2026-01-05T09:30:00", exitLocal: "2026-01-05T09:40:00", entryPrice: 21034.25, exitPrice: 21054.5, pnlNet: 40, pnlGross: 41.2, exitReason: "TARGET", accountAlias: "Conta A", legs: [leg("ENTRY", 21034.25, "Entry"), leg("EXIT", 21054.5, "Target1")] }] }
 
@@ -95,6 +95,8 @@ test("P4 — metrics.groups, metrics.compare, rank.groups, exit.analysis, eviden
   ok("rank.groups@1", V_RANK, "rows[0].sampleFlag", "amostra adequada")
   ok("exit.analysis@1", V_ANALYSIS, "buckets[0].share", "25,00%")
   ok("exit.analysis@1", V_ANALYSIS, "comparison.deltas[0].delta", "-US$ 50,00")
+  ok("exit.analysis@1", V_ANALYSIS, "reconciliation", "conciliado") // E6.6-10 (D10-3): a folha reconciliation do exit.analysis
+  ok("exit.analysis@1", V_ANALYSIS_NULL, "reconciliation", "conciliado")
   err("exit.analysis@1", V_ANALYSIS_NULL, "comparison.deltas[0].delta", "SLOT_PATH_INVALID") // descer em null
   err("exit.analysis@1", V_ANALYSIS_NULL, "comparison.a.sampleSize", "SLOT_PATH_INVALID")
   const X = "evidence.explain@1"
