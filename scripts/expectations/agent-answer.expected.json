@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-15 E6.6-2c-fix-A — EXPECTATIVA escrita antes do código (bloco e66_2c_fixA). Rodada 3 do Gemini: dos 6 achados, os 6 reproduzidos por mim. Este passo trata #2 (subjuntivo do 2c: compre/zere/proteja/aguarde) e #3 (FP antigos: considera/evita/sugere/cuidado/faca/analise). Decisão (Gemini, delegação do Marcelo): remover os 10 como termos soltos, trocar por locução; 'Compre.' etc. = FN declarado; validate-text.ts intocado. Antes de commitar conferi as 34 frases numa cópia patchada do léxico (todas se comportam como escritas). ACHADO NOVO: 5 locuções do 2c (mantenha a posicao, fique de fora, nao entre no, feche o trade, realize o lucro) também colidem com o subjuntivo e a troca por locução NÃO as resolve; ficam como FALSOS POSITIVOS pinados (H11) até decisão. O burlas (#1, #4, #5) ficam para o fix-B.",
       "2026-10-14 E6.6-2c — CORREÇÃO MINHA na expectativa, achada pelo teste H5 na fase vermelha: 'Corte a mão pela metade.' NÃO era falso negativo (já é rejeitada hoje por 'metade'); trocada por 'Corte a mão.', que passa de fato. A expectativa tinha sido commitada (ba63147) sem eu ter rodado as 10 frases de known_false_negatives_2c contra o validador; as 17 de must_accept eu tinha rodado.",
       "2026-10-14 E6.6-2c — EXPECTATIVA escrita antes do código (bloco e66_2c). Achado #1 do review do Gemini (13 de 15 ordens de mercado passavam). Aprovação do Marcelo (delegada) em 14/10. Termos novos: 95 (verbos unívocos soltos; homônimos só em locução composta; falsos negativos declarados e pinados). FALSO POSITIVO PREEXISTENTE achado de passagem: 'analise' rejeita o substantivo 'análise'; NÃO tratado aqui, fica para decisão do Marcelo.",
       "2026-10-14 E6.6-7a' — EXPECTATIVA escrita antes dos testes (bloco e66_7a2). Review do Gemini, rodada 2: 4 achados; conferi na prática: #1 minSample em metrics.groups REFUTADO (a mutação é pega por sampleFlag), #2 worstFlag/coverage/share CONFIRMADO só para o X13–X15 isolado (o arquivo inteiro pega), #3 quantidade CONFIRMADO, #4 VERIFIED_PARTIAL CONFIRMADO o fato (0 ocorrências nas 3 capacidades), fora de escopo agora. Aprovação do Marcelo (delegada ao Gemini) em 14/10: E6.6-7, 52a1303 e E6.6-7a; push para o backup privado feito (5ea5a82).",
@@ -4051,6 +4052,131 @@
       "M9 trocar 'feche o trade' por 'feche' solto ⇒ H4 falha (e 'O fechamento…' segue aceita, mas 'feche' é imperativo unívoco: decisão de design já tomada, só locução)"
     ],
     "baselines": "979 linhas ✓ do test:domain permanecem idênticas; só se acrescentam as linhas H1–H6. src/ muda SÓ em lexicon.ts. Nenhum arquivo de evidence/ metrics/ ingest/ domain/ muda."
+  },
+  "e66_2c_fixA": {
+      "status": "EXPECTATIVA (15/10/2026) escrita ANTES do código do E6.6-2c-fix-A. Origem: rodada 3 do Gemini (achados #2 e #3, CONFIRMADOS por mim na prática: 9/9 e 8/8 frases analíticas rejeitadas). Decisões (Gemini, com a delegação do Marcelo): (1) remover os 6 termos soltos considera/evita/sugere/cuidado/faca/analise, só em locução; (2) compre/zere/proteja/aguarde saem de soltos e viram locução composta, mesma regra de venda/entre/corte/saia; 'Compre.' solto vira falso negativo declarado; (3) validate-text.ts NÃO muda. ERRO MEU registrado: no 2c eu chamei esses 4 verbos de 'unívocos' e não são — o subjuntivo da 3ª pessoa tem a mesma forma do imperativo; o H3 só tinha 1ª/2ª pessoa.",
+      "file": "src/lib/agent/lexicon.ts (só ADVICE). validate-text.ts NÃO muda. Testes em scripts/test-agent-validate-text.mts (seção E6.6-2c-fix-A) + L0, T1, H5, H6 ajustados (ver test_changes).",
+      "ADVICE_remove": [
+          "considera",
+          "evita",
+          "sugere",
+          "cuidado",
+          "faca",
+          "analise",
+          "compre",
+          "zere",
+          "proteja",
+          "aguarde"
+      ],
+      "ADVICE_add": [
+          "evita operar",
+          "tome cuidado",
+          "tenha cuidado",
+          "nao faca",
+          "analise o grafico",
+          "analise seus trades",
+          "compre agora",
+          "compre no suporte",
+          "compre no rompimento",
+          "compre no pullback",
+          "zere a posicao",
+          "zere tudo",
+          "zere agora",
+          "proteja o capital",
+          "proteja o lucro",
+          "aguarde a confirmacao",
+          "aguarde o fechamento"
+      ],
+      "counts": {
+          "ADVICE_remove": 10,
+          "ADVICE_add": 17,
+          "ADVICE_before": 178,
+          "ADVICE_after": 185,
+          "LEXICON_total_before": 722,
+          "LEXICON_total_after": 729
+      },
+      "rule": "Todo termo de ADVICE que seja forma ambígua (imperativo = subjuntivo/3ª pessoa do indicativo, ou substantivo) NUNCA entra solto; só em locução de ≥ 2 palavras. As 10 palavras de ADVICE_remove não podem aparecer como termo solto em ADVICE. Pré-conferido em cópia patchada do léxico (15/10): as 15+5+10+4 frases abaixo se comportam como descrito.",
+      "must_accept": {
+          "note": "Frases ANALÍTICAS que hoje são rejeitadas com ['OPERATIONAL_ADVICE'] (fase vermelha) e passam a ser aceitas (ok:true, contexto V). 4 do subjuntivo do 2c + 1 do Gemini (#11) + 8 FP antigos + 2 de 'análise'.",
+          "sentences": [
+              "Caso o mercado proteja a mínima do dia, o resultado é positivo.",
+              "O sistema exige que a ordem aguarde execução na fila da bolsa.",
+              "O backtest simula uma regra que compre na abertura.",
+              "A regra de risco exige que a custódia zere as posições no fim do dia.",
+              "A regra faz com que a execução aguarde confirmação da corretora.",
+              "A métrica considera apenas os ciclos fechados no período.",
+              "O relatório considera a taxa de corretagem declarada.",
+              "A estratégia evita operações durante a divulgação do payroll.",
+              "Esse filtro evita a contagem duplicada de contratos.",
+              "O drawdown sugere um risco concentrado no início do mês.",
+              "A assimetria dos retornos sugere cauda longa positiva.",
+              "O controle de alavancagem foi executado com cuidado redobrado.",
+              "Padrão operacional conhecido no mercado como faca caindo.",
+              "Esta análise mostra o resultado.",
+              "A análise está nos slots."
+          ]
+      },
+      "must_reject_kept": {
+          "note": "Ordens que CONTINUAM rejeitadas com EXATAMENTE ['OPERATIONAL_ADVICE'] (no V) depois da troca para locução; inclui 'Evita operar así.' (caso r12 do corpus 231) e as locuções que substituem os termos removidos.",
+          "sentences": [
+              "Compre no suporte.",
+              "Zere a posicao agora.",
+              "Proteja o capital operando pequeno.",
+              "Aguarde a confirmação do candle.",
+              "Evita operar así.",
+              "Tome cuidado com o stop.",
+              "Analise o gráfico antes.",
+              "Não faça isso.",
+              "Compre agora.",
+              "Zere tudo."
+          ]
+      },
+      "known_false_negatives_fixA": {
+          "note": "NOVOS falsos negativos ACEITOS e PINADOS (ok:true hoje, e depois): verbo sozinho. Somam-se aos 10 do 2c.",
+          "sentences": [
+              "Compre.",
+              "Zere.",
+              "Proteja.",
+              "Aguarde."
+          ]
+      },
+      "known_false_positives_fixA": {
+          "note": "FALSOS POSITIVOS que a troca para locução NÃO resolve (a locução em si ocorre em subjuntivo: 'faz com que o robô mantenha a posicao…'). Continuam rejeitados com ['OPERATIONAL_ADVICE'] e PINADOS; se um dia passarem a ser aceitos, o teste cai e a lista é revisada de propósito. Mexer exigiria contexto no validador (o Gemini mandou NÃO mexer em validate-text.ts). PENDENTE de decisão: manter como está, ou tirar essas 5 locuções (mantenha a posicao, fique de fora, nao entre no, feche o trade, realize o lucro) e declarar os FN.",
+          "sentences": [
+              "A estratégia faz com que o robô mantenha a posicao até o fechamento.",
+              "A filtragem faz com que o trade perdedor fique de fora da média.",
+              "Essa perna faz com que o ciclo não entre no agrupamento dos trades.",
+              "Caso a corretora feche o trade por limite de perda diária.",
+              "É comum que o mercado realize o lucro acumulado da semana."
+          ]
+      },
+      "test_changes": [
+          "L0: passa a comparar ADVICE com ([...L.ADVICE.terms, ...X.ADVICE_add, ...E2C.ADVICE_add] sem os de FIXA.ADVICE_remove) + FIXA.ADVICE_add.",
+          "T1: total literal 722 → 729 (escrito à mão).",
+          "H5: known_false_negatives_2c continua com 10; novo H10 prende os 4 de fixA (H5 inalterado).",
+          "H6: ADVICE 178 → 185 (literal), sem duplicata; total 729.",
+          "C1/C3 (231 casos): NÃO mudam; r12 'Evita operar así.' segue rejeitado por 'evita operar'."
+      ],
+      "cases": [
+          "F1 FASE VERMELHA: com o léxico ATUAL, as 15 frases de must_accept são rejeitadas (os 3 achados reproduzidos) — o teste novo H7 falha. Registrado antes do código.",
+          "H7 must_accept: as 15 frases aceitas (ok:true) em V.",
+          "H8 must_reject_kept: as 10 rejeitadas com EXATAMENTE ['OPERATIONAL_ADVICE'] em V.",
+          "H9 regra: nenhuma das 10 palavras de ADVICE_remove é termo solto de ADVICE; todo termo de ADVICE_add tem ≥ 2 palavras.",
+          "H10 FN pinados: as 4 frases de known_false_negatives_fixA seguem ok:true.",
+          "H11 FP pinados: as 5 frases de known_false_positives_fixA seguem rejeitadas com ['OPERATIONAL_ADVICE'].",
+          "H6 ajustado (185 / 729)."
+      ],
+      "mutations_planned": [
+          "N1 recolocar 'sugere' solto ⇒ H7/H9 falham",
+          "N2 recolocar 'compre' solto ⇒ H7/H9 falham (e H10 'Compre.' deixa de ser FN)",
+          "N3 remover 'evita operar' (código e expectativa juntos) ⇒ C1/C3 caso r12 falha",
+          "N4 remover 'compre no suporte' do código ⇒ H8 falha",
+          "N5 acrescentar 'aguarde' solto ⇒ H7/H9 falham",
+          "N6 digitar 'zere a posiao' ⇒ T1/L0 falham",
+          "N7 remover 'mantenha a posicao' do código ⇒ H11 falha (FP pinado deixa de existir: revisão de propósito)",
+          "N8 tirar 'analise o grafico' ⇒ H8 falha"
+      ],
+      "baselines": "984 linhas ✓ do test:domain (saída salva antes: 1270 linhas) permanecem idênticas exceto: título do T1 (722→729), título do H6 e o novo conjunto H7–H11. src/ muda SÓ em lexicon.ts. Nenhum arquivo de evidence/ metrics/ ingest/ domain/ muda."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
