@@ -194,3 +194,16 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Varredura (15/10), SEM tratar, para decidir:** os imperativos ANTIGOS têm o mesmo problema no subjuntivo/3ª pessoa: `revise`, `verifique`, `confira`, `aumente`, `reduza`, `foque`, `mude`; 3ª pessoa do indicativo `recomenda`, `aconselha`, `convem`; substantivo `dica`; `deveria`. ("Ela deveria ser lida como média." é rejeitada.) `observe` e `deve` passam. Decisão pendente: tratar como o fix-A (locução) ou aceitar o custo.
 - **Próximos:** fix-B (burlas baratas) → rodada 4 do Gemini → 7b.
 
+## 22. Resultado do E6.6-2c-fix-B (15/10/2026) — burlas baratas (rodada 3 do Gemini, #1 e #4)
+
+- **Decisões do Gemini (delegação do Marcelo):** manter os 5 FP de locução pinados (H11); imperativos antigos = limitação conhecida (§21); seguir com o fix-B; infinitivos soltos e sílaba quebrada = falso negativo declarado.
+- **Entrega:** só `lexicon.ts`. `ADVICE` 185 → **224** (+39 locuções): 15 plurais (`comprem agora/no suporte`, `vendam agora/tudo/na resistencia`, `zerem a posicao/tudo`, `fechem o trade/a posicao/tudo`, `protejam o capital`, `aguardem a confirmacao`, `realizem o lucro`, `mantenham/segurem a posicao`), 6 exortativos (`vamos comprar/vender/zerar/fechar o trade`, `bora comprar/vender`), 4 de oportunidade (`hora/momento de comprar/vender`), 7 EN, 7 ES. Total do léxico 729 → **768**. **Regra:** plural também é subjuntivo, então só locução.
+- **Fase vermelha:** medida ANTES de escrever a expectativa (24 de 24 ordens passavam). Expectativa pré-conferida (41 frases) numa cópia patchada antes de commitar.
+- **Testes:** H12 (24 ordens rejeitadas, exatamente `["OPERATIONAL_ADVICE"]`) · H13 (7 guardas de FP aceitas: "A hora de entrada…", "Vamos ver…", "The buy side…", "La compra y la venta…") · H14 (regra: ≥ 2 palavras, sem repetir, nenhum solto) · H15 (10 FN pinados). L0, T1 e H6 ajustados.
+- **Mutações (8, todas pegas):** typo ⇒ H12 · `comprem` solto ⇒ H14 · `vamos`/`hora de`/`buy` soltos ⇒ H13 · `compra` solto ⇒ H3 · typo só no código ⇒ L0 · infinitivo `comprar` solto ⇒ H5.
+- **Suíte 989 ⇒ 993 ✓**; linha a linha idêntica ao baseline exceto títulos do T1 e do H6 e as 4 linhas novas (H12–H15); `tsc` 0; ESLint limpo; só `lexicon.ts` em `src/`.
+- **Custo aceito:** as locuções plurais herdam o FP de subjuntivo do H11 ("as corretoras fechem o trade").
+- **Falsos negativos declarados (H15):** infinitivos soltos ("Fechar o trade antes da notícia."), perífrases ("Que tal comprar agora?", "Basta comprar…", "Deve comprar…"), plural sozinho ("Comprem."), sílaba quebrada ("co mpre", "com pre") e "Take profit at the first target.".
+- **#6 documentado, sem código:** "Feche metade agora." dispara `NUMBER_OUTSIDE_SLOT` + `OPERATIONAL_ADVICE` por causa de "metade"; a rejeição vale.
+- **Próximos:** rodada 4 do Gemini (fix-A + fix-B) → push pro backup → E6.6-7b.
+

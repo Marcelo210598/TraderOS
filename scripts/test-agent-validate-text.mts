@@ -19,6 +19,7 @@ const exp: Any = JSON.parse(readFileSync(`${ROOT}scripts/expectations/agent-answ
 const E2B: Any = exp.e66_2b
 const E2C: Any = exp.e66_2c
 const FIXA: Any = exp.e66_2c_fixA
+const FIXB: Any = exp.e66_2c_fixB
 let passed = 0
 const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(`✓ ${name}`) }
 const REF = (c: string): string => `ev_${c.repeat(32)}`
@@ -125,7 +126,7 @@ test("L0 — o léxico do CÓDIGO == o léxico das expectativas (aprovado + exte
   same("INCONCLUSIVE", LEXICON.INCONCLUSIVE, [...L.INCONCLUSIVE.terms, ...X.INCONCLUSIVE_add])
   same("NEGATION", LEXICON.NEGATION_WORDS, X.INCONCLUSIVE_negation_words_add)
   same("EXIT_OVERCLAIM", LEXICON.EXIT_OVERCLAIM, [...L.EXIT_OVERCLAIM.terms, ...X.EXIT_OVERCLAIM_add])
-  same("ADVICE", LEXICON.ADVICE, [...L.ADVICE.terms, ...X.ADVICE_add, ...E2C.ADVICE_add].filter((t) => !(FIXA.ADVICE_remove as string[]).includes(t)).concat(FIXA.ADVICE_add))
+  same("ADVICE", LEXICON.ADVICE, [...L.ADVICE.terms, ...X.ADVICE_add, ...E2C.ADVICE_add].filter((t) => !(FIXA.ADVICE_remove as string[]).includes(t)).concat(FIXA.ADVICE_add, FIXB.ADVICE_add))
   same("TIE", LEXICON.TIE, [...L.TIE.terms, ...X.TIE_add])
   same("COMPARISON", LEXICON.COMPARISON, [...L.COMPARISON_CONCLUSION.terms, ...X.COMPARISON_CONCLUSION_widened["words (palavra inteira)"], ...X.COMPARISON_CONCLUSION_widened.phrases])
   same("BASIS", LEXICON.BASIS, X.BASIS_words)
@@ -135,7 +136,7 @@ test("L0 — o léxico do CÓDIGO == o léxico das expectativas (aprovado + exte
   for (const [k, list] of Object.entries(LEXICON)) for (const t of list as string[]) assert.match(t, /^[a-z]+(?: [a-z]+)*$/, `${k}: termo fora da forma FLAT: ${t}`)
 })
 
-test("T1 — CADA TERMO funciona: para cada um dos 729 termos de lista (todas as categorias), a frase neutra 'Veja <termo> agora.' no contexto da categoria é rejeitada com o motivo da categoria (prova que nenhum termo está digitado/normalizado errado; o corpus escrito à mão prende só parte dos termos, medido por remoção: ver history)", () => {
+test("T1 — CADA TERMO funciona: para cada um dos 768 termos de lista (todas as categorias), a frase neutra 'Veja <termo> agora.' no contexto da categoria é rejeitada com o motivo da categoria (prova que nenhum termo está digitado/normalizado errado; o corpus escrito à mão prende só parte dos termos, medido por remoção: ver history)", () => {
   const plan: Array<[keyof typeof LEXICON, string, string]> = [
     ["NUM_WORDS", "V", "NUMBER_OUTSIDE_SLOT"], ["APPROX", "V", "NUMBER_OUTSIDE_SLOT"], ["ARITH", "V", "MODEL_ARITHMETIC"], ["CAUSAL", "V", "CAUSAL_CLAIM"], ["SCOPE", "V", "SCOPE_OVERCLAIM"],
     ["INCONCLUSIVE", "LOW", "INCONCLUSIVE_AS_CONCLUSIVE"], ["EXIT_OVERCLAIM", "V", "EXIT_REASON_OVERCLAIM"], ["ADVICE", "V", "OPERATIONAL_ADVICE"], ["TIE", "V", "TIE_OVERCLAIM"],
@@ -148,7 +149,7 @@ test("T1 — CADA TERMO funciona: para cada um dos 729 termos de lista (todas as
     const r = run(answerOf(`Veja ${term} agora.`, ctx))
     if (r.ok || !r.reasons.includes(reason)) wrong.push(`${cat}: "${term}" → ${JSON.stringify(r)}`)
   }
-  assert.equal(n, 729, "627 do e66_2b + 95 do e66_2c − 10 + 17 do fix-A (literal escrito à mão)")
+  assert.equal(n, 768, "627 do e66_2b + 95 do e66_2c − 10 + 17 do fix-A + 39 do fix-B (literal escrito à mão)")
   assert.deepEqual(wrong, [])
   // e o mesmo termo NÃO é rejeitado fora do contexto que o liga (COMPARISON só em L; INCONCLUSIVE só em LOW; TIE some em TIE)
   for (const term of LEXICON.COMPARISON) assert.equal(run(answerOf(`Veja ${term} agora.`, "V")).ok === false && (run(answerOf(`Veja ${term} agora.`, "V")) as Any).reasons.includes("UNVERIFIED_USED_FOR_CONCLUSION"), false, `COMPARISON "${term}" não deve ligar em V`)
@@ -295,16 +296,18 @@ test("H5 — E6.6-2c: os FALSOS NEGATIVOS declarados continuam ok:true (pinados)
   assert.deepEqual(nowRejected, [])
 })
 
-test("H6 — E6.6-2c: contagens à mão: ADVICE ganhou exatamente 95 termos no 2c (83 → 178) e, no fix-A, perdeu 10 e ganhou 17 (→ 185), sem duplicata; os 11 grupos que o T1 percorre somam 729", () => {
+test("H6 — E6.6-2c: contagens à mão: ADVICE ganhou exatamente 95 termos no 2c (83 → 178) e, no fix-A, perdeu 10 e ganhou 17 (→ 185) e, no fix-B, ganhou 39 (→ 224), sem duplicata; os 11 grupos que o T1 percorre somam 768", () => {
   assert.equal((E2C.ADVICE_add as string[]).length, 95)
   assert.equal(new Set(E2C.ADVICE_add as string[]).size, 95)
-  assert.equal(new Set(LEXICON.ADVICE as readonly string[]).size, 185, "sem duplicata dentro de ADVICE")
-  assert.equal(LEXICON.ADVICE.length, 185)
+  assert.equal(new Set(LEXICON.ADVICE as readonly string[]).size, 224, "sem duplicata dentro de ADVICE")
+  assert.equal(LEXICON.ADVICE.length, 224)
+  assert.equal((FIXB.ADVICE_add as string[]).length, 39)
+  assert.equal(new Set(FIXB.ADVICE_add as string[]).size, 39)
   assert.equal((FIXA.ADVICE_remove as string[]).length, 10)
   assert.equal((FIXA.ADVICE_add as string[]).length, 17)
   assert.equal(new Set(FIXA.ADVICE_add as string[]).size, 17)
   const GROUPS = ["NUM_WORDS", "APPROX", "ARITH", "CAUSAL", "SCOPE", "INCONCLUSIVE", "EXIT_OVERCLAIM", "ADVICE", "TIE", "COMPARISON", "BASIS"] as const
-  assert.equal(GROUPS.reduce((a, g) => a + (LEXICON[g] as readonly string[]).length, 0), 729)
+  assert.equal(GROUPS.reduce((a, g) => a + (LEXICON[g] as readonly string[]).length, 0), 768)
 })
 
 // ── E6.6-2c-fix-A (rodada 3 do Gemini, achados #2 e #3): termos ambíguos não ficam soltos. Expectativa: expected.json → e66_2c_fixA ─────────
@@ -346,6 +349,39 @@ test("H11 — fix-A: os 5 FALSOS POSITIVOS que a locução não resolve (subjunt
     if (r.ok || JSON.stringify(r.reasons) !== JSON.stringify(["OPERATIONAL_ADVICE"])) wrong.push(`"${t}" → ${JSON.stringify(r)}`)
   }
   assert.deepEqual(wrong, [], `\n${wrong.join("\n")}`)
+})
+
+// ── E6.6-2c-fix-B (rodada 3 do Gemini, achados #1 e #4): burlas baratas. Expectativa: expected.json → e66_2c_fixB ───────────────────────────
+test("H12 — fix-B: plurais imperativos, exortativos ('vamos…', 'bora…'), 'hora/momento de…' e ordens óbvias em ES/EN são rejeitados com EXATAMENTE ['OPERATIONAL_ADVICE'] em V", () => {
+  const sentences: string[] = FIXB.must_reject.sentences
+  assert.equal(sentences.length, 24)
+  const wrong: string[] = []
+  for (const t of sentences) {
+    const r = run(answerOf(t, "V"))
+    if (r.ok || JSON.stringify(r.reasons) !== JSON.stringify(["OPERATIONAL_ADVICE"])) wrong.push(`"${t}" → ${JSON.stringify(r)}`)
+  }
+  assert.deepEqual(wrong, [], `\n${wrong.join("\n")}`)
+})
+
+test("H13 — fix-B: guardas contra falso positivo dos termos novos ('A hora de entrada…', 'O momento da compra…', 'Vamos ver…', 'The buy side…', 'La compra y la venta…') continuam ACEITAS em V", () => {
+  const sentences: string[] = FIXB.must_accept.sentences
+  assert.equal(sentences.length, 7)
+  assert.deepEqual(sentences.filter((t) => !run(answerOf(t, "V")).ok), [])
+})
+
+test("H14 — fix-B, REGRA: todo termo novo tem ≥ 2 palavras (nunca 'comprem', 'vamos', 'hora de', 'buy', 'compra' soltos) e nenhum repete um termo que já existia", () => {
+  const before = new Set([...(exp.lexicon.ADVICE.terms as string[]), ...(E2B.lexicon_extension.ADVICE_add as string[]), ...(E2C.ADVICE_add as string[]), ...(FIXA.ADVICE_add as string[])])
+  for (const t of FIXB.ADVICE_add as string[]) {
+    assert.ok(t.split(" ").length >= 2, `"${t}" não é locução`)
+    assert.equal(before.has(t), false, `"${t}" já existia em ADVICE`)
+  }
+  for (const w of ["comprem", "vendam", "zerem", "fechem", "vamos", "bora", "hora", "momento", "buy", "sell", "compra", "vende", "cierra"]) assert.equal((LEXICON.ADVICE as readonly string[]).includes(w), false, `"${w}" solto em ADVICE`)
+})
+
+test("H15 — fix-B: os FALSOS NEGATIVOS declarados (infinitivo solto, perífrase, plural sozinho, sílaba quebrada, 'take profit at') continuam ok:true (pinados)", () => {
+  const sentences: string[] = FIXB.known_false_negatives_fixB.sentences
+  assert.equal(sentences.length, 10)
+  assert.deepEqual(sentences.filter((t) => !run(answerOf(t, "V")).ok), [])
 })
 
 console.log(`\n${passed} testes ok`)

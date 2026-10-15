@@ -70,7 +70,7 @@ export const LEXICON = {
     "foi stopado", "acionou o stop", "atingiu o stop", "bateu no stop", "bateu o stop", "acionou o alvo", "atingiu o alvo", "bateu no alvo",
     "bateu o alvo", "real stop", "actual stop", "hit the stop", "stopped out", "hit the target", "true stop",
   ],
-  /** 185 termos (83 do e66_2b + 95 do e66_2c − 10 + 17 do fix-A) */
+  /** 224 termos (83 do e66_2b + 95 do e66_2c − 10 + 17 do fix-A + 39 do fix-B) */
   ADVICE: [
     "recomendo", "recomenda", "recomendamos", "sugiro", "sugerimos", "aconselho", "aconselha", "voce deveria", "voce deve", "voce devia",
     "voce precisa", "deveria", "devia", "o ideal e", "o melhor e", "seria bom", "seria melhor", "e preferivel", "o certo e", "vale a pena", "convem",
@@ -107,6 +107,13 @@ export const LEXICON = {
     "evita operar", "tome cuidado", "tenha cuidado", "nao faca", "analise o grafico", "analise seus trades",
     "compre agora", "compre no suporte", "compre no rompimento", "compre no pullback", "zere a posicao", "zere tudo", "zere agora",
     "proteja o capital", "proteja o lucro", "aguarde a confirmacao", "aguarde o fechamento",
+    // E6.6-2c-fix-B (rodada 3 do Gemini, burlas #1 e #4): plural, exortativo, oportunidade e ES/EN. 39 termos novos, SÓ locução (plural também é subjuntivo).
+    "comprem agora", "comprem no suporte", "vendam agora", "vendam tudo", "vendam na resistencia", "zerem a posicao", "zerem tudo", "fechem o trade",
+    "fechem a posicao", "fechem tudo", "protejam o capital", "aguardem a confirmacao", "realizem o lucro", "mantenham a posicao", "segurem a posicao",
+    "vamos comprar", "vamos vender", "vamos zerar", "vamos fechar o trade", "bora comprar", "bora vender",
+    "hora de comprar", "hora de vender", "momento de comprar", "momento de vender",
+    "buy at support", "sell at resistance", "close all positions", "exit the trade", "exit now", "take profit now", "place your stop",
+    "compra en el soporte", "vende en la resistencia", "cierra la posicion", "cierra todo", "mueve el stop", "compra ahora", "vende ahora",
   ],
   /** 24 termos */
   TIE: [
