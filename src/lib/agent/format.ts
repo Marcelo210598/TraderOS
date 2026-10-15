@@ -112,6 +112,7 @@ export const REASON_TEXTS: Readonly<Record<string, string>> = Object.freeze({
   RATIO_A_ZERO: "o valor de A é zero e a razão não se aplica",
   RATIO_SIGN_DIFFERS: "os valores têm sinais opostos e a razão não se aplica",
   GROUP_NOT_FOUND: "o grupo não existe nos dados", // E6.6-8 (D8-5): lado de uma comparação sem nenhum trade
+  DATA_NOT_PROVIDED: "o arquivo importado não trouxe este dado", // E6.6-11 (PD-3): null do evidence.explain; abre com "não informado", nunca "indisponível" (não confundir com verificação)
 })
 
 /** Texto cru do motivo (sem moldura). Código ausente do catálogo, null, vazio ou de outro tipo ⇒ erro. */
@@ -119,10 +120,11 @@ export function reasonText(reason: unknown): FormatResult {
   return typeof reason === "string" && Object.hasOwn(REASON_TEXTS, reason) ? good(REASON_TEXTS[reason]) : fail()
 }
 
-/** Valor null com motivo: `indisponível (<texto>)`. Nunca em branco, nunca zero. */
+/** Valor null com motivo: `indisponível (<texto>)`. Nunca em branco, nunca zero. EXCEÇÃO (PD-3): DATA_NOT_PROVIDED abre com `não informado (…)`, porque as frases de verificação usam "disponível". */
 export function formatUnavailable(reason: string | null): FormatResult {
   const r = reasonText(reason)
-  return r.ok ? good(`indisponível (${r.text})`) : r
+  if (!r.ok) return r
+  return good(reason === "DATA_NOT_PROVIDED" ? `não informado (${r.text})` : `indisponível (${r.text})`)
 }
 
 // ── datas e palavras de enum ─────────────────────────────────────────────────

@@ -379,8 +379,8 @@ test("K11 — FIM A FIM: ledger → validateAnswer → renderAnswer com slots de
   assert.equal((validateAnswer({ answer: a3, ledger, stop: null, question: "" }) as Any).ok, false)
 })
 
-test("K12 — CATÁLOGO: REASON_TEXTS tem GROUP_NOT_FOUND ('o grupo não existe nos dados', sem dígito), 30 motivos; e a EXPECTATIVA conhece os 12 casos, as 7 decisões D8 e a CZ", () => {
-  assert.equal(Object.keys(REASON_TEXTS).length, 30)
+test("K12 — CATÁLOGO: REASON_TEXTS tem GROUP_NOT_FOUND ('o grupo não existe nos dados', sem dígito), 31 motivos (30 + DATA_NOT_PROVIDED do E6.6-11); e a EXPECTATIVA conhece os 12 casos, as 7 decisões D8 e a CZ", () => {
+  assert.equal(Object.keys(REASON_TEXTS).length, 31)
   assert.equal(REASON_TEXTS.GROUP_NOT_FOUND, "o grupo não existe nos dados")
   assert.equal(/\d/.test(REASON_TEXTS.GROUP_NOT_FOUND), false)
   assert.deepEqual(formatUnavailable("GROUP_NOT_FOUND"), { ok: true, text: "indisponível (o grupo não existe nos dados)" })

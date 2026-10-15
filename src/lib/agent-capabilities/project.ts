@@ -36,7 +36,7 @@ export function projectMetricValue(m: unknown): MetricValueView | null {
 // Projeção do `result` do derivado EXIT_REASON_ANALYSIS (o que o V6 verifica) para as linhas da PromptView. Lista branca: o `result` é lido por um schema local que
 // só conhece os campos usados (o resto — label, rank, legSetHash, limitations, confidence por linha — nunca é lido) e cada linha da view é montada campo a campo.
 import { z } from "zod"
-import { ExitBucketViewSchema, ExitReasonSchema } from "../agent/views.ts"
+import { ExitBucketViewSchema, ExitReasonSchema, ExplainViewSchema } from "../agent/views.ts"
 
 const CoverageIn = z.object({ used: z.number().int().nonnegative(), total: z.number().int().nonnegative(), ratio: z.number().nullable() })
 const CellIn = z.object({ value: z.number().nullable(), reason: z.string().nullable(), coverage: CoverageIn })
@@ -102,7 +102,9 @@ export function projectExitBreakdown(result: unknown): ExitBreakdownProjection |
 // ou pelas datas formatadas. Qualquer coisa fora do contrato ⇒ null (a capacidade recusa com ENGINE_REFUSED).
 import { CompareViewSchema, RankViewSchema, UnitSchema } from "../agent/views.ts"
 import { REASON_TEXTS, formatDate, formatEnum } from "../agent/format.ts"
-import { newAliasTable, type AliasTable } from "../agent/label.ts"
+import { allocateAlias, newAliasTable, projectLabelView, type AliasTable } from "../agent/label.ts"
+import { EXPLAIN_MAX_TRADES } from "../agent/contract.ts"
+import { exitReasonOf } from "../metrics/index.ts"
 import { groupKeyPart, type GroupDimension } from "./group-key.ts"
 
 /** As 10 dimensões que a comparação aceita (as verificáveis pela Evidence; `account` por alias de ENTRADA, E6.6-5-A; estratégia espera o 5-A2 e sessão não é verificável). */
@@ -295,6 +297,89 @@ export function projectExitComparison(result: unknown, unit: "LEG" | "TRADE"): C
     const order: Flag[] = ["OK", "LOW", "TINY"]
     const worst = Math.max(order.indexOf(r.a.sampleFlag), order.indexOf(r.b.sampleFlag))
     return { view: view.data, worstFlag: order[worst], confidence: r.confidence }
+  } catch {
+    return null
+  }
+}
+
+// ── evidence.explain (E6.6-11) ───────────────────────────────────────────────
+// Projeção dos trades do BUNDLE (T2) para a ExplainView. Lista branca: cada trade é lido por um schema local que só conhece os campos usados (tradeId, importId, rowRefs, sourceRows,
+// issues, fieldProvenance, accountRef, at.raw/instantUtc… NUNCA saem) e a view é montada campo a campo. Rótulo SÓ por projectLabelView (A2: vocabulário v1 ou alias; aloca "rótulo
+// personalizado X" na tabela e a devolve); conta SÓ por leitura da tabela (nunca aloca); motivo de saída pela MESMA função do motor (exitReasonOf). Nada de Date: a hora local sai da `raw`.
+const ExTime = z.object({ raw: z.string(), localDate: z.string() })
+const ExLeg = z.object({ price: z.number().finite(), quantity: z.number().finite(), sourceLabel: z.string().nullable() })
+const ExExitLeg = ExLeg.extend({ reason: z.string(), pnl: z.object({ net: Finite.nullable() }) })
+const ExTrade = z.object({
+  accountRef: z.string().nullable(),
+  instrument: z.object({ root: z.string().nullable() }),
+  direction: z.enum(["LONG", "SHORT"]),
+  quantity: z.number().finite(),
+  entry: z.object({ at: ExTime, price: z.number().finite() }),
+  exit: z.object({ at: ExTime, price: z.number().finite() }),
+  pnl: z.object({ net: Finite.nullable(), gross: Finite.nullable() }),
+  entryLegs: z.array(ExLeg).nullable(),
+  exitLegs: z.array(ExExitLeg).nullable(),
+  exitSummary: z.object({ byReason: z.record(z.string(), z.number()) }).nullable().optional(),
+})
+const RAW_TIME = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}:\d{2}:\d{2})$/
+const LOCAL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
+/** `AAAA-MM-DD HH:MM:SS` a partir de `localDate` + a hora da `raw` (só se a data da `raw` for a mesma); senão null. */
+function localOf(at: z.infer<typeof ExTime>): string | null {
+  const r = RAW_TIME.exec(at.raw)
+  const d = LOCAL_DATE.exec(at.localDate)
+  return r !== null && d !== null && r[3] === d[1] && r[2] === d[2] && r[1] === d[3] ? `${at.localDate} ${r[4]}` : null
+}
+
+export interface ExplainProjection {
+  view: ReturnType<typeof ExplainViewSchema.parse>
+  /** A tabela depois de alocar os rótulos personalizados novos (contas NUNCA são alocadas aqui). */
+  aliases: AliasTable
+}
+
+export function projectExplainPage(allTrades: unknown, page: number, refEpoch: string, aliases?: AliasTable): ExplainProjection | null {
+  try {
+    if (typeof refEpoch !== "string" || !EPOCH_OK.test(refEpoch) || !Array.isArray(allTrades) || !Number.isInteger(page) || page < 1) return null
+    const total = allTrades.length
+    const pageCount = Math.max(1, Math.ceil(total / EXPLAIN_MAX_TRADES))
+    if (page > pageCount) return null
+    let table = aliases !== undefined && aliases !== null && aliases.epoch === refEpoch ? aliases : newAliasTable(refEpoch)
+    const slice = allTrades.slice((page - 1) * EXPLAIN_MAX_TRADES, page * EXPLAIN_MAX_TRADES)
+    const trades: Array<Record<string, unknown>> = []
+    for (let i = 0; i < slice.length; i++) {
+      const parsed = ExTrade.safeParse(slice[i])
+      if (!parsed.success) return null
+      const t = parsed.data
+      const bucket = exitReasonOf({ exitLegs: t.exitLegs === null ? null : t.exitLegs.map((l) => ({ reason: l.reason })), exitSummary: t.exitSummary ?? null } as never).bucket
+      const legs: Array<Record<string, unknown>> = []
+      const add = (role: "ENTRY" | "EXIT", l: z.infer<typeof ExLeg>, pnlNet: number | null): boolean => {
+        const lab = projectLabelView(l.sourceLabel, table, refEpoch)
+        if (!lab.ok) return false
+        table = lab.table
+        legs.push({ role, price: l.price, quantity: l.quantity, label: lab.label, pnlNet })
+        return true
+      }
+      for (const l of t.entryLegs ?? []) if (!add("ENTRY", l, null)) return null
+      for (const l of t.exitLegs ?? []) if (!add("EXIT", l, l.pnl.net)) return null
+      let accountAlias: string | null = null
+      if (t.accountRef !== null && table.conta.includes(t.accountRef)) { const a = allocateAlias(table, "conta", t.accountRef, refEpoch); accountAlias = a.ok ? a.alias : null } // só LEITURA: ref já na tabela
+      trades.push({
+        ordinal: i + 1,
+        instrument: t.instrument.root,
+        direction: t.direction,
+        quantity: t.quantity,
+        entryLocal: localOf(t.entry.at),
+        exitLocal: localOf(t.exit.at),
+        entryPrice: t.entry.price,
+        exitPrice: t.exit.price,
+        pnlNet: t.pnl.net,
+        pnlGross: t.pnl.gross,
+        exitReason: bucket,
+        accountAlias,
+        legs,
+      })
+    }
+    const view = ExplainViewSchema.safeParse({ page, pageCount, total, trades })
+    return view.success ? { view: view.data, aliases: table } : null
   } catch {
     return null
   }

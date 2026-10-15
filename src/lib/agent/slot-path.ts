@@ -11,7 +11,7 @@ export type SlotViewId = keyof typeof PROMPT_VIEWS
 export type SlotError = { readonly ok: false; readonly code: "SLOT_PATH_INVALID" | "VIEW_INVALID" | "FORMAT_INVALID" }
 
 type Spec =
-  | { kind: "number"; unit: DisplayUnit | "sibling"; reasonField?: string } // reasonField = nome do irmão que traz o motivo da indisponibilidade (E6.6-V)
+  | { kind: "number"; unit: DisplayUnit | "sibling"; reasonField?: string; fixedReason?: string } // reasonField = nome do irmão que traz o motivo da indisponibilidade (E6.6-V); fixedReason = motivo FIXO da folha (E6.6-11, PD-3: evidence.explain)
   | { kind: "reason" }
   | { kind: "date" }
   | { kind: "enum"; table: EnumTable }
@@ -64,6 +64,9 @@ const compare = (p: string): Record<string, Spec> => ({
 })
 const price: Spec = { kind: "number", unit: "price" }
 const usd: Spec = { kind: "number", unit: "usd" }
+/** PD-3 (E6.6-11): folhas do evidence.explain cujo null SEMPRE significa "o arquivo não trouxe este dado". */
+const NOT_PROVIDED = "DATA_NOT_PROVIDED"
+const fixed = (s: Spec): Spec => (s.kind === "number" ? { kind: "number", unit: s.unit, fixedReason: NOT_PROVIDED } : s)
 
 /** Tabela de folhas por capacidade (índices trocados por `[]`). Folha fora daqui ⇒ SLOT_PATH_INVALID. */
 const LEAVES: Readonly<Record<SlotViewId, Readonly<Record<string, Spec>>>> = Object.freeze({
@@ -75,9 +78,9 @@ const LEAVES: Readonly<Record<SlotViewId, Readonly<Record<string, Spec>>>> = Obj
   "exit.analysis@1": { ...buckets, reconciliation: { kind: "enum", table: "reconciliation" }, ...compare("comparison.") },
   "evidence.explain@1": {
     page: count, pageCount: count, total: count,
-    "trades[].ordinal": count, "trades[].quantity": count, "trades[].direction": { kind: "enum", table: "direction" }, "trades[].entryPrice": price, "trades[].exitPrice": price,
-    "trades[].pnlNet": usd, "trades[].pnlGross": usd, "trades[].exitReason": { kind: "enum", table: "exitReason" }, "trades[].accountAlias": text,
-    "trades[].legs[].price": price, "trades[].legs[].quantity": count, "trades[].legs[].pnlNet": usd, "trades[].legs[].label": text,
+    "trades[].ordinal": count, "trades[].quantity": fixed(count), "trades[].direction": { kind: "enum", table: "direction" }, "trades[].entryPrice": fixed(price), "trades[].exitPrice": fixed(price),
+    "trades[].pnlNet": fixed(usd), "trades[].pnlGross": fixed(usd), "trades[].exitReason": { kind: "enum", table: "exitReason" }, "trades[].accountAlias": text,
+    "trades[].legs[].price": fixed(price), "trades[].legs[].quantity": fixed(count), "trades[].legs[].pnlNet": fixed(usd), "trades[].legs[].label": text,
   },
 })
 
@@ -124,7 +127,8 @@ export function resolveSlot(viewId: SlotViewId, view: unknown, path: string): { 
       unit = u.data
     } else unit = spec.unit
     let reason: string | null | undefined
-    if (spec.reasonField !== undefined) { // o irmão-motivo tem de ser PRÓPRIO e string|null (herdado, ausente ou de outro tipo ⇒ inválido)
+    if (spec.fixedReason !== undefined) reason = spec.fixedReason // PD-3: o motivo é da FOLHA, não do irmão
+    else if (spec.reasonField !== undefined) { // o irmão-motivo tem de ser PRÓPRIO e string|null (herdado, ausente ou de outro tipo ⇒ inválido)
       const r = parent !== null && Object.hasOwn(parent, spec.reasonField) ? parent[spec.reasonField] : undefined
       if (r !== null && typeof r !== "string") return bad()
       reason = r

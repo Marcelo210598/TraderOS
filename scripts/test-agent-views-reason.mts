@@ -151,11 +151,10 @@ function nullableNumberLeaves(schema: Any, path: string, out: string[]): void {
   }
 }
 const RANK_NULL_BY_DECISION = ["rank.groups@1::rows[].rank"]
-test("W11 — COMPLETUDE: toda folha `number | null` das views de métrica (exceto evidence.explain, PD-3) está na tabela COM `reasonField`; achar uma sem motivo derruba o teste", () => {
+test("W11 — COMPLETUDE: toda folha `number | null` das views de métrica (inclusive evidence.explain, PD-3, por `fixedReason`) está na tabela COM `reasonField` (ou `fixedReason` no explain); achar uma sem motivo derruba o teste", () => {
   let found = 0
   let exempt = 0
   for (const id of Object.keys(PROMPT_VIEWS)) {
-    if (id === "evidence.explain@1") continue
     const leaves: string[] = []
     nullableNumberLeaves(PROMPT_VIEWS[id as keyof typeof PROMPT_VIEWS], "", leaves)
     for (const p of leaves) {
@@ -164,6 +163,8 @@ test("W11 — COMPLETUDE: toda folha `number | null` das views de métrica (exce
       assert.ok(Object.hasOwn(table, p), `${id}: folha anulável ${p} fora da tabela`)
       // E6.6-9 (D9-3): a ÚNICA exceção, por decisão: `rank` null = grupo SEM posição. Não há motivo a citar; o slot RECUSA (FORMAT_INVALID, teste L4/L14), nunca imprime em branco ou zero.
       if (RANK_NULL_BY_DECISION.includes(`${id}::${p}`)) { assert.equal(table[p].reasonField, undefined, `${id}: ${p} é a exceção declarada e não deve ter reasonField`); exempt += 1; found += 1; continue }
+      // E6.6-11 (PD-3): no evidence.explain o motivo é FIXO por folha (`fixedReason: DATA_NOT_PROVIDED`); nas demais views continua o irmão-motivo (`reasonField`)
+      if (id === "evidence.explain@1") { assert.equal(table[p].fixedReason, "DATA_NOT_PROVIDED", `${id}: folha anulável ${p} SEM fixedReason`); assert.equal(table[p].reasonField, undefined); found += 1; continue }
       assert.equal(typeof table[p].reasonField, "string", `${id}: folha anulável ${p} SEM reasonField`)
       found += 1
     }

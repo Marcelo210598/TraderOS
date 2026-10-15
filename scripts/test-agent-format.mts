@@ -142,10 +142,10 @@ test("F8 — separadores: '.' de milhar e ',' decimal; nunca troca (nem ',' de m
 // ── catálogo de motivos ──────────────────────────────────────────────────────
 const CAT: Record<string, string> = exp.e66_1.reason_catalog.texts
 
-test("D1 — o catálogo tem EXATAMENTE os 30 códigos da expectativa, com os textos da expectativa; nenhum texto vazio nem com dígito", () => {
-  assert.equal(exp.e66_1.reason_catalog.expected_count, 30)
+test("D1 — o catálogo tem EXATAMENTE os 31 códigos da expectativa, com os textos da expectativa; nenhum texto vazio nem com dígito", () => {
+  assert.equal(exp.e66_1.reason_catalog.expected_count, 31)
   assert.deepEqual(Object.keys(REASON_TEXTS).sort(), Object.keys(CAT).sort())
-  assert.equal(Object.keys(CAT).length, 30)
+  assert.equal(Object.keys(CAT).length, 31)
   for (const [k, t] of Object.entries(CAT)) {
     assert.equal(Object.getOwnPropertyDescriptor(REASON_TEXTS, k)?.value, t, k)
     assert.ok(t.length > 0 && !/\d/.test(t), `texto inválido em ${k}`)
@@ -153,7 +153,7 @@ test("D1 — o catálogo tem EXATAMENTE os 30 códigos da expectativa, com os te
 })
 
 test("D1b — formatUnavailable: 'indisponível (' + texto + ')' para cada código; null, vazio, caixa/espaço trocados, protótipo, tipo errado ⇒ erro (nunca em branco, nunca fallback)", () => {
-  for (const [k, t] of Object.entries(CAT)) assert.deepEqual(formatUnavailable(k), { ok: true, text: `indisponível (${t})` }, k)
+  for (const [k, t] of Object.entries(CAT)) assert.deepEqual(formatUnavailable(k), { ok: true, text: k === "DATA_NOT_PROVIDED" ? `não informado (${t})` : `indisponível (${t})` }, k) // PD-3: só o DATA_NOT_PROVIDED abre com 'não informado'
   assert.equal((formatUnavailable("DENOMINATOR_ZERO") as Any).text, exp.e66_1.reason_catalog.rendered_examples.DENOMINATOR_ZERO)
   assert.equal((formatUnavailable("NO_TRADES") as Any).text, exp.e66_1.reason_catalog.rendered_examples.NO_TRADES)
   for (const x of [null, undefined, "", "denominator_zero", "DENOMINATOR_ZERO ", " DENOMINATOR_ZERO", "__proto__", "constructor", "toString", "hasOwnProperty", "NOT_A_CODE", 5, {}, []]) {

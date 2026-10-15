@@ -115,7 +115,7 @@ test("P4 — metrics.groups, metrics.compare, rank.groups, exit.analysis, eviden
   ok(X, V_EXPLAIN, "trades[0].legs[1].quantity", "2")
   ok(X, V_EXPLAIN, "trades[0].legs[1].pnlNet", "US$ 40,00")
   ok(X, V_EXPLAIN, "trades[0].legs[1].label", "Target1")
-  err(X, V_EXPLAIN, "trades[0].legs[0].pnlNet", "FORMAT_INVALID") // null sem motivo
+  ok(X, V_EXPLAIN, "trades[0].legs[0].pnlNet", "não informado (o arquivo importado não trouxe este dado)") // E6.6-11 (PD-3 = a): antes FORMAT_INVALID (null sem motivo); agora motivo FIXO da folha
   err(X, V_EXPLAIN, "trades[0].instrument", "SLOT_PATH_INVALID")
   err(X, V_EXPLAIN, "trades[0].entryLocal", "SLOT_PATH_INVALID")
   err(X, V_EXPLAIN, "trades[0].legs[0].role", "SLOT_PATH_INVALID")
