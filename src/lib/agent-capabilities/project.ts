@@ -100,7 +100,7 @@ export function projectExitBreakdown(result: unknown): ExitBreakdownProjection |
 // Projeção do `result` do derivado GROUP_COMPARISON / PERIOD_COMPARISON (o que o V6 verifica) para a CompareView. Lista branca: o `result` é lido por um schema local que só
 // conhece os campos usados (label, tradeSetHash, period cru, limitations, coverage, comparable… nunca são lidos); a chave sai SÓ por groupKeyPart (nunca `key.label` do motor)
 // ou pelas datas formatadas. Qualquer coisa fora do contrato ⇒ null (a capacidade recusa com ENGINE_REFUSED).
-import { CompareViewSchema, UnitSchema } from "../agent/views.ts"
+import { CompareViewSchema, RankViewSchema, UnitSchema } from "../agent/views.ts"
 import { REASON_TEXTS, formatDate } from "../agent/format.ts"
 import { newAliasTable, type AliasTable } from "../agent/label.ts"
 import { groupKeyPart, type GroupDimension } from "./group-key.ts"
@@ -180,3 +180,78 @@ export function projectCompare(result: unknown, refEpoch: string, aliases?: Alia
   }
 }
 
+
+// ── rank.groups (E6.6-9) ─────────────────────────────────────────────────────
+// Projeção do `result` do derivado GROUP_RANKING (o que o V6 verifica) para a RankView. Lista branca: o `result` é lido por um schema local (exit, shareOfTrades, limitations, confidence,
+// tradeSetHash, label da chave… nunca são lidos); a chave sai SÓ por groupKeyPart (conta ⇒ alias da tabela da conversa, alocando se faltar). A ORDEM das linhas é a do motor (nunca reordena).
+// `rank` null = grupo sem posição, no fim; ranks não-nulos têm de ser 1..n em sequência. Qualquer coisa fora do contrato ⇒ null (a capacidade recusa com ENGINE_REFUSED).
+const RankValueIn = z.object({ value: Finite.nullable(), reason: z.string().nullable(), unit: z.string(), coverage: CoverageIn })
+const RankRowIn = z.object({
+  rank: z.number().int().positive().nullable(),
+  key: z.object({ dims: z.array(z.string()).min(1), key: z.array(z.string().nullable()) }),
+  sampleSize: z.number().int().nonnegative(),
+  sampleFlag: FlagIn,
+  tiedWithPrevious: z.boolean(),
+  value: RankValueIn,
+  contributionToTotal: FractionIn,
+})
+const RankIn = z.object({ kind: z.literal("GROUP_RANKING"), metric: z.object({ id: z.string().min(1) }), order: z.enum(["DESC", "ASC"]), rows: z.array(RankRowIn) })
+
+export interface RankProjection {
+  view: ReturnType<typeof RankViewSchema.parse>
+  /** O PIOR sampleFlag entre TODAS as linhas (inclui as sem posição); "OK" se não há linhas. */
+  worstFlag: Flag
+  /** A tabela da conversa depois de alocar as contas/estratégias novas (a mesma, se nada foi alocado). */
+  aliases: AliasTable
+}
+
+export function projectRank(result: unknown, refEpoch: string, aliases?: AliasTable): RankProjection | null {
+  try {
+    if (typeof refEpoch !== "string" || !EPOCH_OK.test(refEpoch)) return null
+    const parsed = RankIn.safeParse(result)
+    if (!parsed.success) return null
+    const r = parsed.data
+    let table = aliases !== undefined && aliases !== null && aliases.epoch === refEpoch ? aliases : newAliasTable(refEpoch)
+    const dims = JSON.stringify(r.rows.length > 0 ? r.rows[0].key.dims : [])
+    const rows: Array<Record<string, unknown>> = []
+    let seenNull = false
+    for (let i = 0; i < r.rows.length; i++) {
+      const row = r.rows[i]
+      if (JSON.stringify(row.key.dims) !== dims || row.key.dims.length !== row.key.key.length) return null
+      if (row.rank === null) seenNull = true
+      else if (seenNull || row.rank !== i + 1) return null // ranqueados primeiro e em sequência 1..n
+      const key: string[] = []
+      for (let d = 0; d < row.key.dims.length; d++) {
+        const dim = row.key.dims[d]
+        if (!(COMPARE_DIMENSIONS as readonly string[]).includes(dim)) return null
+        const part = groupKeyPart(dim as GroupDimension, row.key.key[d], table, refEpoch)
+        if (!part.ok) return null
+        table = part.aliases
+        key.push(part.text)
+      }
+      const v = row.value
+      const c = row.contributionToTotal
+      if (!UnitSchema.safeParse(v.unit).success) return null
+      if (!knownReason(v.reason) || !knownReason(c.reason)) return null
+      if ((v.value === null && v.reason === null) || (c.value === null && c.reason === null)) return null // indisponível sem motivo: nunca zero, nunca em branco
+      let ratio = v.coverage.ratio
+      if (ratio === null) { if (v.coverage.total !== 0) return null; ratio = 0 }
+      rows.push({
+        rank: row.rank,
+        key,
+        value: { metricId: r.metric.id, value: v.value, unit: v.unit, basis: null, sampleSize: row.sampleSize, coverage: { used: v.coverage.used, total: v.coverage.total, ratio }, reason: v.reason },
+        sampleFlag: row.sampleFlag,
+        tiedWithPrevious: row.tiedWithPrevious,
+        contribution: c.value,
+        contributionReason: c.reason,
+      })
+    }
+    const view = RankViewSchema.safeParse({ rows, orderedBy: `${r.metric.id} ${r.order}` })
+    if (!view.success) return null
+    const order: Flag[] = ["OK", "LOW", "TINY"]
+    const worst = r.rows.reduce<number>((w, row) => Math.max(w, order.indexOf(row.sampleFlag)), 0)
+    return { view: view.data, worstFlag: order[worst], aliases: table }
+  } catch {
+    return null
+  }
+}

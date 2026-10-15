@@ -54,7 +54,7 @@ export const CompareViewSchema = z
 
 /** `tiedWithPrevious` vem do motor: só ele autoriza o agente a dizer "empate" (TIE_OVERCLAIM). */
 export const RankRowViewSchema = z
-  .object({ rank: z.number().int().positive(), key: z.array(GroupKeyPartSchema), value: MetricValueViewSchema, sampleFlag: SampleFlag, tiedWithPrevious: z.boolean(), contribution: z.number().nullable(), /** E6.6-V: motivo do `contribution` null (Fraction.reason). */ contributionReason: z.string().nullable() })
+  .object({ /** E6.6-9 (D9-3): null = grupo SEM posição (amostra minúscula ou valor indisponível); listado no fim, nunca descartado. O slot `rows[].rank` com null ⇒ FORMAT_INVALID. */ rank: z.number().int().positive().nullable(), key: z.array(GroupKeyPartSchema), value: MetricValueViewSchema, sampleFlag: SampleFlag, tiedWithPrevious: z.boolean(), contribution: z.number().nullable(), /** E6.6-V: motivo do `contribution` null (Fraction.reason). */ contributionReason: z.string().nullable() })
   .strict()
 export const RankViewSchema = z.object({ rows: z.array(RankRowViewSchema), orderedBy: z.string() }).strict()
 

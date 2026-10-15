@@ -150,8 +150,10 @@ function nullableNumberLeaves(schema: Any, path: string, out: string[]): void {
     else nullableNumberLeaves(def.innerType, path, out)
   }
 }
+const RANK_NULL_BY_DECISION = ["rank.groups@1::rows[].rank"]
 test("W11 — COMPLETUDE: toda folha `number | null` das views de métrica (exceto evidence.explain, PD-3) está na tabela COM `reasonField`; achar uma sem motivo derruba o teste", () => {
   let found = 0
+  let exempt = 0
   for (const id of Object.keys(PROMPT_VIEWS)) {
     if (id === "evidence.explain@1") continue
     const leaves: string[] = []
@@ -160,11 +162,14 @@ test("W11 — COMPLETUDE: toda folha `number | null` das views de métrica (exce
       const table: Any = LEAF_TABLE[id as keyof typeof LEAF_TABLE]
       // exit.analysis aninha `comparison` (CompareView anulável): o prefixo vira `comparison.`
       assert.ok(Object.hasOwn(table, p), `${id}: folha anulável ${p} fora da tabela`)
+      // E6.6-9 (D9-3): a ÚNICA exceção, por decisão: `rank` null = grupo SEM posição. Não há motivo a citar; o slot RECUSA (FORMAT_INVALID, teste L4/L14), nunca imprime em branco ou zero.
+      if (RANK_NULL_BY_DECISION.includes(`${id}::${p}`)) { assert.equal(table[p].reasonField, undefined, `${id}: ${p} é a exceção declarada e não deve ter reasonField`); exempt += 1; found += 1; continue }
       assert.equal(typeof table[p].reasonField, "string", `${id}: folha anulável ${p} SEM reasonField`)
       found += 1
     }
   }
   assert.ok(found >= 12, `a varredura achou só ${found} folhas anuláveis (travessia do zod quebrada?)`)
+  assert.equal(exempt, RANK_NULL_BY_DECISION.length, "a exceção declarada tem de existir na view (e só ela)")
   assert.equal(exp.e66_V.cases.length, 11)
 })
 

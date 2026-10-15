@@ -153,6 +153,7 @@ const APPROVED_GENERATOR_IMPORTERS: Record<string, string> = {
   "src/lib/agent-capabilities/metrics-groups.ts": "capacidade metrics.groups@1 (E6.6-6): repassa ctx.accountRefSalt ao explainMetric (TOTAL e cada grupo) e RECUSA (ENGINE_REFUSED) import SALGADO sem sal; teste G11 de test-agent-metrics-groups.mts",
   "src/lib/agent-capabilities/exit-breakdown.ts": "capacidade exit.breakdown@1 (E6.6-7): explainDerived com `...generatorOpts(ctx)` e `saltMissing(ctx)` (utilitário único, guarda 2d); teste X10 de test-agent-exit-breakdown.mts",
   "src/lib/agent-capabilities/metrics-compare.ts": "capacidade metrics.compare@1 (E6.6-8): explainDerived com `...generatorOpts(ctx)` e `saltMissing(ctx)` (utilitário único, guarda 2d); sem sal próprio; teste K9 de test-agent-metrics-compare.mts (salgado sem sal ⇒ ENGINE_REFUSED; com sal ⇒ ok)",
+  "src/lib/agent-capabilities/rank-groups.ts": "capacidade rank.groups@1 (E6.6-9): explainDerived com `...generatorOpts(ctx)` e `saltMissing(ctx)` (utilitário único, guarda 2d); sem sal próprio; teste L12 de test-agent-rank-groups.mts (salgado sem sal ⇒ ENGINE_REFUSED; com sal ⇒ ok)",
   "src/lib/dev/evidence-lab/salt.ts": "cenários de sal do Lab (P5, só dev): imports gerenciados e legado com sal esquecido DE PROPÓSITO (cenário salt-forgotten)",
   "src/lib/dev/evidence-lab/model.ts": "demo do Lab SEM sal por projeto (UNSALTED_BY_DESIGN)",
   "src/lib/dev/evidence-lab/derived.ts": "demo dos derivados do Lab SEM sal por projeto (UNSALTED_BY_DESIGN)",

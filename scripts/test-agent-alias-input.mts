@@ -270,7 +270,7 @@ test("A10 — PUREZA: ctx.aliases congelado não é alterado; mesma saída em du
   assert.equal(okOf(metricsQuery({ metricIds: METRICS }, hostile).result).ok, true)
 })
 
-test("A11 — ESTÁTICA: Q0 lista 10 arquivos; label.ts não importa nada; alias-input.ts só importa ../agent/, ../evidence/derived.ts e ./; QUERY_FILTERS_SCHEMA sem strategy*/setup/timeframe; nenhum arquivo novo importa explain-*", () => {
+test("A11 — ESTÁTICA: Q0 lista alias-input.ts; label.ts não importa nada; alias-input.ts só importa ../agent/, ../evidence/derived.ts e ./; QUERY_FILTERS_SCHEMA sem strategy*/setup/timeframe; nenhum arquivo novo importa explain-*", () => {
   const strip = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1")
   const read = (p: string): string => strip(readFileSync(`${ROOT}${p}`, "utf8"))
   const importsOf = (code: string): string[] => [...code.matchAll(/^(?:import|export)\s[^"'\n]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1])
@@ -286,7 +286,7 @@ test("A11 — ESTÁTICA: Q0 lista 10 arquivos; label.ts não importa nada; alias
   for (const k of ["strategy", "strategyId", "strategyName", "setup", "timeframe", "strategyVersion"]) assert.equal(new RegExp(`\\b${k}\\s*:`).test(body), false, `QUERY_FILTERS_SCHEMA não pode ter ${k}`)
   const staticTest = readFileSync(`${ROOT}scripts/test-agent-capabilities-static.mts`, "utf8")
   assert.ok(staticTest.includes('"alias-input.ts"'))
-  assert.ok(staticTest.includes("os 10 arquivos esperados"))
+  assert.ok(staticTest.includes('"alias-input.ts"'), "Q0 precisa listar alias-input.ts (a contagem total muda a cada capacidade nova; E6.6-9 ⇒ 11)")
 })
 
 test("A12 — TESTES EXISTENTES: nome cru de conta continua ARGS_INVALID nas 4 capacidades (sem tabela e com tabela); compare por conta sem tabela continua ARGS_INVALID", () => {
