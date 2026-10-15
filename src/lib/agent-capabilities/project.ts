@@ -102,11 +102,11 @@ export function projectExitBreakdown(result: unknown): ExitBreakdownProjection |
 // ou pelas datas formatadas. Qualquer coisa fora do contrato ⇒ null (a capacidade recusa com ENGINE_REFUSED).
 import { CompareViewSchema, UnitSchema } from "../agent/views.ts"
 import { REASON_TEXTS, formatDate } from "../agent/format.ts"
-import { newAliasTable } from "../agent/label.ts"
+import { newAliasTable, type AliasTable } from "../agent/label.ts"
 import { groupKeyPart, type GroupDimension } from "./group-key.ts"
 
-/** As 9 dimensões que a comparação aceita (as verificáveis pela Evidence; conta/estratégia esperam o E6.6-5-A, sessão não é verificável). */
-export const COMPARE_DIMENSIONS = ["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "symbol", "direction", "exitReason"] as const
+/** As 10 dimensões que a comparação aceita (as verificáveis pela Evidence; `account` por alias de ENTRADA, E6.6-5-A; estratégia espera o 5-A2 e sessão não é verificável). */
+export const COMPARE_DIMENSIONS = ["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "symbol", "direction", "exitReason", "account"] as const
 const EPOCH_OK = /^[a-z0-9][a-z0-9_-]{0,31}$/
 const Finite = z.number().refine((x) => Number.isFinite(x))
 const CmpCellIn = z.object({ value: Finite.nullable(), reason: z.string().nullable() })
@@ -128,7 +128,7 @@ export interface CompareProjection {
 
 const knownReason = (r: string | null): boolean => r === null || Object.hasOwn(REASON_TEXTS, r)
 
-export function projectCompare(result: unknown, refEpoch: string): CompareProjection | null {
+export function projectCompare(result: unknown, refEpoch: string, aliases?: AliasTable): CompareProjection | null {
   try {
     if (typeof refEpoch !== "string" || !EPOCH_OK.test(refEpoch)) return null
     const parsed = CmpIn.safeParse(result)
@@ -138,7 +138,7 @@ export function projectCompare(result: unknown, refEpoch: string): CompareProjec
       if (r.kind === "GROUP_COMPARISON") {
         const k = side.key
         if (k === null || k.dims.length < 1 || k.dims.length !== k.key.length) return null
-        let table = newAliasTable(refEpoch)
+        let table = aliases !== undefined && aliases !== null && aliases.epoch === refEpoch ? aliases : newAliasTable(refEpoch) // a tabela da CONVERSA (E6.6-5-A): o alias de uma conta é o dela
         const out: string[] = []
         for (let i = 0; i < k.dims.length; i++) {
           const dim = k.dims[i]

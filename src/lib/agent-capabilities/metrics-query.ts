@@ -4,11 +4,13 @@
 // Um bundle por chamada, com as N métricas pedidas (subject = a primeira): sondado que o bundle multi-métrica passa em verifyEvidence e verifyEvidenceSource.
 import { z } from "zod"
 import type { CapabilityId, EvidenceHandle } from "../agent/contract.ts"
+import type { AliasTable } from "../agent/label.ts"
 import { explainMetric, type ExplainMetricInput } from "../evidence/explain-metric.ts"
 import { EVIDENCE_SCHEMA, sealEvidence } from "../evidence/hash.ts"
 import { METRIC_IDS, MetricsInputError, calculateMetricsTraced, type AnalyticsTrade } from "../metrics/index.ts"
 import { assessBundle } from "./assess.ts"
 import { errorResult, okResult } from "./envelope.ts"
+import { applyAccountFilter } from "./alias-input.ts"
 import { generatorOpts, saltMissing } from "./salt.ts"
 import { projectMetricValue } from "./project.ts"
 import type { SourceFiles, VerifySourceOptions } from "../evidence/verify-source.ts"
@@ -26,6 +28,8 @@ export const QUERY_FILTERS_SCHEMA = z
   .strictObject({
     from: DATE, to: DATE,
     symbol: list(z.string().regex(/^[A-Za-z0-9 ._-]{1,32}$/)),
+    /** E6.6-5-A: a conta como o servidor a mostrou ("Conta A"); o servidor resolve para o nome real (alias-input.ts). Nome cru nunca casa. */
+    account: list(z.string().regex(/^Conta [A-Z]{1,3}$/)),
     direction: z.enum(["LONG", "SHORT"]),
     session: list(z.enum(["AM", "PM", "OVERNIGHT"])),
     hour: list(z.number().int().min(0).max(23)),
@@ -51,6 +55,8 @@ export interface MetricsQueryContext {
   /** Preferências do USUÁRIO (nunca do modelo). */
   analysis?: { timeZone?: string; minSample?: number }
   accountRefSalt?: string
+  /** Tabela de alias da CONVERSA (somente leitura aqui; só metrics.groups aloca). Ausente ⇒ nenhum alias de conta resolve. */
+  aliases?: AliasTable
   /** Arquivo original (quando existir); ausente ⇒ source = NOT_RUN. */
   source?: { files: SourceFiles; options?: VerifySourceOptions } | null
 }
@@ -68,9 +74,12 @@ export function metricsQuery(rawArgs: unknown, ctx: MetricsQueryContext): Metric
   try {
     const parsed = MetricsQueryArgsSchema.safeParse(rawArgs)
     if (!parsed.success) return fail("ARGS_INVALID")
-    const { metricIds, filters, options } = parsed.data
+    const { metricIds, options } = parsed.data
     if (typeof ctx !== "object" || ctx === null || !Array.isArray(ctx.trades) || !Array.isArray(ctx.importRecords)) return fail("ENGINE_REFUSED")
     if (saltMissing(ctx)) return fail("ENGINE_REFUSED") // import SALGADO sem o sal: falha FECHADA (salt.ts)
+    const af = applyAccountFilter(parsed.data.filters, ctx)
+    if (!af.ok) return fail("ARGS_INVALID") // alias de conta que não resolve é erro do modelo (E6.6-5-A)
+    const filters = af.filters
 
     let calc: ReturnType<typeof calculateMetricsTraced>
     try {

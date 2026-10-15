@@ -8,6 +8,7 @@ import type { CapabilityId, EvidenceHandle } from "../agent/contract.ts"
 import { derivedEvidenceBundle, explainDerived } from "../evidence/explain-derived.ts"
 import { METRIC_IDS, MetricsInputError, normalizeFilters } from "../metrics/index.ts"
 import { assessBundle } from "./assess.ts"
+import { applyAccountFilter, resolveAccount } from "./alias-input.ts"
 import { errorResult, okResult } from "./envelope.ts"
 import { QUERY_FILTERS_SCHEMA, QUERY_OPTIONS_SCHEMA, type MetricsQueryContext } from "./metrics-query.ts"
 import { COMPARE_DIMENSIONS, projectCompare } from "./project.ts"
@@ -34,6 +35,8 @@ const DIM_VALUE: Readonly<Record<Dim, z.ZodType>> = {
   dayOfWeek: z.number().int().min(0).max(6),
   hour: z.number().int().min(0).max(23),
   symbol: z.string().regex(/^[A-Z0-9]{1,12}$/),
+  /** E6.6-5-A: o ALIAS que o servidor mostrou ("Conta A"); resolvido para o nome real em alias-input.ts. */
+  account: z.string().regex(/^Conta [A-Z]{1,3}$/),
   direction: z.enum(["LONG", "SHORT"]),
   exitReason: z.enum(["TARGET", "STOP", "MANUAL", "MIXED"]),
 }
@@ -87,19 +90,29 @@ export function metricsCompare(rawArgs: unknown, ctx: MetricsQueryContext): Metr
     const args = parsed.data
     if (typeof ctx !== "object" || ctx === null || !Array.isArray(ctx.trades) || !Array.isArray(ctx.importRecords)) return fail("ENGINE_REFUSED")
     if (saltMissing(ctx)) return fail("ENGINE_REFUSED") // import SALGADO sem o sal: falha FECHADA (salt.ts)
-    const filters = args.filters ?? {}
+    const af = applyAccountFilter(args.filters, ctx)
+    if (!af.ok) return fail("ARGS_INVALID") // alias de conta que não resolve é erro do modelo (E6.6-5-A)
+    const filters = af.filters ?? {}
     try { normalizeFilters(filters) } catch (e) { return fail(e instanceof MetricsInputError ? "ARGS_INVALID" : "ENGINE_REFUSED") } // erro de ENTRADA do motor (ex.: from > to) é do modelo
 
     const options = args.options
     const specOptions = { ...(ctx.analysis?.timeZone !== undefined ? { timeZone: ctx.analysis.timeZone } : {}), ...(ctx.analysis?.minSample !== undefined ? { minSample: ctx.analysis.minSample } : {}), ...(options?.pnlBasis !== undefined ? { pnlBasis: options.pnlBasis } : {}), ...(options?.rBasis !== undefined ? { rBasis: options.rBasis } : {}) }
-    const sideOf = (side: Record<string, string | number>, dims: readonly Dim[]): Record<string, string> => Object.fromEntries(dims.map((d) => [d, coerce(d, side[d])]))
+    // dimensão `account`: o valor é o ALIAS; vira o NOME real (o derivado faz o hash) e a == b é decidido pelo REF (E6.6-5-A)
+    const accountOf = (v: unknown): { name: string; ref: string } | null => { const r = resolveAccount(String(v), ctx); return r.ok ? { name: r.name, ref: r.ref } : null }
+    if (args.mode === "GROUP" && args.groupBy.includes("account")) {
+      const a = accountOf(args.a.account)
+      const b = accountOf(args.b.account)
+      if (a === null || b === null) return fail("ARGS_INVALID")
+      if (args.groupBy.length === 1 && a.ref === b.ref) return fail("ARGS_INVALID")
+    }
+    const sideOf = (side: Record<string, string | number>, dims: readonly Dim[]): Record<string, string> => Object.fromEntries(dims.map((d) => [d, d === "account" ? (accountOf(side[d])?.name ?? "") : coerce(d, side[d])]))
     const spec = args.mode === "GROUP"
       ? { op: "GROUP_COMPARISON" as const, args: { groupBy: [...args.groupBy], a: sideOf(args.a, args.groupBy), b: sideOf(args.b, args.groupBy), metrics: args.metricIds }, filters, options: specOptions }
       : { op: "PERIOD_COMPARISON" as const, args: { a: { from: args.a.from, to: args.a.to }, b: { from: args.b.from, to: args.b.to }, metrics: args.metricIds }, filters, options: specOptions }
 
     const explained = explainDerived({ spec, trades: ctx.trades, importRecords: ctx.importRecords, ...generatorOpts(ctx) })
     if (!explained.ok) return fail("ENGINE_REFUSED")
-    const projection = projectCompare(explained.derived.result, ctx.refEpoch)
+    const projection = projectCompare(explained.derived.result, ctx.refEpoch, ctx.aliases)
     if (projection === null || projection.view.deltas.length !== args.metricIds.length) return fail("ENGINE_REFUSED")
 
     const assessed = assessBundle(derivedEvidenceBundle(explained), { refEpoch: ctx.refEpoch, source: ctx.source ?? null, population: { sampleFlag: projection.worstFlag, conclusive: projection.view.conclusive } })

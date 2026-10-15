@@ -58,6 +58,30 @@ export function allocateAlias(table: AliasTable, kind: AliasKind, ref: string, e
   return { ok: true, alias: PREFIX[kind] + letters(list.length), table: next }
 }
 
+/**
+ * Inverso do `allocateAlias` para o alias de ENTRADA (E6.6-5-A): do texto que o modelo cita ("Conta B") ao ref da tabela da conversa. Formato EXATO (prefixo do tipo + 1 a 3 letras
+ * A–Z), época IGUAL à da tabela, índice dentro da lista. Nunca aloca, nunca muta a tabela, nunca lança; o erro é fixo e não ecoa a entrada.
+ */
+export function resolveAlias(table: AliasTable, kind: AliasKind, alias: string, epoch: string): { readonly ok: true; readonly ref: string } | { readonly ok: false } {
+  const no = { ok: false } as const
+  try {
+    if (typeof kind !== "string" || !Object.hasOwn(REF_RE, kind) || typeof alias !== "string" || typeof epoch !== "string" || !EPOCH_RE.test(epoch)) return no
+    if (typeof table !== "object" || table === null || table.epoch !== epoch) return no
+    const list: unknown = table[kind]
+    if (!Array.isArray(list)) return no
+    const prefix = PREFIX[kind]
+    if (!alias.startsWith(prefix)) return no
+    const rest = alias.slice(prefix.length)
+    if (!/^[A-Z]{1,3}$/.test(rest)) return no
+    let n = 0
+    for (const ch of rest) n = n * 26 + (ch.charCodeAt(0) - 64)
+    const ref: unknown = list[n - 1]
+    return typeof ref === "string" && REF_RE[kind].test(ref) ? { ok: true, ref } : no
+  } catch {
+    return no
+  }
+}
+
 const VOCAB = /^(?:(entry|zerar)|(target|stop)([0-9]{0,2}))$/
 const CANON: Readonly<Record<string, string>> = { entry: "Entry", zerar: "Zerar", target: "Target", stop: "Stop" }
 
