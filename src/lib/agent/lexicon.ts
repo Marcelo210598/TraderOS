@@ -70,19 +70,19 @@ export const LEXICON = {
     "foi stopado", "acionou o stop", "atingiu o stop", "bateu no stop", "bateu o stop", "acionou o alvo", "atingiu o alvo", "bateu no alvo",
     "bateu o alvo", "real stop", "actual stop", "hit the stop", "stopped out", "hit the target", "true stop",
   ],
-  /** 178 termos (83 do e66_2b + 95 do e66_2c) */
+  /** 185 termos (83 do e66_2b + 95 do e66_2c − 10 + 17 do fix-A) */
   ADVICE: [
-    "recomendo", "recomenda", "recomendamos", "sugiro", "sugere", "sugerimos", "aconselho", "aconselha", "voce deveria", "voce deve", "voce devia",
+    "recomendo", "recomenda", "recomendamos", "sugiro", "sugerimos", "aconselho", "aconselha", "voce deveria", "voce deve", "voce devia",
     "voce precisa", "deveria", "devia", "o ideal e", "o melhor e", "seria bom", "seria melhor", "e preferivel", "o certo e", "vale a pena", "convem",
     "evite", "evitar", "evitaria", "pare de", "comece a", "tente", "experimente", "considere", "opere mais", "opere menos", "operar mais",
     "operar menos", "aumente", "reduza", "diminua", "mude", "troque", "ajuste seu", "ajuste sua", "foque", "priorize", "deixe de", "nao opere",
-    "melhor nao", "dica", "revise", "reveja", "verifique", "confira", "estude", "analise", "observe", "atente", "fique atento", "cuidado",
+    "melhor nao", "dica", "revise", "reveja", "verifique", "confira", "estude", "observe", "atente", "fique atento",
     "vale revisar", "vale verificar", "vale checar", "vale olhar", "merece atencao", "merece revisao", "o que fazer", "proximo passo",
-    "proximos passos", "faca", "recommend", "recommended", "suggest", "should", "you must", "consider", "avoid", "try", "advise", "recomiendo",
-    "sugiero", "deberias", "debes", "evita", "considera", "intenta",
+    "proximos passos", "recommend", "recommended", "suggest", "should", "you must", "consider", "avoid", "try", "advise", "recomiendo",
+    "sugiero", "deberias", "debes", "intenta",
     // E6.6-2c (achado #1 do review do Gemini): imperativos de mercado. 95 termos novos.
-    // verbos unívocos (soltos)
-    "compre", "zere", "alavanque", "desalavanque", "proteja", "aguarde",
+    // verbos unívocos (soltos). compre/zere/proteja/aguarde SAÍRAM no fix-A: o subjuntivo da 3ª pessoa tem a mesma forma ("que a regra compre")
+    "alavanque", "desalavanque",
     // stop, alvo e lucro
     "suba o stop", "suba o alvo", "mova o stop", "mova o alvo", "baixe o stop", "abaixe o stop", "aperte o stop", "afrouxe o stop", "amplie o stop",
     "remova o stop", "tire o stop", "coloque o stop", "coloque stop", "posicione o stop", "defina o stop", "trave o lucro", "trave lucro",
@@ -102,6 +102,11 @@ export const LEXICON = {
     // inglês
     "sell now", "buy the dip", "sell the rally", "close the trade", "close your position", "move your stop", "raise your stop", "lower your stop",
     "stay out", "hold the position", "cut your losses",
+    // E6.6-2c-fix-A (rodada 3 do Gemini): considera/evita/sugere (3ª pessoa do indicativo), cuidado/faca/analise (substantivos) e compre/zere/proteja/aguarde
+    // (subjuntivo) SAÍRAM como palavra solta; a intenção de conselho fica só em locução. 17 termos novos.
+    "evita operar", "tome cuidado", "tenha cuidado", "nao faca", "analise o grafico", "analise seus trades",
+    "compre agora", "compre no suporte", "compre no rompimento", "compre no pullback", "zere a posicao", "zere tudo", "zere agora",
+    "proteja o capital", "proteja o lucro", "aguarde a confirmacao", "aguarde o fechamento",
   ],
   /** 24 termos */
   TIE: [
