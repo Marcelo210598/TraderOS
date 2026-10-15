@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-15 E6.6-5-A — EXPECTATIVA escrita antes do código (bloco e66_5a). D5A-1…D5A-6 aprovadas (Gemini, delegação do Marcelo); só `account` neste passo, strategy = E6.6-5-A2. Fatos medidos na CY antes de escrever (alias Conta A=Sim101/4 trades, Conta B=Sim102/2; refView alinha por índice com e sem sal; filtro e dimensão por conta VALID/VERIFIED; o derivado recebe NOME e faz o hash). ACHADO que muda o desenho: projectCompare precisa da TABELA da conversa (3º parâmetro), senão o compare por conta rotularia 'Conta A' pela ordem dos lados e não pela tabela. A célula e66_8 (compare) continua válida: `account` entra como 10ª dimensão sem alterar as 9 anteriores.",
       "2026-10-15 E6.6-8 EXECUTADO. Placar 998 → 1010 ✓ (+12 K1–K12), baseline idêntico exceto D1 (29→30), Q0 (9 arquivos) e as linhas novas; tsc 0; ESLint limpo. Mutações: 19 aplicadas, 16 pegas; escaparam M13 (unit não validado na projeção: equivalente, o CompareViewSchema valida de novo) e E1a/E1b (conclusive: condições não separadas, declarada). src/ muda em metrics-compare.ts (novo), project.ts (+projectCompare) e format.ts (+1 motivo). Guardas acionados e tratados: Q0 e (2c) sal.",
       "2026-10-15 E6.6-8 — guarda (2c) do test-evidence-salt-propagation apanhou o arquivo NOVO (metrics-compare.ts importa explain-derived), como foi desenhado: revisado (o sal só passa por generatorOpts/saltMissing de salt.ts, mesma forma do exit-breakdown; K9 prova import salgado sem sal ⇒ ENGINE_REFUSED e com sal ⇒ ok) e incluído em APPROVED_GENERATOR_IMPORTERS. Eu não tinha previsto este guarda na expectativa (erro meu de levantamento): a lista de testes a ajustar era Q0 (static) e o catálogo; faltou este.",
       "2026-10-15 E6.6-8 — CÉLULA CONGELADA MUDADA (D8-5, aprovada): e66_1.reason_catalog ganha GROUP_NOT_FOUND = 'o grupo não existe nos dados' (sem dígito) e expected_count 29 → 30. Motivo: o motor deixa bReason/aReason = GROUP_NOT_FOUND quando um lado da comparação não tem trade; sem o código no catálogo o slot daria FORMAT_INVALID e a projeção recusaria um pedido comum. test-agent-format.mts não muda (lê a expectativa). Também neste passo: o guarda estático Q0 do test-agent-capabilities-static passa a listar metrics-compare.ts (9 arquivos). SYMBOL: a expectativa dizia que a entrada usa a regex permissiva do filtro; como a chave sai pelo groupKeyPart (/^[A-Z0-9]{1,12}$/), a entrada do compare usa ESSA regex, senão um pedido válido viraria ENGINE_REFUSED.",
@@ -4566,6 +4567,85 @@
           "EQUIVALENTE DECLARADA E1: conclusive := (confidence === 'OK') ignorando as métricas, ou := (todas as métricas conclusive) ignorando a confiança. Nas 3 configurações medidas (CY, CZ, CZ averageR/totalR) as duas condições coincidem, então uma mutação que ignora UMA delas escapa. Não consegui construir uma fixture que as separe sem inventar dado; o teste pina a conjunção nos 3 casos medidos e a lacuna fica registrada."
       ],
       "baselines": "998 linhas ✓ do test:domain (saída salva antes: 1286 linhas após o 7b) permanecem idênticas; só se acrescentam as linhas K1–K12 do arquivo novo e, no commit de código, o título/contagem do catálogo em test-agent-format (29 → 30). src/ muda em: metrics-compare.ts (novo), project.ts (+projectCompare), format.ts (+1 motivo). Nenhum arquivo de evidence/ metrics/ ingest/ domain/ muda."
+  },
+  "e66_5a": {
+      "status": "EXPECTATIVA (15/10/2026) escrita ANTES do código do E6.6-5-A (alias de ENTRADA). D5A-1 a D5A-6 APROVADAS (Gemini, delegação do Marcelo), com o D5A-3 explícito: SÓ `account` neste passo; `strategy` vira E6.6-5-A2 (strategyId ?? strategyName na dimensão, filtros em E, strategyName fora de VERIFIABLE_FILTERS ⇒ UNVERIFIABLE). FATOS pré-conferidos em 15/10 num script de exploração (não commitado) com a fixture CY (e uma importação SALGADA).",
+      "files": [
+          "src/lib/agent/label.ts (só +resolveAlias; puro, sem imports novos, SG1)",
+          "src/lib/agent-capabilities/alias-input.ts (novo): applyAccountFilter e resolveAccountValues",
+          "src/lib/agent-capabilities/metrics-query.ts (QUERY_FILTERS_SCHEMA +account; MetricsQueryContext +aliases?; usa applyAccountFilter)",
+          "src/lib/agent-capabilities/metrics-groups.ts, exit-breakdown.ts (usam applyAccountFilter; groups segue alocando e devolvendo a tabela)",
+          "src/lib/agent-capabilities/metrics-compare.ts (+account como 10ª dimensão; aliases nos lados e nas chaves; usa applyAccountFilter)",
+          "src/lib/agent-capabilities/project.ts (projectCompare ganha o 3º parâmetro `aliases?: AliasTable`; sem ele, tabela nova como hoje)",
+          "scripts/test-agent-alias-input.mts (novo, no test:domain depois do test-agent-metrics-compare)",
+          "scripts/test-agent-capabilities-static.mts (Q0: 9 → 10 arquivos)"
+      ],
+      "nao_muda": "evidence/, metrics/, ingest/, domain/, views.ts, slot-path.ts, validate-text.ts. Strategy/setup/timeframe/strategyVersion continuam ARGS_INVALID em TODAS as capacidades.",
+      "fatos_medidos_CY": {
+          "alias_da_conversa": "metrics.groups(groupBy account) devolve ['Conta A'] com 4 trades e ['Conta B'] com 2; a tabela devolvida é { epoch:'s1', conta:['acc_f9128d525d4209cc6b03a13a','acc_8159ca111277de777c1b29cf'], estrategia:[], rotulo:[] }. Conta A = Sim101, Conta B = Sim102.",
+          "refView_alinha": "refView(ctx.trades, salt)[i].trade.account.sourceName == o ref da conta do trade i, e é igual a ctx.trades[i].trade.account.ref (sem sal e com sal). O nome real é ctx.trades[i].trade.account.sourceName. Com sal, o ref depende do sal: refView com o sal ERRADO não reproduz o ref da tabela.",
+          "filtro_account_com_NOME": "calculateMetricsTraced(filters {account:'Sim101'}) ⇒ afterFilters 4; explainMetric + assess com arquivo ⇒ verify VALID, source SOURCE_VERIFIED, combined VERIFIED. Derivado EXIT_REASON_ANALYSIS com o mesmo filtro ⇒ VALID/VERIFIED, 4 trades. O normalizeSpec do derivado recebe o NOME e faz o hash (ref de ref NÃO casa): por isso o servidor resolve alias ⇒ ref ⇒ NOME.",
+          "compare_por_conta": "GROUP_COMPARISON groupBy account a:'Sim101' b:'Sim102' ⇒ VALID/VERIFIED; result.a.key.key == ['acc_f9128d525d4209cc6b03a13a'] (REF, nunca o nome); tamanhos 4 e 2; oráculo direto: totalTrades 4 vs 2 (delta -2), netPnl 8 vs 12,8 (delta 4,8)."
+      },
+      "resolveAlias": {
+          "assinatura": "resolveAlias(table: AliasTable, kind: AliasKind, alias: string, epoch: string): { ok: true; ref: string } | { ok: false }",
+          "regras": [
+              "formato EXATO: prefixo do kind ('Conta ' / 'Estratégia ' / 'rótulo personalizado ') + 1 a 3 letras MAIÚSCULAS A–Z, nada antes nem depois (sem espaço extra, sem caixa baixa, sem acento diferente)",
+              "decodificação bijetiva inversa de letters(): A⇒0, Z⇒25, AA⇒26, ZZ⇒701, AAA⇒702; ida e volta com allocateAlias (alocar N refs e resolver cada alias devolve o MESMO ref, inclusive nas fronteiras 26, 702 e 17576)",
+              "a época da tabela tem que ser IGUAL a `epoch` (tabela de outra época nunca resolve); índice fora da lista ⇒ { ok:false }",
+              "NUNCA aloca, nunca muta a tabela (a tabela é congelada), nunca lança; kind desconhecido, alias de outro kind ('Estratégia A' pedindo conta), não-string, protótipo ('__proto__', 'constructor') ⇒ { ok:false }",
+              "o resultado de erro é fixo { ok:false } (não ecoa o alias)"
+          ]
+      },
+      "alias_input": {
+          "applyAccountFilter(filters, ctx)": "filtro `account` (alias ou lista de 1–8 aliases, distintos depois de resolver) ⇒ troca por NOMES reais (ctx.trades com refView(ctx.trades, salt) alinhado por índice; salt = generatorOpts(ctx)); devolve { ok:true, filters } com os OUTROS filtros intactos e `account` = nome (ou lista de nomes distintos, ordenada); sem `account` devolve os filtros como vieram. Falha (⇒ ARGS_INVALID) quando: ctx.aliases ausente ou malformado (tratado como ausente); época da tabela ≠ ctx.refEpoch; alias fora do formato ou fora da tabela; ref da tabela sem nenhum trade em ctx.trades; lista vazia ou > 8.",
+          "schema_de_entrada": "QUERY_FILTERS_SCHEMA ganha `account: list(z.string().regex(/^Conta [A-Z]{1,3}$/))` (1–8). Nome cru ('Sim101'), 'Estratégia A' e qualquer outra forma não casam ⇒ ARGS_INVALID já no schema. strategyId/strategyName/setup/timeframe/strategyVersion seguem fora.",
+          "ordem": "1) schema de args ⇒ ARGS_INVALID; 2) ctx inválido ⇒ ENGINE_REFUSED; 3) sal ausente ⇒ ENGINE_REFUSED; 4) alias não resolvido ⇒ ARGS_INVALID; 5) motor. (Um ctx hostil que LANÇA ao ler `aliases` ⇒ ENGINE_REFUSED, como nos demais.)",
+          "tabela_da_conversa": "MetricsQueryContext ganha `aliases?: AliasTable` (somente leitura). metrics.groups continua sendo o ÚNICO que aloca e devolve a tabela atualizada; query, exit.breakdown e compare só LEEM. Compare não aloca: os lados vêm de aliases que já existem na tabela."
+      },
+      "compare_account": {
+          "dimensao": "`account` vira a 10ª dimensão de COMPARE_DIMENSIONS (modo GROUP). O valor de cada lado é o ALIAS ('Conta A'); a==b é decidido DEPOIS de resolver (dois aliases do mesmo ref ⇒ ARGS_INVALID). Combinável com outra dimensão (account+hour).",
+          "chave_na_view": "a chave do lado sai por groupKeyPart('account', ref, TABELA DA CONVERSA): o alias é o da tabela, não um alias recém-alocado. Se a tabela da conversa trocou a ordem (Conta A = Sim102), a view mostra 'Conta A' para Sim102. projectCompare(result, refEpoch, aliases?) recebe a tabela; sem ela usa tabela vazia (comportamento de hoje: 2 argumentos continuam válidos).",
+          "sem_tabela": "sem ctx.aliases (ou sem o alias), account no compare ⇒ ARGS_INVALID (nunca aloca)."
+      },
+      "decisions_D5A": {
+          "D5A-1": "resolveAlias puro em label.ts",
+          "D5A-2": "ctx.aliases? somente leitura; só metrics.groups aloca",
+          "D5A-3": "só account; strategy no 5-A2",
+          "D5A-4": "filtro account nas 4 capacidades + 10ª dimensão do compare",
+          "D5A-5": "qualquer falha de resolução ⇒ ARGS_INVALID; nome cru sempre ARGS_INVALID",
+          "D5A-6": "alias-input.ts novo em agent-capabilities/; Q0 passa a 10 arquivos"
+      },
+      "cases": [
+          "A1 resolveAlias PURO: formato exato; ida e volta com allocateAlias (A, Z, AA, ZZ, AAA e as fronteiras 26/702/17576 para conta, estratégia e rótulo); época diferente, índice fora, kind errado, caixa baixa, espaço extra, 4 letras, vazio, protótipo, não-string ⇒ { ok:false } fixo; tabela intacta (congelada) e nunca lança",
+          "A2 metrics.query com filters.account 'Conta A' (tabela vinda de um metrics.groups real): valores == calculateMetricsTraced DIRETO com filters.account 'Sim101' (afterFilters 4); 'Conta B' ⇒ Sim102 (2); lista ['Conta A','Conta B'] == sem filtro (6); handle VALID, sem arquivo NOT_VERIFIED, com arquivo VERIFIED",
+          "A3 metrics.groups com filters.account + groupBy hour: == direto; a tabela devolvida em `aliases` NÃO ganha nem perde entrada (continua a da conversa)",
+          "A4 exit.breakdown com filters.account: buckets == exitReasonAnalysis DIRETO com account 'Sim101'; VALID/VERIFIED com arquivo",
+          "A5 metrics.compare GROUP por conta: a 'Conta A' vs b 'Conta B' ⇒ view == compareGroups DIRETO (Sim101 vs Sim102: 4 vs 2; netPnl 8 vs 12,8, delta 4,8); a.key == ['Conta A'], b.key == ['Conta B']; com a tabela TROCADA (Conta A = Sim102) os dados e a chave seguem a tabela; account+hour (2 dimensões) funciona; a == b depois de resolver ⇒ ARGS_INVALID",
+          "A6 metrics.compare PERIOD com filters.account alias == comparePeriods DIRETO com o nome (e VALID/VERIFIED com arquivo)",
+          "A7 FALHAS ⇒ ARGS_INVALID (envelope fixo, sem eco do alias): sem ctx.aliases; tabela de OUTRA época (s0 vs s1); alias fora da tabela ('Conta Z'); formato errado ('conta A', 'Conta  A', 'Conta AAAA', 'Estratégia A' em account); nome cru 'Sim101' / 'Sim102'; lista vazia; 9 aliases; alias válido cujo ref não tem trade em ctx.trades; tabela malformada (conta não é array; sem epoch); strategy/strategyId/strategyName/setup/timeframe/strategyVersion em filtros e em groupBy do compare continuam ARGS_INVALID",
+          "A8 PRIVACIDADE: com filtro/dimensão por conta o envelope serializado NÃO contém 'Sim101' nem 'Sim102', nem 'acc_', nem o nome do arquivo; o envelope de ARGS_INVALID não contém o alias pedido",
+          "A9 SAL: import SALGADO (ctx.accountRefSalt = sal certo): o alias resolve (refView com o sal) e o resultado == direto; com o sal ERRADO (ou sem sal onde o import é salgado: ENGINE_REFUSED como hoje) o ref da tabela não reproduz ⇒ ARGS_INVALID",
+          "A10 PUREZA: ctx.aliases congelado não é alterado; mesma saída em duas chamadas; ctx hostil (getter de `aliases` que lança) ⇒ ENGINE_REFUSED sem lançar; ctx.trades não é alterado",
+          "A11 ESTÁTICA: Q0 lista 10 arquivos (alias-input.ts); label.ts continua sem imports; alias-input.ts só importa ../agent/, ../evidence/derived.ts (refView), ./; QUERY_FILTERS_SCHEMA continua sem strategy*/setup/timeframe; nenhum arquivo novo importa explain-* (o guarda (2c) do sal não muda)",
+          "A12 TESTES EXISTENTES: os ARGS_INVALID de conta cru (X9, K9, G, Q) continuam valendo SEM mudança (o nome cru nunca casa o formato do alias); o K3 do compare (account sem tabela ⇒ ARGS_INVALID) continua verde; só muda o COMENTÁRIO/título que diz 'account fora da lista'"
+      ],
+      "mutations_planned": [
+          "R1 resolveAlias ignora a época ⇒ A1/A7 falham",
+          "R2 resolveAlias aloca um alias novo quando não existe ⇒ A1/A7 falham",
+          "R3 aceita o nome cru 'Sim101' no filtro ⇒ A7 falha",
+          "R4 decodificação com índice deslocado em 1 ('A' ⇒ 1) ⇒ A1/A2 falham",
+          "R5 trocar os kinds (conta ⇄ estratégia) ⇒ A1 falha",
+          "R6 não conferir que o ref existe em ctx.trades ⇒ A7 falha",
+          "R7 filtro `account` ignorado (devolve todas as contas) ⇒ A2/A3/A4 falham",
+          "R8 chave do compare por tabela NOVA em vez da da conversa ⇒ A5 (tabela trocada) falha",
+          "R9 aceitar lista > 8 ⇒ A7 falha",
+          "R10 usar sal vazio ao resolver ⇒ A9 falha",
+          "R11 alias-input muta ctx.aliases ⇒ A10 falha",
+          "R12 aceitar 'Estratégia A' no filtro account ⇒ A7 falha",
+          "R13 a == b decidido ANTES de resolver ⇒ A5 falha (dois aliases do mesmo ref)"
+      ],
+      "baselines": "1010 linhas ✓ do test:domain (saída salva antes: ver after-8) permanecem idênticas exceto: título do Q0 (9 → 10 arquivos), título/comentário do K3 se mudar, e as linhas novas A1–A12. src/ muda em label.ts (+resolveAlias), alias-input.ts (novo), metrics-query/groups/exit-breakdown/compare (usam applyAccountFilter; compare ganha account) e project.ts (3º parâmetro). Nenhum arquivo de evidence/ metrics/ ingest/ domain/ muda."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
