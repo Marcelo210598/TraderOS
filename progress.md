@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 15/10/2026 — AI Partner: E6.6 FECHADO (E6.6-8…12 + 5-A + 7b + fixes do validador) — backup até `882fbae`; origin intocado
+Suíte **984 → 1083 ✓**, tsc 0, ESLint limpo. Novas capacidades: `metrics.compare`, `rank.groups`, `exit.analysis`, `evidence.explain` (+PD-3 `DATA_NOT_PROVIDED`), `evidence.refresh` (+`refreshEvidence` no ledger; sem sal o ref não muda entre épocas) e alias de entrada de conta. `VERIFIED_PARTIAL` coberto ponta a ponta (receita real). Pendências: E6.6-5-A2 `strategy`, D6-1, estresse 50×10, endurecer RF9. Detalhe: `historico/2026-10-15.md` e `docs/ai-partner/MEUTRADE-CHECKPOINT-2026-10-15.md`.
+
 ## ✅ 14/10/2026 — AI Partner: E6.6-7a, 7a', 2c + review adversarial do Gemini — backup até `ce767a3`; 2c só local
 Gemini (Antigravity, só leitura) revisa cada passo; eu reproduzo cada achado antes de agir (rodada 1: 6/7 confirmados; rodada 2: 3/4, 1 refutado). **E6.6-7a/7a'**: X13–X15c + G15b (rBasis, DIVERGENT por valor e quantidade, literais, cobertura parcial, minSample). **E6.6-2c**: validador barra ordens de mercado (`ADVICE` 83 → 178; homônimos só em locução; 10 falsos negativos pinados). Suíte **984 ✓**, tsc 0. Próximos: rodada 3 do Gemini, push, E6.6-7b (`undefined` ⇒ ARGS_INVALID + `buckets[].unit`), decidir FP `analise`, E6.6-8…12. Retomar por `docs/ai-partner/MEUTRADE-CHECKPOINT-2026-10-14.md`.
 

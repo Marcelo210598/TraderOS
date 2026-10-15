@@ -60,3 +60,6 @@ fixtures/**/*.xlsx
 fixtures/**/*.pdf
 fixtures/**/*.json
 !fixtures/_synthetic/**
+
+# duplicatas do iCloud ("arquivo 2.ext")
+* 2.*
