@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-15 E6.6-7b — EXPECTATIVA escrita antes do código (bloco e66_7b). Autorizado pelo Gemini (delegação do Marcelo) em 15/10. (1) #2: o comportamento (undefined ⇒ ARGS_INVALID) já existia e é testado; o ERRO era de TEXTO — a expectativa do X9 e o TÍTULO do teste X9 diziam 'undefined = pedido válido' enquanto o corpo assere o contrário. Texto do X9 corrigido agora. (2) #6: `buckets[].unit` vira folha de slot enum (tabela bucketUnit: TRADE='trades', LEG='pernas'); REVOGA a decisão e66_1.leaf_table.not_slot_leaves_by_decision['buckets[].unit'] e muda 1 linha do P3. `unit` de métrica continua fora dos slots. Erro meu a registrar: eu dei o #2 como 'texto do X9 + history', sem perceber que o título do teste também mentia.",
       "2026-10-15 E6.6-2c-fix-B — EXPECTATIVA escrita antes do código (bloco e66_2c_fixB). Rodada 3 do Gemini #1 e #4 (burlas): plurais, 'vamos…', 'hora de…', ES/EN óbvios. 39 locuções. Decisões do Gemini (delegação do Marcelo): manter H11 pinado; imperativos antigos = limitação conhecida; infinitivos e sílaba quebrada = FN declarado. Pré-conferi as 41 frases numa cópia patchada ANTES de commitar e medi a fase vermelha (24 de 24 ordens passam hoje).",
       "2026-10-15 E6.6-2c-fix-A — EXPECTATIVA escrita antes do código (bloco e66_2c_fixA). Rodada 3 do Gemini: dos 6 achados, os 6 reproduzidos por mim. Este passo trata #2 (subjuntivo do 2c: compre/zere/proteja/aguarde) e #3 (FP antigos: considera/evita/sugere/cuidado/faca/analise). Decisão (Gemini, delegação do Marcelo): remover os 10 como termos soltos, trocar por locução; 'Compre.' etc. = FN declarado; validate-text.ts intocado. Antes de commitar conferi as 34 frases numa cópia patchada do léxico (todas se comportam como escritas). ACHADO NOVO: 5 locuções do 2c (mantenha a posicao, fique de fora, nao entre no, feche o trade, realize o lucro) também colidem com o subjuntivo e a troca por locução NÃO as resolve; ficam como FALSOS POSITIVOS pinados (H11) até decisão. O burlas (#1, #4, #5) ficam para o fix-B.",
       "2026-10-14 E6.6-2c — CORREÇÃO MINHA na expectativa, achada pelo teste H5 na fase vermelha: 'Corte a mão pela metade.' NÃO era falso negativo (já é rejeitada hoje por 'metade'); trocada por 'Corte a mão.', que passa de fato. A expectativa tinha sido commitada (ba63147) sem eu ter rodado as 10 frases de known_false_negatives_2c contra o validador; as 17 de must_accept eu tinha rodado.",
@@ -3807,7 +3808,7 @@
   "X6 PRIVACIDADE: o envelope serializado NÃO contém 'Sim101/Sim102', 'Target1', 'Target2', 'Stop1', 'Zerar', 'Saida X', legSetHash, hash completo, importId, nome de arquivo nem chave T0; a view só tem a lista branca",
       "X7 VAZIO: filtro que exclui tudo ⇒ resposta OK (nenhum erro), linhas de contagem 0 com valor indisponível e motivo; declared 0; sem sampleFlag (nenhuma linha com contagem > 0)",
       "X8 FIM A FIM: ledger → validateAnswer → renderAnswer com slots de motivo de saída ('alvo'), contagem, valor, fração e reconciliação; ASSERT sem arquivo ⇒ MISSING_NOT_VERIFIED_LABEL; sampleFlag TINY exige INDICATIVE_ONLY (INCONCLUSIVE_AS_CONCLUSIVE sem ela)",
-      "X9 ARGS_INVALID: metricIds (não existe aqui), filtros de conta/estratégia, campos extras, tipos errados, args que não são objeto; nunca lança; args ausentes ({} ou undefined) = pedido completo válido",
+      "X9 ARGS_INVALID: metricIds (não existe aqui), filtros de conta/estratégia, campos extras, tipos errados, args que não são objeto; nunca lança; {} = pedido completo válido; `undefined` NÃO é objeto de args ⇒ ARGS_INVALID (decisão do Marcelo, review do Gemini #2; o chamador envia {}). [texto corrigido em 15/10/2026 pelo E6.6-7b; antes dizia "args ausentes ({} ou undefined) = pedido completo válido", o que o teste já NÃO assertava]",
       "X10 contexto/sal: import salgado sem sal ⇒ ENGINE_REFUSED; com sal e arquivo ⇒ VERIFIED; trades sem identidade ⇒ ENGINE_REFUSED; ctx hostil ⇒ ENGINE_REFUSED; puro (não altera ctx; mesma saída)",
       "X11 projeção: projectExitBreakdown recusa (null) coverage com ratio null e total > 0, valor null sem motivo, linha sem campo, contagem negativa/fracionária, status de reconciliação desconhecido, motivo de saída fora do enum; descarta campos extras",
       "X12 guardas: a lista da pasta passa a 8 arquivos; o utilitário do sal é usado (guarda 2d); project.ts sem spread"
@@ -4314,6 +4315,51 @@
           "P8 adicionar 'comprar' solto (infinitivo) ⇒ H15 falha"
       ],
       "baselines": "989 linhas ✓ do test:domain (saída salva antes: 1275 linhas) permanecem idênticas exceto: título do T1 (729→768), título/contagem do H6, o contador final e o novo conjunto H12–H15. src/ muda SÓ em lexicon.ts. Nenhum arquivo de evidence/ metrics/ ingest/ domain/ muda."
+  },
+  "e66_7b": {
+      "status": "EXPECTATIVA (15/10/2026) escrita ANTES do E6.6-7b. Origem: review do Gemini (#2 e #6, confirmados por mim em 14/10). Autorizado pelo Gemini (delegação do Marcelo) em 15/10 com LEG = 'pernas' e TRADE = 'trades'.",
+      "parte_2_undefined": {
+          "o_que": "Só TEXTO: o comportamento já existe e já é testado (X9: exitBreakdown(undefined) ⇒ ok:false). O que estava errado: (a) a expectativa do X9 em e66_7.cases dizia 'args ausentes ({} ou undefined) = pedido completo válido'; (b) o TÍTULO do teste X9 dizia '{} e undefined = pedido completo válido' enquanto o corpo assere o contrário. Corrigidos junto com este bloco (texto do X9 já alterado; título do teste muda no passo de código).",
+          "teste_novo": "X9b (scripts/test-agent-exit-breakdown.mts): lê o texto de e66_7.cases[X9] e exige que mencione 'undefined' E 'ARGS_INVALID' e NÃO contenha a frase antiga '({} ou undefined) = pedido completo válido' (impede a expectativa de voltar a divergir do teste)."
+      },
+      "parte_6_unit": {
+          "palavra": {
+              "table": "bucketUnit",
+              "TRADE": "trades",
+              "LEG": "pernas"
+          },
+          "regra": "`buckets[].unit` (TRADE|LEG) vira folha de slot do tipo enum, tabela nova `bucketUnit`, em format.ts (ENUM_WORDS.bucketUnit) e slot-path.ts (`buckets[]` ⇒ vale para exit.breakdown@1 e, via ...buckets, exit.analysis@1). Motivo: a linha da quebra mistura 'trades' e 'pernas'; sem a palavra no slot o modelo teria de escrever 'pernas'/'trades' em texto livre ao lado do número, e o número sem a unidade induz a somar LEG com TRADE (X2). As palavras não têm dígito e são distintas entre si.",
+          "muda_em_teste_existente": "test-agent-slot-path.mts P3: a linha `err(E, V_EXIT, 'buckets[0].unit', 'SLOT_PATH_INVALID')` vira `ok(E, V_EXIT, 'buckets[0].unit', 'trades')` e o título deixa de dizer '`unit` não é folha' (a decisão e66_1.leaf_table.not_slot_leaves_by_decision['buckets[].unit'] é REVOGADA por este passo; registrado no _meta.history). `unit` das MÉTRICAS (metrics[].unit, deltas[].unit) continua NÃO sendo folha.",
+          "arquivos": [
+              "src/lib/agent/format.ts (só ENUM_WORDS.bucketUnit)",
+              "src/lib/agent/slot-path.ts (só 1 linha em `buckets`)",
+              "scripts/test-agent-bucket-unit-slot.mts (novo, registrado no package.json test:domain depois do basis-slot)",
+              "scripts/test-agent-slot-path.mts (P3)",
+              "scripts/test-agent-exit-breakdown.mts (título do X9 + X9b)"
+          ],
+          "testes_novos": [
+              "U1 formatEnum('bucketUnit', código): TRADE ⇒ 'trades', LEG ⇒ 'pernas'; fora da tabela ('trade','leg','Trade','','__proto__','constructor','toString','NOPE',null,undefined,5) ⇒ FORMAT_INVALID; palavras sem dígito e distintas",
+              "U2 exit.breakdown@1: `buckets[i].unit` renderiza 'pernas' numa linha LEG e 'trades' numa linha TRADE (view com as duas); resolveSlot devolve leaf.kind 'enum' com table 'bucketUnit'",
+              "U3 exit.analysis@1 (comparison null): mesma coisa pelos buckets (prova que o spread chegou); path sob `comparison.` continua SLOT_PATH_INVALID",
+              "U4 só onde há buckets: em metrics.query@1, metrics.groups@1, rank.groups@1 o path `buckets[0].unit` ⇒ SLOT_PATH_INVALID; `metrics[0].unit` e `deltas[0].unit` em metrics.query/compare continuam SLOT_PATH_INVALID; unit fora de TRADE|LEG na view (ex.: 'OUTRO') ⇒ VIEW_INVALID (schema strict, nunca chega ao formato)",
+              "X9b texto do X9 corrigido (acima)"
+          ],
+          "mutations_planned": [
+              "Q1 trocar as palavras (TRADE:'pernas', LEG:'trades') ⇒ U1 e U2 falham",
+              "Q2 LEG = 'trades' (palavras iguais) ⇒ U1 (distintas) falha",
+              "Q3 tirar a folha de `buckets` no slot-path ⇒ P3, U2 e U3 falham",
+              "Q4 pôr a folha só em exit.breakdown (fora do spread) ⇒ U3 falha",
+              "Q5 acrescentar a folha `unit` solta em metrics.query ⇒ U4 falha",
+              "Q6 digitar 'perna' (singular) ⇒ U1/U2 falham",
+              "Q7 remover X9b do corpus (reverter o texto do X9 ao antigo) ⇒ X9b falha"
+          ]
+      },
+      "cases": [
+          "V1 FASE VERMELHA: com o código ATUAL, formatEnum('bucketUnit', 'TRADE') e renderSlot de `buckets[0].unit` falham (U1–U4 vermelhos), P3 (novo valor esperado) vermelho, X9b vermelho só se o texto antigo voltar (já corrigido: verde de saída) — o vermelho do X9b é provado por mutação Q7.",
+          "V2 verde: U1–U4, P3, X9b.",
+          "V3 baseline: 993 ⇒ 998 ✓ (+4 U1–U4, +1 X9b); P3 e X9 mudam só o TÍTULO e o valor assertado de uma linha."
+      ],
+      "baselines": "993 linhas ✓ do test:domain (saída salva antes) permanecem idênticas exceto: título do P3, título do X9, +U1–U4, +X9b e o contador do arquivo novo. src/ muda SÓ em format.ts (1 tabela) e slot-path.ts (1 linha). Nenhum arquivo de evidence/ metrics/ ingest/ domain/ agent-capabilities/ muda."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
