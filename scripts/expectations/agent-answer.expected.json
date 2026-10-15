@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-15 E6.6-8 — CORREÇÃO MINHA na expectativa (achada ao escrever os testes): 'week' (4 vs 2) e 'dayOfWeek+hour' ([1,1]) estavam sob CZ_literais_medidos, mas foram medidos na fixture CY (a exploração 8b usava T/CY). Movidos para CY_literais_medidos_em_15_10; na CZ o teste usa o oráculo (a semana de 02/03 tem 10 trades). Nenhum outro literal muda: os de hour 09 vs 14 e PERIOD são da CZ de fato.",
       "2026-10-15 E6.6-8 — EXPECTATIVA escrita antes do código (bloco e66_8). D8-1…D8-6 aprovadas (Gemini, delegação do Marcelo); alias de ENTRADA opção (A): conta/estratégia fora, E6.6-5-A em passo próprio. Fatos do motor pré-conferidos (exploração não commitada): chaves por dimensão ('09', '2026-03-02' segunda, '2026-03', '1'), GROUP_NOT_FOUND vira bReason, session ⇒ verify UNVERIFIABLE, handle scope GROUP/TOTAL, conclusive; fixture nova CZ (24 trades) com literais medidos. CÉLULA CONGELADA a mudar no commit de código: e66_1.reason_catalog (+GROUP_NOT_FOUND, 29 → 30) com entrada no history. LIMITAÇÕES DECLARADAS: exitReason UNKNOWN fora do 8; conclusive: as duas condições (métricas e confiança) não foram separadas por nenhuma fixture medida.",
       "2026-10-15 E6.6-7b — EXPECTATIVA escrita antes do código (bloco e66_7b). Autorizado pelo Gemini (delegação do Marcelo) em 15/10. (1) #2: o comportamento (undefined ⇒ ARGS_INVALID) já existia e é testado; o ERRO era de TEXTO — a expectativa do X9 e o TÍTULO do teste X9 diziam 'undefined = pedido válido' enquanto o corpo assere o contrário. Texto do X9 corrigido agora. (2) #6: `buckets[].unit` vira folha de slot enum (tabela bucketUnit: TRADE='trades', LEG='pernas'); REVOGA a decisão e66_1.leaf_table.not_slot_leaves_by_decision['buckets[].unit'] e muda 1 linha do P3. `unit` de métrica continua fora dos slots. Erro meu a registrar: eu dei o #2 como 'texto do X9 + history', sem perceber que o título do teste também mentia.",
       "2026-10-15 E6.6-2c-fix-B — EXPECTATIVA escrita antes do código (bloco e66_2c_fixB). Rodada 3 do Gemini #1 e #4 (burlas): plurais, 'vamos…', 'hora de…', ES/EN óbvios. 39 locuções. Decisões do Gemini (delegação do Marcelo): manter H11 pinado; imperativos antigos = limitação conhecida; infinitivos e sílaba quebrada = FN declarado. Pré-conferi as 41 frases numa cópia patchada ANTES de commitar e medi a fase vermelha (24 de 24 ordens passam hoje).",
@@ -4481,24 +4482,6 @@
                       "conclusive": true
                   }
               },
-              "week '2026-03-02' vs '2026-03-09', totalTrades": {
-                  "a": 4,
-                  "b": 2
-              },
-              "dayOfWeek+hour (1,'09') vs (2,'09')": {
-                  "keyA": [
-                      "1",
-                      "09"
-                  ],
-                  "keyB": [
-                      "2",
-                      "09"
-                  ],
-                  "totalTrades": [
-                      1,
-                      1
-                  ]
-              },
               "PERIOD 02–06/03 vs 09–13/03, totalTrades,netPnl": {
                   "sampleSize": [
                       10,
@@ -4518,7 +4501,29 @@
                   "coverage_ratio": 0.3333,
                   "conclusive": false
               }
-          }
+          },
+          "CY_literais_medidos_em_15_10": {
+              "week '2026-03-02' vs '2026-03-09', totalTrades": {
+                  "a": 4,
+                  "b": 2
+              },
+              "dayOfWeek+hour (1,'09') vs (2,'09')": {
+                  "keyA": [
+                      "1",
+                      "09"
+                  ],
+                  "keyB": [
+                      "2",
+                      "09"
+                  ],
+                  "totalTrades": [
+                      1,
+                      1
+                  ],
+                  "label": "Seg · 09:00"
+              }
+          },
+          "CZ_semana": "CZ: a semana de 02/03 tem 10 trades (5 dias × 2) e a de 09/03 tem 10; a de 16/03 tem 4. Os números de week/dayOfWeek+hour acima, medidos na CY, NÃO valem para a CZ; no teste a CZ usa o oráculo (comparação direta)."
       },
       "decisions_D8": {
           "D8-1": "união discriminada por mode",
