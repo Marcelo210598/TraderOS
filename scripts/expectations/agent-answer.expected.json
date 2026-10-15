@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-15 E6.6-10 EXPECTATIVA escrita ANTES do código (`exit.analysis@1`): D10-1…D10-8 aprovadas (compare opcional; reconciliation entra na view; chave dos lados em 2 partes [motivo, unidade]; bundle de 2 derivados). MUDA O CONTRATO DA VIEW: ExitAnalysisViewSchema ganha `reconciliation` e o slot-path do exit.analysis ganha a folha (a nota antiga 'sem reconciliation' no descritor de folhas é revogada; vai no commit de código). Bloco e66_10; fatos medidos em CY/CZ.",
       "2026-10-15 E6.6-9 EXECUTADO. Placar 1022 → 1036 ✓ (+14 L1–L14), baseline idêntico exceto os títulos do Q0 (11 arquivos) e do A11 (passa a conferir alias-input.ts na lista); tsc 0; ESLint limpo. Mutações: 20 aplicadas, 19 pegas; N20 escapou e virou assert no L13; N4 que eu previra equivalente foi PEGA. D9-7…D9-10 aprovadas pelo Gemini. src/ muda em rank-groups.ts (novo), project.ts (+projectRank), views.ts (rank nullable). Também mudaram: test-agent-views-reason.mts (W11: única exceção declarada rows[].rank), test-agent-capabilities-static.mts (Q0), test-agent-alias-input.mts (A11), test-evidence-salt-propagation.mts (rank-groups.ts aprovado). Erros meus: L8 (getter hostil sem filtro), W11 não previsto, L11 com métrica insensível à base, L13 sem rank fora de sequência/dimensão inválida.",
       "2026-10-15 E6.6-9 EXPECTATIVA escrita ANTES do código (`rank.groups@1`): D9-1…D9-6 aprovadas (D9-4 ajustada: sem `limit`), D9-7…D9-10 MINHAS pendentes de revisão (orderedBy, rank.groups também aloca alias, groupBy ⊂ 10 dimensões verificáveis, basis null + sampleFlag pior de todas). MUDA O CONTRATO DA VIEW: RankRowViewSchema.rank passa a nullable (vai no commit de código). Bloco e66_9; fatos medidos em CY/CZ.",
       "2026-10-15 E6.6-5-A EXECUTADO. Placar 1010 → 1022 ✓ (+12 A1–A12), baseline idêntico exceto o título do Q0 (10 arquivos); tsc 0; ESLint limpo. Mutações: 12 aplicadas, 11 pegas; escapou R9 (equivalente: o schema list já limita a 8) e R13 declarada equivalente. src/ muda em label.ts (+resolveAlias), alias-input.ts (novo), metrics-query/groups/exit-breakdown/compare e project.ts (3º parâmetro). Também mudaram: scripts/test-agent-capabilities-static.mts (Q0).",
@@ -4896,6 +4897,367 @@
       "N16 metric fixa em netPnl (ignora o arg) ⇒ L1/L10 falham"
     ],
     "baselines": "1022 linhas ✓ do test:domain permanecem idênticas exceto o título do Q0 (10 → 11 arquivos); só se acrescentam as linhas L1–L14 do arquivo novo. src/ muda em: rank-groups.ts (novo), project.ts (+projectRank), views.ts (rank nullable). evidence/ metrics/ ingest/ domain/ NÃO mudam. Se o schema da view quebrar teste antigo, registrar qual e por quê no history antes de seguir."
+  },
+  "e66_10": {
+    "status": "EXPECTATIVA (15/10/2026) escrita ANTES do código do E6.6-10 (`exit.analysis@1`). D10-1 a D10-8 APROVADAS (Gemini, delegação do Marcelo), com D10-3 (reconciliation entra na view) e D10-1 (compare OPCIONAL) explícitas. FATOS DO MOTOR pré-conferidos em 15/10 num script de exploração (não commitado) com CZ e CY: comparação por pernas e por trades, lado ausente (NO_LEGS/NO_TRADES), bundle de 2 derivados VERIFIED com arquivo, buckets e reconciliação.",
+    "files": [
+      "src/lib/agent-capabilities/exit-analysis.ts (novo; função exitAnalysis)",
+      "src/lib/agent-capabilities/project.ts (projectExitComparison, lista branca; sem spread)",
+      "src/lib/agent/views.ts (SÓ ExitAnalysisViewSchema: + reconciliation; MUDANÇA DE CONTRATO DA VIEW, vai no commit de código)",
+      "src/lib/agent/slot-path.ts (SÓ exit.analysis@1: + reconciliation {enum reconciliation}, paridade com exit.breakdown)",
+      "scripts/test-agent-exit-analysis.mts (novo, registrado no test:domain depois do test-agent-rank-groups)",
+      "scripts/test-agent-capabilities-static.mts (Q0: 11 → 12 arquivos)",
+      "scripts/test-evidence-salt-propagation.mts (exit-analysis.ts em APPROVED_GENERATOR_IMPORTERS)",
+      "fixtures sintéticas que omitiam o campo: test-agent-slot-path.mts (V_ANALYSIS, V_ANALYSIS_NULL), test-agent-bucket-unit-slot.mts (V_ANALYSIS), test-agent-views-reason.mts (W4, W8), e o que mais o baseline apontar (test-agent-turn.mts, contract-types): cada uma ganha reconciliation 'RECONCILED' e é registrada no history do commit de código"
+    ],
+    "nao_muda": "format.ts, validate-text.ts, evidence/, metrics/, ingest/, domain/. views.ts/slot-path.ts SÓ nas linhas do exit.analysis. Se outro arquivo de src/ precisar mudar, PARAR e pedir aprovação.",
+    "signature": "exitAnalysis(rawArgs: unknown, ctx: MetricsQueryContext): { result: Envelope; entry: { capability: 'exit.analysis@1'; handle; view } | null }. Mesma forma do exitBreakdown (sem aliases na saída: não há dimensão de conta). Contexto, preferências, sal e arquivo vêm do SERVIDOR (Q12); sal só por salt.ts (generatorOpts/saltMissing); sem userId; nunca lança.",
+    "args": {
+      "forma": "strictObject: { compare?: { unit, a, b }, filters?, options? }. Campo extra (em qualquer nível), `undefined` e não-objeto ⇒ ARGS_INVALID.",
+      "compare": "opcional (D10-1). Ausente ⇒ comparison = null e o bundle tem 1 derivado (EXIT_REASON_ANALYSIS).",
+      "compare.unit": "'LEG' | 'TRADE'",
+      "compare.a / compare.b": "LEG: TARGET | STOP | MANUAL | UNKNOWN. TRADE: TARGET | STOP | MANUAL | MIXED | UNKNOWN (D10-2). MIXED em LEG, minúscula, valor desconhecido ⇒ ARGS_INVALID. a == b ⇒ ARGS_INVALID.",
+      "filters": "QUERY_FILTERS_SCHEMA (compartilhado; account por alias via applyAccountFilter)",
+      "options": "QUERY_OPTIONS_SCHEMA"
+    },
+    "flow": "valida args ⇒ saltMissing ⇒ applyAccountFilter ⇒ normalizeFilters ⇒ explainDerived(EXIT_REASON_ANALYSIS) ⇒ [se compare] explainDerived(EXIT_REASON_COMPARISON_LEGS | _TRADES; args {a,b}) com os MESMOS filters/options ⇒ projectExitBreakdown(analysis.result) (buckets + reconciliation, JÁ EXISTENTE) ⇒ [se compare] projectExitComparison(comparison.result) ⇒ bundle = união dos 2 derivados (imports e trades sem duplicata por importId/tradeId; analysis primeiro; mesmo padrão do metrics.groups) ⇒ assessBundle(bundle, {refEpoch, source, population:{sampleFlag: pior, confidence: pior, conclusive só com compare}}) ⇒ okResult({buckets, reconciliation, comparison}). A view sai dos `result` dos PRÓPRIOS derivados (o que o V6 reexecuta).",
+    "view_mapping": {
+      "buckets / reconciliation": "projectExitBreakdown(analysis.result): idêntico ao do exit.breakdown (mesmo ctx ⇒ mesma lista e mesma palavra)",
+      "comparison": "null sem compare; senão projectExitComparison(result)",
+      "comparison.a / comparison.b": "{ key: [formatEnum('exitReason', side.key.key[0]), formatEnum('bucketUnit', unit)], sampleSize: side.sampleSize } (D10-4): LEG ⇒ ['stop','pernas']; TRADE ⇒ ['stop','trades']. label ('A'/'B'), key.label do motor, tradeSetHash, period NUNCA são lidos.",
+      "comparison.deltas[i]": "{ metricId: m.metric, unit: m.unit, a, aReason, b, bReason, delta, ratio, reason } na ORDEM do motor (LEG: legs, netPnl, averageNet, grossPnl; TRADE: netPnl, averageTrade, totalR, averageR)",
+      "comparison.conclusive": "todas as m.conclusive E result.confidence === 'OK' (D10-6; igual ao D8-6)",
+      "recusa_ENGINE_REFUSED": "unit fora do UnitSchema; lado null sem motivo; delta/ratio null sem reason; motivo fora do REASON_TEXTS; reason de saída fora do enum; kind ≠ EXIT_REASON_COMPARISON; unit do result ≠ unit pedida; schema da view (strict) falha",
+      "handle": "subject DERIVED (derived[0] = EXIT_REASON_ANALYSIS); scope TOTAL; population.sampleFlag = PIOR entre os buckets com contagem > 0 e (se compare) os lados A e B; population.confidence = a PIOR entre o summary da análise e o da comparação; population.conclusive só com compare, == comparison.conclusive"
+    },
+    "fixtures": {
+      "CY": "6 trades (Sim101/Sim102), minSample 4. Buckets de trade: TARGET 2 TINY, STOP 2 TINY, MANUAL 1 TINY, MIXED 1 TINY, UNKNOWN 0 TINY. Pernas: TARGET 4 OK, STOP 3 LOW, MANUAL 1 TINY, UNKNOWN 0 TINY. Reconciliação FULL.",
+      "CZ": "24 trades de 1 perna, minSample 10. Trades: TARGET 14 OK, STOP 10 OK, MANUAL/MIXED/UNKNOWN 0 TINY. Pernas: TARGET 14 OK, STOP 10 OK, MANUAL 0, UNKNOWN 0. Reconciliação FULL.",
+      "DIVERGENT_e_NAO_COMPARAVEL": "como no X14 e X5b do exit.breakdown: trade com net adulterado em CÓPIA do canônico (structuredClone) ⇒ DIVERGENT; importação com reconstructCycles:false ⇒ NOT_COMPARABLE."
+    },
+    "fatos_medidos_15_10": {
+      "CZ LEG STOP vs TARGET": {
+        "a": {
+          "key": [
+            "stop",
+            "pernas"
+          ],
+          "sampleSize": 10,
+          "flag": "OK"
+        },
+        "b": {
+          "key": [
+            "alvo",
+            "pernas"
+          ],
+          "sampleSize": 14,
+          "flag": "OK"
+        },
+        "deltas": [
+          [
+            "legs",
+            "count",
+            10,
+            14,
+            4,
+            1.4,
+            null
+          ],
+          [
+            "netPnl",
+            "usd",
+            -424,
+            526.4,
+            950.4,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ],
+          [
+            "averageNet",
+            "usd",
+            -42.4,
+            37.6,
+            80,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ],
+          [
+            "grossPnl",
+            "usd",
+            -400,
+            560,
+            960,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ]
+        ],
+        "conclusive_por_metrica": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "confidence": "LIMITED",
+        "limitations": [
+          "COVERAGE_PARTIAL"
+        ],
+        "view_conclusive": false,
+        "nota": "a métrica `legs` já vem conclusive:false do motor; espelhamos (Gemini: fato de domínio)"
+      },
+      "CZ TRADE STOP vs TARGET": {
+        "a": {
+          "key": [
+            "stop",
+            "trades"
+          ],
+          "sampleSize": 10
+        },
+        "b": {
+          "key": [
+            "alvo",
+            "trades"
+          ],
+          "sampleSize": 14
+        },
+        "deltas": [
+          [
+            "netPnl",
+            "usd",
+            -424,
+            526.4,
+            950.4,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ],
+          [
+            "averageTrade",
+            "usd",
+            -42.4,
+            37.6,
+            80,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ],
+          [
+            "totalR",
+            "R",
+            -38.0186,
+            30.7066,
+            68.7252,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ],
+          [
+            "averageR",
+            "R",
+            -4.7523,
+            7.6767,
+            12.429,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ]
+        ],
+        "conclusive_por_metrica": [
+          true,
+          true,
+          false,
+          false
+        ],
+        "confidence": "LIMITED",
+        "limitations": [
+          "COVERAGE_PARTIAL"
+        ],
+        "view_conclusive": false
+      },
+      "CY LEG STOP vs MANUAL": {
+        "sizes": [
+          3,
+          1
+        ],
+        "flags": [
+          "LOW",
+          "TINY"
+        ],
+        "deltas": [
+          [
+            "legs",
+            "count",
+            3,
+            1,
+            -2,
+            0.3333,
+            null
+          ],
+          [
+            "netPnl",
+            "usd",
+            -197.2,
+            7.6,
+            204.8,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ],
+          [
+            "averageNet",
+            "usd",
+            -65.73,
+            7.6,
+            73.33,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ],
+          [
+            "grossPnl",
+            "usd",
+            -190,
+            10,
+            200,
+            null,
+            "RATIO_SIGN_DIFFERS"
+          ]
+        ],
+        "confidence": "UNRELIABLE",
+        "limitations": [
+          "COVERAGE_PARTIAL",
+          "SAMPLE_LOW",
+          "SAMPLE_TINY"
+        ],
+        "view_conclusive": false
+      },
+      "CZ LEG MANUAL vs STOP (lado ausente)": {
+        "a": {
+          "key": [
+            "manual",
+            "pernas"
+          ],
+          "sampleSize": 0,
+          "flag": "TINY"
+        },
+        "b": {
+          "key": [
+            "stop",
+            "pernas"
+          ],
+          "sampleSize": 10
+        },
+        "deltas": [
+          [
+            "legs",
+            "count",
+            0,
+            10,
+            10,
+            null,
+            "RATIO_A_ZERO"
+          ],
+          [
+            "netPnl",
+            "usd",
+            null,
+            -424,
+            null,
+            null,
+            "UNAVAILABLE_A",
+            "aReason NO_LEGS"
+          ],
+          [
+            "averageNet",
+            "usd",
+            null,
+            -42.4,
+            null,
+            null,
+            "UNAVAILABLE_A",
+            "aReason NO_LEGS"
+          ],
+          [
+            "grossPnl",
+            "usd",
+            null,
+            -400,
+            null,
+            null,
+            "UNAVAILABLE_A",
+            "aReason NO_LEGS"
+          ]
+        ],
+        "confidence": "UNRELIABLE",
+        "limitations": [
+          "SAMPLE_TINY",
+          "METRIC_UNAVAILABLE"
+        ]
+      },
+      "CZ TRADE MIXED vs STOP (lado ausente)": {
+        "a": {
+          "key": [
+            "misto",
+            "trades"
+          ],
+          "sampleSize": 0
+        },
+        "deltas": "as 4 métricas com a null, aReason NO_TRADES, reason UNAVAILABLE_A",
+        "confidence": "UNRELIABLE"
+      },
+      "CZ LEG UNKNOWN vs STOP": "igual ao MANUAL ausente: a.sampleSize 0, key ['desconhecido','pernas'], aReason NO_LEGS",
+      "bundle_2_derivados": "CZ: assess sem arquivo = VALID/NOT_VERIFIED; COM arquivo = VALID/SOURCE_VERIFIED/VERIFIED, scope TOTAL; cada derivado sozinho também VERIFIED",
+      "textos": {
+        "words": {
+          "TARGET": "alvo",
+          "STOP": "stop",
+          "MANUAL": "manual",
+          "MIXED": "misto",
+          "UNKNOWN": "desconhecido",
+          "LEG": "pernas",
+          "TRADE": "trades"
+        }
+      }
+    },
+    "decisions_D10": {
+      "D10-1": "compare OPCIONAL (APROVADA)",
+      "D10-2": "LEG: TARGET|STOP|MANUAL|UNKNOWN; TRADE: + MIXED; a==b ⇒ ARGS_INVALID (APROVADA)",
+      "D10-3": "ExitAnalysisViewSchema ganha `reconciliation` (enum RECONCILED|DIVERGENT|NOT_COMPARABLE) e slot-path exit.analysis@1 ganha a folha `reconciliation` (enum reconciliation) (APROVADA; muda o contrato da view)",
+      "D10-4": "chave dos lados da comparação em 2 partes [motivo, unidade] (APROVADA)",
+      "D10-5": "bundle de 2 derivados, analysis primeiro (APROVADA)",
+      "D10-6": "conclusive = todas conclusive E confiança OK; sampleFlag = pior; confidence = pior das duas (APROVADA)",
+      "D10-7": "projectExitComparison por lista branca, sem spread (APROVADA)",
+      "D10-8": "sem alocação de alias; saída { result, entry } (APROVADA)"
+    },
+    "cases": [
+      "Y1 ORÁCULO SEM compare (CZ): buckets == projectExitBreakdown(exitReasonAnalysis DIRETO) e reconciliation == mapReconciliation(status direto); comparison null; chaves da view == ['buckets','comparison','reconciliation']; buckets e reconciliation IDÊNTICOS aos do exit.breakdown no mesmo ctx; todos os slots de buckets == formatador sobre o valor direto",
+      "Y2 ORÁCULO COMPARE LEG (CZ STOP vs TARGET): a/b (key 2 partes, sampleSize), cada delta (a,aReason,b,bReason,delta,ratio,reason) e conclusive == compareExitReasons DIRETO; os literais medidos (acima) escritos à mão conferem; slots comparison.a.key[0]='stop', key[1]='pernas', comparison.deltas[i].* == formatador; troca de lados muda o resultado (a CZ é assimétrica)",
+      "Y3 ORÁCULO COMPARE TRADE (CZ STOP vs TARGET): idem contra compareTradeBuckets DIRETO; key ['stop','trades']; métricas netPnl, averageTrade, totalR, averageR; conclusive false (medido)",
+      "Y4 LADO AUSENTE: CZ LEG MANUAL vs STOP, CZ TRADE MIXED vs STOP, CZ LEG UNKNOWN vs STOP ⇒ resposta OK (nunca erro); sampleSize 0; aReason NO_LEGS/NO_TRADES; delta/ratio null com UNAVAILABLE_A e RATIO_A_ZERO (legs); slots renderizam 'indisponível (…)' do catálogo; conclusive false",
+      "Y5 AMOSTRA/CONFIANÇA (CY LEG STOP vs MANUAL): sizes 3 e 1; handle population.sampleFlag == 'TINY' (pior); confidence 'UNRELIABLE'; conclusive false",
+      "Y6 ARGS_INVALID: compare sem unit/a/b; unit inválida; a==b; MIXED em LEG; minúscula; desconhecido; campo extra em compare e no topo; compare não-objeto; undefined/null/não-objeto; filters.from>to; filters com setup/strategyName; nome cru de conta; nunca lança, envelope fixo e sem eco",
+      "Y7 HANDLE E VEREDITO: DERIVED, scope TOTAL; evidenceRef COM compare ≠ SEM compare (2º derivado entra no bundle); verify VALID; sem arquivo NOT_VERIFIED + estrutural; COM arquivo VERIFIED (CZ, com e sem compare); arquivo adulterado ⇒ TAMPERED_OR_MISMATCH; population.conclusive == view.comparison.conclusive e AUSENTE sem compare",
+      "Y8 sampleFlag DO HANDLE: CZ sem compare ⇒ 'OK' (buckets com contagem>0 todos OK); CY sem compare ⇒ 'TINY'; CZ com compare MANUAL vs STOP ⇒ 'TINY' (lado ausente conta); buckets com contagem 0 NÃO rebaixam o handle sozinhos",
+      "Y9 RECONCILIAÇÃO: DIVERGENT (trade adulterado em cópia) e NOT_COMPARABLE (reconstructCycles:false) chegam na view e no slot ('divergente', 'não comparável'); FULL ⇒ 'conciliado'; igual ao exit.breakdown; com compare presente a reconciliation continua a da ANÁLISE",
+      "Y10 UNIDADE NA CHAVE: LEG ⇒ key[1]=='pernas' e TRADE ⇒ key[1]=='trades' nos DOIS lados; os 2 slots (key[0], key[1]) renderizam; sampleSize de LEG == pernas do motor e de TRADE == trades do motor (mesma CZ, mesmo motivo: 10 e 10, mas CY STOP: 3 pernas ≠ 2 trades)",
+      "Y11 FILTROS E OPTIONS: filters (direction, hour, from/to) reduzem a população da análise E da comparação (mesmos filtros nos dois derivados) == direto; filters.account por alias (tabela CONV) ⇒ população da conta; options.pnlBasis passa aos dois; GROSS ≠ NET",
+      "Y12 SEGURANÇA: JSON da saída sem Sim101/Sim102, nome de arquivo, importId, hashes, acc_/str_, sal, userId, 'label'; salgado sem sal ⇒ ENGINE_REFUSED (com sal ok); ctx hostil/trades ausentes ⇒ ENGINE_REFUSED sem lançar; T0 injetado no result da comparação NÃO chega à view",
+      "Y13 PROJEÇÃO PURA: projectExitComparison recusa (null) kind errado, unit errada/ausente, motivo de saída fora do enum, unit de métrica fora do UnitSchema, lado null sem motivo, delta null sem reason, motivo fora do catálogo; não muta; determinística; chave só por formatEnum (nunca key.label)",
+      "Y14 SCHEMA E SLOTS (D10-3): ExitAnalysisViewSchema EXIGE reconciliation (formato antigo ⇒ falha); slot exit.analysis@1 `reconciliation` renderiza as 3 palavras; comparison null ⇒ qualquer path sob comparison.* segue SLOT_PATH_INVALID; os testes antigos de slot-path/bucket-unit/views-reason passam com a fixture atualizada"
+    ],
+    "mutations_planned": [
+      "YM1 só o derivado da análise no bundle (sem o da comparação) ⇒ Y7 falha (evidenceRef igual)",
+      "YM2 unidade da chave trocada (LEG ⇒ 'trades') ⇒ Y2/Y3/Y10 falham",
+      "YM3 trocar A e B na projeção ⇒ Y2 falha (CZ assimétrica)",
+      "YM4 compare ignora `unit` (sempre pernas) ⇒ Y3 falha",
+      "YM5 aceitar MIXED em LEG ⇒ Y6 falha",
+      "YM6 aceitar a == b ⇒ Y6 falha",
+      "YM7 conclusive := true ⇒ Y2/Y3 falham (medido: false)",
+      "YM8 sampleFlag ignora os lados da comparação ⇒ Y8 falha (CZ MANUAL vs STOP)",
+      "YM9 reconciliation fixa 'RECONCILED' ⇒ Y9 falha (DIVERGENT/NOT_COMPARABLE)",
+      "YM10 sampleFlag := o MELHOR em vez do pior ⇒ Y5/Y8 falham",
+      "YM11 filters só na análise (comparação sem filtros) ⇒ Y11 falha",
+      "YM12 ler side.key.label do motor em vez de formatEnum ⇒ Y2/Y12 falham",
+      "YM13 projeção sem lista branca (spread do side do motor) ⇒ Y12/Y13 falham; também o guarda Q4 estático",
+      "YM14 população.conclusive presente sem compare (true) ⇒ Y7 falha",
+      "YM15 view sem reconciliation (schema não exige) ⇒ Y14 falha",
+      "YM16 confidence := a da análise apenas ⇒ Y5 falha (CY: análise UNRELIABLE? checar; se equivalente, DECLARAR)",
+      "EQUIVALENTE POSSÍVEL: ordem dos derivados no bundle (comparação primeiro) mudaria subject/scope; se escapar, declarar e pinar subject = derivado da análise."
+    ],
+    "baselines": "1036 linhas ✓ do test:domain permanecem idênticas exceto o título do Q0 (11 → 12 arquivos); só se acrescentam as linhas Y1–Y14 do arquivo novo. As fixtures sintéticas de slot-path/bucket-unit/views-reason ganham `reconciliation` (os TÍTULOS ficam iguais). src/ muda em: exit-analysis.ts (novo), project.ts (+projectExitComparison), views.ts e slot-path.ts (só exit.analysis). evidence/ metrics/ ingest/ domain/ NÃO mudam."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
