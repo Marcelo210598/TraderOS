@@ -205,12 +205,20 @@ test("X8 — FIM A FIM: ledger → validateAnswer → renderAnswer com slots de 
   assert.deepEqual((validateAnswer({ answer: asserted, ledger: l2, stop: null, question: "" }) as Any).reasons, ["MISSING_NOT_VERIFIED_LABEL", "INCONCLUSIVE_AS_CONCLUSIVE"], "os DOIS: sem rótulo de não verificado E amostra TINY sem a frase de indicativo")
 })
 
-test("X9 — ARGS_INVALID: metricIds (não existe aqui), filtros de conta/estratégia/setup, campos extras, tipos errados, args que não são objeto; nunca lança; {} e undefined = pedido completo válido", () => {
+test("X9 — ARGS_INVALID: metricIds (não existe aqui), filtros de conta/estratégia/setup, campos extras, tipos errados, args que não são objeto; nunca lança; {} = pedido completo válido; undefined = ARGS_INVALID (E6.6-7b: o título dizia o contrário do corpo)", () => {
   const bad: unknown[] = [{ metricIds: ["netPnl"] }, { filters: { account: "Sim101" } }, { filters: { strategyName: "x" } }, { filters: { setup: "x" } }, { filters: { hour: 24 } }, { filters: { from: "x" } }, { filters: null }, { options: { timeZone: "UTC" } }, { options: { pnlBasis: "MELHOR" } }, { extra: 1 }, { filters: {}, extra: 1 }, null, 5, "x", [], [{}]]
   for (const b of bad) { assert.doesNotThrow(() => call(b)); assert.deepEqual(call(b), ARGS, JSON.stringify(b)) }
   assert.equal(call({}).ok, true)
   assert.equal(call({ filters: {}, options: {} }).ok, true)
   assert.equal(exitBreakdown(undefined as never, ctx()).result.ok, false, "undefined não é um objeto de args: o chamador envia {}")
+})
+
+test("X9b — E6.6-7b: a EXPECTATIVA do X9 (e66_7.cases) concorda com o teste: undefined ⇒ ARGS_INVALID, e a frase antiga ('{} ou undefined = pedido completo válido') não volta", () => {
+  const x9: string = (exp.e66_7.cases as string[]).find((t) => t.startsWith("X9 ")) as string
+  assert.ok(x9.includes("`undefined` NÃO é objeto de args ⇒ ARGS_INVALID"), x9)
+  assert.equal(x9.includes("({} ou undefined) = pedido completo válido") && !x9.includes("antes dizia"), false, "a frase antiga voltou sem a ressalva")
+  assert.equal(x9.replace(/\[texto corrigido[^\]]*\]/, "").includes("undefined) = pedido completo válido"), false, "frase antiga fora da ressalva")
+  assert.equal((exitBreakdown(undefined as never, ctx()).result as Any).ok, false)
 })
 
 test("X10 — contexto/sal: import SALGADO sem sal ⇒ ENGINE_REFUSED; com sal (e arquivo + sal) ⇒ VERIFIED; trades sem identidade ⇒ ENGINE_REFUSED; ctx hostil ⇒ ENGINE_REFUSED sem lançar; puro (não altera ctx; mesma saída)", () => {

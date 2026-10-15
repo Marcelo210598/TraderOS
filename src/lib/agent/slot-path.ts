@@ -39,6 +39,7 @@ const metricValue = (p: string): Record<string, Spec> => ({
 })
 const buckets: Record<string, Spec> = {
   "buckets[].reason": { kind: "enum", table: "exitReason" },
+  "buckets[].unit": { kind: "enum", table: "bucketUnit" }, // E6.6-7b: palavra fixa (trades/pernas) em format.ts
   "buckets[].count": count,
   "buckets[].pnlNet": { kind: "number", unit: "usd", reasonField: "pnlNetReason" },
   "buckets[].pnlNetReason": { kind: "reason" },

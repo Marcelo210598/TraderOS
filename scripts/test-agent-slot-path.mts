@@ -64,7 +64,7 @@ test("P2 — a unidade vem da TABELA/folha irmã, NUNCA do nome: o mesmo campo `
   ok("metrics.compare@1", w, "deltas[0].a", "1,5000 R")
 })
 
-test("P3 — exit.breakdown: motivo de SAÍDA (enum exitReason, NÃO o catálogo de indisponibilidade), contagem, usd, fração, reconciliação; null sem `reason` irmão ⇒ erro; `unit` não é folha", () => {
+test("P3 — exit.breakdown: motivo de SAÍDA (enum exitReason, NÃO o catálogo de indisponibilidade), contagem, usd, fração, reconciliação; null sem `reason` irmão ⇒ erro; `buckets[].unit` é folha de enum (trades/pernas, E6.6-7b)", () => {
   const E = "exit.breakdown@1"
   ok(E, V_EXIT, "buckets[0].reason", "alvo")
   ok(E, V_EXIT, "buckets[1].reason", "stop")
@@ -75,7 +75,7 @@ test("P3 — exit.breakdown: motivo de SAÍDA (enum exitReason, NÃO o catálogo
   ok(E, V_EXIT, "reconciliation", "conciliado")
   err(E, V_EXIT, "buckets[1].pnlNet", "FORMAT_INVALID")
   err(E, V_EXIT, "buckets[1].share", "FORMAT_INVALID")
-  err(E, V_EXIT, "buckets[0].unit", "SLOT_PATH_INVALID")
+  ok(E, V_EXIT, "buckets[0].unit", "trades") // E6.6-7b: revoga a decisão antiga (unit não era folha); a linha do V_EXIT é TRADE
 })
 
 test("P4 — metrics.groups, metrics.compare, rank.groups, exit.analysis, evidence.explain: folhas da tabela", () => {

@@ -143,6 +143,8 @@ export const ENUM_WORDS = Object.freeze({
   sampleFlag: Object.freeze({ OK: "amostra adequada", LOW: "amostra pequena", TINY: "amostra mínima" }),
   reconciliation: Object.freeze({ RECONCILED: "conciliado", DIVERGENT: "divergente", NOT_COMPARABLE: "não comparável" }),
   direction: Object.freeze({ LONG: "compra", SHORT: "venda" }),
+  /** E6.6-7b (#6 do review do Gemini): a UNIDADE de contagem de uma linha da quebra de saída; TRADE e LEG nunca se somam, então a palavra viaja no slot ao lado do número. */
+  bucketUnit: Object.freeze({ TRADE: "trades", LEG: "pernas" }),
   /** E6.6-2b (PD-1 b): a BASE do valor (muda o significado do número); `metrics[].basis` é folha de slot e o validador exige o slot para estas palavras. */
   basis: Object.freeze({ NET: "líquido", GROSS: "bruto", R_NET: "R líquido", R_POINTS: "R em pontos" }),
 })
