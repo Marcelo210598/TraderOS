@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-15 E6.6-9 EXPECTATIVA escrita ANTES do código (`rank.groups@1`): D9-1…D9-6 aprovadas (D9-4 ajustada: sem `limit`), D9-7…D9-10 MINHAS pendentes de revisão (orderedBy, rank.groups também aloca alias, groupBy ⊂ 10 dimensões verificáveis, basis null + sampleFlag pior de todas). MUDA O CONTRATO DA VIEW: RankRowViewSchema.rank passa a nullable (vai no commit de código). Bloco e66_9; fatos medidos em CY/CZ.",
       "2026-10-15 E6.6-5-A EXECUTADO. Placar 1010 → 1022 ✓ (+12 A1–A12), baseline idêntico exceto o título do Q0 (10 arquivos); tsc 0; ESLint limpo. Mutações: 12 aplicadas, 11 pegas; escapou R9 (equivalente: o schema list já limita a 8) e R13 declarada equivalente. src/ muda em label.ts (+resolveAlias), alias-input.ts (novo), metrics-query/groups/exit-breakdown/compare e project.ts (3º parâmetro). Também mudaram: scripts/test-agent-capabilities-static.mts (Q0).",
       "2026-10-15 E6.6-5-A — CORREÇÃO MINHA na expectativa, achada pelo teste A9: eu tinha escrito que refView com o sal ERRADO não reproduz o ref da tabela SEM ter medido esse caso. Medido agora: com account.ref no trade (import normal) o sal não muda a resolução; o arquivo é que barra o VERIFIED (source UNVERIFIABLE). O sal só pesa em trade SEM account.ref. A9 reescrito em (a)/(b); R10 passa a ser pego pelo A9(b); R13 declarada equivalente (a tabela não repete ref).",
       "2026-10-15 E6.6-5-A — EXPECTATIVA escrita antes do código (bloco e66_5a). D5A-1…D5A-6 aprovadas (Gemini, delegação do Marcelo); só `account` neste passo, strategy = E6.6-5-A2. Fatos medidos na CY antes de escrever (alias Conta A=Sim101/4 trades, Conta B=Sim102/2; refView alinha por índice com e sem sal; filtro e dimensão por conta VALID/VERIFIED; o derivado recebe NOME e faz o hash). ACHADO que muda o desenho: projectCompare precisa da TABELA da conversa (3º parâmetro), senão o compare por conta rotularia 'Conta A' pela ordem dos lados e não pela tabela. A célula e66_8 (compare) continua válida: `account` entra como 10ª dimensão sem alterar as 9 anteriores.",
@@ -4648,6 +4649,252 @@
           "R13 (EQUIVALENTE DECLARADA) a == b decidido pelo texto do alias em vez do ref: a tabela da conversa nunca tem dois aliases para o mesmo ref (allocateAlias reaproveita), então as duas decisões coincidem; o teste cobre a == b pelo mesmo alias"
       ],
       "baselines": "1010 linhas ✓ do test:domain (saída salva antes: ver after-8) permanecem idênticas exceto: título do Q0 (9 → 10 arquivos), título/comentário do K3 se mudar, e as linhas novas A1–A12. src/ muda em label.ts (+resolveAlias), alias-input.ts (novo), metrics-query/groups/exit-breakdown/compare (usam applyAccountFilter; compare ganha account) e project.ts (3º parâmetro). Nenhum arquivo de evidence/ metrics/ ingest/ domain/ muda."
+  },
+  "e66_9": {
+    "status": "EXPECTATIVA (15/10/2026) escrita ANTES do código do E6.6-9 (`rank.groups@1`). Decisões D9-1 a D9-6 APROVADAS (Gemini, delegação do Marcelo) com o ajuste do D9-4 (SEM `limit`; teto de 50 grupos como no D6-2). D9-7 a D9-10 são MINHAS (não revisadas ainda; ver decisions_D9) e vão destacadas no relatório. FATOS DO MOTOR pré-conferidos em 15/10 num script de exploração (não commitado) com CY e CZ: rank/tiedWithPrevious/contributionToTotal, ordem dos sem posição, motivos, handle de GROUP_RANKING, e as 39 métricas de METRIC_IDS rodam em rankGroups com unidade válida e motivos no catálogo.",
+    "files": [
+      "src/lib/agent-capabilities/rank-groups.ts (novo)",
+      "src/lib/agent-capabilities/project.ts (projectRank, lista branca; sem spread)",
+      "src/lib/agent/views.ts (SÓ RankRowViewSchema.rank: positive() → positive().nullable(); MUDANÇA DE CONTRATO DA VIEW, vai no commit de código)",
+      "scripts/test-agent-rank-groups.mts (novo, registrado no test:domain depois do test-agent-alias-input)",
+      "scripts/test-agent-capabilities-static.mts (Q0: 10 → 11 arquivos)"
+    ],
+    "nao_muda": "slot-path.ts (rank.groups@1 já mapeado; `rows[].rank` continua leaf `count`), format.ts, validate-text.ts, evidence/, metrics/, ingest/, domain/. Se um destes precisar mudar, PARAR e pedir aprovação.",
+    "signature": "rankGroups(rawArgs: unknown, ctx: MetricsGroupsContext): { result: Envelope; entry: { capability: 'rank.groups@1'; handle; view } | null; aliases: AliasTable }. Mesma forma do metricsGroups (D9-8). Contexto, preferências do usuário, sal e arquivo vêm do SERVIDOR (Q12); sem userId; nunca lança.",
+    "args": {
+      "forma": "strictObject. Campo extra (inclusive `where`, `limit`, `a`, `b`), `undefined` e args que não são objeto ⇒ ARGS_INVALID.",
+      "groupBy": "1 ou 2 dimensões distintas de COMPARE_DIMENSIONS (day, tradingDay, week, month, dayOfWeek, hour, symbol, direction, exitReason, account) (D9-9)",
+      "metric": "z.enum de METRIC_IDS, default 'netPnl' (D9-5)",
+      "order": "'DESC' (default) | 'ASC'",
+      "filters": "QUERY_FILTERS_SCHEMA (compartilhado; `account` por alias via applyAccountFilter)",
+      "options": "QUERY_OPTIONS_SCHEMA",
+      "fora_por_decisao": [
+        "where (D9-2)",
+        "limit (D9-4): a capacidade devolve TODAS as partições; mais de MAX_GROUPS=50 grupos ⇒ ARGS_INVALID",
+        "session, strategy, strategyVersion, setup, timeframe (não verificáveis / D6-1)"
+      ]
+    },
+    "flow": "valida args ⇒ saltMissing ⇒ applyAccountFilter ⇒ explainDerived(op GROUP_RANKING; args {groupBy, metric, order}; filters; options do servidor + pnlBasis/rBasis do modelo) ⇒ result.rows.length > 50 ⇒ ARGS_INVALID ⇒ projectRank(result, refEpoch, ctx.aliases) por LISTA BRANCA ⇒ assessBundle(derivedEvidenceBundle(explained), {refEpoch, source, population:{sampleFlag: PIOR entre TODAS as linhas}}) ⇒ okResult(view). A view sai do `result` do PRÓPRIO derivado (o que o V6 reexecuta); nenhuma segunda chamada ao motor.",
+    "view_mapping": {
+      "rows[i]": "na ORDEM de result.rows (ranqueados primeiro, depois os sem posição: maior amostra, depois chave) — a view NUNCA reordena",
+      "rows[i].rank": "result.rows[i].rank (inteiro ≥ 1) ou null (D9-3)",
+      "rows[i].key": "para cada dimensão d: groupKeyPart(d, row.key.key[d], tabela, refEpoch) — a MESMA do metrics.groups; null ⇒ '(desconhecido)' (D9-6); `row.key.label` do motor NUNCA é lido; conta ⇒ alias pela tabela da conversa (aloca se faltar, D9-8)",
+      "rows[i].value": "MetricValueView montada à mão: metricId = result.metric.id, value/unit/reason = row.value, sampleSize = row.sampleSize, coverage = row.value.coverage (ratio null com total 0 ⇒ 0), basis = null (D9-10)",
+      "rows[i].sampleFlag": "row.sampleFlag",
+      "rows[i].tiedWithPrevious": "row.tiedWithPrevious (só o motor autoriza 'empate')",
+      "rows[i].contribution / contributionReason": "row.contributionToTotal.value / .reason (D9-1). ATENÇÃO: é SEMPRE a fração do líquido (netPnl) do grupo sobre o líquido total, qualquer que seja `metric`; não é a fração da métrica ordenada",
+      "orderedBy": "`${metricId} ${order}` (ex.: 'netPnl DESC'); não é folha de slot (decisão antiga), serve só de rótulo da view (D9-7)",
+      "recusa_ENGINE_REFUSED": "unit fora do UnitSchema; value null sem motivo; motivo fora do catálogo REASON_TEXTS (value ou contribution); rank 0/negativo/não inteiro; chave de grupo fora do formato da dimensão; schema da view (strict) falha; handle recusado",
+      "handle": "subject DERIVED; scope GROUP (GROUP_RANKING ∈ GROUP_OPS); population.declared = afterFilters; population.sampleFlag = PIOR de TODAS as linhas (inclui as sem posição; escolha conservadora, D9-10); confidence vem do summary do derivado"
+    },
+    "fixtures": {
+      "CY": "a do E6.6-7/8 (6 trades, 8 pernas, Sim101/Sim102, horas 9/10/14; minSample 4).",
+      "CZ": "a do E6.6-8 (24 trades, 12 dias úteis × 09:00/14:00, Sim101; minSample 10).",
+      "CW_nova": "51 dias distintos, 1 trade por dia (conta única, qualquer minSample): groupBy ['day'] ⇒ 51 grupos ⇒ ARGS_INVALID; com filtro from/to que deixe 50 ⇒ responde (borda 50/51)."
+    },
+    "fatos_medidos_15_10": {
+      "CY hour netPnl DESC": {
+        "rows": [
+          {
+            "key": [
+              "09:00"
+            ],
+            "rank": 1,
+            "sampleFlag": "LOW",
+            "sampleSize": 3,
+            "value": 80.4,
+            "contribution": 3.8654
+          },
+          {
+            "key": [
+              "14:00"
+            ],
+            "rank": null,
+            "sampleFlag": "TINY",
+            "sampleSize": 2,
+            "value": 42.8,
+            "contribution": 2.0577
+          },
+          {
+            "key": [
+              "10:00"
+            ],
+            "rank": null,
+            "sampleFlag": "TINY",
+            "sampleSize": 1,
+            "value": -102.4,
+            "contribution": -4.9231
+          }
+        ],
+        "orderedBy": "netPnl DESC",
+        "handle": {
+          "combined": "NOT_VERIFIED",
+          "verify": "VALID",
+          "scope": "GROUP",
+          "declared": 6,
+          "verifiability": "FULL",
+          "confidence": "UNRELIABLE",
+          "sampleFlag": "TINY (pior das linhas)"
+        },
+        "nota": "só o 09:00 (LOW) é ranqueado; 14:00 (42,8) e 10:00 (-102,4) são TINY e ficam SEM posição, mas aparecem com seus valores (nunca descartados)"
+      },
+      "CY hour winRate ASC": {
+        "valores": {
+          "09:00": 66.67,
+          "14:00": 100,
+          "10:00": 0
+        },
+        "ranked": "só 09:00 (rank 1); 14:00 e 10:00 sem posição, na ordem maior amostra→chave (14:00 antes de 10:00); ASC NÃO reordena os sem posição"
+      },
+      "CY hour profitFactor": {
+        "14:00": {
+          "value": null,
+          "reason": "NO_LOSERS",
+          "rank": null
+        },
+        "10:00": {
+          "value": 0,
+          "rank": null
+        },
+        "09:00": {
+          "value": 2.8962,
+          "rank": 1
+        }
+      },
+      "CY account netPnl": {
+        "rows": "2: a conta Sim101 (4 trades, OK, 8, contribution 0.3846, rank 1) e a Sim102 (2 trades, TINY, 12.8, contribution 0.6154, rank null)",
+        "alias": "com tabela vazia, o alias sai pela ORDEM DAS LINHAS (rank 1 ⇒ 'Conta A', a outra ⇒ 'Conta B'); com a tabela da conversa (ctx.aliases com 'Conta A' = Sim102) a chave segue a TABELA, não a ordem"
+      },
+      "CY hour+account": "5 grupos, TODOS TINY, TODOS rank null; ordem: maior amostra, depois chave",
+      "CZ hour totalTrades DESC (empate)": {
+        "rows": [
+          {
+            "key": [
+              "09:00"
+            ],
+            "rank": 1,
+            "value": 12,
+            "tiedWithPrevious": false,
+            "contribution": 1.2813
+          },
+          {
+            "key": [
+              "14:00"
+            ],
+            "rank": 2,
+            "value": 12,
+            "tiedWithPrevious": true,
+            "contribution": -0.2813
+          }
+        ],
+        "handle": {
+          "declared": 24,
+          "confidence": "OK",
+          "sampleFlag": "OK"
+        },
+        "nota": "empate: mesmo valor e mesma amostra; desempata pela chave; rank 2 (NÃO 1); contribution é do LÍQUIDO, não de totalTrades"
+      },
+      "CZ hour+dayOfWeek netPnl": {
+        "ranked": [
+          [
+            "09:00",
+            "Seg",
+            1,
+            32.8,
+            false
+          ],
+          [
+            "09:00",
+            "Ter",
+            2,
+            32.8,
+            true
+          ],
+          [
+            "14:00",
+            "Ter",
+            3,
+            32.8,
+            true
+          ],
+          [
+            "14:00",
+            "Seg",
+            4,
+            -47.2,
+            false
+          ]
+        ],
+        "unranked_ordem": [
+          "09:00 Qua",
+          "09:00 Qui",
+          "09:00 Sex",
+          "14:00 Qua",
+          "14:00 Qui",
+          "14:00 Sex"
+        ],
+        "unranked_value": {
+          "09:00 Qua": 75.2,
+          "os outros 5": -4.8
+        },
+        "nota": "cadeia de empate 1→2→3 (tiedWithPrevious true em 2 e 3, false em 4)"
+      },
+      "CZ day netPnl": {
+        "grupos": 12,
+        "todos": "TINY, rank null, ordem por chave (data crescente)",
+        "handle": {
+          "confidence": "UNRELIABLE",
+          "sampleFlag": "TINY"
+        }
+      }
+    },
+    "decisions_D9": {
+      "D9-1": "contribution = contributionToTotal do motor (APROVADA)",
+      "D9-2": "where fora do schema; presente ⇒ ARGS_INVALID (APROVADA)",
+      "D9-3": "TINY/valor indisponível ⇒ listados no fim com rank null; RankRowViewSchema.rank vira positive().nullable(); slot `rows[].rank` com null ⇒ FORMAT_INVALID (slot-path.ts:145: null sem reasonField recusa) (APROVADA)",
+      "D9-4": "SEM `limit`; todas as partições; > 50 grupos ⇒ ARGS_INVALID (paridade com D6-2) (AJUSTADA pelo Gemini)",
+      "D9-5": "metric: enum de METRIC_IDS (39), default netPnl; as 39 foram medidas em CZ/hour: rodam, unidade ∈ UnitSchema, motivos ∈ REASON_TEXTS (APROVADA)",
+      "D9-6": "chave null ⇒ '(desconhecido)' via groupKeyPart (APROVADA)",
+      "D9-7_MINHA": "orderedBy = `${metricId} ${order}`. O view não tem campo `order`; sem isso o modelo não saberia se a lista é DESC ou ASC. orderedBy NÃO é folha citável (decisão antiga: not_slot_leaves_by_decision).",
+      "D9-8_MINHA": "rank.groups TAMBÉM ALOCA alias (como metrics.groups) e devolve `aliases` na saída. Motivo: agrupar por conta pode mostrar uma conta que a tabela da conversa ainda não conhece; sem alocar+devolver, o alias que o modelo vê não existiria na tabela do servidor. REVOGA em parte o 'só metrics.groups aloca' do E6.6-5-A (agora: metrics.groups e rank.groups).",
+      "D9-9_MINHA": "groupBy ⊂ COMPARE_DIMENSIONS (as 10 verificáveis pela Evidence, incluindo account). session e strategy (que o metrics.groups aceita) FICAM FORA: o derivado não os verifica (UNVERIFIABLE). strategy volta no E6.6-5-A2.",
+      "D9-10_MINHA": "value.basis = null (a célula do ranking não carrega a base do P&L; o slot de base fica indisponível) e population.sampleFlag = PIOR entre TODAS as linhas (inclui as sem posição). Limitação declarada: um ranking com muitas linhas TINY marca a resposta toda como TINY."
+    },
+    "cases": [
+      "L1 ORÁCULO (CZ hour netPnl DESC): cada linha (rank, key, value, sampleFlag, tiedWithPrevious, contribution) == rankGroups DIRETO; literais medidos à mão (acima) conferem; texto de cada slot == formatador sobre o valor direto",
+      "L2 ORDEM (CZ): ASC inverte os ranqueados (winRate por hora); o desempate (maior amostra → chave) é o do motor; a view NUNCA reordena (a ordem das rows == a do motor); troca de ordem das linhas na projeção seria pega",
+      "L3 EMPATE: CZ hour totalTrades ⇒ rank 1 e 2, tiedWithPrevious false/true; cadeia 1→2→3 em CZ hour+dayOfWeek; rank 4 (-47.2) com tiedWithPrevious false",
+      "L4 SEM POSIÇÃO (CY hour netPnl): rank 1 só no 09:00; 14:00 e 10:00 com rank null NA VIEW, listados no fim, valores preservados; slot `rows[1].rank` ⇒ FORMAT_INVALID e `rows[0].rank` renderiza '1'; CY winRate ASC não reordena os sem posição; CY profitFactor ⇒ linha 14:00 value null com reason NO_LOSERS (slot de value ⇒ 'indisponível (…)')",
+      "L5 TODOS SEM POSIÇÃO (CZ day, CY hour+account): todas as rank null, nenhuma linha descartada (contagem == nº de grupos do motor), handle com confidence UNRELIABLE",
+      "L6 ARGS: groupBy vazio/3 dimensões/repetida; dimensão fora de COMPARE_DIMENSIONS (session, strategy, strategyVersion, setup, timeframe); metric desconhecida; order inválida; `where`; `limit`; campo extra; undefined; não-objeto ⇒ ARGS_INVALID (envelope fixo, sem eco)",
+      "L7 TETO: 51 grupos (CW) ⇒ ARGS_INVALID; 50 ⇒ ok com 50 linhas",
+      "L8 CONTA: groupBy ['account'] ⇒ chave 'Conta X' (nunca Sim101/102 nem acc_…); alias segue a tabela da conversa (ctx.aliases com A=Sim102 inverte); sem tabela, aloca pela ordem das linhas e DEVOLVE `aliases` (D9-8); a tabela devolvida contém os 2; filters.account por alias funciona (1 conta ⇒ 1 linha); alias inexistente ⇒ ARGS_INVALID; nome cru ⇒ ARGS_INVALID; getter hostil de `aliases` ⇒ ENGINE_REFUSED",
+      "L9 HANDLE: DERIVED, scope GROUP, NOT_VERIFIED sem arquivo e VERIFIED com o arquivo (CZ); population.declared == afterFilters (24); sampleFlag == pior de TODAS as linhas (CY ⇒ TINY; CZ hour ⇒ OK); sondado: verify VALID; arquivo adulterado ⇒ source não VERIFIED",
+      "L10 ENVELOPE/ORÁCULO DAS 39 MÉTRICAS: cada metricId de METRIC_IDS roda em CZ/hour e a view casa com rankGroups direto (unidade e motivo corretos)",
+      "L11 FILTROS/OPTIONS: filters (symbol/hour/…) reduzem a população e casam com rankGroups(filters) direto; options pnlBasis/rBasis passam ao motor; filters.from > to ⇒ ARGS_INVALID",
+      "L12 SEGURANÇA: JSON da saída sem nome de conta (Sim101/Sim102), sem 'acc_', sem nome do arquivo, sem sal, sem userId; ctx hostil/trades ausentes ⇒ ENGINE_REFUSED; import salgado sem sal ⇒ ENGINE_REFUSED; campo T0 injetado no result do motor não chega à view (projectRank por lista branca)",
+      "L13 PROJEÇÃO PURA: projectRank recusa (null) rank 0/negativo/fracionário, unit inválida, value null sem motivo, motivo fora do catálogo, chave fora do formato, nº de linhas ≠; não muta a entrada; é determinística",
+      "L14 SCHEMA: RankRowViewSchema aceita rank null e continua recusando rank 0/-1/1.5/'1'; os testes antigos de views/slots/validate-text/contract-types seguem verdes sem alteração"
+    ],
+    "mutations_planned": [
+      "N1 inverter a ordem das rows na projeção (reverse) ⇒ L1/L2 falham",
+      "N2 rank null virar rank = índice+1 (inventar posição) ⇒ L4/L5 falham",
+      "N3 descartar as linhas sem posição ⇒ L4/L5 falham (contagem)",
+      "N4 contribution := contributionToSubset ⇒ pega só se subset ≠ total; sem where são iguais ⇒ EQUIVALENTE DECLARADA (D9-2 proíbe where) — se escapar, declarar",
+      "N5 tiedWithPrevious := false sempre ⇒ L3 falha",
+      "N6 aceitar `where` ou `limit` no schema ⇒ L6 falha",
+      "N7 aceitar session/strategy em groupBy ⇒ L6 falha",
+      "N8 teto 50 → 51 (ou sem teto) ⇒ L7 falha",
+      "N9 ler row.key.label do motor em vez do groupKeyPart ⇒ L8/L12 falham",
+      "N10 alias pela ordem lexical dos refs em vez da tabela da conversa ⇒ L8 falha",
+      "N11 não devolver `aliases` alocados ⇒ L8 falha",
+      "N12 sampleFlag := o MELHOR (não o pior) das linhas ⇒ L9 falha (CY ⇒ TINY)",
+      "N13 orderedBy sem a ordem (só metricId) ⇒ L1 falha",
+      "N14 projeção sem lista branca (spread da linha do motor) ⇒ L12/L13 falham com campo T0 injetado",
+      "N15 aceitar value null sem motivo (virar 0) ⇒ L13 falha",
+      "N16 metric fixa em netPnl (ignora o arg) ⇒ L1/L10 falham"
+    ],
+    "baselines": "1022 linhas ✓ do test:domain permanecem idênticas exceto o título do Q0 (10 → 11 arquivos); só se acrescentam as linhas L1–L14 do arquivo novo. src/ muda em: rank-groups.ts (novo), project.ts (+projectRank), views.ts (rank nullable). evidence/ metrics/ ingest/ domain/ NÃO mudam. Se o schema da view quebrar teste antigo, registrar qual e por quê no history antes de seguir."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
