@@ -16,8 +16,8 @@ const agent = walk(join(ROOT, "src/lib/agent")).filter((f) => /\.ts$/.test(f)).m
 let passed = 0
 const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(`✓ ${name}`) }
 
-test("Q0 — sanidade: o diretório agent-capabilities/ existe com os 13 arquivos esperados e o varredor enxerga o agent/", () => {
-  assert.deepEqual(cap.map((f) => f.name).sort(), ["alias-input.ts", "assess.ts", "envelope.ts", "evidence-explain.ts", "exit-analysis.ts", "exit-breakdown.ts", "group-key.ts", "metrics-compare.ts", "metrics-groups.ts", "metrics-query.ts", "project.ts", "rank-groups.ts", "salt.ts"])
+test("Q0 — sanidade: o diretório agent-capabilities/ existe com os 14 arquivos esperados e o varredor enxerga o agent/", () => {
+  assert.deepEqual(cap.map((f) => f.name).sort(), ["alias-input.ts", "assess.ts", "envelope.ts", "evidence-explain.ts", "evidence-refresh.ts", "exit-analysis.ts", "exit-breakdown.ts", "group-key.ts", "metrics-compare.ts", "metrics-groups.ts", "metrics-query.ts", "project.ts", "rank-groups.ts", "salt.ts"])
   assert.ok(agent.length >= 12)
 })
 
@@ -61,6 +61,14 @@ test("Q5 — nenhum literal de CombinedVerdict nem cast de Verdict/EvidenceHandl
   const assess = cap.find((f) => f.name === "assess.ts")!.code
   assert.match(assess, /buildVerdict\(/)
   assert.equal(/combineVerdict/.test(assess), false)
+})
+
+test("Q6 — evidence-refresh.ts só REEXECUTA capacidades e usa o ledger: não importa gerador de Evidence (explain-*), verificador nem o motor de métricas (E6.6-12; por isso o guarda do sal não é acionado)", () => {
+  const f = cap.find((x) => x.name === "evidence-refresh.ts")!
+  const paths = importsOf(f.code)
+  assert.deepEqual(paths.filter((p) => /evidence\/|metrics\//.test(p)), [], "nenhum import de ../evidence/ nem ../metrics/")
+  assert.equal(/explain(?:Metric|Derived|Trade)\s*\(|accountRefSalt\s*[:=]/.test(f.code), false, "não gera Evidence nem fabrica sal")
+  assert.ok(paths.includes("../agent/ledger.ts"))
 })
 
 console.log(`\n${passed} testes ok`)

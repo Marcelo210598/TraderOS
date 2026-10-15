@@ -61,7 +61,7 @@ EvidenceHandle = {
 | `rank.groups@1` | `groupBy`, métrica, ordem, `where` | `GROUP_RANKING`, `LEG_GROUP_RANKING` | ranking, contribuição, participação |
 | `exit.analysis@1` | filtros, motivo | `EXIT_REASON_ANALYSIS`, `EXIT_REASON_COMPARISON_LEGS`, `EXIT_REASON_COMPARISON_TRADES` | análise por motivo, comparação STOP×TARGET etc. |
 | `evidence.explain@1` | `evidenceRef`, `page` | só leitura do bundle do ledger | ≤ **K = 20** trades/pernas por chamada (§8, T2) |
-| `evidence.refresh@1` | `evidenceRef` | regera a Evidence com o sal atual a partir do arquivo | novo `EvidenceHandle` (§7) |
+| `evidence.refresh@1` | `evidenceRef` | refaz uma Evidence STALE na época vigente: reexecuta a MESMA capacidade com os MESMOS args sobre os dados regerados com o sal atual e o arquivo original | só o novo `EvidenceHandle` (`data: null`, sem PromptView; §7) |
 - **Cada** capacidade que devolve número roda `verifyEvidence` **e** `verifyEvidenceSource` sobre o mesmo bundle antes de responder. Sem o arquivo original (hoje, sempre) o `source` é `NOT_RUN`.
 - Capacidade **nunca** escreve em banco/arquivo, nunca chama LLM, nunca aceita `userId`.
 - Versionamento `nome@semver`; mudança de `definitionVersion`/`engineVersion` do motor ⇒ bump registrado; a versão do prompt vai no `AgentRun`.
@@ -185,6 +185,7 @@ Sem especular causa e sem acusar o usuário. Regeração e auditoria são do ser
 - Todo resultado com refs traz `refEpoch` (= `saltId`). Igualar/compar refs de **épocas diferentes** é proibido (`REF_EPOCH_MIX`).
 - Após `rotate`, todo `evidenceRef` emitido na época anterior vira `STALE` no ledger; citá-lo sem `evidence.refresh` ⇒ `STALE_REF`.
 - `evidence.refresh` regera a Evidence **sob o sal atual** a partir do arquivo original; devolve novo `evidenceRef`; o antigo permanece para auditoria. **Sem o arquivo armazenado, o refresh falha com `FILE_NOT_AVAILABLE`** e o agente declara a limitação **estrutural** (§6.2); nada é inventado.
+  - **Implementação (E6.6-12):** o servidor decide o STALE pelo ledger (`isStale`); a consulta original vem da memória da conversa (`specOf`: capacidade + args), não do bundle. Só refaz as 6 capacidades analíticas (explain/refresh como original ⇒ `ARGS_INVALID`); ref já vigente ⇒ `ARGS_INVALID`; ref fora do ledger ⇒ `NOT_FOUND`; sem arquivo/dados regerados ⇒ `FILE_NOT_AVAILABLE`; época dos dados ≠ época do ledger ou falha da reexecução ⇒ `ENGINE_REFUSED`. O resultado ao modelo é `data: null` + handle novo; o orquestrador põe a entry nova no ledger com `refreshEvidence` (ref novo: a antiga fica STALE; **sem sal o ref NÃO muda entre épocas** e a entrada STALE é substituída no lugar).
 - Sal **aposentado**: o bundle antigo verifica `NOT_VERIFIED` com `S_SALT_RETIRED` (frase específica).
 - **Memória/resumo de conversa guarda ESPECIFICAÇÕES de consulta** (operação + argumentos semânticos: "ranking por conta, período X"), **nunca** `acc_/str_/lbl_/pat_` nem `evidenceRef`; refs são re-resolvidos reexecutando a capacidade. Refs que o agente repassa dentro da conversa vêm do ledger.
 - **Alias por conversa** (O-B, aprovado): o servidor mantém `ref → alias` ("Conta A", "Estratégia B", "rótulo personalizado A"), estável dentro da conversa e **recalculado após a rotação**; o modelo só vê alias. Nomes reais só por binding tardio na UI (D7).

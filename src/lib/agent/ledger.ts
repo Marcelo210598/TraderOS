@@ -41,6 +41,25 @@ export function addEvidence(ledger: Ledger, input: unknown): { ok: true; ledger:
   return { ok: true, ledger: make(ledger.epoch, { ...ledger.entries, [ref]: next }) }
 }
 
+/**
+ * E6.6-12: entrada do REFRESH. Valida como o addEvidence (mesma regra de handle CURRENT na época vigente). Ref NOVO ⇒ adiciona (a antiga fica STALE, auditoria).
+ * Ref JÁ existente: entrada STALE da MESMA capability ⇒ SUBSTITUI no lugar (sem sal o ref não muda entre épocas); CURRENT idêntica ⇒ ok sem mudança;
+ * qualquer outro caso (CURRENT diferente, capability diferente) ⇒ LEDGER_CONFLICT. O addEvidence NÃO muda.
+ */
+export function refreshEvidence(ledger: Ledger, input: unknown): { ok: true; ledger: Ledger } | LedgerError {
+  if (!isRecord(input) || typeof input.capability !== "string" || !Object.hasOwn(PROMPT_VIEWS, input.capability)) return { ok: false, code: "LEDGER_ENTRY_INVALID" }
+  const capability = input.capability as LedgerCapability
+  const handle = EvidenceHandleSchema.safeParse(input.handle)
+  const view = PROMPT_VIEWS[capability].safeParse(input.view)
+  if (!handle.success || !view.success || handle.data.refEpoch !== ledger.epoch || handle.data.freshness !== "CURRENT") return { ok: false, code: "LEDGER_ENTRY_INVALID" }
+  const next: LedgerEntry = deepFreeze({ capability, handle: handle.data, view: view.data })
+  const ref = next.handle.evidenceRef
+  if (!Object.hasOwn(ledger.entries, ref)) return { ok: true, ledger: make(ledger.epoch, { ...ledger.entries, [ref]: next }) }
+  const existing = ledger.entries[ref]
+  if (!isStale(ledger, existing)) return JSON.stringify(existing) === JSON.stringify(next) ? { ok: true, ledger } : { ok: false, code: "LEDGER_CONFLICT" }
+  return existing.capability === capability ? { ok: true, ledger: make(ledger.epoch, { ...ledger.entries, [ref]: next }) } : { ok: false, code: "LEDGER_CONFLICT" }
+}
+
 /** Nova época vigente: as entradas antigas FICAM e passam a ser STALE. Época igual à atual ou inválida ⇒ erro. */
 export function rotateEpoch(ledger: Ledger, epoch: string): { ok: true; ledger: Ledger } | LedgerError {
   if (typeof epoch !== "string" || !EPOCH_RE.test(epoch) || epoch === ledger.epoch) return { ok: false, code: "LEDGER_EPOCH_INVALID" }

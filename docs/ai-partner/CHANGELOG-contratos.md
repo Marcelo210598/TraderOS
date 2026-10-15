@@ -2,6 +2,11 @@
 
 Registra **mudanças de contrato** observáveis por quem lê os tipos/relatórios (campos, estados, hashes). Ordem: mais recente primeiro. `evidence/1` nunca virou `evidence/2`: todas as mudanças abaixo são aditivas, salvo onde dito.
 
+## 2026-10-15 — E6.6-12: `evidence.refresh@1` e fechamento do E6.6 (contrato do AGENTE; `evidence/1`, bundles e hashes INALTERADOS)
+- **Muda (contrato):** `CapabilityResult` de `evidence.refresh@1` com `ok: true` exige `data: null` e `evidence` presente (as outras capacidades continuam exigindo `data`); o refresh segue SEM PromptView (`PROMPT_VIEWS` com 7 chaves).
+- **Novo:** `refreshEvidence` no ledger (ref novo adiciona; mesmo ref STALE da mesma capability é substituído; conflito de verdade segue `LEDGER_CONFLICT`); capacidade `evidenceRefresh` (reexecuta a mesma capacidade com os mesmos args; arquivo em `regenerated.source`).
+- **Acumulado do E6.6 (15/10):** `metrics.compare`, `rank.groups`, `exit.analysis`, `evidence.explain` (PD-3: motivo `DATA_NOT_PROVIDED`, catálogo 30 → 31) e este refresh; alias de entrada de conta (E6.6-5-A). Nada em `evidence/`, `metrics/`, `ingest/`, `domain/` mudou.
+
 ## 2026-10-13 — E6.6-2b: validador de texto livre e `basis` como folha de slot (contrato do AGENTE; sem mudança de schema; `evidence/1` inalterado)
 - **Novo (comportamento, não schema):** `validate-text.ts`/`validate-answer.ts`/`lexicon.ts`. Texto do modelo com claim LABELED passa a ser mais estrito (`mais`, `menos`, avaliativos, tendência e posição são rejeitados): custo aceito pelo Marcelo (B3/B6).
 - **Slot novo:** `metrics[].basis` (e `groups[].metrics[].basis`, `rows[].value.basis`) renderiza líquido/bruto/R líquido/R em pontos; as mesmas palavras em texto, numa resposta com claim, são rejeitadas (`NUMBER_OUTSIDE_SLOT`, B2).

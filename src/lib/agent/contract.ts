@@ -114,8 +114,10 @@ export function capabilityResultSchema<T extends z.ZodType>(data: T) {
     })
     .strict()
     .superRefine((raw, ctx) => {
-      const v = raw as unknown as { ok: boolean; data: unknown; evidence: unknown; error?: unknown } // `data` é genérico (T): o zod não o expõe neste ponto
-      if (v.ok && (v.data === null || v.evidence === null)) ctx.addIssue({ code: "custom", message: "ok=true exige data e evidence" })
+      const v = raw as unknown as { capability: string; ok: boolean; data: unknown; evidence: unknown; error?: unknown } // `data` é genérico (T): o zod não o expõe neste ponto
+      // E6.6-12: o refresh não tem PromptView: ok=true ⇒ data NULL e evidence presente; todas as outras capacidades exigem data.
+      if (v.ok && v.capability === "evidence.refresh@1") { if (v.data !== null || v.evidence === null) ctx.addIssue({ code: "custom", message: "refresh ok exige data nulo e evidence" }) }
+      else if (v.ok && (v.data === null || v.evidence === null)) ctx.addIssue({ code: "custom", message: "ok=true exige data e evidence" })
       if (v.ok && v.error !== undefined) ctx.addIssue({ code: "custom", message: "ok=true não tem error" })
       if (!v.ok && (v.error === undefined || v.data !== null || v.evidence !== null)) ctx.addIssue({ code: "custom", message: "ok=false exige error e data/evidence nulos" })
     })

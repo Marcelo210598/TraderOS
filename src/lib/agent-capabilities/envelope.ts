@@ -1,5 +1,6 @@
 // Envelope das capacidades (E6.6-4): handle SEM evidenceHash para o modelo, resultado ok e resultado de erro. Projeção por lista branca: CÓPIA explícita campo a campo
 // (nunca spread, nunca cópia genérica), para que um campo novo do handle NÃO chegue ao modelo sem decisão. Toda falha de schema vira ENGINE_REFUSED (Q17), sem detalhe.
+import { z } from "zod"
 import { AGENT_CONTRACT_VERSION, CAPABILITY_IDS, CapabilityErrorCodeSchema, EvidenceHandleViewSchema, capabilityResultSchema, type CapabilityErrorCode, type CapabilityId, type EvidenceHandle, type EvidenceHandleView, type Limit } from "../agent/contract.ts"
 import { PROMPT_VIEWS } from "../agent/views.ts"
 
@@ -36,8 +37,10 @@ export function errorResult(capability: CapabilityId, code: CapabilityErrorCode)
 export function okResult(capability: CapabilityId, data: unknown, handle: EvidenceHandle, limits: readonly Limit[]) {
   if (!isCapability(capability)) throw new RangeError("capacidade fora do contrato")
   try {
-    if (!Object.hasOwn(PROMPT_VIEWS, capability)) return errorResult(capability, "ENGINE_REFUSED")
-    const schema = capabilityResultSchema(PROMPT_VIEWS[capability as keyof typeof PROMPT_VIEWS])
+    // E6.6-12: o refresh não tem PromptView; só devolve o handle novo (data é SEMPRE null; qualquer outra coisa ⇒ ENGINE_REFUSED).
+    const isRefresh = capability === "evidence.refresh@1"
+    if (isRefresh ? data !== null : !Object.hasOwn(PROMPT_VIEWS, capability)) return errorResult(capability, "ENGINE_REFUSED")
+    const schema = capabilityResultSchema(isRefresh ? z.null() : PROMPT_VIEWS[capability as keyof typeof PROMPT_VIEWS])
     const view = handleView(handle)
     if (!EvidenceHandleViewSchema.safeParse(view).success) return errorResult(capability, "ENGINE_REFUSED")
     const parsed = schema.safeParse({ contract: AGENT_CONTRACT_VERSION, capability, ok: true, data, evidence: view, limits: limits.map((l) => ({ code: l.code, text: l.text })) })
