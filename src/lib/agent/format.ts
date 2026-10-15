@@ -111,6 +111,7 @@ export const REASON_TEXTS: Readonly<Record<string, string>> = Object.freeze({
   UNAVAILABLE_B: "o valor não está disponível no lado B da comparação",
   RATIO_A_ZERO: "o valor de A é zero e a razão não se aplica",
   RATIO_SIGN_DIFFERS: "os valores têm sinais opostos e a razão não se aplica",
+  GROUP_NOT_FOUND: "o grupo não existe nos dados", // E6.6-8 (D8-5): lado de uma comparação sem nenhum trade
 })
 
 /** Texto cru do motivo (sem moldura). Código ausente do catálogo, null, vazio ou de outro tipo ⇒ erro. */

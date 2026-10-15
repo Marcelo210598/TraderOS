@@ -95,3 +95,88 @@ export function projectExitBreakdown(result: unknown): ExitBreakdownProjection |
     return null
   }
 }
+
+// ── metrics.compare (E6.6-8) ─────────────────────────────────────────────────
+// Projeção do `result` do derivado GROUP_COMPARISON / PERIOD_COMPARISON (o que o V6 verifica) para a CompareView. Lista branca: o `result` é lido por um schema local que só
+// conhece os campos usados (label, tradeSetHash, period cru, limitations, coverage, comparable… nunca são lidos); a chave sai SÓ por groupKeyPart (nunca `key.label` do motor)
+// ou pelas datas formatadas. Qualquer coisa fora do contrato ⇒ null (a capacidade recusa com ENGINE_REFUSED).
+import { CompareViewSchema, UnitSchema } from "../agent/views.ts"
+import { REASON_TEXTS, formatDate } from "../agent/format.ts"
+import { newAliasTable } from "../agent/label.ts"
+import { groupKeyPart, type GroupDimension } from "./group-key.ts"
+
+/** As 9 dimensões que a comparação aceita (as verificáveis pela Evidence; conta/estratégia esperam o E6.6-5-A, sessão não é verificável). */
+export const COMPARE_DIMENSIONS = ["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "symbol", "direction", "exitReason"] as const
+const EPOCH_OK = /^[a-z0-9][a-z0-9_-]{0,31}$/
+const Finite = z.number().refine((x) => Number.isFinite(x))
+const CmpCellIn = z.object({ value: Finite.nullable(), reason: z.string().nullable() })
+const CmpSideIn = z.object({
+  key: z.object({ dims: z.array(z.string()), key: z.array(z.string().nullable()) }).nullable(),
+  period: z.object({ from: z.string(), to: z.string() }).nullable(),
+  sampleSize: z.number().int().nonnegative(),
+  sampleFlag: FlagIn,
+})
+const CmpMetricIn = z.object({ metric: z.string(), unit: z.string(), a: CmpCellIn, b: CmpCellIn, delta: Finite.nullable(), ratio: Finite.nullable(), reason: z.string().nullable(), conclusive: z.boolean() })
+const CmpIn = z.object({ kind: z.enum(["GROUP_COMPARISON", "PERIOD_COMPARISON"]), a: CmpSideIn, b: CmpSideIn, metrics: z.array(CmpMetricIn).min(1), confidence: z.enum(["OK", "LIMITED", "UNRELIABLE"]) })
+
+export interface CompareProjection {
+  view: ReturnType<typeof CompareViewSchema.parse>
+  /** O PIOR sampleFlag entre A e B. */
+  worstFlag: Flag
+  confidence: "OK" | "LIMITED" | "UNRELIABLE"
+}
+
+const knownReason = (r: string | null): boolean => r === null || Object.hasOwn(REASON_TEXTS, r)
+
+export function projectCompare(result: unknown, refEpoch: string): CompareProjection | null {
+  try {
+    if (typeof refEpoch !== "string" || !EPOCH_OK.test(refEpoch)) return null
+    const parsed = CmpIn.safeParse(result)
+    if (!parsed.success) return null
+    const r = parsed.data
+    const keyOf = (side: z.infer<typeof CmpSideIn>): string[] | null => {
+      if (r.kind === "GROUP_COMPARISON") {
+        const k = side.key
+        if (k === null || k.dims.length < 1 || k.dims.length !== k.key.length) return null
+        let table = newAliasTable(refEpoch)
+        const out: string[] = []
+        for (let i = 0; i < k.dims.length; i++) {
+          const dim = k.dims[i]
+          const raw = k.key[i]
+          if (!(COMPARE_DIMENSIONS as readonly string[]).includes(dim) || raw === null) return null
+          const part = groupKeyPart(dim as GroupDimension, raw, table, refEpoch)
+          if (!part.ok) return null
+          table = part.aliases
+          out.push(part.text)
+        }
+        return out
+      }
+      const p = side.period
+      if (p === null) return null
+      const from = formatDate(p.from)
+      const to = formatDate(p.to)
+      return from.ok && to.ok ? [`${from.text} a ${to.text}`] : null
+    }
+    const ka = keyOf(r.a)
+    const kb = keyOf(r.b)
+    if (ka === null || kb === null) return null
+    if (r.kind === "GROUP_COMPARISON" && JSON.stringify(r.a.key?.dims) !== JSON.stringify(r.b.key?.dims)) return null
+    const deltas: Array<Record<string, unknown>> = []
+    for (const m of r.metrics) {
+      if (!UnitSchema.safeParse(m.unit).success) return null
+      if (!knownReason(m.a.reason) || !knownReason(m.b.reason) || !knownReason(m.reason)) return null
+      if ((m.a.value === null && m.a.reason === null) || (m.b.value === null && m.b.reason === null)) return null // indisponível sem motivo: nunca zero, nunca em branco
+      if ((m.delta === null || m.ratio === null) && m.reason === null) return null
+      deltas.push({ metricId: m.metric, unit: m.unit, a: m.a.value, aReason: m.a.reason, b: m.b.value, bReason: m.b.reason, delta: m.delta, ratio: m.ratio, reason: m.reason })
+    }
+    const conclusive = r.metrics.every((m) => m.conclusive) && r.confidence === "OK"
+    const view = CompareViewSchema.safeParse({ a: { key: ka, sampleSize: r.a.sampleSize }, b: { key: kb, sampleSize: r.b.sampleSize }, deltas, conclusive })
+    if (!view.success) return null
+    const order: Flag[] = ["OK", "LOW", "TINY"]
+    const worst = Math.max(order.indexOf(r.a.sampleFlag), order.indexOf(r.b.sampleFlag))
+    return { view: view.data, worstFlag: order[worst], confidence: r.confidence }
+  } catch {
+    return null
+  }
+}
+

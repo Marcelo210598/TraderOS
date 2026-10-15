@@ -142,10 +142,10 @@ test("F8 — separadores: '.' de milhar e ',' decimal; nunca troca (nem ',' de m
 // ── catálogo de motivos ──────────────────────────────────────────────────────
 const CAT: Record<string, string> = exp.e66_1.reason_catalog.texts
 
-test("D1 — o catálogo tem EXATAMENTE os 29 códigos da expectativa, com os textos da expectativa; nenhum texto vazio nem com dígito", () => {
-  assert.equal(exp.e66_1.reason_catalog.expected_count, 29)
+test("D1 — o catálogo tem EXATAMENTE os 30 códigos da expectativa, com os textos da expectativa; nenhum texto vazio nem com dígito", () => {
+  assert.equal(exp.e66_1.reason_catalog.expected_count, 30)
   assert.deepEqual(Object.keys(REASON_TEXTS).sort(), Object.keys(CAT).sort())
-  assert.equal(Object.keys(CAT).length, 29)
+  assert.equal(Object.keys(CAT).length, 30)
   for (const [k, t] of Object.entries(CAT)) {
     assert.equal(Object.getOwnPropertyDescriptor(REASON_TEXTS, k)?.value, t, k)
     assert.ok(t.length > 0 && !/\d/.test(t), `texto inválido em ${k}`)
