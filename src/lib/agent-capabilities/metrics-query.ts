@@ -10,7 +10,7 @@ import { EVIDENCE_SCHEMA, sealEvidence } from "../evidence/hash.ts"
 import { METRIC_IDS, MetricsInputError, calculateMetricsTraced, type AnalyticsTrade } from "../metrics/index.ts"
 import { assessBundle } from "./assess.ts"
 import { errorResult, okResult } from "./envelope.ts"
-import { applyAccountFilter } from "./alias-input.ts"
+import { applyAliasFilters } from "./alias-input.ts"
 import { generatorOpts, saltMissing } from "./salt.ts"
 import { projectMetricValue } from "./project.ts"
 import type { SourceFiles, VerifySourceOptions } from "../evidence/verify-source.ts"
@@ -23,13 +23,15 @@ const MAX_LIST = 8
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const list = <T extends z.ZodType>(t: T) => z.union([t, z.array(t).min(1).max(MAX_LIST)])
 
-/** Filtros e opções que o MODELO pode pedir (compartilhados com metrics.groups). Sem conta/estratégia/setup/timeframe: pendência E6.6-5-A (resolvedor de alias de ENTRADA). */
+/** Filtros e opções que o MODELO pode pedir (compartilhados com metrics.groups). Conta e estratégia só por ALIAS (E6.6-5-A/A2); setup/timeframe/strategyVersion fora (D6-1). */
 export const QUERY_FILTERS_SCHEMA = z
   .strictObject({
     from: DATE, to: DATE,
     symbol: list(z.string().regex(/^[A-Za-z0-9 ._-]{1,32}$/)),
     /** E6.6-5-A: a conta como o servidor a mostrou ("Conta A"); o servidor resolve para o nome real (alias-input.ts). Nome cru nunca casa. */
     account: list(z.string().regex(/^Conta [A-Z]{1,3}$/)),
+    /** E6.6-5-A2: a estratégia como o servidor a mostrou ("Estratégia A"); resolvida em alias-input.ts para o campo do motor (strategyId OU strategyName), com exatidão fail-closed. */
+    strategy: list(z.string().regex(/^Estratégia [A-Z]{1,3}$/)),
     direction: z.enum(["LONG", "SHORT"]),
     session: list(z.enum(["AM", "PM", "OVERNIGHT"])),
     hour: list(z.number().int().min(0).max(23)),
@@ -77,7 +79,7 @@ export function metricsQuery(rawArgs: unknown, ctx: MetricsQueryContext): Metric
     const { metricIds, options } = parsed.data
     if (typeof ctx !== "object" || ctx === null || !Array.isArray(ctx.trades) || !Array.isArray(ctx.importRecords)) return fail("ENGINE_REFUSED")
     if (saltMissing(ctx)) return fail("ENGINE_REFUSED") // import SALGADO sem o sal: falha FECHADA (salt.ts)
-    const af = applyAccountFilter(parsed.data.filters, ctx)
+    const af = applyAliasFilters(parsed.data.filters, ctx)
     if (!af.ok) return fail("ARGS_INVALID") // alias de conta que não resolve é erro do modelo (E6.6-5-A)
     const filters = af.filters
 

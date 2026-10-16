@@ -8,7 +8,7 @@ import type { CapabilityId, EvidenceHandle } from "../agent/contract.ts"
 import { derivedEvidenceBundle, explainDerived } from "../evidence/explain-derived.ts"
 import { METRIC_IDS, MetricsInputError, normalizeFilters } from "../metrics/index.ts"
 import { assessBundle } from "./assess.ts"
-import { applyAccountFilter, resolveAccount } from "./alias-input.ts"
+import { applyAliasFilters, resolveAccount, resolveStrategy } from "./alias-input.ts"
 import { errorResult, okResult } from "./envelope.ts"
 import { QUERY_FILTERS_SCHEMA, QUERY_OPTIONS_SCHEMA, type MetricsQueryContext } from "./metrics-query.ts"
 import { COMPARE_DIMENSIONS, projectCompare } from "./project.ts"
@@ -37,6 +37,8 @@ const DIM_VALUE: Readonly<Record<Dim, z.ZodType>> = {
   symbol: z.string().regex(/^[A-Z0-9]{1,12}$/),
   /** E6.6-5-A: o ALIAS que o servidor mostrou ("Conta A"); resolvido para o nome real em alias-input.ts. */
   account: z.string().regex(/^Conta [A-Z]{1,3}$/),
+  /** E6.6-5-A2: o ALIAS da estratégia ("Estratégia A"); vira a CHAVE real (strategyId ?? strategyName) em alias-input.ts. */
+  strategy: z.string().regex(/^Estratégia [A-Z]{1,3}$/),
   direction: z.enum(["LONG", "SHORT"]),
   exitReason: z.enum(["TARGET", "STOP", "MANUAL", "MIXED"]),
 }
@@ -90,7 +92,7 @@ export function metricsCompare(rawArgs: unknown, ctx: MetricsQueryContext): Metr
     const args = parsed.data
     if (typeof ctx !== "object" || ctx === null || !Array.isArray(ctx.trades) || !Array.isArray(ctx.importRecords)) return fail("ENGINE_REFUSED")
     if (saltMissing(ctx)) return fail("ENGINE_REFUSED") // import SALGADO sem o sal: falha FECHADA (salt.ts)
-    const af = applyAccountFilter(args.filters, ctx)
+    const af = applyAliasFilters(args.filters, ctx)
     if (!af.ok) return fail("ARGS_INVALID") // alias de conta que não resolve é erro do modelo (E6.6-5-A)
     const filters = af.filters ?? {}
     try { normalizeFilters(filters) } catch (e) { return fail(e instanceof MetricsInputError ? "ARGS_INVALID" : "ENGINE_REFUSED") } // erro de ENTRADA do motor (ex.: from > to) é do modelo
@@ -105,7 +107,15 @@ export function metricsCompare(rawArgs: unknown, ctx: MetricsQueryContext): Metr
       if (a === null || b === null) return fail("ARGS_INVALID")
       if (args.groupBy.length === 1 && a.ref === b.ref) return fail("ARGS_INVALID")
     }
-    const sideOf = (side: Record<string, string | number>, dims: readonly Dim[]): Record<string, string> => Object.fromEntries(dims.map((d) => [d, d === "account" ? (accountOf(side[d])?.name ?? "") : coerce(d, side[d])]))
+    // dimensão `strategy`: o valor é o ALIAS; vira a CHAVE real (strategyId ?? strategyName) — o motor usa a MESMA função de chave — e a == b é decidido pelo REF (E6.6-5-A2)
+    const strategyOf = (v: unknown): { key: string; ref: string } | null => { const r = resolveStrategy(String(v), ctx); return r.ok ? { key: r.key, ref: r.ref } : null }
+    if (args.mode === "GROUP" && args.groupBy.includes("strategy")) {
+      const a = strategyOf(args.a.strategy)
+      const b = strategyOf(args.b.strategy)
+      if (a === null || b === null) return fail("ARGS_INVALID")
+      if (args.groupBy.length === 1 && a.ref === b.ref) return fail("ARGS_INVALID")
+    }
+    const sideOf = (side: Record<string, string | number>, dims: readonly Dim[]): Record<string, string> => Object.fromEntries(dims.map((d) => [d, d === "account" ? (accountOf(side[d])?.name ?? "") : d === "strategy" ? (strategyOf(side[d])?.key ?? "") : coerce(d, side[d])]))
     const spec = args.mode === "GROUP"
       ? { op: "GROUP_COMPARISON" as const, args: { groupBy: [...args.groupBy], a: sideOf(args.a, args.groupBy), b: sideOf(args.b, args.groupBy), metrics: args.metricIds }, filters, options: specOptions }
       : { op: "PERIOD_COMPARISON" as const, args: { a: { from: args.a.from, to: args.a.to }, b: { from: args.b.from, to: args.b.to }, metrics: args.metricIds }, filters, options: specOptions }

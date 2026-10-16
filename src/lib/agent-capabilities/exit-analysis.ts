@@ -8,7 +8,7 @@ import { derivedEvidenceBundle, explainDerived } from "../evidence/explain-deriv
 import { EVIDENCE_SCHEMA, sealEvidence } from "../evidence/hash.ts"
 import { MetricsInputError, normalizeFilters } from "../metrics/index.ts"
 import { assessBundle } from "./assess.ts"
-import { applyAccountFilter } from "./alias-input.ts"
+import { applyAliasFilters } from "./alias-input.ts"
 import { errorResult, okResult } from "./envelope.ts"
 import { QUERY_FILTERS_SCHEMA, QUERY_OPTIONS_SCHEMA, type MetricsQueryContext } from "./metrics-query.ts"
 import { projectExitBreakdown, projectExitComparison } from "./project.ts"
@@ -42,7 +42,7 @@ export function exitAnalysis(rawArgs: unknown, ctx: MetricsQueryContext): ExitAn
     const { compare, options } = parsed.data
     if (typeof ctx !== "object" || ctx === null || !Array.isArray(ctx.trades) || !Array.isArray(ctx.importRecords)) return fail("ENGINE_REFUSED")
     if (saltMissing(ctx)) return fail("ENGINE_REFUSED") // import SALGADO sem o sal: falha FECHADA (salt.ts)
-    const af = applyAccountFilter(parsed.data.filters, ctx)
+    const af = applyAliasFilters(parsed.data.filters, ctx)
     if (!af.ok) return fail("ARGS_INVALID") // alias de conta que não resolve é erro do modelo (E6.6-5-A)
     const filters = af.filters ?? {}
     try { normalizeFilters(filters) } catch (e) { return fail(e instanceof MetricsInputError ? "ARGS_INVALID" : "ENGINE_REFUSED") } // erro de ENTRADA do motor (ex.: from > to) é do modelo

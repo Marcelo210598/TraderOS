@@ -107,8 +107,10 @@ import { EXPLAIN_MAX_TRADES } from "../agent/contract.ts"
 import { exitReasonOf } from "../metrics/index.ts"
 import { groupKeyPart, type GroupDimension } from "./group-key.ts"
 
-/** As 10 dimensões que a comparação aceita (as verificáveis pela Evidence; `account` por alias de ENTRADA, E6.6-5-A; estratégia espera o 5-A2 e sessão não é verificável). */
-export const COMPARE_DIMENSIONS = ["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "symbol", "direction", "exitReason", "account"] as const
+/** As 10 dimensões que o ranking aceita (as verificáveis pela Evidence; `account` por alias de ENTRADA, E6.6-5-A). `strategy` NÃO entra aqui: o rank só ganhou o FILTRO por estratégia (E6.6-5-A2, D5A2-1). */
+export const RANK_DIMENSIONS = ["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "symbol", "direction", "exitReason", "account"] as const
+/** As 11 dimensões que a comparação aceita: as 10 do ranking + `strategy` (alias de ENTRADA da estratégia, E6.6-5-A2; NÃO verificável: a associação fica UNVERIFIABLE). Sessão não é verificável e segue fora. */
+export const COMPARE_DIMENSIONS = ["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "symbol", "direction", "exitReason", "account", "strategy"] as const // lista literal: o guarda Q4 proíbe spread em project.ts
 const EPOCH_OK = /^[a-z0-9][a-z0-9_-]{0,31}$/
 const Finite = z.number().refine((x) => Number.isFinite(x))
 const CmpCellIn = z.object({ value: Finite.nullable(), reason: z.string().nullable() })
@@ -225,7 +227,7 @@ export function projectRank(result: unknown, refEpoch: string, aliases?: AliasTa
       const key: string[] = []
       for (let d = 0; d < row.key.dims.length; d++) {
         const dim = row.key.dims[d]
-        if (!(COMPARE_DIMENSIONS as readonly string[]).includes(dim)) return null
+        if (!(RANK_DIMENSIONS as readonly string[]).includes(dim)) return null
         const part = groupKeyPart(dim as GroupDimension, row.key.key[d], table, refEpoch)
         if (!part.ok) return null
         table = part.aliases
