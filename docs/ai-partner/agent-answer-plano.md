@@ -341,3 +341,13 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Fora do passo:** outros desfechos de sal (options sem `accountRefSalt`) seguem sem teste dedicado aqui.
 - **Próximos (cada um com aprovação):** D6-1 · planejar E7.
 
+## 33. Resultado do D6-1 (16/10/2026) — exclusão formal de `strategyVersion`/`setup`/`timeframe`
+
+- **Autorizado** pelo Gemini (expectativa `26f755c`, D-V1 a D-V4 aprovadas): **manter excluídas**, formalmente. **`src/` não mudou.**
+- **Entrega:** `scripts/test-agent-d61-excluded.mts` (V1–V4, no `test:domain`) e a seção "D6-1" em `agent-capabilities.md` com as 4 condições para reabrir.
+- **Testes (tripwires):** V1 matriz (3 dimensões × groups/rank/compare e 4 filtros × 6 capacidades ⇒ ARGS_INVALID, com e sem tabela, sem eco); V2 fronteiras estáticas (12/10/11 dimensões, 11 chaves de filtro, `VERIFIABLE_*` sem as 3, 3 tipos de alias); V3 a Evidence grava o texto cru (injeção e 300 caracteres) e conta/estratégia viram ref; V4 o import não popula os campos (grupo único "(sem setup)").
+- **Mutações VM1–VM7: 7 pegas**, cada uma no teste previsto: VM1–VM4 (uma dimensão/filtro entra num schema) no V1; VM5 (a Evidence deixa de gravar o setup cru) no V3; VM6 (o import passa a preencher `setup`) no V4; VM7 (`strategyVersion` vira verificável) no V2.
+- **Suíte 1100 ⇒ 1104 ✓** (+V1–V4; demais linhas idênticas); `tsc` 0; ESLint limpo.
+- **Não medido (declarado):** cardinalidade real de usuários, ligação diário↔import e custo da redação na Evidence.
+- **Próximos (cada um com aprovação):** planejar a E7 (persistência de bundles, ledger e chaveiro de sal), que é onde as condições do D6-1 e a verificabilidade da estratégia seriam reavaliadas.
+

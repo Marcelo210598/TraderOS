@@ -206,3 +206,10 @@ E6.6 (aprovação própria; o `combineVerdict` já foi feito, ver acima): valida
 ## 10. Pontos ainda em aberto (propostas minhas)
 - ~~O-E~~ e ~~O-F~~: **aprovados em 12/10/2026** (O-E com a regra de parada explícita do §5.5; O-F como exibição-só, com as casas do motor, §4.3).
 - **O-G:** redação final das frases canônicas das §6.2–6.4 (o conjunto de **códigos** é fixo; a prosa pode ser ajustada sem mudar o contrato).
+
+## D6-1 — `strategyVersion`, `setup` e `timeframe` ficam EXCLUÍDOS (decisão fechada em 16/10/2026)
+
+O agente **não agrupa nem filtra** por `strategyVersion`, `setup` ou `timeframe` (nem por `strategyVersionId`): nenhuma capacidade os aceita (`ARGS_INVALID`), nem como dimensão (`metrics.groups`, `rank.groups`, `metrics.compare`) nem como filtro (as 6 que filtram). Motivos medidos: (1) na pipeline de import ninguém popula esses campos (valem `null`; o `Setup` do produto é do diário, outro domínio); (2) a Evidence grava o texto livre do usuário **cru** no `groupKey` e nos `filters` (conta e estratégia viram ref, estes não); (3) seriam não verificáveis (`S_ASSOCIATION_UNVERIFIABLE`) e o validador recusa o número (`NUMBER_FROM_UNVERIFIED_EVIDENCE`); (4) o `AliasTable` tem 3 tipos fixos e o `rotulo` é dos rótulos de ordem.
+
+**Para reabrir, TODAS as condições:** (a) uma fonte que popule os campos nos trades do agente; (b) redação na Evidence (`groupKey` e `filters` como ref) e um tipo de alias próprio, com bump declarado do contrato; (c) a associação ser verificável; (d) teto de grupos e de tamanho do texto definidos. Os testes `test-agent-d61-excluded.mts` (V1–V4) são tripwires: se um dos fatos acima mudar, eles falham de propósito.
+
