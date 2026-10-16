@@ -351,3 +351,10 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Não medido (declarado):** cardinalidade real de usuários, ligação diário↔import e custo da redação na Evidence.
 - **Próximos (cada um com aprovação):** planejar a E7 (persistência de bundles, ledger e chaveiro de sal), que é onde as condições do D6-1 e a verificabilidade da estratégia seriam reavaliadas.
 
+## 34. E7 (16/10/2026) — levantamento e E7-0 (decisões e contrato de armazenamento)
+
+- **Documentos:** `E7-levantamento.md` (fatos, 11 riscos, 8 decisões) e `E7-0-contrato-de-armazenamento.md` (D-E7-1 a D-E7-6 respondidas pelo Marcelo em 16/10: guardar o arquivo bruto como texto UTF-8 exato, storage S3-compatível privado atrás de uma interface, sal cifrado AES-256-GCM com chave mestra em variável de ambiente + backup, exclusão em cascata, não mexer na tabela `trades` legada, bundles regenerados sob demanda).
+- **Só documento:** sem código, sem migração, sem conta contratada. **Em aberto (Marcelo):** provedor do storage; as adições marcadas [PROPOSTA MINHA] (`keyVersion` + AAD no sal, regra de decodificação de upload, chave do storage montada pela implementação, concorrência otimista); D-E7-7 (derivar × cachear o trade canônico comprimido); retenção de backups.
+- **Fatos novos medidos:** `sha256(bytes UTF-8 do texto) == fileSha256` (inclusive com BOM); o trade canônico de 5.000 trades tem 18,4 MB e comprime a 3,4%; R2 Standard US$ 0,015/GB-mês, 10 GB grátis, egress grátis (página oficial de 1/out/2026).
+- **Próximo (com aprovação):** E7-1 (`RawFileStorage` + testes de contrato + implementações de memória/disco + rascunho do `ImportSource`).
+
