@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 16/10/2026 — AI Partner: A2 `strategy`, estresse 50×10, RF9, D6-1, E7-0 e E7-1 — backup até `b51284f`; origin intocado
+Suíte **1083 → 1122 ✓**, tsc 0, ESLint 0. `strategy` como filtro/dimensão (11ª do compare); estresse medido (≈linear, sem OOM); RF9 com desfecho único; D6-1 excluído com tripwires; E7-0 contrato de armazenamento; E7-1 `RawFileStorage` (memória+disco, 16/16 mutações). Próximo: E7-2 (`SaltProvider` cifrado). Detalhe: `historico/2026-10-16.md`.
+
 ## ✅ 15/10/2026 — AI Partner: E6.6 FECHADO (E6.6-8…12 + 5-A + 7b + fixes do validador) — backup até `882fbae`; origin intocado
 Suíte **984 → 1083 ✓**, tsc 0, ESLint limpo. Novas capacidades: `metrics.compare`, `rank.groups`, `exit.analysis`, `evidence.explain` (+PD-3 `DATA_NOT_PROVIDED`), `evidence.refresh` (+`refreshEvidence` no ledger; sem sal o ref não muda entre épocas) e alias de entrada de conta. `VERIFIED_PARTIAL` coberto ponta a ponta (receita real). Pendências: E6.6-5-A2 `strategy`, D6-1, estresse 50×10, endurecer RF9. Detalhe: `historico/2026-10-15.md` e `docs/ai-partner/MEUTRADE-CHECKPOINT-2026-10-15.md`.
 
