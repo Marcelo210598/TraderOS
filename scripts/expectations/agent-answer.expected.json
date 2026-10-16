@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-16 E7-1 — EXPECTATIVA escrita ANTES do código (bloco e7_1: `RawFileStorage` + implementações de memória e disco + testes de contrato). Base: E7-0 aprovado; R2 recomendado SEM criar conta agora; derivar o trade canônico. MEDIDO/LIDO: sha256 1 MiB 0,6 ms e 25 MiB 8,9 ms; infra/hash.ts já tem sha256Hex(bytes)/randomHex e é o ÚNICO a conhecer node:crypto; escrita atômica tmp+rename 0,3 ms com 0600/0700; User.id = cuid (25 chars); prisma usa migrate (o rascunho do ImportSource vai em doc); o repositório está no iCloud (testes de disco só em os.tmpdir). D-S1…D-S10 MINHAS, pendentes de revisão do Gemini (D-S1: API por resultado, refina o esboço do E7-0; D-S3: teto de 25 MiB é proposta). NÃO medido: escrita de 25 MiB, corrida real, ENOSPC, SDK S3/R2.",
       "2026-10-16 D6-1 EXECUTADO (src/ NÃO mudou): strategyVersion/setup/timeframe ficam EXCLUÍDOS, formalmente. Placar 1100 → 1104 ✓ (+V1–V4: matriz da exclusão nas 6 capacidades, fronteiras estáticas, tripwire da Evidência crua, tripwire da fonte); baseline idêntico; tsc 0; ESLint limpo. Mutações VM1–VM7: 7 pegas, cada uma no teste previsto (VM1–VM4→V1, VM5→V3, VM6→V4, VM7→V2). Decisão documentada em agent-capabilities.md (seção D6-1) e no plano §33, com as 4 condições para reabrir.",
       "2026-10-16 D6-1 — EXPECTATIVA escrita ANTES dos testes (bloco e66_d61). src/ NÃO muda. MEDIDO: (F1) na pipeline de import ninguém popula setup/timeframe/strategyVersionId (null em tudo; groupBy setup daria 1 grupo '(sem setup)'); o Setup do produto é do DIÁRIO (outro domínio); (F3) a Evidence grava o texto livre CRU no groupKey e nos filters (inclusive injeção e 300 caracteres) — conta/estratégia viram ref, estes 3 não; (F5) seriam NÃO verificáveis ⇒ números não citáveis; (F6) AliasTable tem 3 tipos fixos e o 'rotulo' é de rótulos de ordem. Recomendação: MANTER EXCLUÍDAS formalmente (já implementado e testado), com guardas-tripwire e 4 condições para reabrir. D-V1…D-V4 minhas, pendentes de revisão do Gemini. NÃO medido: cardinalidade real de usuários, ligação diário↔import, custo da redação.",
       "2026-10-16 RF9 ENDURECIDO (src/ NÃO mudou). Placar 1100 → 1100 ✓; baseline idêntico exceto o TÍTULO do RF9 (de propósito); tsc 0; ESLint limpo. O ramo else (ENGINE_REFUSED) saiu: o RF9 afirma o desfecho único medido (ok; verify VALID; source UNVERIFIABLE [S_ACCOUNT_REF_UNVERIFIED]; combined NOT_VERIFIED; limits; população {5, FULL}; entry presente; tudo == chamada direta; controle sal certo = VERIFIED). Mutações RH1–RH6 (RF9 atual × novo, isoladas): RH1, RH2 e RH6 ESCAPAVAM do atual e são PEGAS pelo novo; RH3, RH4 e RH5 eram pegas pelos dois. ACHADO na RH2: o okResult já recusa veredito inconsistente (buildVerdict), então o refresh virava ENGINE_REFUSED e o else morto do teste antigo aceitava em silêncio. ERRO MEU: okOf(...result) no rascunho (neste arquivo o okOf recebe a saída inteira).",
@@ -5697,6 +5698,78 @@
       "VM7 'strategyVersion' entra em VERIFIABLE_DIMS ⇒ V2 falha"
     ],
     "baselines": "1100 linhas ✓ idênticas; só se acrescentam V1–V4. src/ não muda."
+  },
+  "e7_1": {
+    "status": "EXPECTATIVA (16/10/2026) escrita ANTES do código do E7-1 (`RawFileStorage`). Base: E7-0 (decisões aprovadas) + respostas do Marcelo/Gemini de 16/10: provedor R2 recomendado, SEM criar conta agora; as 4 adições do E7-0 aprovadas; derivar o trade canônico (sem cache) no E7-1. D-S1…D-S10 abaixo são MINHAS, pendentes de revisão. Fatos medidos/lidos em 16/10.",
+    "files": [
+      "src/lib/infra/raw-file-storage.ts (novo): tipos, constantes, validadores, `rawFileKey`, `createMemoryRawFileStorage()`; importa SÓ ./hash.ts",
+      "src/lib/infra/raw-file-storage-disk.ts (novo): `createDiskRawFileStorage(rootDir)`; importa node:fs/promises, node:path, ./hash.ts, ./raw-file-storage.ts",
+      "scripts/test-raw-file-storage.mts (novo, entra no test:domain): C1–C12 contra AS DUAS implementações + D1–D5 (disco) + S1 (estática)",
+      "docs/ai-partner/E7-1-import-source.prisma.md (novo): RASCUNHO do modelo `ImportSource` em doc; prisma/schema.prisma NÃO é tocado",
+      "package.json (+1 arquivo no test:domain)"
+    ],
+    "nao_muda": "src/lib/agent*, evidence, metrics, ingest, domain (nada importa o storage); prisma/ (nenhuma migração, nenhum modelo); tabela `trades`; nenhum provedor real, nenhuma conta, nenhum SDK novo.",
+    "fatos_medidos_e_lidos": {
+      "F1_hash": "sha256 de 1 MiB = 0,6 ms; de 25 MiB = 8,9 ms (node:crypto). `src/lib/infra/hash.ts` JÁ exporta `sha256Hex(string | Uint8Array)` e `randomHex(bytes)` e declara ser o ÚNICO lugar que conhece `node:crypto` (guarda análogo: test-salt-policy-p1 proíbe node:crypto em salt.ts). O storage deve usar essas funções, não importar node:crypto.",
+      "F2_hash_do_arquivo": "sha256(bytes UTF-8 do texto) == ImportRecord.fileSha256, inclusive com BOM (medido no E7-0). Logo `put`/`get` conferem o hash dos BYTES contra o `fileSha256` pedido.",
+      "F3_escrita_atomica_no_disco": "tmp + rename de 1 MiB = 0,3 ms; arquivo criado com modo 0600 e diretório com 0700 (conferidos com statSync); bytes idênticos na leitura. O tmpdir do SO (/var/folders/…) NÃO está no iCloud; o repositório está (Desktop/Projetos AI, que já duplicou `* 2` e quebrou o git).",
+      "F4_ids": "o `User.id` do Prisma é `cuid()` (25 caracteres, ex.: cmd3h2k0a0000abcd1234efgh). O sha é hex minúsculo de 64.",
+      "F5_tamanhos": "≈ 190 B de CSV por trade [E7-levantamento]: 1 MiB ≈ 5.500 trades; 25 MiB ≈ 135.000 trades.",
+      "F6_onde_cabe": "`node:fs` só é usado em UMA rota hoje (download do add-on do NinjaTrader); `src/lib/infra/` tem só hash.ts. O Q2 do static das capacidades só deixa `agent-capabilities/` importar agent/, evidence/, metrics/ e './' ⇒ o storage fica invisível para as capacidades (o servidor é quem compõe).",
+      "F7_prisma": "o projeto usa `prisma migrate` (prisma/migrations/…); editar `schema.prisma` sem migração gera deriva ⇒ o rascunho do `ImportSource` vai para um doc, não para o schema.",
+      "NAO_MEDIDO_ainda": "(a) escrita de 25 MiB em disco; (b) corrida real de várias `put` simultâneas do mesmo arquivo (será medida/testada no D2); (c) comportamento com disco cheio (ENOSPC) — será simulado por injeção; (d) qualquer SDK S3/R2 (fora do E7-1)."
+    },
+    "decisions_DS": {
+      "D-S1": "API tipada por RESULTADO, nunca rejeita/lança: `put → {ok:true, created:boolean} | {ok:false, code}`; `get → {ok:true, bytes} | {ok:false, code}`; `delete → {ok:true, existed:boolean}`; `deleteAllForUser → {ok:true, deleted:number}`. Códigos fixos: INVALID_ARGS, TOO_LARGE, HASH_MISMATCH, NOT_FOUND, CORRUPT, STORAGE_ERROR (sem mensagem, sem caminho, sem eco do valor). REFINA o esboço do E7-0 (`get → bytes | null`): ausente = NOT_FOUND e adulterado = CORRUPT ficam distintos.",
+      "D-S2": "`userId` válido = /^[A-Za-z0-9_-]{1,64}$/ (cobre cuid de 25 e uuid; sem ponto, barra, NUL, espaço ou unicode). `fileSha256` válido = /^[0-9a-f]{64}$/ (só minúsculas). Qualquer outro ⇒ INVALID_ARGS.",
+      "D-S3": "`bytes` precisa ser Uint8Array NÃO vazia (arquivo vazio não tem o que verificar ⇒ INVALID_ARGS) e ≤ MAX_RAW_FILE_BYTES = 25 MiB (acima ⇒ TOO_LARGE; exatamente 25 MiB passa). O teto é uma PROPOSTA minha (F5: ≈ 135 mil trades) e fica numa constante exportada.",
+      "D-S4": "a chave é montada SÓ pela implementação: `rawFileKey(userId, sha) = users/{userId}/imports/{sha}.csv`, depois da validação; nunca recebe caminho do chamador.",
+      "D-S5": "sem aliasing: `put` copia a entrada; `get` devolve uma cópia nova (mutar o que se passou ou recebeu não altera o armazenado).",
+      "D-S6": "`put` é idempotente por conteúdo: 1ª vez `created:true`, repetida `created:false` (mesmo conteúdo, por construção do hash); NUNCA sobrescreve com conteúdo diferente (o hash é a chave).",
+      "D-S7": "disco: raiz ABSOLUTA obrigatória (relativa ⇒ TypeError na criação); escrita atômica (arquivo temporário com nome de `randomHex` + rename); modo 0600/0700; recusa seguir symlink em `users/{userId}` e `imports` (lstat) ⇒ STORAGE_ERROR; `get` confere o sha (diferente ⇒ CORRUPT e NÃO apaga o arquivo); `deleteAllForUser` remove `users/{userId}` e conta os arquivos; idempotente (0 se não há).",
+      "D-S8": "`node:crypto` só via `infra/hash.ts` (sha256Hex de bytes; randomHex para o nome temporário). O arquivo de memória não importa `node:fs`.",
+      "D-S9": "o `ImportSource` fica em RASCUNHO num doc (F7); `prisma/` não é tocado.",
+      "D-S10": "os testes de disco usam `os.tmpdir()` + `mkdtemp` e limpam depois; NUNCA dentro do repositório (iCloud)."
+    },
+    "cases": [
+      "C1 ida e volta nas DUAS implementações: bytes com BOM, CRLF, multibyte UTF-8 e 1 byte ⇒ `get` devolve exatamente os mesmos bytes; sha256(get) == o pedido",
+      "C2 idempotência: `put` repetida ⇒ created:false e o conteúdo segue igual; nunca sobrescreve",
+      "C3 hash divergente ⇒ HASH_MISMATCH e NADA fica guardado (get ⇒ NOT_FOUND)",
+      "C4 ids/bytes inválidos ⇒ INVALID_ARGS, o resultado é exatamente {ok:false, code} e o JSON não contém o valor recusado: userId '', '..', '../x', 'a/b', 'a\\\\0b', 65 caracteres, unicode; sha maiúsculo, 63 e 65 caracteres, '../..', não-hex; bytes não-Uint8Array, vazio",
+      "C5 TETO: 25 MiB + 1 ⇒ TOO_LARGE; exatamente 25 MiB ⇒ ok",
+      "C6 isolamento: o arquivo do usuário A (mesmo sha) é NOT_FOUND para B; `put` de B não altera o de A",
+      "C7 ausente: `get` ⇒ NOT_FOUND; `delete` ⇒ ok com existed:false",
+      "C8 `delete` ⇒ `get` NOT_FOUND ⇒ novo `put` funciona (created:true)",
+      "C9 `deleteAllForUser`: conta certa, idempotente (2ª ⇒ 0), só do usuário; 'abc' não apaga 'abcd' (prefixo)",
+      "C10 sem aliasing: mutar o array passado ao `put` e o devolvido pelo `get` não muda o armazenado",
+      "C11 nunca rejeita nem lança e nenhum resultado revela caminho/valor: entradas hostis (getters que lançam, objetos exóticos como bytes, Proxy) ⇒ INVALID_ARGS",
+      "C12 `rawFileKey`: exatamente users/{userId}/imports/{sha}.csv; PROPRIEDADE sobre 5.000 ids/shas aleatórios (alfabeto com ., /, \\\\, NUL, unicode): se a validação aceita, o caminho não contém '..', '//' nem sai de `users/{userId}/imports/`",
+      "D1 layout em disco: root/users/{u}/imports/{sha}.csv com modo 0600, diretórios 0700 e conteúdo == bytes",
+      "D2 atomicidade e corrida: falha injetada entre o temporário e o rename ⇒ não existe o arquivo final e não sobra temporário; 20 `put` simultâneos do mesmo arquivo ⇒ exatamente 1 arquivo final, todas ok, 1 só com created:true",
+      "D3 corrupção: sobrescrever/truncar o arquivo guardado ⇒ `get` ⇒ CORRUPT (nunca devolve os bytes ruins) e o arquivo NÃO é apagado",
+      "D4 symlink: `users/{u}` ou `imports` como symlink para fora da raiz ⇒ STORAGE_ERROR em put/get/delete/deleteAll e NADA é escrito/lido/apagado fora da raiz",
+      "D5 raiz relativa ⇒ TypeError na criação; raiz inexistente é criada (0700); disco cheio simulado por injeção ⇒ STORAGE_ERROR sem mensagem",
+      "S1 ESTÁTICA: raw-file-storage.ts importa só ./hash.ts e não cita node:fs/node:crypto; o disco importa só node:fs/promises, node:path, ./hash.ts, ./raw-file-storage.ts e não cita node:crypto; nenhum arquivo de src/lib/{agent,agent-capabilities,evidence,metrics,ingest,domain} importa o storage; `prisma/schema.prisma` não tem `ImportSource` (o rascunho está no doc)"
+    ],
+    "mutations_planned": [
+      "RSM1 `put` não confere o sha ⇒ C3 falha",
+      "RSM2 `get` não confere o sha ⇒ D3 falha (devolveria bytes corrompidos)",
+      "RSM3 a regex de userId aceita '.' e '/' ⇒ C4/C12 falham",
+      "RSM4 a regex do sha aceita maiúsculas ⇒ C4 falha",
+      "RSM5 o teto vira `>=` (rejeita exatamente 25 MiB) ⇒ C5 falha",
+      "RSM6 a chave não inclui o userId ⇒ C6 falha",
+      "RSM7 `deleteAllForUser` casa por prefixo (abc apaga abcd) ⇒ C9 falha",
+      "RSM8 `get` da memória devolve o array interno ⇒ C10 falha",
+      "RSM9 `put` da memória guarda a referência do array recebido ⇒ C10 falha",
+      "RSM10 o disco escreve direto no caminho final (sem temporário+rename) ⇒ D2 falha",
+      "RSM11 o disco cria arquivo com modo 0644 ⇒ D1 falha",
+      "RSM12 um resultado de erro passa a incluir o caminho/valor ⇒ C4/C11 falham",
+      "RSM13 o disco não confere symlink ⇒ D4 falha",
+      "RSM14 `put` repetida devolve created:true ⇒ C2 falha",
+      "RSM15 `delete` devolve existed:true sempre ⇒ C7 falha",
+      "RSM16 `deleteAllForUser` devolve a contagem errada ⇒ C9 falha"
+    ],
+    "baselines": "1104 linhas ✓ idênticas; só se acrescentam C1–C12, D1–D5 e S1 (18 linhas ⇒ 1122). Nenhum arquivo existente de src/ muda (só arquivos NOVOS em src/lib/infra/); package.json ganha 1 arquivo no test:domain."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
