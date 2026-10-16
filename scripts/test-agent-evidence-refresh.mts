@@ -261,20 +261,32 @@ test("RF8 — PRESERVAÇÃO DA CONSULTA: filtros (from/to/hour), options (pnlBas
   }
 })
 
-test("RF9 — HONESTIDADE DO VEREDITO: com arquivo e sal certo ⇒ VERIFIED; com sal ERRADO no regenerated ⇒ NUNCA VERIFIED; handle/limits/população do novo == chamada direta (o refresh não promove nada)", () => {
+test("RF9 — HONESTIDADE DO VEREDITO (desfecho ÚNICO, sem ramo): com arquivo e sal certo ⇒ VERIFIED; com sal ERRADO no regenerated o refresh NÃO recusa e devolve o handle honesto — verify VALID, source UNVERIFIABLE [S_ACCOUNT_REF_UNVERIFIED], combined NOT_VERIFIED, população {5, FULL}, entry presente — tudo == a chamada direta (o refresh não promove nada)", () => {
   const cap = "metrics.query@1"
   const s = seed(cap, W1S)
-  const good = evidenceRefresh({ evidenceRef: s.ref }, rctx(s, cap, W2S))
-  assert.equal(okOf(good).evidence.verdict.combined, "VERIFIED")
+  const good = okOf(evidenceRefresh({ evidenceRef: s.ref }, rctx(s, cap, W2S)))
+  assert.equal(good.evidence.verdict.combined, "VERIFIED")
   const wrong = world(SB, "s2", { source: { files: W2S.ctx.source.files, options: { accountRefSalt: SC } } })
   const out = evidenceRefresh({ evidenceRef: s.ref }, rctx(s, cap, wrong))
   const direct = CALL[cap](SPECS[cap], wrong.ctx)
-  if (out.result.ok) {
-    assert.notEqual(out.result.evidence.verdict.combined, "VERIFIED", "sal errado nunca verifica")
-    assert.deepEqual(out.result.evidence.verdict, direct.result.evidence.verdict)
-    assert.deepEqual(out.result.evidence.population, direct.result.evidence.population)
-    assert.deepEqual(out.result.limits, direct.result.limits)
-  } else assert.deepEqual(out.result, err("ENGINE_REFUSED"))
+  // desfecho único, medido em 16/10 (3 execuções): o refresh com sal errado NÃO recusa
+  const r = okOf(out)
+  assert.deepEqual(r.evidence.verdict, { verify: { status: "VALID", codes: [] }, source: { status: "UNVERIFIABLE", codes: ["S_ACCOUNT_REF_UNVERIFIED"] }, combined: "NOT_VERIFIED" })
+  assert.deepEqual(r.limits.map((l: Any) => l.code), ["S_ACCOUNT_REF_UNVERIFIED"])
+  assert.deepEqual(r.evidence.population, { declared: 5, verifiability: "FULL" })
+  // == a chamada direta com o mesmo ctx (o oráculo): o refresh não promove, não esconde e não altera nada
+  assert.deepEqual(r.evidence.verdict, direct.result.evidence.verdict)
+  assert.deepEqual(r.evidence.population, direct.result.evidence.population)
+  assert.deepEqual(r.limits, direct.result.limits)
+  // a entry do ledger: capacidade ORIGINAL, handle CURRENT na época nova, idêntico ao da chamada direta
+  assert.notEqual(out.entry, null)
+  assert.equal(out.entry!.capability, cap)
+  assert.equal(out.entry!.handle.freshness, "CURRENT")
+  assert.equal(out.entry!.handle.refEpoch, "s2")
+  assert.deepEqual(out.entry!.handle, direct.entry.handle)
+  // controle: o caso 'sal certo' NÃO é o 'sal errado' (o teste não é vazio)
+  assert.notEqual(good.evidence.verdict.source.status, r.evidence.verdict.source.status)
+  assert.equal(good.evidence.verdict.source.status, "SOURCE_VERIFIED")
 })
 
 test("RF10 — E2E VERIFIED_PARTIAL (receita REAL, bundle montado à mão como no test-salt-policy-p4): assessBundle e evidenceExplain dão VERIFIED_PARTIAL + [S_POPULATION_PARTIAL, L_SALT_CHECK_DIVERGENT]; ledger → validateAnswer: sem a frase ⇒ MISSING_PARTIAL_PHRASE; com as frases ⇒ ok e o render traz os textos; frase fora dos codes ⇒ rejeitada", () => {

@@ -331,3 +331,13 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Para o E7 (D-S4/D-S5, nada decidido):** o risco é a LATÊNCIA SÍNCRONA (≈ 7,6 s a 5.000 trades, 18,5 s a 10.000), não memória. Opções, cada uma em passo próprio e só com aprovação: memoizar a evidência por `tradeId` entre as células (estimativa de ganho, NÃO medida; o custo por célula ∝ grupo sugere que só reduz o fator das métricas), teto de trades por consulta, e/ou worker/assíncrono.
 - **Próximos (cada um com aprovação):** D6-1 · endurecer RF9 · planejar E7.
 
+## 32. Resultado do endurecimento do RF9 (16/10/2026)
+
+- **Autorizado** pelo Gemini (expectativa `d3174c3`, D-R1 a D-R4 aprovadas). **`src/` não mudou**; só o RF9 em `test-agent-evidence-refresh.mts`.
+- **O que mudou:** o `if (out.result.ok) {…} else assert.deepEqual(…ENGINE_REFUSED)` (ramo `else` MORTO, nunca executava) virou um desfecho único, medido em 16/10 (3 execuções): com sal errado o refresh NÃO recusa e devolve o handle honesto — verify VALID, source UNVERIFIABLE `[S_ACCOUNT_REF_UNVERIFIED]`, combined NOT_VERIFIED, limits `[S_ACCOUNT_REF_UNVERIFIED]`, população `{declared 5, FULL}`, `entry` presente (capability original, handle CURRENT em `s2`) — tudo igual à chamada direta; mais o controle "sal certo = VERIFIED e difere do errado em `source.status`".
+- **Mutações RH1–RH6, RF9 atual × novo (isolando só o RF9):** RH1 (o refresh RECUSA quando não VERIFIED), RH2 (promove o veredito) e RH6 (`entry` nulo) **escapavam** do atual e são **pegas** pelo novo; RH3 (descarta limits), RH4 (altera `declared`) e RH5 (perde as options do source) eram pegas pelos dois. **Achado na RH2:** o `okResult` já recusa um veredito inconsistente com o `buildVerdict`, então o refresh virava ENGINE_REFUSED e o `else` morto do teste antigo aceitava isso em silêncio — a proteção real estava no envelope, não no RF9 antigo.
+- **Suíte 1100 ⇒ 1100 ✓** (idêntica exceto o TÍTULO do RF9, de propósito); `tsc` 0; ESLint limpo.
+- **Erro meu:** usei `okOf(...result)` no rascunho, mas neste arquivo o `okOf` recebe a saída inteira (achado na 1ª execução).
+- **Fora do passo:** outros desfechos de sal (options sem `accountRefSalt`) seguem sem teste dedicado aqui.
+- **Próximos (cada um com aprovação):** D6-1 · planejar E7.
+
