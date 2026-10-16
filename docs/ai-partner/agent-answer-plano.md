@@ -358,3 +358,15 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Fatos novos medidos:** `sha256(bytes UTF-8 do texto) == fileSha256` (inclusive com BOM); o trade canônico de 5.000 trades tem 18,4 MB e comprime a 3,4%; R2 Standard US$ 0,015/GB-mês, 10 GB grátis, egress grátis (página oficial de 1/out/2026).
 - **Próximo (com aprovação):** E7-1 (`RawFileStorage` + testes de contrato + implementações de memória/disco + rascunho do `ImportSource`).
 
+## 35. Resultado do E7-1 (16/10/2026) — `RawFileStorage`
+
+- **Autorizado** pelo Gemini (expectativa `ff30720`, D-S1 a D-S10 aprovadas; a D-S3, teto de 25 MiB e recusa de arquivo vazio, aprovada explicitamente).
+- **Entrega (arquivos NOVOS, nada existente de `src/` mudou):** `src/lib/infra/raw-file-storage.ts` (interface, validadores, `rawFileKey`, implementação de memória) e `raw-file-storage-disk.ts` (disco: escrita atômica com temporário exclusivo + hard link, 0600/0700, recusa symlink, `get` confere o SHA-256); `scripts/test-raw-file-storage.mts` (C1–C12 contra as DUAS implementações, D1–D5, S1) no `test:domain`; rascunho do `ImportSource` em `E7-1-import-source.prisma.md` (o `schema.prisma` NÃO foi tocado e o S1 garante isso).
+- **API:** por resultado, nunca lança nem rejeita; códigos `INVALID_ARGS`, `TOO_LARGE`, `HASH_MISMATCH`, `NOT_FOUND`, `CORRUPT`, `STORAGE_ERROR`, sem mensagem, caminho ou eco. Chave só montada pela implementação.
+- **Suíte 1104 ⇒ 1122 ✓** (só as 18 linhas novas); `tsc` 0; ESLint limpo.
+- **Mutações RSM1–RSM16: 16 de 16 pegas.** RSM10 (escrita não atômica) caiu primeiro no C2 (o "created" deixa de ser exato) e não no D2; confirmei à parte que o D2 sozinho também a pega (20 `put` simultâneos ⇒ 20 `created:true`; falha injetada no link ⇒ arquivo final existe).
+- **Refinamentos meus durante a implementação (dentro da D-S6, "nunca sobrescreve com conteúdo diferente"):** (1) `put` sobre um arquivo JÁ existente confere o conteúdo guardado e devolve `CORRUPT` se estiver adulterado (em vez de aceitar em silêncio) — testado no D3; (2) o "created" exato sob concorrência vem do hard link (falha com EEXIST se o final existe), não do rename; (3) a checagem de symlink é feita ANTES de criar qualquer diretório (senão o `mkdir` escreveria fora da raiz).
+- **Erro meu:** o piso de contagem do C12 (`> 500`) foi um chute e o gerador aleatório produzia quase só ids inválidos (47 aceitos); troquei por um gerador que mistura ids válidos com um caractere hostil (medido: 1.562 de 5.000) e fixei o piso em 1.000.
+- **Limites declarados:** TOCTOU entre a checagem de symlink e o uso (a raiz é de uso exclusivo da aplicação); sem SDK S3/R2 (outro passo, atrás da mesma interface); escrita de 25 MiB em disco só exercitada no C5 (sem medição de tempo à parte).
+- **Próximos (cada um com aprovação):** E7-2 (`SaltProvider` persistente: AES-256-GCM, `keyVersion`, AAD; exige um adaptador de cifra em `infra/`, pois `infra/hash.ts` é o único a conhecer `node:crypto`).
+
