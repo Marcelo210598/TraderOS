@@ -5,6 +5,7 @@
     "step": "E6.6-P (docs/ai-partner/agent-answer-plano.md). Plano do resto do E6.6 aprovado em princípio pelo Marcelo em 13/10/2026 (Q7, Q9, Q10, Q12, Q13, Q14 como recomendado; Q8 e Q11 com ajustes).",
     "note": "Escrito ANTES de qualquer código do E6.6-1 em diante. NADA aqui foi executado. As tabelas (formatos, rótulos, alias, paths, léxico) foram derivadas À MÃO das regras em texto (agent-capabilities.md §4.3, §6, §8; exact.ts; label-vocab.ts) e dos tipos de views.ts. Mudar uma célula exige entrada em history (data, motivo, quem pediu). Células marcadas PENDENTE dependem de decisão do Marcelo (Q15–Q17) e NÃO podem virar código antes dela.",
     "history": [
+      "2026-10-16 ESTRESSE 50×10 do metrics.groups — EXPECTATIVA escrita ANTES dos testes (bloco e66_stress). Passo de medição e guardas; src/ NÃO muda (D-S1). MEDIDO: latência ≈ linear em trades (≈1,5–1,9 ms/trade a 50×10: 0,3 s a 50 trades, 1,0 s a 500, 3,1 s a 2000, 7,6 s a 5000, ≈18,5 s a 10 mil — síncrona); o motor puro custa só 175 ms a 5000 trades, o custo é a geração de Evidence (redact.walk, wallParts, canonicalJson; cada trade vira evidência ~11×); memória NÃO é o risco (sem OOM a 512 MB até 5 mil trades; sem vazamento em 40 chamadas); recusa >50 grupos é barata (≈2% do caminho OK). NÃO medido (declarado): fixture assimétrica, as outras 29 métricas, 2 dimensões com 50 grupos OK, outro hardware. D-S1…D-S5 minhas, pendentes de revisão do Gemini (D-S3: guardas de desempenho em `test:stress`, fora do `test:domain`).",
       "2026-10-16 E6.6-5-A2 EXECUTADO. Placar 1083 → 1095 ✓ (+12 B1–B12); baseline idêntico exceto o título do A11 (mudou de propósito); tsc 0; ESLint limpo. Mutações: 23 aplicadas (RS1–RS22 + RS23 extra), 21 pegas; na 1ª rodada escaparam 6: RS1/RS3/RS18/RS21 eram lacunas dos meus testes (reforçados, agora pegas); RS8 é redundante com a exatidão (a DUPLA RS8+RS9 é pega); RS10 é EQUIVALENTE (propriedade em 7.719 chaves: o grupo está sempre contido no que o motor selecionaria por campo). ERROS MEUS: RS10 supunha conjuntos de mesmo tamanho e membros diferentes (impossível); B10 copiou do G9 o desfecho do validador sem medir (com associação não verificável é NUMBER_FROM_UNVERIFIED_EVIDENCE, igual ao groupBy strategy que já existia); efeito colateral não planejado: rank.groups reutilizava COMPARE_DIMENSIONS e passou a aceitar groupBy strategy (pego pelo L6; separado em RANK_DIMENSIONS); o guarda Q4 barrou meu spread em project.ts; o D5A2-9 previa mudar A7 e compare:159, mas só o A11 mudou. ACHADO a decidir: números filtrados/agrupados por estratégia não podem ser citados pelo validador (NUMBER_FROM_UNVERIFIED_EVIDENCE em ASSERT e LABELED). src/ mudou em alias-input.ts, metrics-query.ts (schema), metrics-groups.ts, exit-breakdown.ts, exit-analysis.ts, rank-groups.ts, metrics-compare.ts e project.ts (RANK_DIMENSIONS/COMPARE_DIMENSIONS). Nenhum arquivo de evidence/ metrics/ ingest/ domain/ agent/ mudou.",
       "2026-10-16 E6.6-5-A2 — EXPECTATIVA escrita ANTES do código (bloco e66_5a2): alias de ENTRADA da ESTRATÉGIA (filtro `strategy` em 6 capacidades + 11ª dimensão do compare). D5A2-1…D5A2-9 MINHAS, pendentes de revisão do Gemini. Fatos medidos na CY e numa variante de 3 estratégias (id+nome): chave = strategyId ?? strategyName; o filtro do motor é por CAMPO (strategyId/strategyName, AND entre os dois) e NÃO reproduz o grupo quando há colisão id×nome (F6) ou trade com id e nome (F7) ⇒ resolução com EXATIDÃO fail-closed; strategy segue NÃO verificável (F11 = análogo medido do session: UNVERIFIABLE [S_ASSOCIATION_UNVERIFIABLE], combined NOT_VERIFIED). NÃO medido ainda (declarado): comportamento com sal (B9) e guarda S2. Nenhum src/ alterado.",
       "2026-10-15 E6.6-12 EXECUTADO. Placar 1064 → 1083 ✓ (+19: RF0–RF13, LR1–LR4, Q6); baseline idêntico exceto o título do Q0 (14 arquivos); tsc 0; ESLint limpo. Mutações: 22 aplicadas, 20 pegas de primeira; RFM3 e RFM11 (época: conferida antes e depois da reexecução) são redundantes entre si — sozinha cada uma escapa, a DUPLA removida é pega. src/ mudou em evidence-refresh.ts (novo), ledger.ts (+refreshEvidence), contract.ts (refine do refresh), envelope.ts (okResult do refresh). Guarda (2c) do sal NÃO acionado (Q6). Casos acrescentados fora da lista: RF0 (sanidade da expectativa). CHANGELOG: docs/ai-partner/CHANGELOG-contratos.md (o CHANGELOG.md da expectativa não existe; usei o existente).",
@@ -5538,6 +5539,81 @@
       "RS22 rank.groups/exit.analysis esquecem de trocar para applyAliasFilters ⇒ B5 falha"
     ],
     "baselines": "1083 linhas ✓ do test:domain permanecem idênticas exceto: os títulos/asserts do D5A2-9 (A7, A11, compare 159 + título das dimensões 10 ⇒ 11) e as linhas novas B1–B12. src/ muda em alias-input.ts, metrics-query.ts (schema), metrics-groups.ts, exit-breakdown.ts, exit-analysis.ts, rank-groups.ts, metrics-compare.ts, project.ts (COMPARE_DIMENSIONS). Nenhum arquivo de evidence/ metrics/ ingest/ domain/ ou agent/ muda."
+  },
+  "e66_stress": {
+    "status": "EXPECTATIVA (16/10/2026) escrita ANTES de qualquer teste do estresse 50×10 do `metrics.groups` (pendência herdada do D6-2). Passo de MEDIÇÃO + GUARDAS: nenhuma linha de src/ muda (D-S1). Fatos medidos em 16/10 em scripts de exploração (NÃO commitados, apagados): Mac 10 núcleos, 24 GB, Node v24.11.1; fixture sintética 50 dias × N trades (1 perna por trade, 1 conta), 10 primeiras métricas de METRIC_IDS, groupBy ['day'].",
+    "files": [
+      "scripts/test-agent-groups-stress.mts (novo): casos S1–S9; os de CORREÇÃO (S1, S2, S4a, S7) entram no `test:domain` com N = 500; os de DESEMPENHO (S3b, S5, S6, S8) rodam em `npm run test:stress` (node --expose-gc), fora do test:domain",
+      "package.json (+script `test:stress`; +1 arquivo no `test:domain` só se o Gemini aprovar a D-S3)",
+      "docs/ai-partner/agent-answer-plano.md (+§31 com a tabela medida e as recomendações)"
+    ],
+    "nao_muda": "src/ (NADA: sem otimização, sem teto de trades, sem mudança de contrato), evidence/, metrics/, ingest/, domain/. As recomendações de otimização ficam FORA, cada uma em passo próprio e só com aprovação.",
+    "how_it_works_facts": {
+      "F1_pipeline": "metrics-groups.ts: (1) aggregateTradesTraced; (2) recusa se > MAX_GROUPS (50) ANTES de gerar Evidence (linha 66); (3) UM explainMetric TOTAL + grupos×métricas explainMetric (cada um recebe ctx.trades inteiro); (4) união por tradeId com JSON.stringify de comparação; (5) sealEvidence; (6) assessBundle. Logo cada trade é transformado em evidência ~11 vezes (1 no total + 10 métricas do seu grupo).",
+      "F2_limites": "MAX_GROUPS 50; no máximo 10 métricas (G5); no máximo 2 dimensões; MAX_METRIC_IDS 20 é do metrics.query."
+    },
+    "fatos_medidos": {
+      "F3_latencia_50x10_sem_arquivo_ms (mediana; min–max, 5 reps após aquecimento)": {
+        "50 trades": "298 (288–317)",
+        "500 trades": "1037 (1001–1145)",
+        "2000 trades": "3090 (3067–3152)",
+        "5000 trades": "7631 (7512–8928)"
+      },
+      "F4_latencia_50x1_ms": {
+        "50": 38,
+        "500": 200,
+        "2000": 549,
+        "5000": 1442
+      },
+      "F5_so_o_motor_aggregate_ms (10 métricas)": {
+        "50": 4,
+        "500": 18,
+        "2000": 69,
+        "5000": 175
+      },
+      "F6_com_arquivo_E5b_ms (50x10)": {
+        "50": 310,
+        "500": 1087,
+        "2000": 3599
+      },
+      "F7_escala": "≈ linear em trades: t(500)/t(50)=3,5; t(2000)/t(500)=2,98 (4× trades ⇒ 3×); t(5000)/t(2000)=2,47. ≈ 1,5 ms por trade a 50×10 (5000: 1,53); outra fixture densa: 5000 ⇒ 9,1 s, 10000 ⇒ 18,5 s (1,85 ms/trade). 10 métricas custam ≈ 5,2× uma métrica (1037 vs 200 ms a 500 trades). Com arquivo: +5% a +16%.",
+      "F8_onde_gasta (profile CPU, 50x10 × 2000 trades)": "redact.ts walk 15,9% · time.ts wallParts 15,2% · hash.ts canonicalJson 14,7% · hash.ts (anon) 5,9% · explainMetric 5,6% · metricsGroups 4,9% · GC 3,3%. O custo é a GERAÇÃO de Evidence (redação, hora de parede, hash), não o motor.",
+      "F9_memoria": "alocado por chamada (heapUsed antes do GC): ≈ 67 MB (50 trades), 115 MB (500), 277 MB (2000), 674 MB (5000). RETIDO após GC ≈ 0 (±3 MB, ruído). VAZAMENTO: 40 chamadas 50×10/500 trades ⇒ retido 0,7 MB na 10ª, 0,7 na 20ª, 0,8 na 30ª, 0,8 na 40ª (estável). SEM OOM: heap limitado a 512 MB roda 5000 trades (rss pico ≈ 650 MB); 1024 MB roda 10000 trades (rss ≈ 1042 MB; 18,9 s); sem limite 10000 trades ⇒ rss ≈ 1333 MB.",
+      "F10_recusa (>50 grupos)": "60 grupos×1 trade: 4 ms; 200 grupos×25 (5000 trades): 174 ms; 365×14 (5110): 181 ms; day×hour 60 dias×20 (1200 trades, >50 grupos): 51 ms ⇒ ARGS_INVALID. A recusa custa só a agregação (≈ 2% do caminho OK com os mesmos trades).",
+      "F11_view": "50×10 ⇒ 70–73 KB de JSON na view (cresce pouco com trades: 70 KB a 50 trades, 73 KB a 5000); 50×1 ⇒ 10 KB.",
+      "NAO_MEDIDO_ainda": "(a) fixture ASSIMÉTRICA (49 grupos de 1 trade + 1 grupo gigante) — o custo por célula pode depender da população TOTAL e não do grupo; (b) outras métricas (as 29 restantes, ex.: R-multiples, drawdown) — só as 10 primeiras foram medidas; (c) 2 dimensões com exatamente 50 grupos OK (day×hour só medido no caminho de recusa); (d) hardware diferente (serverless): os números absolutos são DESTA máquina; (e) fixture com várias contas/estratégias."
+    },
+    "decisions_DS": {
+      "D-S1": "o passo só MEDE e fixa GUARDAS; nenhum src/ muda. Otimização, teto de trades e execução assíncrona são recomendações (abaixo), cada uma em passo próprio com aprovação.",
+      "D-S2": "critério de aceite RELATIVO (razões entre tamanhos/caminhos medidos na mesma execução), não tempo absoluto: independe do hardware. Único absoluto: um teto FOLGADO de 15 s para 50×10 com 500 trades (≈15× o medido) só para pegar regressão patológica.",
+      "D-S3": "correção (S1, S2, S4a, S7) no `test:domain` com N=500 (≈1–2 s por chamada); desempenho (S3b, S5, S6, S8) em `npm run test:stress` (node --expose-gc, ≈20–40 s), FORA do `test:domain` — tempo de parede é frágil em CI e o gc precisa da flag.",
+      "D-S4": "o que o estresse REPORTA ao produto (sem decidir): (i) latência linear ≈ 1,5–1,9 ms/trade a 50×10 ⇒ 7,6 s a 5 mil trades e ≈ 18,5 s a 10 mil, SÍNCRONA (bloqueia o event loop do servidor da E7); (ii) memória NÃO é o risco (sem OOM a 512 MB até 5 mil trades, sem vazamento); (iii) a recusa >50 grupos é barata (não é vetor de abuso).",
+      "D-S5": "recomendações (NÃO implementadas; ESTIMATIVAS, não medidas): (a) memoizar a evidência de cada trade por tradeId entre as células (hoje ~11× por trade) — ganho plausível de várias vezes, a medir; (b) teto de trades por consulta e/ou execução em worker/assíncrona na E7; (c) manter 50 grupos × 10 métricas. Cada uma exige expectativa própria e aprovação."
+    },
+    "cases": [
+      "S1 CORREÇÃO 50×10 (N=500: 50 dias × 10 trades): as 500 células (valor, unidade, sampleSize, coverage, reason) == aggregateTradesTraced DIRETO; Σ sampleSize == 500 == evidence.population.declared; 50 grupos; scope GROUP; verify VALID; evidenceRef idêntico em 2 chamadas",
+      "S2 PARTIÇÃO/ORDEM: os 50 grupos na ordem do motor; chaves 'DD/MM/AAAA' distintas; nenhum grupo vazio; sampleFlag do handle = o PIOR dos 50",
+      "S3a FRONTEIRA: exatamente 50 grupos com 10 métricas ⇒ ok; 51 grupos ⇒ ARGS_INVALID (nunca trunca) — o G6 já cobre 1 métrica; aqui com 10 e com N=500",
+      "S3b RECUSA BARATA (guarda de desempenho): 60 grupos com N=2000 ⇒ ARGS_INVALID em tempo < 25% do caminho OK com os mesmos trades (medido ≈ 2%); impede que a recusa passe a gerar Evidence antes de recusar",
+      "S4a 2 DIMENSÕES: 5 dias × 10 horas = 50 grupos (N=500) × 10 métricas ⇒ ok e == oráculo; 6 dias × 10 horas = 60 ⇒ ARGS_INVALID",
+      "S5 FORMA DA ESCALA (guarda de desempenho): mediana de 3 de t(N=2000)/t(N=500) < 8 (medido 2,98; um custo quadrático daria ≈ 16) e t(50×10)/t(50×1) entre 2 e 12 (medido 5,2); teto absoluto folgado t(N=500, 50×10) < 15 s",
+      "S6 VAZAMENTO (guarda de desempenho, --expose-gc): 30 chamadas 50×10/N=500; heap retido após GC cresce < 10 MB entre a 10ª e a 30ª (medido 0,7→0,8 MB entre a 10ª e a 40ª)",
+      "S7 PUREZA E TAMANHO: ctx (trades, importRecords, aliases) não é mutado (snapshot JSON antes/depois e congelado fundo); JSON da view ≤ 128 KB (medido 73 KB); privacidade (nome da conta/estratégia/arquivo/acc_/str_/hash64 ausentes)",
+      "S8 COM ARQUIVO (guarda de desempenho): 50×10 N=500 com o arquivo original ⇒ VERIFIED e tempo < 2× o sem arquivo (medido 1,05×)",
+      "S9 (A MEDIR na fase vermelha, sem afirmar antes) fixture ASSIMÉTRICA 49×1 + 1×451 e métricas fora das 10 primeiras: o teste registra o medido e só vira guarda se estável; se o custo depender da população total, isso vira ACHADO para o D-S5(a)"
+    ],
+    "mutations_planned": [
+      "SM1 a recusa passa a acontecer DEPOIS de gerar a Evidence ⇒ S3b falha (recusa deixa de ser barata)",
+      "SM2 a união por tradeId vira busca linear (O(N²)) ⇒ S5 falha (razão ≥ 8)",
+      "SM3 o resultado de cada chamada é guardado num array de módulo ⇒ S6 falha (vazamento)",
+      "SM4 MAX_GROUPS 50 → 51 ⇒ S3a falha",
+      "SM5 trunca nos 50 primeiros em vez de recusar ⇒ S3a/S1 falham (partição)",
+      "SM6 descarta a última métrica do último grupo ⇒ S1 falha",
+      "SM7 ordena ctx.trades no lugar ⇒ S7 falha (pureza)",
+      "SM8 embaralha a ordem dos grupos ⇒ S1/S2 falham (determinismo/ordem)",
+      "SM9 gera a Evidence duas vezes por célula (custo 2×, mas linear) ⇒ só o teto absoluto/razão por métrica pega; se escapar, declarar (guarda de razão não detecta fator constante)"
+    ],
+    "baselines": "1095 linhas ✓ do test:domain permanecem idênticas; só se acrescentam as linhas S1, S2, S3a, S4a, S7 (se a D-S3 for aprovada); as linhas de desempenho ficam no `npm run test:stress`. src/ não muda."
   },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
