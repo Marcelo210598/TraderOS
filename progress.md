@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 18/10/2026 — AI Partner: E7-2 `SaltProvider` persistente cifrado — commit `be3ecb7`, backup atualizado; origin intocado
+Suíte **1122 → 1145 ✓**, tsc 0, ESLint 0. `infra/cipher.ts` (AES-256-GCM, nonce 96 bits interno, AAD `userId:saltId`, `keyVersion`, `SALT_MASTER_KEY` / `_VERSION` / `_PREV_<n>`) e `infra/salt-store.ts` (`SaltStore` assíncrono em memória e disco + `createPersistentSalts` + `recipherAll`); `SaltProvider` segue síncrono e `salt.ts` inalterado. 16 mutações planejadas + 4 extras, todas pegas. Doc: `docs/ai-partner/E7-2-chave-mestra.md` (perda da chave = sais irrecuperáveis). `.env.example` é ignorado pelo git. Próximo: E7-3 (estado da conversa). Detalhe: `agent-answer-plano.md` §36 e `scripts/expectations/agent-answer.expected.json` → `e7_2`.
+
 ## ✅ 16/10/2026 — AI Partner: A2 `strategy`, estresse 50×10, RF9, D6-1, E7-0 e E7-1 — backup até `b51284f`; origin intocado
 Suíte **1083 → 1122 ✓**, tsc 0, ESLint 0. `strategy` como filtro/dimensão (11ª do compare); estresse medido (≈linear, sem OOM); RF9 com desfecho único; D6-1 excluído com tripwires; E7-0 contrato de armazenamento; E7-1 `RawFileStorage` (memória+disco, 16/16 mutações). Próximo: E7-2 (`SaltProvider` cifrado). Detalhe: `historico/2026-10-16.md`.
 
