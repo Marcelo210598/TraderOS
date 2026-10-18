@@ -378,3 +378,11 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Fatos medidos:** ≈2,5 µs por cifragem; ciphertext de 80 bytes (64 do sal em hex + tag 16); chave de 16 bytes ⇒ `ERR_CRYPTO_INVALID_KEYLEN`.
 - **Casos:** A1–A8 (adaptador), K1–K5 (chaves), P1–P6 (provider), S1–S4 (segurança) = 23 ⇒ suíte 1122 → 1145. **Mutações CM1–CM16** planejadas; escape declarado como equivalente/redundante.
 - **Fora de escopo:** Prisma/migração, conta de nuvem, chave real, env var em Vercel/Railway.
+
+## 37. Expectativa do E7-3 (18/10/2026) — estado da conversa persistente
+
+- **Autorizado** pelo Marcelo/Gemini: D-V3 (versão única na conversa), D-V7 (sem retry no conflito), D-V8 (500 entradas / 256 KiB por linha / 2 MiB por delta). Escrita ANTES do código; detalhe em `scripts/expectations/agent-answer.expected.json` → `e7_3`.
+- **Achado central:** reconstruir o ledger exige **replay por época** (`newLedger` → `addEvidence` → `rotateEpoch` → …), porque uma entrada antiga não passa por `addEvidence` na época nova; o refresh sobrescreve a linha, então a ordenação é `(ordem da época, seq)`. Os módulos puros NÃO mudam.
+- **Decisões:** `ConversationStore` assíncrono (create/load/commit); commit = UM delta atômico (ledger + specs + alias + época) com `expectedVersion`; log de deltas `v1,v2…` (em disco, `link` exclusivo = CAS atômico); `open()` devolve objeto síncrono `{ledger, aliases, specOf, version}`; alias só pode crescer pelo fim dentro da época; specs sem refs reais; conflito ⇒ `CONFLICT`, sem retry.
+- **Casos:** R1–R5, I1–I6, V1–V4, U1, F1–F2, S1–S2, M1 (≈ 23). **Mutações VM1–VM14.**
+- **Fora de escopo:** mensagens da conversa (não previstas no E7-0), exclusão em cascata, Prisma, UI, LLM.

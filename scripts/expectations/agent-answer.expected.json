@@ -5844,6 +5844,75 @@
     ],
     "baselines": "1122 linhas ✓ idênticas; só se acrescentam A1–A8, K1–K5, P1–P6 e S1–S4 (23 linhas ⇒ 1145). salt.ts e todo src/ fora de infra/ inalterados (diff comprovado); package.json ganha 1 arquivo no test:domain."
   },
+  "e7_3": {
+    "status": "EXPECTATIVA (18/10/2026) escrita ANTES do código do E7-3 (estado da conversa persistente). Aprovadas pelo Marcelo/Gemini: D-V3 (versão única na conversa), D-V7 (sem retry automático no conflito), D-V8 (limites 500 entradas / 256 KiB por linha / 2 MiB por delta). Sem Prisma, sem nuvem.",
+    "files": [
+      "src/lib/infra/conversation-store.ts (novo): interface assíncrona ConversationStore (create/load/commit), implementações de memória e disco (log de deltas v1,v2…), e createConversations (open/commitTurn) que valida com as funções PURAS do domínio",
+      "scripts/test-conversation-store.mts (novo, entra no test:domain)"
+    ],
+    "nao_muda": "src/lib/agent/ledger.ts, label.ts, contract.ts e demais módulos puros; src/lib/agent-capabilities; prisma/ (nenhuma migração, nenhum modelo); sem mensagens da conversa; sem exclusão em cascata; sem LLM/UI.",
+    "fatos_lidos_e_medidos": {
+      "F1": "Ledger imutável {epoch, entries}; addEvidence só aceita handle CURRENT na época vigente; refreshEvidence substitui STALE da mesma capacidade; rotateEpoch mantém entradas antigas como STALE.",
+      "F2": "Reconstruir exige REPLAY por época (newLedger(e1), add e1, rotateEpoch(e2), add e2…): uma entrada antiga não passa por addEvidence na época nova. Logo é preciso guardar a ORDEM das épocas.",
+      "F3": "Refresh sobrescreve a linha (mesmo ref, refEpoch novo); ordenar só por seq quebraria o replay ⇒ ordenar por (ordem da época, seq).",
+      "F4": "AliasTable {epoch, conta[], estrategia[], rotulo[]} imutável; dentro da mesma época só pode CRESCER PELO FIM, senão 'Conta A' muda de dono entre turnos.",
+      "F5": "specOf(ref) = {capability, args}; args só com aliases, nunca acc_/str_/lbl_/pat_.",
+      "F6": "Entrada do ledger: groups 50×10 ≈ 71 KB, query ≈ 0,4 KB (E7-levantamento). Custo de replay com centenas de entradas NÃO MEDIDO: o teste mede e reporta.",
+      "F7": "Padrão de armazenamento do E7-1/E7-2: interface assíncrona por resultado, memória e disco, nada lança, códigos fixos.",
+      "F8": "E7-0 prevê Conversation, LedgerRow, QuerySpec, AliasState; nenhum modelo de mensagem."
+    },
+    "decisions_DV": {
+      "D-V1": "Módulos puros (ledger.ts, label.ts…) NÃO mudam; o E7-3 só persiste e reconstrói.",
+      "D-V2": "ConversationStore assíncrono por resultado: create, load, commit(expectedVersion, delta). O commit é UM delta atômico (linhas do ledger, specs, tabela de alias, rotação de época). Conflito de versão ⇒ CONFLICT sem efeito colateral.",
+      "D-V3": "Uma `version` por conversa (Aggregate Root), não no AliasState. Diverge do RASCUNHO do E7-0 (aprovado).",
+      "D-V4": "Armazenamento como LOG de deltas v1,v2…: em disco o commit cria v<N+1>.json por link exclusivo (CAS atômico, sem lock); a memória tem a mesma semântica; no Prisma de produção vira linhas + transação.",
+      "D-V5": "open() carrega tudo e devolve objeto SÍNCRONO {ledger, aliases, specOf, version} (padrão D-C1 do E7-2).",
+      "D-V6": "commitTurn valida com as funções do domínio (addEvidence, refreshEvidence, rotateEpoch) e exige: tabela de alias que apenas ESTENDE a anterior (época nova aceita tabela nova); cada spec refere um ref existente no ledger; args da spec sem refs reais (acc_/str_/lbl_/pat_).",
+      "D-V7": "Sem retry automático no conflito: devolve CONFLICT e o orquestrador decide (reexecutar um turno custa LLM).",
+      "D-V8": "Limites: 500 entradas por conversa, 256 KiB por linha (view+handle serializados), 2 MiB por delta; acima ⇒ erro fixo, sem gravar.",
+      "D-V9": "Fora do escopo: mensagens/texto da conversa, exclusão em cascata, Prisma, UI, LLM."
+    },
+    "cases": [
+      "R1 ledger com várias capacidades volta idêntico (deepEqual entrada a entrada), memória e disco",
+      "R2 época rotacionada com entradas STALE volta com mesmo estado e isStale correto",
+      "R3 refresh substituindo no lugar volta idêntico",
+      "R4 ordem das épocas respeitada mesmo com refresh reordenando as linhas",
+      "R5 specOf devolve a spec original e null para ref desconhecido",
+      "I1 tabela de alias não-extensora recusada",
+      "I2 época nova aceita tabela nova e a antiga nunca é reaproveitada",
+      "I3 spec com ref real (acc_…) recusada",
+      "I4 spec de ref inexistente recusada",
+      "I5 handle STALE ou de outra época recusado",
+      "I6 conflito de conteúdo no mesmo ref recusado (LEDGER_CONFLICT)",
+      "V1 dois commits com a mesma versão: um vence, o outro CONFLICT",
+      "V2 o perdedor não deixa nenhum efeito (linha, spec, alias, época)",
+      "V3 8 commits simultâneos ⇒ exatamente 1 vencedor",
+      "V4 após o conflito, reabrir e recommitar funciona",
+      "U1 usuários não se enxergam; conversationId de outro usuário ⇒ NOT_FOUND sem revelar existência",
+      "F1 falha de infra no meio nunca deixa estado parcial (versão não avança)",
+      "F2 delta corrompido isola aquela conversa e não derruba as outras",
+      "S1 nenhuma linha/arquivo contém acc_/str_/lbl_/pat_ em claro em specs ou alias",
+      "S2 limites D-V8 recusam acima do teto sem gravar (501ª entrada, linha >256 KiB, delta >2 MiB) e aceitam exatamente no teto",
+      "M1 medição do replay com 500 entradas (reportada, sem limite de tempo no teste)"
+    ],
+    "mutations_planned": [
+      "VM1 replay ordenado só por seq ⇒ R4",
+      "VM2 replay sem rotateEpoch ⇒ R2",
+      "VM3 alias não-extensor aceito ⇒ I1",
+      "VM4 alias de época nova reaproveitando a antiga ⇒ I2",
+      "VM5 spec com ref real aceita ⇒ I3",
+      "VM6 spec de ref inexistente aceita ⇒ I4",
+      "VM7 expectedVersion ignorado ⇒ V1",
+      "VM8 link trocado por sobrescrita ⇒ V1/V3",
+      "VM9 delta parcial gravado antes do erro ⇒ V2/F1",
+      "VM10 leitura entre usuários ⇒ U1",
+      "VM11 refreshEvidence trocado por addEvidence no replay ⇒ R3",
+      "VM12 limite de entradas ignorado ⇒ S2",
+      "VM13 specOf devolvendo spec de outro ref ⇒ R5",
+      "VM14 versão avança no CONFLICT ⇒ V2/V4"
+    ],
+    "baselines": "1145 linhas ✓ idênticas; só se acrescentam os casos acima. src/lib/agent, agent-capabilities, ingest, evidence, metrics, domain inalterados (diff comprovado); package.json ganha 1 arquivo no test:domain."
+  },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
     "nenhum arquivo em src/lib/evidence, src/lib/metrics, src/lib/ingest, src/lib/domain alterado em NENHUM passo",
