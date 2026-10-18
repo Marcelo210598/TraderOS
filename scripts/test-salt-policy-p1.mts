@@ -118,8 +118,8 @@ test("P4 — LIGAÇÃO CONTROLADA: só os importadores APROVADOS (leitor, gerado
   const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p] })
   // `ingest/salt` explícito, ou `./salt` DENTRO de src/lib/ingest (o `./salt.ts` do Lab é outro módulo: cenários do Lab)
   const importers = walk(join(ROOT, "src")).filter((f) => /\.(ts|tsx)$/.test(f) && (/from\s+["'][^"']*ingest\/salt(\.ts)?["']/.test(readFileSync(f, "utf8")) || (f.includes("/src/lib/ingest/") && /from\s+["']\.\/salt(\.ts)?["']/.test(readFileSync(f, "utf8")))))
-  // lista APROVADA de quem importa salt.ts (quem entra aqui é revisado): leitor (E5b, P4), gerador de trade (P3, trava E_SALT_*), pipeline (P3, sal gerenciado), tipo do contexto e os cenários do Lab (P5, só dev)
-  const APPROVED = ["src/lib/dev/evidence-lab/salt.ts", "src/lib/evidence/explain-trade.ts", "src/lib/evidence/verify-source.ts", "src/lib/ingest/pipeline.ts", "src/lib/ingest/types.ts"]
+  // lista APROVADA de quem importa salt.ts (quem entra aqui é revisado): leitor (E5b, P4), gerador de trade (P3, trava E_SALT_*), pipeline (P3, sal gerenciado), tipo do contexto, os cenários do Lab (P5, só dev) e o chaveiro persistente cifrado (E7-2, infra/salt-store.ts)
+  const APPROVED = ["src/lib/dev/evidence-lab/salt.ts", "src/lib/evidence/explain-trade.ts", "src/lib/evidence/verify-source.ts", "src/lib/infra/salt-store.ts", "src/lib/ingest/pipeline.ts", "src/lib/ingest/types.ts"]
   assert.deepEqual(importers.map((f) => f.replace(ROOT, "")).sort(), APPROVED, "importador de salt.ts fora da lista aprovada (revise o uso do sal e inclua aqui)")
   const code = readFileSync(join(ROOT, "src/lib/ingest/salt.ts"), "utf8").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
   assert.equal(/prisma|process\.env|node:fs|fetch\(|localStorage|console\./i.test(code), false)
