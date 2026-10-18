@@ -5772,6 +5772,78 @@
     ],
     "baselines": "1104 linhas ✓ idênticas; só se acrescentam C1–C12, D1–D5 e S1 (18 linhas ⇒ 1122). Nenhum arquivo existente de src/ muda (só arquivos NOVOS em src/lib/infra/); package.json ganha 1 arquivo no test:domain."
   },
+  "e7_2": {
+    "status": "EXPECTATIVA (18/10/2026) escrita ANTES do código do E7-2 (`SaltProvider` persistente cifrado). Aprovada pelo Marcelo/Gemini: D-C1 (interface síncrona + SaltStore assíncrono) e D-C4 (nomes SALT_MASTER_KEY / SALT_MASTER_KEY_PREV_<n>). Sem Prisma, sem nuvem, sem chave real.",
+    "files": [
+      "src/lib/infra/cipher.ts (novo): AES-256-GCM; ÚNICO importador de node:crypto para cifra (hash.ts segue único para hash/aleatório); encrypt/decrypt por resultado, nonce sorteado DENTRO do adaptador, parseMasterKeys",
+      "src/lib/infra/salt-store.ts (novo): interface assíncrona SaltStore, implementações de memória e disco (JSON atômico), PersistentSaltKeyring (carrega/decifra para um InMemorySaltKeyring), recipherAll",
+      "scripts/test-salt-store.mts (novo, entra no test:domain)",
+      ".env.example: SALT_MASTER_KEY= (sem valor)"
+    ],
+    "nao_muda": "src/lib/ingest/salt.ts (interface e InMemorySaltKeyring), pipeline.ts, verify-source.ts, agent, evidence, metrics, domain; prisma/ (nenhuma migração, nenhum modelo); nenhuma conta de nuvem; nenhuma env var real em Vercel/Railway.",
+    "fatos_medidos_e_lidos": {
+      "F1": "SaltProvider é SÍNCRONO (get/current/known); consumidores: pipeline.ts:92 (current), verify-source.ts:672 (known).",
+      "F2": "InMemorySaltKeyring já define as regras (ids s1,s2…; só o último gera; retire apaga o valor e mantém o registro; ensure falha fechado com E_SALT_NO_CURRENT; campos # privados).",
+      "F3": "infra/hash.ts é o único com node:crypto no domínio; disco (raw-file-storage-disk.ts) usa node:fs à parte.",
+      "F4": "AES-256-GCM no Node 24.11.1: ≈2,5 µs/cifragem; sal hex (64 chars) + tag 16 ⇒ ciphertext de 80 bytes; chave de 16 bytes ⇒ ERR_CRYPTO_INVALID_KEYLEN.",
+      "F5": ".env.example não tem SALT_MASTER_KEY.",
+      "F6": "UserSalt só em rascunho no E7-0 (ciphertext, nonce, keyVersion, status, retiredAt); sem migração."
+    },
+    "decisions_DC": {
+      "D-C1": "SaltProvider continua síncrono e inalterado. A parte assíncrona fica em SaltStore (loadUser/append/retire); PersistentSaltKeyring carrega e decifra os sais do usuário ANTES do turno para dentro de um InMemorySaltKeyring.",
+      "D-C2": "infra/cipher.ts: encrypt(plaintext, aad, key) ⇒ {nonce, ciphertext, keyVersion}; decrypt falha fechado com código, nunca devolve texto; nonce de 96 bits sorteado DENTRO do adaptador (sem parâmetro do chamador).",
+      "D-C3": "AAD = `userId:saltId`; mover blob entre usuário ou saltId falha a autenticação.",
+      "D-C4": "Chaves mestras: SALT_MASTER_KEY = versão atual; SALT_MASTER_KEY_PREV_<n> = anteriores durante a rotação via recipherAll. 32 bytes exatos em hex ou base64; recusa vazia, tamanho errado e toda zero. Cada registro guarda sua keyVersion.",
+      "D-C5": "Plaintext = sal hex de 64 chars como texto; na leitura passa por isStrongSalt e confere com o saltCheck guardado; divergência ⇒ erro fechado (corrupção).",
+      "D-C6": "retire: ciphertext e nonce viram null; registro fica RETIRED com retiredAt (igual ao InMemory).",
+      "D-C7": "SaltStore de teste em memória e em disco (JSON atômico, estilo E7-1). Zero Prisma, zero nuvem; UserSalt segue em rascunho.",
+      "D-C8": "O valor do sal nunca aparece em erro, JSON, inspect, log nem no arquivo do store (varredura de bytes)."
+    },
+    "cases": [
+      "A1 ida e volta do adaptador",
+      "A2 nonce diferente a cada chamada (10.000, 0 repetições)",
+      "A3 AAD errado falha",
+      "A4 1 byte adulterado em ciphertext, nonce ou tag falha",
+      "A5 chave errada falha",
+      "A6 chave de tamanho errado, vazia ou toda zero é recusada",
+      "A7 erro nunca contém plaintext nem chave",
+      "A8 formas de saída esperadas (nonce 12 bytes, ciphertext = plaintext + tag 16)",
+      "K1 parse de hex e base64",
+      "K2 keyVersion desconhecida recusada",
+      "K3 duas versões convivendo",
+      "K4 recipherAll troca a versão e mantém o mesmo sal",
+      "K5 rotação interrompida no meio não perde sal",
+      "P1 contrato idêntico ao InMemorySaltKeyring (mesma bateria nos dois: ensure/rotate/retire/get/current/known)",
+      "P2 blob trocado entre s1↔s2 ou entre usuários ⇒ erro fechado",
+      "P3 linha corrompida não derruba o usuário: aquele saltId fica indisponível com erro explícito",
+      "P4 retire deixa o store sem valor",
+      "P5 último aposentado ⇒ sem sal atual (E_SALT_NO_CURRENT)",
+      "P6 duas instâncias do mesmo usuário em paralelo não geram o mesmo saltId",
+      "S1 varredura dos bytes do store sem sal em claro",
+      "S2 valor não vaza em JSON.stringify, inspect nem String(err)",
+      "S3 tripwire: só infra/ importa node:crypto",
+      "S4 .env.example documenta SALT_MASTER_KEY sem valor"
+    ],
+    "mutations_planned": [
+      "CM1 nonce fixo ⇒ A2",
+      "CM2 AAD ignorado ⇒ A3/P2",
+      "CM3 AAD sem userId ⇒ P2",
+      "CM4 tag não verificada ⇒ A4",
+      "CM5 erro devolve o plaintext ⇒ A7/S2",
+      "CM6 keyVersion ignorada ⇒ K2/K3",
+      "CM7 chave de 16 bytes aceita ⇒ A6",
+      "CM8 chave toda zero aceita ⇒ A6",
+      "CM9 retire mantém o ciphertext ⇒ P4",
+      "CM10 retire apaga o registro ⇒ P1",
+      "CM11 current cai para sal mais antigo ⇒ P5",
+      "CM12 isStrongSalt pulado na leitura ⇒ P3",
+      "CM13 saltCheck pulado ⇒ P3",
+      "CM14 recipherAll sem trocar a versão ⇒ K4",
+      "CM15 sal em claro no store ⇒ S1",
+      "CM16 sal no toJSON ⇒ S2"
+    ],
+    "baselines": "1122 linhas ✓ idênticas; só se acrescentam A1–A8, K1–K5, P1–P6 e S1–S4 (23 linhas ⇒ 1145). salt.ts e todo src/ fora de infra/ inalterados (diff comprovado); package.json ganha 1 arquivo no test:domain."
+  },
   "baselines_that_must_not_change": [
     "a saída linha a linha do `npm run test:domain` do commit 69805ba (771 ✓) permanece idêntica em cada passo; só se acrescentam linhas novas",
     "nenhum arquivo em src/lib/evidence, src/lib/metrics, src/lib/ingest, src/lib/domain alterado em NENHUM passo",

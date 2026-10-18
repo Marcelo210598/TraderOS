@@ -370,3 +370,11 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Limites declarados:** TOCTOU entre a checagem de symlink e o uso (a raiz é de uso exclusivo da aplicação); sem SDK S3/R2 (outro passo, atrás da mesma interface); escrita de 25 MiB em disco só exercitada no C5 (sem medição de tempo à parte).
 - **Próximos (cada um com aprovação):** E7-2 (`SaltProvider` persistente: AES-256-GCM, `keyVersion`, AAD; exige um adaptador de cifra em `infra/`, pois `infra/hash.ts` é o único a conhecer `node:crypto`).
 
+
+## 36. Expectativa do E7-2 (18/10/2026) — `SaltProvider` persistente cifrado
+
+- **Autorizado** pelo Marcelo/Gemini: D-C1 e D-C4. Escrita ANTES do código; detalhe completo em `scripts/expectations/agent-answer.expected.json` → `e7_2`.
+- **Decisões:** `SaltProvider` segue síncrono e inalterado (consumidores `pipeline.ts:92` e `verify-source.ts:672`); persistência assíncrona num `SaltStore` separado, com `PersistentSaltKeyring` carregando e decifrando para um `InMemorySaltKeyring` antes do turno. Adaptador `src/lib/infra/cipher.ts` (AES-256-GCM, nonce de 96 bits sorteado dentro do adaptador, AAD `userId:saltId`, `keyVersion` por registro). Chaves: `SALT_MASTER_KEY` (atual) e `SALT_MASTER_KEY_PREV_<n>` (rotação via `recipherAll`); 32 bytes exatos em hex/base64, recusa vazia/tamanho errado/toda zero.
+- **Fatos medidos:** ≈2,5 µs por cifragem; ciphertext de 80 bytes (64 do sal em hex + tag 16); chave de 16 bytes ⇒ `ERR_CRYPTO_INVALID_KEYLEN`.
+- **Casos:** A1–A8 (adaptador), K1–K5 (chaves), P1–P6 (provider), S1–S4 (segurança) = 23 ⇒ suíte 1122 → 1145. **Mutações CM1–CM16** planejadas; escape declarado como equivalente/redundante.
+- **Fora de escopo:** Prisma/migração, conta de nuvem, chave real, env var em Vercel/Railway.
