@@ -27,7 +27,7 @@ let passed = 0
 const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(`✓ ${name}`) }
 
 test("SG1 — ISOLAMENTO: ninguém fora de src/lib/agent/ importa o contrato (import estático, import(), require, re-export, alias @/); dentro, só 'zod' e './'; sem LLM/rede/banco/Prisma/env", () => {
-  const src = walk(join(ROOT, "src")).filter((f) => /\.tsx?$/.test(f) && !f.includes("/src/lib/agent/") && !f.includes("/src/lib/agent-capabilities/")) // E6.6-4 (Q7): UMA exceção explícita; o guarda reverso e o NÃO LIGADO estão em test-agent-capabilities-static.mts
+  const src = walk(join(ROOT, "src")).filter((f) => /\.tsx?$/.test(f) && !f.includes("/src/lib/agent/") && !f.includes("/src/lib/agent-capabilities/") && !f.endsWith("/src/lib/infra/conversation-store.ts")) // E7-3: persistência da conversa (usa CAPABILITY_IDS/EVIDENCE_REF_RE do contrato, fonte única; segue NÃO ligada a produção) · E6.6-4 (Q7): UMA exceção explícita; o guarda reverso e o NÃO LIGADO estão em test-agent-capabilities-static.mts
   // E6.6-1: `from` não conta quando vem colado a '.'/letra/aspas (ex.: a chave "period.from" de slot-path.ts lia como import); import real tem espaço ou '}' antes
   const refs = (code: string) => [...code.matchAll(/(?:(?<![.\w"'])from|^\s*import|import\s*\(|require\s*\()\s*["']([^"']+)["']/gm)].map((m) => m[1])
   const offenders = src.filter((f) => refs(strip(readFileSync(f, "utf8"))).some((p) => /(?:^|\/)agent(?:\/|$)/.test(p) && /agent\/(?:contract|views|phrases)|lib\/agent|\/agent$/.test(p)))

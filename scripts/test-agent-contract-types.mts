@@ -147,7 +147,7 @@ test("SC10 — catálogo de frases (A1/D9): estrutural único; 21 específicas; 
 
 test("SC11 — NÃO LIGADO: nenhum arquivo fora de src/lib/agent/ importa o contrato; src/lib/agent/ não importa LLM, rede, banco, Prisma nem process.env", () => {
   const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p] })
-  const outside = walk(join(ROOT, "src")).filter((f) => /\.tsx?$/.test(f) && !f.includes("/src/lib/agent/") && !f.includes("/src/lib/agent-capabilities/") && /from\s+["'][^"']*\/agent\/(contract|views|phrases)(\.ts)?["']/.test(readFileSync(f, "utf8")))
+  const outside = walk(join(ROOT, "src")).filter((f) => /\.tsx?$/.test(f) && !f.includes("/src/lib/agent/") && !f.includes("/src/lib/agent-capabilities/") && !f.endsWith("/src/lib/infra/conversation-store.ts") /* E7-3: persistência da conversa; usa CAPABILITY_IDS/EVIDENCE_REF_RE do contrato (fonte única) e continua NÃO ligada a produção */ && /from\s+["'][^"']*\/agent\/(contract|views|phrases)(\.ts)?["']/.test(readFileSync(f, "utf8")))
   assert.deepEqual(outside, [], "o contrato do agente não pode ser importado por código de produção/Lab ainda")
   for (const f of walk(join(ROOT, "src/lib/agent")).filter((x) => /\.ts$/.test(x))) {
     const code = readFileSync(f, "utf8").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
