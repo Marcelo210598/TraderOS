@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 18/10/2026 — AI Partner: E7-3 estado da conversa persistente — commit `17443d8`, backup atualizado; origin intocado
+Suíte **1145 → 1166 ✓**, tsc 0, ESLint 0. `infra/conversation-store.ts`: log de deltas atômicos (`v000001.json`… por `link` exclusivo = CAS), uma `version` por conversa, `commit(expectedVersion)` ⇒ `CONFLICT` sem retry; leitura dobra o log num modelo relacional e remonta o ledger pelas funções PURAS em ordem (época, seq); alias só cresce pelo fim; specs sem refs reais; limites 500 entradas / 256 KiB por linha / 2 MiB por delta. 20 mutações reais pegas (+1 controle). Medido: 500 entradas abrem em 36 ms (memória) / 76 ms (disco). Portões SC11 e SG1 abertos só para `conversation-store.ts`. Próximo: E7-4 (`bundleOf`). Detalhe: `agent-answer-plano.md` §37 e `expected.json` → `e7_3`.
+
 ## ✅ 18/10/2026 — AI Partner: E7-2 `SaltProvider` persistente cifrado — commit `be3ecb7`, backup atualizado; origin intocado
 Suíte **1122 → 1145 ✓**, tsc 0, ESLint 0. `infra/cipher.ts` (AES-256-GCM, nonce 96 bits interno, AAD `userId:saltId`, `keyVersion`, `SALT_MASTER_KEY` / `_VERSION` / `_PREV_<n>`) e `infra/salt-store.ts` (`SaltStore` assíncrono em memória e disco + `createPersistentSalts` + `recipherAll`); `SaltProvider` segue síncrono e `salt.ts` inalterado. 16 mutações planejadas + 4 extras, todas pegas. Doc: `docs/ai-partner/E7-2-chave-mestra.md` (perda da chave = sais irrecuperáveis). `.env.example` é ignorado pelo git. Próximo: E7-3 (estado da conversa). Detalhe: `agent-answer-plano.md` §36 e `scripts/expectations/agent-answer.expected.json` → `e7_2`.
 
