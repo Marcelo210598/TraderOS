@@ -395,3 +395,14 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Mudança em código existente:** só `conversation-store.ts` (a spec ganha `pin` obrigatório; `specOf` mantém a forma, o pin vem por `pinOf`). Delta antigo sem pin ⇒ CORRUPT (nada em produção).
 - **Casos:** T1–T5, P1–P5, R1–R5, M1–M10, I1–I2, S1–S2 (≈ 32). **Mutações DM1–DM16.**
 - **Limites declarados:** um contexto por arquivo; multi-source exige `foldPolicy`/`exitReasonMap` iguais (o verificador de fonte só aceita um par global); stops do usuário não entram no pin.
+
+
+## 39. Expectativa do E7-5 (19/10/2026) — gancho `onBundle`, regenerador de bundle e cache
+
+- **Autorizado** pelo Marcelo/Gemini: D-R1 (tocar as 6 capacidades e `assess.ts`), D-R2…D-R7 em bloco, contagem ≈36 como estimativa. Escrita ANTES do código; detalhe em `scripts/expectations/agent-answer.expected.json` → `e7_5`. (O "D-B6 = cache" do §38 vira D-R5/D-R6; no `expected.json` D-B6 é "erros sem eco".)
+- **Colisão `exit.breakdown` × `exit.analysis` (sem compare):** refs iguais; o segundo `addEvidence` dá `LEDGER_CONFLICT` (medido). **Mantido**: falha fechada; o regenerador devolve o mesmo bundle por qualquer um dos dois nomes (caso G13). O orquestrador (depois do E7) traduz o conflito em resposta ao modelo.
+- **Fatos medidos:** 6 pontos de `assessBundle` nas capacidades (nenhum devolve o bundle); bundle de exit ≈ 3,4 KiB/trade (120 trades = 414 KiB; 420 = 1,5 e 6,7 MiB); capacidade ≈ 100 ms/MiB; 17–20 MiB para 5.000 trades e ≈ 2 s são EXTRAPOLAÇÃO; os args guardados trazem alias, então a regeneração precisa das `aliases` da conversa.
+- **Decisões:** D-R1 `onBundle` aditivo (após o sucesso, exceção engolida); D-R2 `prepareBundle` assíncrono + `bundleOf` síncrono; D-R3 só regera CURRENT (STALE ⇒ refresh); D-R4 `REF_MISMATCH` fail-closed; D-R5 cache LRU 64 MiB por bytes, chave `userId+ref`, sem `deepFreeze`; D-R6 single-flight; D-R7 `regeneratedFor` para o refresh.
+- **Mudança em código existente:** `assess.ts` + 6 capacidades (uma linha cada) + tipo `MetricsQueryContext`. Sem gancho a saída é idêntica.
+- **Casos (≈36):** H1–H6, C1–C8, F1–F4, G1–G13 (oráculo G1–G6: as 6 capacidades regeneram ref e bundle idênticos), B1–B3, X1–X2. **Mutações RM1–RM18.**
+- **Limites declarados:** cache em memória do processo (serverless = um por instância); sem cota por usuário; 17–20 MiB não medido; stops do usuário fora do pin.
