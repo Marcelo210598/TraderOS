@@ -165,3 +165,4 @@ Vega IA agora é o maior diferencial vs Trademetria (80k users, R$49,90/mês Pro
 
 ## 29/09/2026 — Mesas prop: 5 no ar
 Lucid, FFF, Apex, Tradeify e Bulenox em `/mesas`. Cron vigia Lucid, FFF e Bulenox (JSON); Apex, Tradeify e preços da Bulenox = conferência manual com lembrete mensal. Detalhe: `historico/2026-09-29.md`.
+- **AI Partner — 19/10/2026 (E7-7, backup `acddf47`; origin intocado)** — `infra/user-purge.ts`: exclusão em cascata LGPD (`purgeUserData`, `deleteImportFile`, `deleteConversation`), `BundleCache.purgeUser` com geração; `test:domain` 1258 → **1275 ✓**. Retomar por `historico/2026-10-19.md` e `agent-answer-plano.md` §41.
