@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 19/10/2026 — AI Partner: E7-4 pin de dataset + ImportSourceStore + makeContext — commit `0f0070d`, backup atualizado; origin intocado
+Suíte **1166 → 1195 ✓**, tsc 0, ESLint 0. `infra/dataset-pin.ts` (pin por spec, máx. 10, ordem canônica), `infra/import-source-store.ts` (memória + disco 0600, `CONFLICT` sem sobrescrever), `infra/dataset.ts` (`registerImport`, `makeContext` com conferência de `importId`, sem risco inventado, `ignoreBOM`); `conversation-store.ts` grava o pin na spec e a fachada revalida cada delta. DM1–DM16 + 6 extras pegas. Achado: `exit.breakdown` e `exit.analysis` (sem compare) emitem o mesmo `evidenceRef`. Próximo: E7-5 (regenerador `bundleOf`/`regenerated`, gancho `onBundle`, cache LRU 64 MiB single-flight). Detalhe: `historico/2026-10-19.md`.
+
 ## ✅ 18/10/2026 — AI Partner: E7-3 estado da conversa persistente — commit `17443d8`, backup atualizado; origin intocado
 Suíte **1145 → 1166 ✓**, tsc 0, ESLint 0. `infra/conversation-store.ts`: log de deltas atômicos (`v000001.json`… por `link` exclusivo = CAS), uma `version` por conversa, `commit(expectedVersion)` ⇒ `CONFLICT` sem retry; leitura dobra o log num modelo relacional e remonta o ledger pelas funções PURAS em ordem (época, seq); alias só cresce pelo fim; specs sem refs reais; limites 500 entradas / 256 KiB por linha / 2 MiB por delta. 20 mutações reais pegas (+1 controle). Medido: 500 entradas abrem em 36 ms (memória) / 76 ms (disco). Portões SC11 e SG1 abertos só para `conversation-store.ts`. Próximo: E7-4 (`bundleOf`). Detalhe: `agent-answer-plano.md` §37 e `expected.json` → `e7_3`.
 
