@@ -61,6 +61,8 @@ export interface MetricsQueryContext {
   aliases?: AliasTable
   /** Arquivo original (quando existir); ausente ⇒ source = NOT_RUN. */
   source?: { files: SourceFiles; options?: VerifySourceOptions } | null
+  /** E7-5 (D-R1): recebe o bundle selado (uma vez por sucesso). Só o servidor define; nunca o modelo. */
+  onBundle?: (bundle: unknown) => void
 }
 type Envelope = ReturnType<typeof okResult> | ReturnType<typeof errorResult>
 export interface MetricsQueryOutput {
@@ -105,7 +107,7 @@ export function metricsQuery(rawArgs: unknown, ctx: MetricsQueryContext): Metric
       subject: { type: "METRIC", id: metricIds[0] },
       evidence: { imports: first.importRefs, trades: first.tradeEvidences, metrics: oks.map((x) => x.metricEvidence) },
     })
-    const assessed = assessBundle(bundle, { refEpoch: ctx.refEpoch, source: ctx.source ?? null })
+    const assessed = assessBundle(bundle, { refEpoch: ctx.refEpoch, source: ctx.source ?? null, onBundle: ctx.onBundle })
     if (!assessed.ok) return fail("ENGINE_REFUSED")
 
     const projected = metricIds.map((id) => projectMetricValue(result.metrics[id]))

@@ -84,7 +84,7 @@ export function exitAnalysis(rawArgs: unknown, ctx: MetricsQueryContext): ExitAn
       ...(comparison !== null ? { conclusive: comparison.view.conclusive } : {}),
       ...(comparison !== null && confs.length > 0 ? { confidence: CONFS[confs.reduce((w, c) => Math.max(w, CONFS.indexOf(c)), 0)] } : {}),
     }
-    const assessed = assessBundle(bundle, { refEpoch: ctx.refEpoch, source: ctx.source ?? null, ...(Object.keys(population).length > 0 ? { population } : {}) })
+    const assessed = assessBundle(bundle, { refEpoch: ctx.refEpoch, source: ctx.source ?? null, onBundle: ctx.onBundle, ...(Object.keys(population).length > 0 ? { population } : {}) })
     if (!assessed.ok) return fail("ENGINE_REFUSED")
 
     const view = { buckets: breakdown.buckets, comparison: comparison === null ? null : comparison.view, reconciliation: breakdown.reconciliation }

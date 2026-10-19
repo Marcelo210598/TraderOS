@@ -20,6 +20,8 @@ export interface AssessOptions {
   population?: { sampleFlag?: "OK" | "LOW" | "TINY"; conclusive?: boolean; confidence?: "OK" | "LIMITED" | "UNRELIABLE" }
   /** Escopo do handle quando a capacidade sabe mais que a 1ª métrica do bundle (ex.: bundle de grupos cuja 1ª métrica é o TOTAL, E6.6-6). */
   scope?: "TOTAL" | "GROUP"
+  /** E7-5 (D-R1): o servidor recebe o bundle SELADO que acabou de ser avaliado (uma vez, só após o sucesso). Exceção do gancho é engolida; não-função é ignorada. Não altera nada do resultado. */
+  onBundle?: (bundle: unknown) => void
 }
 export type AssessResult = { readonly ok: true; readonly handle: EvidenceHandle; readonly limits: Limit[] } | { readonly ok: false; readonly code: "ENGINE_REFUSED" }
 const REFUSED: AssessResult = { ok: false, code: "ENGINE_REFUSED" }
@@ -109,6 +111,7 @@ export function assessBundle(bundle: unknown, options: AssessOptions): AssessRes
       freshness: "CURRENT",
     })
     if (!handle.success) return REFUSED
+    if (typeof options.onBundle === "function") { try { options.onBundle(bundle) } catch { /* o gancho nunca muda o resultado */ } }
     return { ok: true, handle: handle.data, limits: limitsOf(handle.data) }
   } catch {
     return REFUSED // exceção do verificador ou entrada hostil: falha FECHADA

@@ -125,7 +125,7 @@ export function metricsCompare(rawArgs: unknown, ctx: MetricsQueryContext): Metr
     const projection = projectCompare(explained.derived.result, ctx.refEpoch, ctx.aliases)
     if (projection === null || projection.view.deltas.length !== args.metricIds.length) return fail("ENGINE_REFUSED")
 
-    const assessed = assessBundle(derivedEvidenceBundle(explained), { refEpoch: ctx.refEpoch, source: ctx.source ?? null, population: { sampleFlag: projection.worstFlag, conclusive: projection.view.conclusive } })
+    const assessed = assessBundle(derivedEvidenceBundle(explained), { refEpoch: ctx.refEpoch, source: ctx.source ?? null, onBundle: ctx.onBundle, population: { sampleFlag: projection.worstFlag, conclusive: projection.view.conclusive } })
     if (!assessed.ok) return fail("ENGINE_REFUSED")
 
     const envelope = okResult(CAPABILITY, projection.view, assessed.handle, assessed.limits)

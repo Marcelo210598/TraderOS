@@ -57,7 +57,7 @@ export function rankGroupsCapability(rawArgs: unknown, ctx: MetricsGroupsContext
 
     const projection = projectRank(explained.derived.result, ctx.refEpoch, aliases)
     if (projection === null) return fail("ENGINE_REFUSED")
-    const assessed = assessBundle(derivedEvidenceBundle(explained), { refEpoch: ctx.refEpoch, source: ctx.source ?? null, population: { sampleFlag: projection.worstFlag } })
+    const assessed = assessBundle(derivedEvidenceBundle(explained), { refEpoch: ctx.refEpoch, source: ctx.source ?? null, onBundle: ctx.onBundle, population: { sampleFlag: projection.worstFlag } })
     if (!assessed.ok) return fail("ENGINE_REFUSED")
 
     const envelope = okResult(CAPABILITY, projection.view, assessed.handle, assessed.limits)

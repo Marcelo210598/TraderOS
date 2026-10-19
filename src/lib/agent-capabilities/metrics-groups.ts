@@ -93,7 +93,7 @@ export function metricsGroups(rawArgs: unknown, ctx: MetricsGroupsContext): Metr
     })
 
     const worst = result.groups.reduce<number>((w, g) => Math.max(w, SEVERITY.indexOf(g.sampleFlag)), -1)
-    const assessed = assessBundle(bundle, { refEpoch: ctx.refEpoch, source: ctx.source ?? null, scope: "GROUP", ...(worst >= 0 ? { population: { sampleFlag: SEVERITY[worst] } } : {}) })
+    const assessed = assessBundle(bundle, { refEpoch: ctx.refEpoch, source: ctx.source ?? null, onBundle: ctx.onBundle, scope: "GROUP", ...(worst >= 0 ? { population: { sampleFlag: SEVERITY[worst] } } : {}) })
     if (!assessed.ok) return fail("ENGINE_REFUSED")
 
     // chave e valores de cada grupo (a chave vem do groupKey da EVIDÊNCIA: refs, nunca o nome)

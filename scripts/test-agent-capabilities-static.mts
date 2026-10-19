@@ -36,8 +36,8 @@ test("Q2 — agent-capabilities/ só importa ../agent/, ../evidence/, ../metrics
   }
 })
 
-test("Q3 — NÃO LIGADO: ninguém fora de agent-capabilities/ e dos testes (scripts/) importa agent-capabilities/", () => {
-  const src = walk(join(ROOT, "src")).filter((f) => /\.tsx?$/.test(f) && !f.includes("/src/lib/agent-capabilities/"))
+test("Q3 — NÃO LIGADO: ninguém fora de agent-capabilities/ e dos testes (scripts/) importa agent-capabilities/ — exceção ÚNICA, por arquivo: infra/regenerate.ts (E7-5, aprovado: o regenerador roda a mesma capacidade que gerou o ref)", () => {
+  const src = walk(join(ROOT, "src")).filter((f) => /\.tsx?$/.test(f) && !f.includes("/src/lib/agent-capabilities/") && !f.endsWith("/src/lib/infra/regenerate.ts"))
   // qualquer CAMINHO para o diretório (import estático, dinâmico, require, string): relativo ou com alias @/. A versão do contrato ("agent-capabilities/1") não é caminho.
   const offenders = src.filter((f) => /["'`](?:\.{1,2}\/|@\/)[^"'`\n]*agent-capabilities/.test(strip(readFileSync(f, "utf8"))))
   assert.deepEqual(offenders.map((f) => f.replace(ROOT, "")), [])

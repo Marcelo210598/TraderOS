@@ -49,7 +49,7 @@ export function exitBreakdown(rawArgs: unknown, ctx: MetricsQueryContext): ExitB
     const projection = projectExitBreakdown(explained.derived.result)
     if (projection === null) return fail("ENGINE_REFUSED")
 
-    const assessed = assessBundle(derivedEvidenceBundle(explained), { refEpoch: ctx.refEpoch, source: ctx.source ?? null, ...(projection.worstFlag !== null ? { population: { sampleFlag: projection.worstFlag } } : {}) })
+    const assessed = assessBundle(derivedEvidenceBundle(explained), { refEpoch: ctx.refEpoch, source: ctx.source ?? null, onBundle: ctx.onBundle, ...(projection.worstFlag !== null ? { population: { sampleFlag: projection.worstFlag } } : {}) })
     if (!assessed.ok) return fail("ENGINE_REFUSED")
 
     const view = { buckets: projection.buckets, reconciliation: projection.reconciliation }
