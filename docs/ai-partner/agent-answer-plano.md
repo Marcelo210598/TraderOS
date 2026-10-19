@@ -415,3 +415,13 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Decisões:** `openTurn/call/commit` com pin e userId do servidor; UM commit no fim (CAS, sem retry ⇒ `TURN_CONFLICT`); sal carregado 1x; ctx memoizado por pin; aliases fluem entre chamadas; época desatualizada ⇒ ledger rotacionado + `rotateTo`; refresh herda spec+pin; tradução fail-closed sem código novo; `onBundle` aquece o cache; `session.validate` = `validateAnswer` + `recordRejection`.
 - **Casos (≈32):** O1–O3, K1–K9, C1–C5, V1–V2, S1–S2. **Mutações EM1–EM16.**
 - **Limites declarados:** explain não citável; pin único por turno; sem mensagens/custo de modelo; cache por instância; bundles de 17–20 MiB só extrapolados.
+
+
+## 41. Expectativa do E7-7 (19/10/2026) — exclusão em cascata / LGPD (Art. 18)
+
+- **Autorizado** pelo Marcelo/Gemini: D-LGPD-1 (corrigido), D-LGPD-2…D-LGPD-8 e o expurgo **definitivo e imediato** (carência, se houver, é da camada de produto). Detalhe em `scripts/expectations/agent-answer.expected.json` → `e7_7`.
+- **Correção de fato:** o CSV bruto fica em **texto puro**; destruir o sal NÃO o torna irrecuperável (o sal só protege refs/hashes de conta). O expurgo apaga os arquivos de verdade; o sal vai por último só para a reexecução segura.
+- **Fatos:** `RawFileStorage` já tem `delete/deleteAllForUser`; `ImportSourceStore` só `put/get`; `ConversationStore` só `create/load/commit` (sem listar por usuário); `SaltStore.retire` apaga o ciphertext mas mantém a linha; `BundleCache` não tem purga. Em disco cada store tem um diretório por usuário.
+- **Decisões:** ordem arquivos → metadados → conversas → sais → cache, parando no PRIMEIRO erro; relatório `{ok, purged:{…}}` e, na falha, `{ok:false, code, failedStore, done}` sem eco; métodos aditivos e idempotentes nos stores; coordenador `infra/user-purge.ts` (`purgeUserData`, `deleteImportFile` arquivo→linha, `deleteConversation`); `deleteImportFile`/`deleteConversation` purgam também o cache do usuário [minha]; geração por usuário no cache para um voo antigo não guardar depois da purga [minha]; o bloqueio de escrita da conta é da camada de auth (D-LGPD-6), com teste de caracterização.
+- **Casos (≈20):** I1, C1, S1, B1–B2, P1–P6, D1–D3, V1, R1, X1. **Mutações EL1–EL16.** Nenhum portão estático abre.
+- **Limites declarados:** backups/snapshots/nuvem fora; cache só do processo; `rm` não é apagamento físico em SSD; sem auth/auditoria persistente; sem carência.

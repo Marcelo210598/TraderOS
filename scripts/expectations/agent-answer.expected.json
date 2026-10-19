@@ -6155,5 +6155,75 @@
     ],
     "baselines": "1232 linhas ✓ idênticas; só se acrescentam os casos acima (1 arquivo novo); as exceções nominais dos portões renomeiam as linhas Q3/SC11/SG1 (1 a 3 linhas trocadas, declaradas). Estimativa ≈32 casos (as últimas saíram 37, 29 e 21 contra o previsto).",
     "limites": "explain não citável (D-T4); pin único por turno; sem mensagens nem custo de modelo; cache por instância; turnos com bundles de 17–20 MiB só extrapolados."
+  },
+  "e7_7": {
+    "status": "EXPECTATIVA (19/10/2026) escrita ANTES do código do E7-7 (exclusão em cascata / LGPD Art. 18). Aprovados pelo Marcelo/Gemini: D-LGPD-1 corrigido, D-LGPD-2 a D-LGPD-5, D-LGPD-6, D-LGPD-7, D-LGPD-8 e o expurgo DEFINITIVO e imediato (carência de 30 dias, se houver, é da camada de produto). Fora: autenticação/bloqueio da conta, auditoria persistente, retenção de backups/snapshots (Neon, storage), remoção física segura em SSD, Prisma, nuvem, UI, LLM.",
+    "files": [
+      "src/lib/infra/import-source-store.ts (ALTERADO, aditivo): ImportSourceStore ganha delete(userId,fileSha256) e deleteAllForUser(userId); DiskImportSourceOps ganha rm",
+      "src/lib/infra/conversation-store.ts (ALTERADO, aditivo): ConversationStore ganha delete(userId,conversationId) e deleteAllForUser(userId); DiskConversationOps ganha rm e readdir já existente",
+      "src/lib/infra/salt-store.ts (ALTERADO, aditivo): SaltStore ganha deleteAllForUser(userId) (apaga TODAS as linhas, inclusive aposentadas e ilegíveis); DiskSaltOps ganha rm",
+      "src/lib/infra/bundle-cache.ts (ALTERADO, aditivo): purgeUser(userId) e geração por usuário para que um voo iniciado ANTES da purga não guarde o resultado depois",
+      "src/lib/infra/user-purge.ts (novo): purgeUserData, deleteImportFile, deleteConversation (coordenador; sem portão novo: não importa salt.ts nem o contrato do agente)",
+      "scripts/test-user-purge.mts (novo, entra no test:domain)"
+    ],
+    "nao_muda": "RawFileStorage (já tem delete/deleteAllForUser), dataset*.ts, regenerate.ts, turn-session.ts, agent/*, agent-capabilities/*; os portões estáticos (nenhum precisa abrir); prisma/; sem LLM/UI.",
+    "fatos_lidos_e_medidos": {
+      "stores": "RawFileStorage tem delete/deleteAllForUser; ImportSourceStore só put/get; ConversationStore só create/load/commit (sem listar por usuário); SaltStore tem retire (apaga o ciphertext mas MANTÉM a linha) e listUsers; BundleCache só get/put/getOrLoad/stats.",
+      "layout_em_disco": "cada store guarda por usuário num diretório próprio: raw users/{userId}/imports, import-sources/{userId}, conversations/{userId}/{conversationId}, salts/{userId}; todos recusam symlink e exigem o caminho dentro da raiz.",
+      "correcao_LGPD1": "o CSV bruto fica em TEXTO PURO no RawFileStorage: destruir o sal NÃO torna o arquivo irrecuperável (o sal só protege refs e hashes de conta). O expurgo precisa apagar os arquivos de verdade; o sal por último serve só para a reexecução segura.",
+      "cache": "o BundleCache é por processo: purgeUser limpa só a instância; em serverless outras instâncias mantêm bundles até o LRU despejar (limite declarado). O ledger é conferido antes do cache, então os bundles ficam inalcançáveis pelo executor.",
+      "corrida": "commitTurn não ressuscita conversa apagada (NOT_FOUND); registerImport e salts.ensure RECRIARIAM arquivo/linha/sal após a purga ⇒ o bloqueio da conta é da camada de auth/servidor (D-LGPD-6)."
+    },
+    "decisions_DLGPD": {
+      "D-LGPD-1": "ordem do expurgo total: arquivos brutos → metadados de import → conversas → sais → cache em processo; para no PRIMEIRO erro (o sal nunca é destruído se uma etapa anterior falhou) e é repetível",
+      "D-LGPD-2": "sucesso: {ok:true, purged:{rawFiles:number, importSources:number, conversations:number, salts:boolean, cacheEntries:number}}",
+      "D-LGPD-3": "métodos nos stores: ImportSourceStore.delete/deleteAllForUser; ConversationStore.delete/deleteAllForUser; SaltStore.deleteAllForUser; BundleCache.purgeUser; todos idempotentes (inexistente ⇒ ok com zero) e isolados por usuário",
+      "D-LGPD-4": "coordenador src/lib/infra/user-purge.ts com purgeUserData, deleteImportFile e deleteConversation",
+      "D-LGPD-5": "userId inválido (vazio, ../, separador) ⇒ INVALID_ARGS sem tocar em nada; zero eco de caminho, mensagem ou conteúdo",
+      "D-LGPD-6": "o bloqueio de escrita da conta é da camada de auth/servidor; os stores não trancam. Teste de caracterização documenta que registerImport após a purga recria dados (por isso o bloqueio)",
+      "D-LGPD-7": "deleteImportFile: arquivo bruto PRIMEIRO, linha depois (um órfão com dado pessoal seria pior que uma linha apontando para arquivo ausente, que já dá FILE_NOT_AVAILABLE)",
+      "D-LGPD-8": "falha parcial: {ok:false, code:'STORAGE_ERROR'|'INVALID_ARGS', failedStore:'rawFiles'|'importSources'|'conversations'|'salts', done:{…contadores do que já foi}}, sem eco; reexecutar conclui",
+      "D-LGPD-9": "[MINHA] deleteImportFile e deleteConversation também purgam o cache do usuário (não dá para saber quais bundles derivam do arquivo/da conversa; custo de errar para menos é dado pessoal residente, para mais é uma regeneração)",
+      "D-LGPD-10": "[MINHA] BundleCache.purgeUser incrementa uma geração do usuário; um voo iniciado antes da purga entrega o resultado a quem esperava mas NÃO o guarda"
+    },
+    "cases": [
+      "I1 ImportSourceStore.delete/deleteAllForUser (memória e disco): existed/contagem, isolamento, ids inválidos, idempotência, disco sem o diretório do usuário",
+      "C1 ConversationStore.delete/deleteAllForUser: várias conversas, load ⇒ NOT_FOUND depois, outras do mesmo usuário e de outro usuário intactas, pode recriar o mesmo id; disco sem o diretório",
+      "S1 SaltStore.deleteAllForUser: apaga TODAS as linhas (CURRENT, RETIRED, ilegível), sai do listUsers, outro usuário intacto, idempotente; disco sem o diretório",
+      "B1 BundleCache.purgeUser: entradas e bytes do usuário saem, os de outros ficam, retorna a contagem",
+      "B2 voo iniciado antes da purga não guarda o resultado depois (geração); voo posterior guarda",
+      "P1 purgeUserData completo (memória e disco): relatório com contagens reais; A sem NENHUM vestígio (caminho, CSV, sal), B byte a byte idêntico",
+      "P2 idempotência: 2ª purga e usuário inexistente ⇒ ok com zeros",
+      "P3 falha injetada em CADA etapa ⇒ ok:false com failedStore e done corretos; as etapas seguintes NÃO rodam (o sal fica se algo antes falhou); reexecutar conclui e o relatório final soma o que faltava",
+      "P4 pedido/deps hostis ⇒ INVALID_ARGS sem tocar em nada; path traversal; sem eco",
+      "P5 pós-purga: makeContext ⇒ IMPORT_NOT_REGISTERED; openTurn ⇒ SALT_REQUIRED; ensure cria um sal NOVO (valor diferente do destruído) e o usuário recomeça",
+      "P6 purga o cache só do usuário; bundle residual inalcançável pelo executor",
+      "D1 deleteImportFile: ordem arquivo→linha (falha no arquivo deixa tudo; falha na linha deixa linha apontando para arquivo ausente e makeContext dá FILE_NOT_AVAILABLE; reexecutar conclui)",
+      "D2 deleteImportFile: conversas e pins intactos; regenerar/explain ⇒ FILE_NOT_AVAILABLE/NOT_FOUND; o cache do usuário foi purgado",
+      "D3 deleteImportFile: isolamento entre usuários e sha inválido ⇒ INVALID_ARGS",
+      "V1 deleteConversation: existed true/false, outras conversas e arquivos intactos, cache purgado, conversa de outro usuário ⇒ existed false e nada muda",
+      "R1 caracterização D-LGPD-6: registerImport e ensure após a purga recriam dados (o bloqueio é da camada de auth)",
+      "X1 tripwire: user-purge.ts não importa salt.ts, contrato do agente nem node:crypto; só stores de infra; nenhum portão novo aberto"
+    ],
+    "mutations_planned": [
+      "EL1 sal destruído ANTES dos arquivos ⇒ P3",
+      "EL2 continua após falha (apaga o sal mesmo com etapa anterior falha) ⇒ P3",
+      "EL3 deleteAllForUser sem escopo de usuário (apaga de todos) ⇒ I1/C1/S1/P1",
+      "EL4 disco: rm sem recursive / diretório do usuário fica ⇒ I1/C1/S1",
+      "EL5 deleteImportFile apaga a linha ANTES do arquivo ⇒ D1",
+      "EL6 deleteImportFile não purga o cache ⇒ D2",
+      "EL7 purgeUser sem geração (voo antigo guarda depois) ⇒ B2",
+      "EL8 contagem do relatório errada ⇒ P1",
+      "EL9 userId com ../ aceito ⇒ P4",
+      "EL10 erro com eco de caminho/mensagem ⇒ P4",
+      "EL11 2ª purga devolve erro (ENOENT) ⇒ P2",
+      "EL12 conversa apagada continua carregável (índice em memória) ⇒ C1",
+      "EL13 SaltStore.deleteAllForUser deixa linhas RETIRED ⇒ S1",
+      "EL14 listUsers ainda lista o usuário apagado ⇒ S1",
+      "EL15 deleteConversation não purga o cache ⇒ V1",
+      "EL16 purga de A toca B ⇒ P1"
+    ],
+    "baselines": "1258 linhas ✓ idênticas; só se acrescentam os casos acima (1 arquivo novo de teste + métodos aditivos nos 4 stores existentes, que não mudam o que já fazem). Nenhum portão estático precisa abrir. Estimativa ≈20 casos (as últimas saíram 26, 37, 29 contra o previsto).",
+    "limites": "backups/snapshots/versões em nuvem não são cobertos (política de retenção a decidir antes de produção); cache só do processo; rm não é apagamento físico em SSD; sem autorização/bloqueio de conta nem auditoria persistente (camada de auth/Prisma); expurgo definitivo, sem carência."
   }
 }
