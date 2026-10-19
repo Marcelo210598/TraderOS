@@ -386,3 +386,12 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Decisões:** `ConversationStore` assíncrono (create/load/commit); commit = UM delta atômico (ledger + specs + alias + época) com `expectedVersion`; log de deltas `v1,v2…` (em disco, `link` exclusivo = CAS atômico); `open()` devolve objeto síncrono `{ledger, aliases, specOf, version}`; alias só pode crescer pelo fim dentro da época; specs sem refs reais; conflito ⇒ `CONFLICT`, sem retry.
 - **Casos:** R1–R5, I1–I6, V1–V4, U1, F1–F2, S1–S2, M1 (≈ 23). **Mutações VM1–VM14.**
 - **Fora de escopo:** mensagens da conversa (não previstas no E7-0), exclusão em cascata, Prisma, UI, LLM.
+
+## 38. Expectativa do E7-4 (19/10/2026) — vínculo de dataset, `ImportSource` e montador de ctx
+
+- **Autorizado** pelo Marcelo/Gemini: D-B1 (reordenação), D-B2 (`sources: [{fileSha256}]`, máx. 10), D-B4 (gancho `onBundle`, que vai ao E7-5) e D-B6 (cache 64 MiB + single-flight, também E7-5). Itens `[MINHA]` seguem pendentes de revisão. Detalhe em `scripts/expectations/agent-answer.expected.json` → `e7_4`.
+- **Novo roteiro:** **E7-4** = pin por spec + `ImportSourceStore` + `registerImport` + `makeContext`; **E7-5** = regenerador de bundle (`bundleOf`/`regenerated`) + gancho `onBundle` + cache.
+- **Fatos medidos:** a regeneração é determinística (mesmo ref em 2 execuções e a partir do `settings` serializado); outro sal muda o ref mesmo sem filtro de conta (só a época do ref é regenerável; STALE vai pelo `evidence.refresh`); `fileName` não muda o `importId` mas **muda o ref**, e `analysis.timeZone/minSample` **mudam o ref** — por isso o `fileName` é guardado e o `analysis` entra no pin; o pipeline roda sem `withRisk` (o montador não inventa stops).
+- **Mudança em código existente:** só `conversation-store.ts` (a spec ganha `pin` obrigatório; `specOf` mantém a forma, o pin vem por `pinOf`). Delta antigo sem pin ⇒ CORRUPT (nada em produção).
+- **Casos:** T1–T5, P1–P5, R1–R5, M1–M10, I1–I2, S1–S2 (≈ 32). **Mutações DM1–DM16.**
+- **Limites declarados:** um contexto por arquivo; multi-source exige `foldPolicy`/`exitReasonMap` iguais (o verificador de fonte só aceita um par global); stops do usuário não entram no pin.
