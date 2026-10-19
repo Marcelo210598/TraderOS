@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 19/10/2026 — AI Partner: E7-5 gancho `onBundle` + regenerador de bundle + cache LRU — commit `b7a5409`, backup atualizado; origin intocado
+Suíte **1195 → 1232 ✓**, tsc 0, ESLint (src/lib + testes) 0 erros. `assess.ts` + 6 capacidades ganham `onBundle` aditivo (após o sucesso, exceção engolida, saída idêntica sem gancho); `infra/bundle-cache.ts` (LRU 64 MiB por bytes, chave userId+ref, single-flight, falha nunca guardada); `infra/regenerate.ts` (`regenerateBundle` só ref CURRENT com `REF_MISMATCH` fail-closed, `prepareBundle` para o explain síncrono, `regeneratedFor` para o refresh). Oráculo: 6 capacidades regeneram ref e bundle idênticos byte a byte. Mutações RM1–RM18 pegas (+ extras; RM22 equivalente). Portão Q3 aberto só para `regenerate.ts`. Colisão exit.breakdown×exit.analysis mantida (LEDGER_CONFLICT). Próximo: orquestrador do turno (ainda sem OK). Detalhe: `agent-answer-plano.md` §39 e `expected.json` → `e7_5`.
+
 ## ✅ 19/10/2026 — AI Partner: E7-4 pin de dataset + ImportSourceStore + makeContext — commit `0f0070d`, backup atualizado; origin intocado
 Suíte **1166 → 1195 ✓**, tsc 0, ESLint 0. `infra/dataset-pin.ts` (pin por spec, máx. 10, ordem canônica), `infra/import-source-store.ts` (memória + disco 0600, `CONFLICT` sem sobrescrever), `infra/dataset.ts` (`registerImport`, `makeContext` com conferência de `importId`, sem risco inventado, `ignoreBOM`); `conversation-store.ts` grava o pin na spec e a fachada revalida cada delta. DM1–DM16 + 6 extras pegas. Achado: `exit.breakdown` e `exit.analysis` (sem compare) emitem o mesmo `evidenceRef`. Próximo: E7-5 (regenerador `bundleOf`/`regenerated`, gancho `onBundle`, cache LRU 64 MiB single-flight). Detalhe: `historico/2026-10-19.md`.
 
