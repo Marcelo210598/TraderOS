@@ -9,6 +9,7 @@ import { isAbsolute, join, relative, resolve } from "node:path"
 import { CAPABILITY_IDS, EVIDENCE_REF_RE } from "../agent/contract.ts"
 import { newAliasTable, type AliasTable } from "../agent/label.ts"
 import { addEvidence, lookupRef, newLedger, refreshEvidence, rotateEpoch, type Ledger } from "../agent/ledger.ts"
+import { parseDatasetPin, type DatasetPin } from "./dataset-pin.ts"
 import { canonicalJson, randomHex } from "./hash.ts"
 
 export const MAX_LEDGER_ENTRIES = 500
@@ -30,7 +31,7 @@ const sameJson = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON
 
 // ───────────────────────────── tipos do log ─────────────────────────────
 export interface LedgerWrite { readonly op: "add" | "refresh"; readonly capability: string; readonly handle: unknown; readonly view: unknown }
-export interface SpecWrite { readonly evidenceRef: string; readonly capability: string; readonly args: unknown }
+export interface SpecWrite { readonly evidenceRef: string; readonly capability: string; readonly args: unknown; /** E7-4 (D-B2): os arquivos e preferências exatos da consulta; sem ele não há como regenerar a Evidence. */ readonly pin: DatasetPin }
 export interface DeltaBody { readonly rotateTo: string | null; readonly writes: readonly LedgerWrite[]; readonly specs: readonly SpecWrite[]; readonly alias: AliasTable | null }
 export interface StoredDelta extends DeltaBody { readonly version: number; readonly createdAt: string }
 export interface CorruptDelta { readonly version: number; readonly corrupt: true }
@@ -81,9 +82,11 @@ export function parseDeltaBody(x: unknown): DeltaBody | null {
     }
     const specs: SpecWrite[] = []
     for (const s of x.specs) {
-      if (!isRecord(s) || Object.keys(s).sort().join(",") !== "args,capability,evidenceRef" || typeof s.evidenceRef !== "string" || !EVIDENCE_REF_RE.test(s.evidenceRef) || typeof s.capability !== "string" || !(CAPABILITY_IDS as readonly string[]).includes(s.capability)) return null
+      if (!isRecord(s) || Object.keys(s).sort().join(",") !== "args,capability,evidenceRef,pin" || typeof s.evidenceRef !== "string" || !EVIDENCE_REF_RE.test(s.evidenceRef) || typeof s.capability !== "string" || !(CAPABILITY_IDS as readonly string[]).includes(s.capability)) return null
+      const pin = parseDatasetPin(s.pin)
+      if (pin === null) return null
       canonicalJson(s.args)
-      specs.push({ evidenceRef: s.evidenceRef, capability: s.capability, args: clone(s.args) })
+      specs.push({ evidenceRef: s.evidenceRef, capability: s.capability, args: clone(s.args), pin })
     }
     let alias: AliasTable | null = null
     if (x.alias !== null) { alias = parseAliasTable(x.alias); if (alias === null) return null }
@@ -249,7 +252,7 @@ interface Model {
   readonly version: number
   readonly epochs: readonly string[]
   readonly rows: ReadonlyMap<string, Row>
-  readonly specs: ReadonlyMap<string, { readonly capability: string; readonly args: unknown }>
+  readonly specs: ReadonlyMap<string, { readonly capability: string; readonly args: unknown; readonly pin: DatasetPin }>
   readonly alias: AliasTable | null
   readonly seq: number
 }
@@ -280,8 +283,8 @@ function foldDelta(m: Model, d: StoredDelta): Model | null {
   const specs = new Map(m.specs)
   for (const s of d.specs) {
     const prev = specs.get(s.evidenceRef)
-    if (prev !== undefined && !sameJson(prev, { capability: s.capability, args: s.args })) return null
-    specs.set(s.evidenceRef, { capability: s.capability, args: s.args })
+    if (prev !== undefined && !sameJson(prev, { capability: s.capability, args: s.args, pin: s.pin })) return null
+    specs.set(s.evidenceRef, { capability: s.capability, args: s.args, pin: s.pin })
   }
   if (d.alias !== null && checkAliasStep(m.alias, epochs[epochs.length - 1], d.alias) !== null) return null
   return { ...m, version: d.version, epochs, rows, specs, alias: d.alias ?? m.alias, seq }
@@ -320,6 +323,8 @@ export interface OpenConversation {
   readonly aliases: AliasTable
   /** A consulta original do ref (cópia), ou null. Síncrono: o que o `evidence.refresh` espera em `ctx.specOf`. */
   specOf(evidenceRef: string): { capability: string; args: unknown } | null
+  /** O pin de dataset da spec do ref (cópia canônica), ou null. A forma de `specOf` NÃO muda (o refresh depende dela). */
+  pinOf(evidenceRef: string): DatasetPin | null
 }
 export type ConversationErrorCode =
   | "INVALID_ARGS" | "NOT_FOUND" | "DUPLICATE" | "CONFLICT" | "CORRUPT" | "STORAGE_ERROR"
@@ -336,7 +341,7 @@ export interface TurnChange {
   /** `add` = addEvidence; `refresh` = refreshEvidence (STALE → CURRENT no mesmo ref). */
   readonly writes?: ReadonlyArray<{ readonly op: "add" | "refresh"; readonly entry: unknown }>
   /** A consulta original de cada ref gravado/existente (aliases, nunca refs reais). */
-  readonly specs?: ReadonlyArray<{ readonly evidenceRef: string; readonly capability: string; readonly args: unknown }>
+  readonly specs?: ReadonlyArray<{ readonly evidenceRef: string; readonly capability: string; readonly args: unknown; readonly pin: DatasetPin }>
   /** A tabela de alias que a capacidade devolveu (da época vigente, só crescendo pelo fim). */
   readonly aliases?: AliasTable
 }
@@ -358,13 +363,20 @@ export function createConversations(deps: { store: ConversationStore; now?: () =
     const open: OpenConversation = Object.freeze({
       conversationId: m.conversationId, version: m.version, epoch: currentEpoch(m), ledger, aliases,
       specOf: (ref: string) => { const s = typeof ref === "string" && EVIDENCE_REF_RE.test(ref) ? m.specs.get(ref) : undefined; return s === undefined ? null : clone({ capability: s.capability, args: s.args }) },
+      pinOf: (ref: string) => { const s = typeof ref === "string" && EVIDENCE_REF_RE.test(ref) ? m.specs.get(ref) : undefined; return s === undefined ? null : clone(s.pin) },
     })
     models.set(open, m)
     return open
   }
   const build = (meta: ConversationMeta, deltas: ReadonlyArray<StoredDelta | CorruptDelta>): { readonly ok: true; readonly open: OpenConversation } | ConversationFailure => {
     let m: Model | null = { userId: meta.userId, conversationId: meta.conversationId, version: 0, epochs: [meta.epoch], rows: new Map(), specs: new Map(), alias: null, seq: 0 }
-    for (const d of deltas) { if ("corrupt" in d) return fail("CORRUPT"); m = foldDelta(m, d); if (m === null) return fail("CORRUPT") }
+    for (const d of deltas) {
+      if ("corrupt" in d) return fail("CORRUPT")
+      const body = parseDeltaBody(d) // defesa em profundidade: qualquer store (memória, disco, o futuro Prisma) é revalidado aqui
+      if (body === null || !Number.isInteger(d.version) || !isIso(d.createdAt)) return fail("CORRUPT")
+      m = foldDelta(m, { version: d.version, createdAt: d.createdAt, ...body })
+      if (m === null) return fail("CORRUPT")
+    }
     const ledger = ledgerOf(m)
     return ledger === null ? fail("CORRUPT") : { ok: true, open: makeOpen(m, ledger) }
   }
@@ -426,7 +438,9 @@ export function createConversations(deps: { store: ConversationStore; now?: () =
         // 3) specs: ref existente no ledger, mesma capacidade, args puros e SEM refs reais
         const specWrites: SpecWrite[] = []
         for (const s of specs) {
-          if (!isRecord(s) || Object.keys(s).sort().join(",") !== "args,capability,evidenceRef" || typeof s.evidenceRef !== "string" || !EVIDENCE_REF_RE.test(s.evidenceRef) || typeof s.capability !== "string" || !(CAPABILITY_IDS as readonly string[]).includes(s.capability)) return fail("SPEC_INVALID")
+          if (!isRecord(s) || Object.keys(s).sort().join(",") !== "args,capability,evidenceRef,pin" || typeof s.evidenceRef !== "string" || !EVIDENCE_REF_RE.test(s.evidenceRef) || typeof s.capability !== "string" || !(CAPABILITY_IDS as readonly string[]).includes(s.capability)) return fail("SPEC_INVALID")
+          const pin = parseDatasetPin(s.pin)
+          if (pin === null) return fail("SPEC_INVALID")
           const entry = lookupRef(ledger, s.evidenceRef)
           if (entry === null) return fail("SPEC_REF_UNKNOWN")
           if (entry.capability !== s.capability) return fail("SPEC_INVALID")
@@ -434,8 +448,8 @@ export function createConversations(deps: { store: ConversationStore; now?: () =
           try { text = canonicalJson(s.args) } catch { return fail("SPEC_INVALID") }
           if (REAL_REF_RE.test(text)) return fail("SPEC_HAS_REAL_REF")
           const have = m.specs.get(s.evidenceRef)
-          if (have !== undefined && !sameJson(have, { capability: s.capability, args: clone(s.args) })) return fail("SPEC_CONFLICT")
-          specWrites.push({ evidenceRef: s.evidenceRef, capability: s.capability, args: clone(s.args) })
+          if (have !== undefined && !sameJson(have, { capability: s.capability, args: clone(s.args), pin })) return fail("SPEC_CONFLICT")
+          specWrites.push({ evidenceRef: s.evidenceRef, capability: s.capability, args: clone(s.args), pin })
         }
 
         // 4) o que se grava é a forma NORMALIZADA que o domínio aceitou (saída do zod), não a entrada crua

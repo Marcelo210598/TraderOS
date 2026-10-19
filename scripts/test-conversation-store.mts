@@ -39,7 +39,9 @@ const table = (epoch: string, conta: string[] = [], estrategia: string[] = [], r
 const SPEC = (): Any => ({ groupBy: ["conta"], metricIds: ["netPnl"], filters: { account: ["Conta A"] }, options: {} })
 const add = (e: Any): Any => ({ op: "add", entry: e })
 const refresh = (e: Any): Any => ({ op: "refresh", entry: e })
-const spec = (e: Any, args: unknown = SPEC()): Any => ({ evidenceRef: refOf(e), capability: e.capability, args })
+const SHA = (c: string): string => c.repeat(64)
+const PIN = (): Any => ({ sources: [{ fileSha256: SHA("a") }], analysis: {} })
+const spec = (e: Any, args: unknown = SPEC(), pin: unknown = PIN()): Any => ({ evidenceRef: refOf(e), capability: e.capability, args, pin })
 
 // ── armazenamentos ──
 const TMPS: string[] = []
@@ -225,9 +227,9 @@ await test("I4 — spec: ref fora do ledger ⇒ SPEC_REF_UNKNOWN; capacidade dif
     const { convs, open: o0 } = await start(store)
     const a = qEntry("a")
     let o = await commit(convs, o0, { writes: [add(a)], specs: [spec(a)] })
-    assert.equal(codeOf(await convs.commitTurn(o, { specs: [{ evidenceRef: REF("e"), capability: "metrics.query@1", args: {} }] })), "SPEC_REF_UNKNOWN", name)
-    assert.equal(codeOf(await convs.commitTurn(o, { specs: [{ evidenceRef: refOf(a), capability: "metrics.groups@1", args: {} }] })), "SPEC_INVALID", name)
-    for (const bad of [{ evidenceRef: "xx", capability: "metrics.query@1", args: {} }, { evidenceRef: refOf(a), capability: "nao.existe@1", args: {} }, { evidenceRef: refOf(a), capability: "metrics.query@1", args: {}, extra: 1 }, null, 5]) assert.equal(codeOf(await convs.commitTurn(o, { specs: [bad as Any] })), "SPEC_INVALID", name)
+    assert.equal(codeOf(await convs.commitTurn(o, { specs: [{ evidenceRef: REF("e"), capability: "metrics.query@1", args: {}, pin: PIN() }] })), "SPEC_REF_UNKNOWN", name)
+    assert.equal(codeOf(await convs.commitTurn(o, { specs: [{ evidenceRef: refOf(a), capability: "metrics.groups@1", args: {}, pin: PIN() }] })), "SPEC_INVALID", name)
+    for (const bad of [{ evidenceRef: "xx", capability: "metrics.query@1", args: {} }, { evidenceRef: refOf(a), capability: "nao.existe@1", args: {}, pin: PIN() }, { evidenceRef: refOf(a), capability: "metrics.query@1", args: {}, pin: PIN(), extra: 1 }, null, 5]) assert.equal(codeOf(await convs.commitTurn(o, { specs: [bad as Any] })), "SPEC_INVALID", name)
     assert.equal(codeOf(await convs.commitTurn(o, { specs: [spec(a, { outra: "coisa" })] })), "SPEC_CONFLICT", name)
     o = await commit(convs, o, { specs: [spec(a)] }) // idêntica: ok
     assert.equal(o.version, 2, name)
@@ -269,6 +271,91 @@ await test("I6 — mesmo ref com conteúdo DIFERENTE ⇒ LEDGER_CONFLICT; idênt
     o = await commit(convs, o, { writes: [add(a)] }) // idêntico: aceito
     assert.equal(o.version, 2, name)
     assert.equal(Object.keys((await reopen(store, U1, o)).ledger.entries).length, 1, name)
+  })
+})
+
+// ───────────────────────────── P: pin de dataset por spec (E7-4, D-B2) ─────────────────────────────
+await test("P1 — pin obrigatório e validado: ausente, 0 ou 11 sources, duplicado, sha inválido, chave extra, analysis inválido ⇒ SPEC_INVALID (fachada) / INVALID_ARGS (store); válidos passam", async () => {
+  await both(async (store, name) => {
+    const { convs, open: o0 } = await start(store)
+    const a = qEntry("a")
+    const o = await commit(convs, o0, { writes: [add(a)] })
+    const src = (...cs: string[]): Any[] => cs.map((c) => ({ fileSha256: SHA(c) }))
+    const bad: Array<[string, unknown]> = [
+      ["ausente", undefined], ["null", null], ["array", []], ["sem sources", { analysis: {} }], ["sem analysis", { sources: src("a") }], ["sources vazio", { sources: [], analysis: {} }],
+      ["11 sources", { sources: src(..."0123456789a".split("")), analysis: {} }], ["duplicado", { sources: src("a", "a"), analysis: {} }], ["sha maiúsculo", { sources: [{ fileSha256: "A".repeat(64) }], analysis: {} }],
+      ["sha curto", { sources: [{ fileSha256: "a".repeat(63) }], analysis: {} }], ["source com chave extra", { sources: [{ fileSha256: SHA("a"), fileName: "x.csv" }], analysis: {} }], ["sources não é array", { sources: "a", analysis: {} }],
+      ["pin com chave extra", { sources: src("a"), analysis: {}, extra: 1 }], ["analysis com chave extra", { sources: src("a"), analysis: { locale: "BR" } }], ["analysis array", { sources: src("a"), analysis: [] }],
+      ["timeZone inexistente", { sources: src("a"), analysis: { timeZone: "Nao/Existe" } }], ["timeZone vazio", { sources: src("a"), analysis: { timeZone: "" } }], ["timeZone número", { sources: src("a"), analysis: { timeZone: 5 } }],
+      ["minSample 0", { sources: src("a"), analysis: { minSample: 0 } }], ["minSample fracionário", { sources: src("a"), analysis: { minSample: 1.5 } }], ["minSample negativo", { sources: src("a"), analysis: { minSample: -1 } }], ["minSample texto", { sources: src("a"), analysis: { minSample: "5" } }], ["minSample gigante", { sources: src("a"), analysis: { minSample: 100001 } }],
+    ]
+    for (const [why, pin] of bad) {
+      const sp = pin === undefined ? { evidenceRef: refOf(a), capability: a.capability, args: SPEC() } : spec(a, SPEC(), pin) // `undefined` acionaria o padrão do parâmetro
+      assert.equal(codeOf(await convs.commitTurn(o, { specs: [sp] })), "SPEC_INVALID", `${name}: ${why}`)
+      const body = { rotateTo: null, writes: [], specs: [{ evidenceRef: refOf(a), capability: a.capability, args: SPEC(), ...(pin === undefined ? {} : { pin }) }], alias: null }
+      assert.deepEqual(await store.commit(U1, o.conversationId, o.version, body as Any, FIXED()), conversationStoreFailure("INVALID_ARGS"), `${name} (store): ${why}`)
+    }
+    assert.equal((await reopen(store, U1, o)).version, 1, `${name}: as recusas não gravaram nada`)
+    const valid = [{ sources: src(..."0123456789".split("")), analysis: {} }, { sources: src("a"), analysis: { timeZone: "America/Sao_Paulo" } }, { sources: src("a"), analysis: { minSample: 30 } }, { sources: src("a"), analysis: { timeZone: "UTC", minSample: 1 } }]
+    let cur = o
+    for (let i = 0; i < valid.length; i++) { const e = qEntry(200 + i); cur = await commit(convs, cur, { writes: [add(e)], specs: [spec(e, SPEC(), valid[i])] }); assert.deepEqual(cur.pinOf(refOf(e))!.analysis, valid[i].analysis, `${name}: válido #${i}`) }
+  })
+})
+
+await test("P2 — o pin faz ida e volta pelo log e os sources são gravados em ordem CANÔNICA (sha crescente), qualquer que seja a ordem pedida", async () => {
+  await both(async (store, name) => {
+    const { convs, open: o0 } = await start(store)
+    const a = qEntry("a"), b = qEntry("b")
+    const pinA = { sources: [{ fileSha256: SHA("c") }, { fileSha256: SHA("a") }, { fileSha256: SHA("b") }], analysis: { timeZone: "America/Sao_Paulo", minSample: 5 } }
+    const pinB = { sources: [{ fileSha256: SHA("f") }], analysis: {} }
+    const o = await commit(convs, o0, { writes: [add(a), add(b)], specs: [spec(a, SPEC(), pinA), spec(b, SPEC(), pinB)] })
+    const back = await reopen(store, U1, o)
+    assert.deepEqual(back.pinOf(refOf(a)), { sources: [{ fileSha256: SHA("a") }, { fileSha256: SHA("b") }, { fileSha256: SHA("c") }], analysis: { timeZone: "America/Sao_Paulo", minSample: 5 } }, name)
+    assert.deepEqual(back.pinOf(refOf(b)), pinB, name)
+    const stored = ((await store.load(U1, o.conversationId)) as Any).deltas[0].specs
+    assert.deepEqual(stored[0].pin.sources.map((s: Any) => s.fileSha256), [SHA("a"), SHA("b"), SHA("c")], `${name}: no log já está ordenado`)
+  })
+})
+
+await test("P3 — mesmo ref com pin DIFERENTE ⇒ SPEC_CONFLICT (nada gravado); pin idêntico, mesmo pedido em outra ordem, é idempotente", async () => {
+  await both(async (store, name) => {
+    const { convs, open: o0 } = await start(store)
+    const a = qEntry("a")
+    const two = (x: string, y: string): Any => ({ sources: [{ fileSha256: SHA(x) }, { fileSha256: SHA(y) }], analysis: {} })
+    let o = await commit(convs, o0, { writes: [add(a)], specs: [spec(a, SPEC(), two("a", "b"))] })
+    for (const pin of [two("a", "c"), { sources: [{ fileSha256: SHA("a") }], analysis: {} }, { ...two("a", "b"), analysis: { minSample: 5 } }, { ...two("a", "b"), analysis: { timeZone: "UTC" } }]) assert.equal(codeOf(await convs.commitTurn(o, { specs: [spec(a, SPEC(), pin)] })), "SPEC_CONFLICT", `${name}: ${JSON.stringify(pin).slice(0, 70)}`)
+    o = await commit(convs, o, { specs: [spec(a, SPEC(), two("b", "a"))] }) // mesma coisa em outra ordem
+    assert.equal(o.version, 2, name)
+    assert.deepEqual(o.pinOf(refOf(a)), two("a", "b"), name)
+  })
+})
+
+await test("P4 — delta GUARDADO sem pin (formato antigo do E7-3) ⇒ CORRUPT só daquela conversa; pin adulterado no log idem; a outra conversa segue", async () => {
+  await both(async (store, name) => {
+    const { convs, open: o0 } = await start(store, U1, "s1", "velha")
+    const a = qEntry("a")
+    await commit(convs, o0, { writes: [add(a)], specs: [spec(a)] })
+    const other = await start(store, U1, "s1", "outra")
+    await commit(other.convs, other.open, { writes: [add(qEntry("b"))] })
+    const tamper = (f: (specs: Any[]) => void): ConversationStore => ({ ...store, async load(u, c) { const r: Any = await store.load(u, c); if (!r.ok || c !== "velha") return r; const d = JSON.parse(JSON.stringify(r.deltas)); f(d[0].specs); return { ...r, deltas: d } } })
+    for (const [why, f] of [["sem pin", (sp: Any[]) => { delete sp[0].pin }], ["pin vazio", (sp: Any[]) => { sp[0].pin = {} }], ["sources fora do formato", (sp: Any[]) => { sp[0].pin.sources = ["x"] }], ["sha inválido", (sp: Any[]) => { sp[0].pin.sources[0].fileSha256 = "xyz" }]] as Array<[string, (sp: Any[]) => void]>) assert.equal(codeOf(await facade(tamper(f)).open(U1, "velha")), "CORRUPT", `${name}: ${why}`)
+    assert.equal(codeOf(await facade(tamper(() => {})).open(U1, "velha")), "OK", `${name}: sem adulterar, abre`)
+    assert.equal(codeOf(await facade(store).open(U1, "outra")), "OK", name)
+  })
+})
+
+await test("P5 — specOf mantém a forma {capability,args} (o refresh não muda); pinOf devolve CÓPIA, e null para desconhecido/malformado/protótipo", async () => {
+  await both(async (store, name) => {
+    const { convs, open: o0 } = await start(store)
+    const a = qEntry("a"), c = qEntry("c")
+    const o = await commit(convs, o0, { writes: [add(a), add(c)], specs: [spec(a)] })
+    const back = await reopen(store, U1, o)
+    assert.deepEqual(Object.keys(back.specOf(refOf(a))!).sort(), ["args", "capability"], name)
+    assert.deepEqual(back.pinOf(refOf(a)), PIN(), name)
+    assert.equal(back.pinOf(refOf(c)), null, `${name}: entrada sem spec`)
+    for (const bad of [REF("f"), "", "ev_zz", "__proto__", "constructor", null as Any, undefined as Any, 5 as Any]) assert.equal(back.pinOf(bad), null, `${name}: ${String(bad)}`)
+    const p: Any = back.pinOf(refOf(a)); p.sources.push({ fileSha256: SHA("z") }); p.analysis.minSample = 99
+    assert.deepEqual(back.pinOf(refOf(a)), PIN(), `${name}: mexer no retorno não altera a próxima chamada`)
   })
 })
 
