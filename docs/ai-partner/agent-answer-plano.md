@@ -406,3 +406,12 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Mudança em código existente:** `assess.ts` + 6 capacidades (uma linha cada) + tipo `MetricsQueryContext`. Sem gancho a saída é idêntica.
 - **Casos (≈36):** H1–H6, C1–C8, F1–F4, G1–G13 (oráculo G1–G6: as 6 capacidades regeneram ref e bundle idênticos), B1–B3, X1–X2. **Mutações RM1–RM18.**
 - **Limites declarados:** cache em memória do processo (serverless = um por instância); sem cota por usuário; 17–20 MiB não medido; stops do usuário fora do pin.
+
+
+## 40. Expectativa do E7-6 (19/10/2026) — executor determinístico do turno (sem LLM)
+
+- **Autorizado** pelo Marcelo/Gemini: D-T0 (sem LLM), D-T4 (explain fora do ledger), D-T1/D-T2/D-T3/D-T5…D-T9 em bloco e os portões Q3 e SC11/SG1 **nominais** para `turn-session.ts`. Detalhe em `scripts/expectations/agent-answer.expected.json` → `e7_6`.
+- **Achados:** (1) o levantamento deixa o orquestrador com LLM fora da E7 — o que falta do elo de dados é o executor do turno; (2) **MEDIDO:** a entrada do `evidence.explain` sobre o ref já registrado dá `LEDGER_CONFLICT` (o ledger guarda uma entrada por ref) ⇒ o detalhe dos trades não é citável; (3) **MEDIDO:** argumentos equivalentes geram refs diferentes ⇒ `SPEC_CONFLICT` é praticamente inalcançável por consulta honesta; (4) o contrato só tem 5 códigos de erro e 4 motivos de parada.
+- **Decisões:** `openTurn/call/commit` com pin e userId do servidor; UM commit no fim (CAS, sem retry ⇒ `TURN_CONFLICT`); sal carregado 1x; ctx memoizado por pin; aliases fluem entre chamadas; época desatualizada ⇒ ledger rotacionado + `rotateTo`; refresh herda spec+pin; tradução fail-closed sem código novo; `onBundle` aquece o cache; `session.validate` = `validateAnswer` + `recordRejection`.
+- **Casos (≈32):** O1–O3, K1–K9, C1–C5, V1–V2, S1–S2. **Mutações EM1–EM16.**
+- **Limites declarados:** explain não citável; pin único por turno; sem mensagens/custo de modelo; cache por instância; bundles de 17–20 MiB só extrapolados.

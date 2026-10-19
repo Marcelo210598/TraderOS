@@ -6082,5 +6082,78 @@
     ],
     "baselines": "1195 linhas ✓ idênticas; só se acrescentam os casos acima (3 arquivos novos no test:domain). Mudança em arquivos existentes de src/: assess.ts + 6 capacidades (uma linha cada) — diff comprovado. Estimativa ≈36 casos (as últimas saíram 29 e 21 contra o previsto).",
     "limites": "cache só em memória do processo (em serverless cada instância tem o seu); tempo de 17–20 MiB só extrapolado; stops do usuário fora do pin; sem cota por usuário no cache."
+  },
+  "e7_6": {
+    "status": "EXPECTATIVA (19/10/2026) escrita ANTES do código do E7-6 (executor DETERMINÍSTICO do turno, SEM LLM). Aprovados pelo Marcelo/Gemini: D-T0 (sem LLM), D-T4 (explain fora do ledger, opção A), D-T1/D-T2/D-T3/D-T5..D-T9 em bloco, e os portões Q3 e SC11/SG1 NOMINAIS para turn-session.ts. Fora: laço com modelo, prompt, UI, rate-limit, plano, mensagens, custo, Prisma, nuvem.",
+    "files": [
+      "src/lib/infra/turn-session.ts (novo): openTurn(deps,{userId,conversationId,pin}) → session; session.call(capability,args) async; session.validate(answer,question); session.commit()",
+      "scripts/test-turn-session.mts (novo, entra no test:domain)",
+      "scripts/test-agent-capabilities-static.mts (Q3: exceção nominal ALÉM de regenerate.ts) e os portões SC11/SG1 (exceção nominal): só turn-session.ts",
+      "package.json: test:domain ganha o arquivo"
+    ],
+    "nao_muda": "agent/*, agent-capabilities/*, conversation-store.ts, dataset*.ts, regenerate.ts, bundle-cache.ts, salt-store.ts, ledger.ts; prisma/; sem LLM/UI. Em src/ rastreado: nada além do novo arquivo.",
+    "fatos_medidos_e_lidos": {
+      "escopo": "E7-levantamento §8: LLM/orquestrador fora da E7; o que falta do elo de dados é o executor do turno.",
+      "explain_x_ledger": "MEDIDO: addEvidence(entry do evidence.explain) sobre o ref já registrado pela entrada analítica ⇒ LEDGER_CONFLICT; sozinho entra. O ledger guarda UMA entrada por ref.",
+      "refs_equivalentes": "MEDIDO: metricIds em outra ordem, from redundante e symbol redundante geram refs DIFERENTES (os args entram no bundle) ⇒ SPEC_CONFLICT é praticamente inalcançável por consulta honesta.",
+      "contrato": "5 códigos de erro (ARGS_INVALID, NOT_FOUND, BUDGET_EXCEEDED, ENGINE_REFUSED, FILE_NOT_AVAILABLE) e 4 motivos de parada (BUDGET_CALLS, REGEN_EXHAUSTED, CAPABILITY_FAILED, FILE_NOT_AVAILABLE).",
+      "turn_ts": "máquina pura: 8 chamadas, N=2 regenerações; capacidade inexistente consome chamada (ARGS_INVALID).",
+      "custo": "pipeline ≈225 ms por 5.000 linhas (E7-4): sem memoização do ctx por pin seriam até 8x por turno."
+    },
+    "decisions_DT": {
+      "D-T0": "executor sem LLM em infra/turn-session.ts",
+      "D-T1": "openTurn/call/commit; pin e userId vêm do SERVIDOR, nunca do modelo; pin único por turno",
+      "D-T2": "UM commit no fim (delta atômico do E7-3); CONFLICT ⇒ TURN_CONFLICT, sem retry, nada entregue; chamadas intermediárias só mexem no estado de trabalho",
+      "D-T3": "salts.load uma vez por turno; sem sal atual ⇒ SALT_REQUIRED; makeContext memoizado por pin; cada chamada recebe {ctx, aliases do estado de trabalho, onBundle}; aliases devolvidos alimentam as chamadas seguintes",
+      "D-T4": "evidence.explain executa via prepareBundle e devolve o resultado ao modelo, mas a entrada NÃO vai ao ledger (limite: o detalhe dos trades não é citável)",
+      "D-T5": "sal atual ≠ época da conversa ao abrir ⇒ rotateEpoch no ledger de trabalho e rotateTo no commit; nada é refeito sozinho",
+      "D-T6": "refresh no turno: regeneratedFor → evidenceRefresh → refreshEvidence; o ref novo herda spec+pin do antigo",
+      "D-T7": "tradução fail-closed sem código novo: LEDGER_CONFLICT ⇒ ENGINE_REFUSED (entrada não entra); arquivo/linha ausente ou corrompido ⇒ FILE_NOT_AVAILABLE; demais do makeContext ⇒ ENGINE_REFUSED; 9ª ⇒ BUDGET_EXCEEDED; ref STALE no explain ⇒ NOT_FOUND; tudo por recordError/stopReasonForError",
+      "D-T8": "onBundle aquece o cache",
+      "D-T9": "session.validate = validateAnswer(ledger de trabalho, stop do turno) + recordRejection; sem chamar modelo"
+    },
+    "cases": [
+      "O1 conversa nova e existente; sal pré-carregado (provider de snapshot)",
+      "O2 época desatualizada ⇒ ledger de trabalho rotacionado, entradas STALE, rotateTo no commit",
+      "O3 sem sal ⇒ SALT_REQUIRED; entradas hostis (userId inválido, pin inválido, conversa de outro usuário) ⇒ resultado tipado, nada lança",
+      "K1 as 6 analíticas via executor: entrada IDÊNTICA à chamada direta; spec+pin gravados; cache aquecido",
+      "K2 alias flui no mesmo turno (groups e depois query com Conta A)",
+      "K3 orçamento: a 9ª ⇒ BUDGET_EXCEEDED sem executar; capacidade inexistente consome chamada",
+      "K4 explain: bundle pela regeneração/cache, resultado ao modelo, entrada NÃO vai ao ledger, veredito igual ao original",
+      "K5 refresh dentro do turno: ref novo CURRENT, spec+pin herdados, antigo segue STALE",
+      "K6 colisão breakdown×analysis no mesmo turno ⇒ ENGINE_REFUSED, ledger de trabalho intacto, recordError",
+      "K7 repetição idêntica é idempotente (mesma entrada, 1 spec)",
+      "K8 códigos do makeContext traduzidos (tabela completa)",
+      "K9 ctx memoizado por pin (rawStorage.get 1x em 3 chamadas); pin do turno é o usado",
+      "C1 commit persiste entradas, specs e aliases; reabre em instâncias NOVAS; regenera o bundle",
+      "C2 TURN_CONFLICT quando outra sessão commitou antes: nada do turno persistido, o da outra intacto, sem retry",
+      "C3 limites do store (500/256 KiB/2 MiB) ⇒ erro tipado, nada persistido",
+      "C4 sessão fechada após commit ⇒ TURN_CLOSED em call/commit/validate",
+      "C5 turno sem escritas não avança a versão (committed:false)",
+      "V1 validate: resposta válida aceita sobre o ledger de trabalho; rejeitada ⇒ feedback só de códigos; 3ª ⇒ REGEN_EXHAUSTED e stopResponse",
+      "V2 stop BUDGET_CALLS chega ao validador após a 9ª",
+      "S1 nenhum resultado ecoa sal, caminho, fileName ou mensagem; arquivos em disco sem o valor do sal",
+      "S2 tripwire: turn-session.ts é o ÚNICO além de regenerate.ts a importar agent-capabilities/ e o único em infra/ a importar agent/ (turn, ledger, validate-answer); não importa salt.ts; sem node:crypto"
+    ],
+    "mutations_planned": [
+      "EM1 commit por chamada ⇒ C2/C5",
+      "EM2 ctx sem memoização ⇒ K9",
+      "EM3 aliases do turno perdidos ⇒ K2",
+      "EM4 explain gravado no ledger ⇒ K4",
+      "EM5 colisão aceita ⇒ K6",
+      "EM6 spec sem pin no refresh ⇒ K5",
+      "EM7 rotação de época esquecida ⇒ O2",
+      "EM8 retry no CONFLICT ⇒ C2",
+      "EM9 capacidade inexistente sem consumir chamada ⇒ K3",
+      "EM10 erro sem recordError ⇒ K3/V2",
+      "EM11 cache sem aquecimento ⇒ K1",
+      "EM12 userId vindo dos args ⇒ O3",
+      "EM13 eco do sal ⇒ S1",
+      "EM14 sessão reutilizada após o commit ⇒ C4",
+      "EM15 validate sem o stop do turno ⇒ V2",
+      "EM16 pin do turno ignorado ⇒ K9/K1"
+    ],
+    "baselines": "1232 linhas ✓ idênticas; só se acrescentam os casos acima (1 arquivo novo); as exceções nominais dos portões renomeiam as linhas Q3/SC11/SG1 (1 a 3 linhas trocadas, declaradas). Estimativa ≈32 casos (as últimas saíram 37, 29 e 21 contra o previsto).",
+    "limites": "explain não citável (D-T4); pin único por turno; sem mensagens nem custo de modelo; cache por instância; turnos com bundles de 17–20 MiB só extrapolados."
   }
 }
