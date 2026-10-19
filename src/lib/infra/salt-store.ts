@@ -5,7 +5,7 @@
 // Linha corrompida/adulterada NÃO derruba o usuário: aquele saltId some do provider (projetado como aposentado, sem valor — falha fechada) e vai listado em `unavailable` com um código. Se for a ÚLTIMA linha,
 // não há sal atual (nunca cai para um mais antigo em silêncio).
 // Limites declarados: o `provider` é um instantâneo (recarregue por turno); `replaceCipher`/`retire` em disco conferem e depois renomeiam (CAS não atômico entre PROCESSOS — a rotação é operação administrativa de um escritor só).
-import { link, lstat, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises"
+import { link, lstat, mkdir, readFile, readdir, rename, rm, unlink, writeFile } from "node:fs/promises"
 import { isAbsolute, join, relative, resolve } from "node:path"
 import { SALT_CHECK_RE, SALT_ID_RE } from "../domain/canonical.ts"
 import { InMemorySaltKeyring, SaltError, isStrongSalt, saltCheck, type SaltProvider } from "../ingest/salt.ts"
@@ -45,6 +45,8 @@ export interface SaltStore {
   /** Troca o ciphertext SÓ se a linha ainda tem `expected` (keyVersion + nonce); senão CONFLICT. */
   replaceCipher(userId: string, saltId: string, expected: { readonly keyVersion: number; readonly nonce: Uint8Array }, next: Sealed): Promise<{ readonly ok: true } | SaltStoreFailure>
   listUsers(): Promise<{ readonly ok: true; readonly userIds: string[] } | SaltStoreFailure>
+  /** E7-7 (LGPD, crypto-shredding): apaga TODAS as linhas do usuário (CURRENT, RETIRED e ilegíveis). Idempotente: sem dados ⇒ ok com 0. Isolado por usuário. */
+  deleteAllForUser(userId: string): Promise<{ readonly ok: true; readonly deleted: number } | SaltStoreFailure>
 }
 
 const KEYS = ["ciphertext", "createdAt", "keyVersion", "nonce", "retiredAt", "saltCheck", "saltId", "status", "userId"] // ordem alfabética (comparada com Object.keys().sort())
@@ -114,13 +116,19 @@ export function createMemorySaltStore(): SaltStore {
     async listUsers() {
       return { ok: true, userIds: [...users.keys()].sort() }
     },
+    async deleteAllForUser(userId) {
+      if (!isValidUserId(userId)) return saltStoreFailure("INVALID_ARGS")
+      const deleted = users.get(userId)?.size ?? 0
+      users.delete(userId)
+      return { ok: true, deleted }
+    },
   }
 }
 
 // ───────────────────────────── disco ─────────────────────────────
 // Layout: {root}/salts/{userId}/{saltId}.json, arquivos 0600 e diretórios 0700. Criação ATÔMICA: temporário exclusivo (`wx`) + hard link para o nome final (falha se já existe ⇒ DUPLICATE com escritores
 // simultâneos). Reescrita (retire/replaceCipher): temporário + rename. Recusa SEGUIR symlink em salts/ e salts/{userId}. Nenhum método lança.
-export interface DiskSaltOps { link: typeof link; lstat: typeof lstat; mkdir: typeof mkdir; readFile: typeof readFile; readdir: typeof readdir; rename: typeof rename; unlink: typeof unlink; writeFile: typeof writeFile }
+export interface DiskSaltOps { link: typeof link; lstat: typeof lstat; mkdir: typeof mkdir; readFile: typeof readFile; readdir: typeof readdir; rename: typeof rename; rm: typeof rm; unlink: typeof unlink; writeFile: typeof writeFile }
 const codeOf = (e: unknown): string | undefined => (typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : undefined)
 const b64 = (u: Uint8Array | null): string | null => (u === null ? null : Buffer.from(u).toString("base64"))
 const fromB64 = (s: unknown): Uint8Array | null | undefined => (s === null ? null : typeof s === "string" && /^[A-Za-z0-9+/]*={0,2}$/.test(s) ? new Uint8Array(Buffer.from(s, "base64")) : undefined)
@@ -145,7 +153,7 @@ function decodeRow(text: string, userId: string, saltId: string): StoredRow {
 export function createDiskSaltStore(rootDir: string, overrides: Partial<DiskSaltOps> = {}): SaltStore {
   if (typeof rootDir !== "string" || rootDir === "" || !isAbsolute(rootDir)) throw new TypeError("rootDir precisa ser um caminho absoluto")
   const root = resolve(rootDir)
-  const ops: DiskSaltOps = { link, lstat, mkdir, readFile, readdir, rename, unlink, writeFile, ...overrides }
+  const ops: DiskSaltOps = { link, lstat, mkdir, readFile, readdir, rename, rm, unlink, writeFile, ...overrides }
   const salts = join(root, "salts")
   const inside = (p: string): boolean => { const rel = relative(root, p); return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel) }
   const noSymlinks = async (list: string[]): Promise<boolean> => {
@@ -255,6 +263,19 @@ export function createDiskSaltStore(rootDir: string, overrides: Partial<DiskSalt
         let names: string[] = []
         try { names = await ops.readdir(salts) } catch (e) { if (codeOf(e) !== "ENOENT") throw e }
         return { ok: true, userIds: names.filter(isValidUserId).sort() }
+      } catch {
+        return saltStoreFailure("STORAGE_ERROR")
+      }
+    },
+    async deleteAllForUser(userId) {
+      try {
+        if (!isValidUserId(userId)) return saltStoreFailure("INVALID_ARGS")
+        const dir = await prepare(userId, false)
+        if (dir === null) return saltStoreFailure("STORAGE_ERROR")
+        let deleted = 0
+        try { deleted = (await ops.readdir(dir)).filter((n) => n.endsWith(".json") && !n.startsWith(".")).length } catch (e) { if (codeOf(e) !== "ENOENT") throw e }
+        await ops.rm(dir, { recursive: true, force: true })
+        return { ok: true, deleted }
       } catch {
         return saltStoreFailure("STORAGE_ERROR")
       }

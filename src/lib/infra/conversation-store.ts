@@ -4,7 +4,7 @@
 // Leitura: o log é dobrado (fold) para um MODELO RELACIONAL (linhas com `seq`, épocas em ordem, specs, alias) e o ledger é remontado pelas funções PURAS do domínio, em ordem (índice da época, seq): newLedger → addEvidence →
 // rotateEpoch → addEvidence… (uma entrada antiga não passa por addEvidence na época nova, e o refresh sobrescreve a linha no lugar — por isso não basta ordenar por seq). Qualquer inconsistência ⇒ CORRUPT (só daquela conversa).
 // Nada lança; erros são códigos fixos, sem mensagem, sem caminho e sem eco. O valor das specs/alias nunca contém nome de conta: refs de alias são hashes `acc_/str_/lbl_` (formato conferido); specs não podem conter nenhum.
-import { link, lstat, mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises"
+import { link, lstat, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises"
 import { isAbsolute, join, relative, resolve } from "node:path"
 import { CAPABILITY_IDS, EVIDENCE_REF_RE } from "../agent/contract.ts"
 import { newAliasTable, type AliasTable } from "../agent/label.ts"
@@ -48,6 +48,10 @@ export interface ConversationStore {
   load(userId: string, conversationId: string): Promise<{ readonly ok: true; readonly meta: ConversationMeta; readonly deltas: ReadonlyArray<StoredDelta | CorruptDelta> } | ConversationStoreFailure>
   /** Grava o delta de versão `expectedVersion + 1` SÓ se a conversa está exatamente em `expectedVersion`; senão CONFLICT, sem nenhum efeito. */
   commit(userId: string, conversationId: string, expectedVersion: number, delta: DeltaBody, createdAt: string): Promise<{ readonly ok: true; readonly version: number } | ConversationStoreFailure>
+  /** E7-7 (LGPD): apaga a conversa e todos os seus deltas. Idempotente: inexistente (ou de outro usuário) ⇒ ok com `existed:false`. */
+  delete(userId: string, conversationId: string): Promise<{ readonly ok: true; readonly existed: boolean } | ConversationStoreFailure>
+  /** E7-7 (LGPD): apaga TODAS as conversas do usuário (e o diretório dele em disco). Idempotente: sem dados ⇒ ok com 0. */
+  deleteAllForUser(userId: string): Promise<{ readonly ok: true; readonly deleted: number } | ConversationStoreFailure>
 }
 
 // ───────────────────────────── validação estrutural (memória e disco usam a mesma régua) ─────────────────────────────
@@ -146,20 +150,30 @@ export function createMemoryConversationStore(): ConversationStore {
       c.deltas.push({ version, createdAt, ...checked.delta })
       return { ok: true, version }
     },
+    async delete(userId, conversationId) {
+      if (!isId(userId) || !isId(conversationId)) return conversationStoreFailure("INVALID_ARGS")
+      return { ok: true, existed: convs.delete(key(userId, conversationId)) }
+    },
+    async deleteAllForUser(userId) {
+      if (!isId(userId)) return conversationStoreFailure("INVALID_ARGS")
+      let deleted = 0
+      for (const k of [...convs.keys()]) if (k.startsWith(`${userId}/`)) { convs.delete(k); deleted += 1 }
+      return { ok: true, deleted }
+    },
   }
 }
 
 // ───────────────────────────── disco ─────────────────────────────
 // Layout: {root}/conversations/{userId}/{conversationId}/meta.json e v000001.json, v000002.json…; arquivos 0600, diretórios 0700. Criação ATÔMICA de cada arquivo: temporário exclusivo (`wx`) + hard link para o nome final
 // (falha se já existe ⇒ DUPLICATE/CONFLICT com escritores simultâneos). Nunca reescreve um delta. Recusa SEGUIR symlink. Lacuna no log ⇒ CORRUPT. Nenhum método lança.
-export interface DiskConversationOps { link: typeof link; lstat: typeof lstat; mkdir: typeof mkdir; readFile: typeof readFile; readdir: typeof readdir; unlink: typeof unlink; writeFile: typeof writeFile }
+export interface DiskConversationOps { link: typeof link; lstat: typeof lstat; mkdir: typeof mkdir; readFile: typeof readFile; readdir: typeof readdir; rm: typeof rm; unlink: typeof unlink; writeFile: typeof writeFile }
 const codeOf = (e: unknown): string | undefined => (typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : undefined)
 const vName = (n: number): string => `v${String(n).padStart(6, "0")}.json`
 
 export function createDiskConversationStore(rootDir: string, overrides: Partial<DiskConversationOps> = {}): ConversationStore {
   if (typeof rootDir !== "string" || rootDir === "" || !isAbsolute(rootDir)) throw new TypeError("rootDir precisa ser um caminho absoluto")
   const root = resolve(rootDir)
-  const ops: DiskConversationOps = { link, lstat, mkdir, readFile, readdir, unlink, writeFile, ...overrides }
+  const ops: DiskConversationOps = { link, lstat, mkdir, readFile, readdir, rm, unlink, writeFile, ...overrides }
   const base = join(root, "conversations")
   const inside = (p: string): boolean => { const rel = relative(root, p); return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel) }
   const noSymlinks = async (list: string[]): Promise<boolean> => {
@@ -237,6 +251,31 @@ export function createDiskConversationStore(rootDir: string, overrides: Partial<
         const version = expectedVersion + 1
         const r = await createExclusive(dir, vName(version), JSON.stringify({ alias: checked.delta.alias, createdAt, rotateTo: checked.delta.rotateTo, specs: checked.delta.specs, version, writes: checked.delta.writes }))
         return r === "created" ? { ok: true, version } : conversationStoreFailure("CONFLICT")
+      } catch {
+        return conversationStoreFailure("STORAGE_ERROR")
+      }
+    },
+    async delete(userId, conversationId) {
+      try {
+        if (!isId(userId) || !isId(conversationId)) return conversationStoreFailure("INVALID_ARGS")
+        const dir = await prepare(userId, conversationId, false)
+        if (dir === null) return conversationStoreFailure("STORAGE_ERROR")
+        const existed = await exists(dir)
+        await ops.rm(dir, { recursive: true, force: true })
+        return { ok: true, existed }
+      } catch {
+        return conversationStoreFailure("STORAGE_ERROR")
+      }
+    },
+    async deleteAllForUser(userId) {
+      try {
+        if (!isId(userId)) return conversationStoreFailure("INVALID_ARGS")
+        const userDir = join(base, userId)
+        if (!inside(userDir) || !(await noSymlinks([base, userDir]))) return conversationStoreFailure("STORAGE_ERROR")
+        let deleted = 0
+        try { deleted = (await ops.readdir(userDir)).filter((n) => !n.startsWith(".")).length } catch (e) { if (codeOf(e) !== "ENOENT") throw e }
+        await ops.rm(userDir, { recursive: true, force: true })
+        return { ok: true, deleted }
       } catch {
         return conversationStoreFailure("STORAGE_ERROR")
       }

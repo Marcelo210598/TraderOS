@@ -2,7 +2,7 @@
 // o `importId` esperado, o `fileName` (medido: não muda o importId mas MUDA o evidenceRef), o contexto de import escolhido pelo USUÁRIO (fuso, locale, política de dobra, mapa de motivos…) e o tamanho/BOM/EOL.
 // NUNCA entram: sal, provider de sal, `fileHash` (o pipeline o calcula) nem o conteúdo do arquivo. Uma chave tem UM contexto (limite declarado): mesma chave com outro conteúdo ⇒ CONFLICT, sem sobrescrever.
 // API tipada por RESULTADO (nada lança; erros são códigos fixos, sem mensagem, caminho ou eco). Memória e disco (mesmo desenho dos outros stores: link exclusivo, 0600/0700, sem seguir symlink).
-import { link, lstat, mkdir, readFile, unlink, writeFile } from "node:fs/promises"
+import { link, lstat, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises"
 import { isAbsolute, join, relative, resolve } from "node:path"
 import { randomHex } from "./hash.ts"
 import { isValidSha256, isValidUserId } from "./raw-file-storage.ts"
@@ -47,6 +47,10 @@ export interface ImportSourceStore {
   /** Cria a linha. Mesma chave e MESMO conteúdo (createdAt à parte) ⇒ `created:false`; conteúdo diferente ⇒ CONFLICT (nunca sobrescreve). */
   put(row: ImportSourceRow): Promise<{ readonly ok: true; readonly created: boolean } | ImportSourceFailure>
   get(userId: string, fileSha256: string): Promise<{ readonly ok: true; readonly row: ImportSourceRow } | ImportSourceFailure>
+  /** E7-7 (LGPD): apaga a linha. Idempotente: inexistente ⇒ ok com `existed:false`. Isolado por usuário. */
+  delete(userId: string, fileSha256: string): Promise<{ readonly ok: true; readonly existed: boolean } | ImportSourceFailure>
+  /** E7-7 (LGPD): apaga TODAS as linhas do usuário (e o diretório dele em disco). Idempotente: sem dados ⇒ ok com 0. */
+  deleteAllForUser(userId: string): Promise<{ readonly ok: true; readonly deleted: number } | ImportSourceFailure>
 }
 
 /** Contexto: só as chaves permitidas, formatos fechados; devolve CÓPIA com ordem de chaves canônica, ou null. */
@@ -121,18 +125,28 @@ export function createMemoryImportSourceStore(): ImportSourceStore {
       const have = rows.get(key(userId, fileSha256))
       return have === undefined ? importSourceFailure("NOT_FOUND") : { ok: true, row: copy(have) }
     },
+    async delete(userId, fileSha256) {
+      if (!isValidUserId(userId) || !isValidSha256(fileSha256)) return importSourceFailure("INVALID_ARGS")
+      return { ok: true, existed: rows.delete(key(userId, fileSha256)) }
+    },
+    async deleteAllForUser(userId) {
+      if (!isValidUserId(userId)) return importSourceFailure("INVALID_ARGS")
+      let deleted = 0
+      for (const k of [...rows.keys()]) if (k.startsWith(`${userId}/`)) { rows.delete(k); deleted += 1 }
+      return { ok: true, deleted }
+    },
   }
 }
 
 // ───────────────────────────── disco ─────────────────────────────
 // Layout: {root}/import-sources/{userId}/{fileSha256}.json (0600; diretórios 0700). Criação atômica: temporário exclusivo + hard link (falha se já existe ⇒ compara o conteúdo). Recusa symlink. Nada lança.
-export interface DiskImportSourceOps { link: typeof link; lstat: typeof lstat; mkdir: typeof mkdir; readFile: typeof readFile; unlink: typeof unlink; writeFile: typeof writeFile }
+export interface DiskImportSourceOps { link: typeof link; lstat: typeof lstat; mkdir: typeof mkdir; readFile: typeof readFile; readdir: typeof readdir; rm: typeof rm; unlink: typeof unlink; writeFile: typeof writeFile }
 const codeOf = (e: unknown): string | undefined => (typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : undefined)
 
 export function createDiskImportSourceStore(rootDir: string, overrides: Partial<DiskImportSourceOps> = {}): ImportSourceStore {
   if (typeof rootDir !== "string" || rootDir === "" || !isAbsolute(rootDir)) throw new TypeError("rootDir precisa ser um caminho absoluto")
   const root = resolve(rootDir)
-  const ops: DiskImportSourceOps = { link, lstat, mkdir, readFile, unlink, writeFile, ...overrides }
+  const ops: DiskImportSourceOps = { link, lstat, mkdir, readFile, readdir, rm, unlink, writeFile, ...overrides }
   const base = join(root, "import-sources")
   const inside = (p: string): boolean => { const rel = relative(root, p); return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel) }
   const noSymlinks = async (list: string[]): Promise<boolean> => {
@@ -190,6 +204,30 @@ export function createDiskImportSourceStore(rootDir: string, overrides: Partial<
         if (dir === null) return importSourceFailure("STORAGE_ERROR")
         const r = await readRow(dir, userId, fileSha256)
         return "row" in r ? { ok: true, row: r.row } : r
+      } catch {
+        return importSourceFailure("STORAGE_ERROR")
+      }
+    },
+    async delete(userId, fileSha256) {
+      try {
+        if (!isValidUserId(userId) || !isValidSha256(fileSha256)) return importSourceFailure("INVALID_ARGS")
+        const dir = await prepare(userId, false)
+        if (dir === null) return importSourceFailure("STORAGE_ERROR")
+        try { await ops.unlink(join(dir, `${fileSha256}.json`)) } catch (e) { if (codeOf(e) === "ENOENT") return { ok: true, existed: false }; throw e }
+        return { ok: true, existed: true }
+      } catch {
+        return importSourceFailure("STORAGE_ERROR")
+      }
+    },
+    async deleteAllForUser(userId) {
+      try {
+        if (!isValidUserId(userId)) return importSourceFailure("INVALID_ARGS")
+        const dir = await prepare(userId, false)
+        if (dir === null) return importSourceFailure("STORAGE_ERROR")
+        let deleted = 0
+        try { deleted = (await ops.readdir(dir)).filter((n) => n.endsWith(".json") && !n.startsWith(".")).length } catch (e) { if (codeOf(e) !== "ENOENT") throw e }
+        await ops.rm(dir, { recursive: true, force: true })
+        return { ok: true, deleted }
       } catch {
         return importSourceFailure("STORAGE_ERROR")
       }

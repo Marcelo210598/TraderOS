@@ -22,6 +22,8 @@ export interface BundleCache {
   /** Acerto ⇒ `from:"cache"`; erro ⇒ UM loader por chave em voo (os concorrentes compartilham o resultado); só sucesso é guardado. */
   getOrLoad(userId: string, ref: string, loader: () => Promise<LoadResult>): Promise<GetOrLoadResult>
   stats(): { readonly entries: number; readonly bytes: number; readonly maxBytes: number }
+  /** E7-7 (LGPD): tira TODOS os bundles do usuário (devolve quantos). Um voo iniciado ANTES não guarda o resultado depois (geração por usuário). Usuário inválido ⇒ 0. */
+  purgeUser(userId: string): number
 }
 
 const refOfBundle = (bundle: unknown): string | null => {
@@ -40,6 +42,7 @@ export function createBundleCache(options: { readonly maxBytes?: number } = {}):
   if (typeof maxBytes !== "number" || !Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_CONFIGURABLE_BYTES) throw new TypeError("maxBytes inválido")
   const entries = new Map<string, { readonly bundle: unknown; readonly size: number }>() // a ordem de inserção É a ordem do LRU (o mais antigo primeiro)
   const flights = new Map<string, Promise<GetOrLoadResult>>()
+  const generations = new Map<string, number>() // E7-7: sobe a cada purga do usuário; um voo só guarda se a geração não mudou desde que começou
   let bytes = 0
 
   const get = (userId: string, ref: string): unknown => {
@@ -66,7 +69,7 @@ export function createBundleCache(options: { readonly maxBytes?: number } = {}):
     entries.set(key, { bundle, size }); bytes += size
     return { ok: true, stored: true }
   }
-  const run = async (userId: string, ref: string, loader: () => Promise<LoadResult>): Promise<GetOrLoadResult> => {
+  const run = async (userId: string, ref: string, loader: () => Promise<LoadResult>, generation: number): Promise<GetOrLoadResult> => {
     let res: unknown
     try { res = await loader() } catch { return fail("STORAGE_ERROR") } // lança, rejeita ou lança síncrono: nunca ecoa a mensagem
     if (typeof res !== "object" || res === null) return fail("STORAGE_ERROR")
@@ -74,6 +77,7 @@ export function createBundleCache(options: { readonly maxBytes?: number } = {}):
     if (r.ok === false) return typeof r.code === "string" && CODE_RE.test(r.code) ? fail(r.code) : fail("STORAGE_ERROR")
     if (r.ok !== true || r.bundle === null || r.bundle === undefined) return fail("STORAGE_ERROR")
     if (refOfBundle(r.bundle) !== ref) return fail("REF_MISMATCH")
+    if ((generations.get(userId) ?? 0) !== generation) return { ok: true, bundle: r.bundle, from: "loaded" } // purgado no meio do voo: quem esperava recebe, mas NADA é guardado
     const stored = put(userId, ref, r.bundle)
     if (!stored.ok) return fail("STORAGE_ERROR")
     return { ok: true, bundle: r.bundle, from: "loaded" }
@@ -85,9 +89,17 @@ export function createBundleCache(options: { readonly maxBytes?: number } = {}):
     if (hit !== null) return Promise.resolve({ ok: true, bundle: hit, from: "cache" })
     const flying = flights.get(key)
     if (flying !== undefined) return flying
-    const flight = run(userId, ref, loader).finally(() => { flights.delete(key) }) // sucesso OU falha: o voo termina e a falha não fica
+    const flight: Promise<GetOrLoadResult> = run(userId, ref, loader, generations.get(userId) ?? 0).finally(() => { if (flights.get(key) === flight) flights.delete(key) }) // sucesso OU falha: o voo termina e a falha não fica
     flights.set(key, flight)
     return flight
   }
-  return { get, put, getOrLoad, stats: () => ({ entries: entries.size, bytes, maxBytes }) }
+  const purgeUser = (userId: string): number => {
+    if (!isValidUserId(userId)) return 0
+    generations.set(userId, (generations.get(userId) ?? 0) + 1)
+    let removed = 0
+    for (const [key, value] of [...entries]) if (key.startsWith(`${userId}\n`)) { entries.delete(key); bytes -= value.size; removed += 1 }
+    for (const key of [...flights.keys()]) if (key.startsWith(`${userId}\n`)) flights.delete(key) // quem chegar depois começa um voo NOVO
+    return removed
+  }
+  return { get, put, getOrLoad, stats: () => ({ entries: entries.size, bytes, maxBytes }), purgeUser }
 }
