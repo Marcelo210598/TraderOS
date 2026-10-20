@@ -444,3 +444,9 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Casos:** M1–M8 (store, arquivo novo) e N1–N8 (executor). **Mutações EM1–EM22.** Esperado ≈ 1290 → 1306 ✓.
 - **Limites declarados:** texto do usuário gravado literal (dado pessoal); 200 mensagens sem resumo; renderizado não é recalculado; ramo defensivo de render falho sem teste de entrada; prompt/LLM/UI fora.
 
+## 44. Expectativa do E7-10 (20/10/2026) — RawFileStorage sobre ObjectStore, com gzip
+- **Motivação (Marcelo):** custo zero/mínimo, cobrado só de quem assina plano. **Roteiro:** E7-10 adaptador de objeto + gzip (sem rede, sem conta); E7-11 cliente S3/R2 (EXIGE conta Cloudflare e chaves: só com OK do Marcelo); E7-12 cota de arquivos por plano. Detalhe em `scripts/expectations/agent-answer.expected.json` → `e7_10`.
+- **Fatos medidos:** nenhum SDK instalado; CSV sintético de 5.000 trades = 990.529 B (gzip 16×, repetitivo demais); CSV real do NT8 = 4,2× (arquivo pequeno); R2 oficial: 10 GB, 1 M escritas, 10 M leituras grátis, egress grátis, depois US$ 0,015/GB-mês (cartão na conta grátis: NÃO verificado).
+- **Desenho:** porta `ObjectStore` mínima (putIfAbsent/get/delete/deleteByPrefix) + `createObjectRawFileStorage(store)`: SEMPRE gzip em `users/{u}/imports/{sha}.csv.gz`; o sha é o do CSV original (conferido no put e depois do gunzip); gunzip limitado a 25 MiB; objeto corrompido ⇒ CORRUPT; falhas do store ⇒ STORAGE_ERROR sem eco.
+- **Prova:** a suíte de contrato C1–C12 roda na 3ª implementação (intercambiável com memória e disco) + G1–G8 (layout/compressão, bomba, corrupção, falhas do store, concorrência, prefixo, estática, ponta a ponta). **Mutações EO1–EO15.** Esperado 1306 → 1314 ✓.
+- **Limites declarados:** não fala com nuvem alguma; atomicidade do `putIfAbsent` no R2 não verificada (1º fato do E7-11); cripto em repouso é a do provedor; cota/retenção ainda não existem.

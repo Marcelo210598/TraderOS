@@ -6377,5 +6377,62 @@
     ],
     "baselines": "1290 linhas ✓ idênticas; só se acrescentam os casos acima (1 arquivo novo de teste + casos aditivos no test-turn-session). Possível ajuste em testes que comparam o formato EXATO de OpenConversation ou do delta (o red mostra a lista; cada um é justificado no relatório). Nenhum portão estático abre. Esperado ≈ 1290 → 1306 ✓.",
     "limites": "mensagem do usuário gravada LITERAL (dado pessoal; proteger o prompt é de outra camada); backups/snapshots/nuvem fora do expurgo (como no E7-7); 200 mensagens por conversa sem resumo; o renderizado guardado não é recalculado; o ramo defensivo de render falho (D-M9) não tem teste de entrada; nenhum prompt é montado aqui."
+  },
+  "e7_10": {
+      "status": "EXPECTATIVA (20/10/2026) escrita ANTES do código do E7-10 (RawFileStorage sobre um ObjectStore, com gzip). Motivação do Marcelo: custo mínimo/zero, cobrado só de quem assina plano. Roteiro combinado (recomendação aceita): E7-10 = adaptador de objeto + gzip (sem rede, sem conta); E7-11 = cliente S3/R2 de verdade (EXIGE conta Cloudflare e chaves, só com OK do Marcelo); E7-12 = cota de arquivos por plano (camada de produto). Este bloco cobre SÓ o E7-10.",
+      "files": [
+          "src/lib/infra/object-store.ts (NOVO): a porta `ObjectStore` (putIfAbsent/get/delete/deleteByPrefix, resultados tipados, sem lançar) + implementação em MEMÓRIA; não importa nada",
+          "src/lib/infra/raw-file-storage-object.ts (NOVO): `createObjectRawFileStorage(store)` = RawFileStorage sobre a porta, SEMPRE em gzip; importa só node:zlib, ./hash.ts, ./raw-file-storage.ts, ./object-store.ts",
+          "scripts/test-raw-file-storage.mts (ALTERADO, aditivo): a suíte de contrato C1–C12 passa a rodar também na 3ª implementação (objeto+gzip, sem ✓ novo: o `both` ganha uma volta) e entram G1–G8",
+          "docs/ai-partner/agent-answer-plano.md (§44) e este bloco"
+      ],
+      "nao_muda": "raw-file-storage.ts, raw-file-storage-disk.ts (contrato e disco intocados); dataset.ts; regenerate.ts; user-purge.ts (só recebe outra implementação da MESMA interface); conversation-store; nenhum portão estático abre; package.json (o arquivo de teste já existe); nenhum SDK, nenhuma dependência nova, nenhuma rede, nenhuma credencial.",
+      "fatos_medidos": {
+          "contrato": "LIDO: RawFileStorage = put/get/delete/deleteAllForUser; chave users/{userId}/imports/{sha}.csv montada só em rawFileKey; checkPutArgs valida ids, não-vazio, ≤ MAX_RAW_FILE_BYTES (25 MiB), copia e confere sha256; resultados tipados, nada lança. A suíte test-raw-file-storage.mts tem IMPLS (memória, disco) e a função `both`: C1–C12 rodam em todas.",
+          "dependencias": "MEDIDO: nenhum SDK de nuvem instalado (node_modules/@aws-sdk ausente; package.json sem aws/s3/r2); nenhum uso de node:zlib em src/lib.",
+          "tamanho": "MEDIDO: fixture sintética de 5.000 trades = 990.529 bytes (≈198 B/linha); gzip = 62.319 (16×, mas é repetitiva demais). Fixture REAL do NT8 (28 linhas) = 5.343 B → gzip 1.278 B (4,2×; arquivo pequeno comprime menos). Estimativa conservadora: 3–4× em CSV real.",
+          "custo_r2": "FONTE OFICIAL (developers.cloudflare.com/r2/pricing, 20/10/2026): grátis por mês 10 GB, 1 M escritas (classe A), 10 M leituras (classe B), egress grátis; acima: US$ 0,015/GB-mês. NÃO VERIFICADO: se a conta exige cartão mesmo dentro da cota grátis.",
+          "planos": "LIDO (plans.ts): FREE/TRADER(Starter R$19,90)/PRO(R$97): limites por plano hoje são trades/mês, setups, accounts…; NÃO há limite de arquivos brutos ⇒ a cota por plano (E7-12) é decisão nova, fora deste bloco."
+      },
+      "decisions_DO": {
+          "D-O1": "Porta mínima `ObjectStore`: putIfAbsent(key, bytes)→{ok,created}; get(key)→{ok,bytes}|NOT_FOUND; delete(key)→{ok,existed}; deleteByPrefix(prefix)→{ok,deleted}. Códigos: INVALID_ARGS|NOT_FOUND|STORAGE_ERROR. Foi a menor superfície que o RawFileStorage precisa e é o que o R2/S3 (E7-11) implementa (PUT condicional, GET, DELETE, LIST+DELETE). Sem SDK agora.",
+          "D-O2": "O adaptador grava SEMPRE gzip, na chave users/{u}/imports/{sha}.csv.gz (montada a partir de rawFileKey; nunca do chamador). O sha continua sendo o dos bytes ORIGINAIS: conferido no put (checkPutArgs) e no get (depois de descomprimir).",
+          "D-O3": "put = checkPutArgs → gzip → putIfAbsent. created vem do store. Se o objeto já existe, confere-o (get+sha): íntegro ⇒ {created:false}; corrompido ⇒ CORRUPT (nunca sobrescreve em silêncio, como o disco D3).",
+          "D-O4": "get: ausente ⇒ NOT_FOUND; gunzip inválido/truncado, sha diferente ou saída acima de 25 MiB (maxOutputLength, defesa contra 'gzip bomb') ⇒ CORRUPT; nunca devolve bytes ruins; falha do store ⇒ STORAGE_ERROR. Devolve CÓPIA.",
+          "D-O5": "deleteAllForUser = deleteByPrefix('users/{u}/') (com a barra final: 'abc' não apaga 'abcd'); devolve quantos objetos. delete = delete da chave. Idempotentes.",
+          "D-O6": "Erros do store (rejeição, throw, forma inesperada) viram STORAGE_ERROR; nada lança; nenhum resultado carrega mensagem, chave ou caminho.",
+          "D-O7": "A suíte de contrato C1–C12 é a MESMA para as 3 implementações (memória, disco, objeto+gzip): é o que prova que o adaptador é intercambiável. G1–G8 cobrem só o específico do objeto.",
+          "D-O8": "Fora deste bloco: cliente S3/R2 e credenciais (E7-11), cota por plano e retenção (E7-12), criptografia própria (a do provedor; não verificada), cache de leitura (o BundleCache já existe)."
+      },
+      "cases": [
+          "C1–C12 (existentes) na 3ª implementação: ida e volta (BOM/CRLF/UTF-8), idempotência, HASH_MISMATCH sem resíduo, inválidos sem eco, teto 25 MiB, isolamento, ausente, delete→put, deleteAll com prefixo, sem aliasing, nunca lança, rawFileKey — sem ✓ novo",
+          "G1 layout e compressão: o objeto fica na chave .csv.gz, começa com 1f 8b, é MENOR que o CSV repetitivo, e gunzip == bytes; nenhuma chave fora de users/{u}/imports/",
+          "G2 gzip bomb: objeto que descomprime acima de 25 MiB ⇒ get CORRUPT (e a memória usada fica limitada); objeto comprimido legítimo de 25 MiB descomprimidos ⇒ ok",
+          "G3 corrupção: objeto trocado por outro gzip válido, lixo e truncado ⇒ get CORRUPT; put do mesmo conteúdo sobre um corrompido ⇒ CORRUPT; o objeto NÃO é apagado nem sobrescrito",
+          "G4 falhas do store: cada método da porta rejeitando, lançando ou devolvendo forma inesperada ⇒ STORAGE_ERROR, sem eco de um marcador de segredo, nada lança",
+          "G5 concorrência: 20 put simultâneos do mesmo conteúdo ⇒ 1 objeto, todas ok, exatamente 1 com created:true",
+          "G6 isolamento por prefixo: usuário 'abc' × 'abcd'; deleteAll conta certo e deixa o outro usuário byte a byte igual",
+          "G7 estática: object-store.ts não importa nada; raw-file-storage-object.ts importa só node:zlib, ./hash.ts, ./raw-file-storage.ts, ./object-store.ts; sem fetch/process.env/aws/s3/cloudflare no código; nada fora de infra/ importa o adaptador",
+          "G8 ponta a ponta: registerImport + makeContext sobre o adaptador (store em memória) dá o MESMO evidenceRef/bundle que sobre a memória pura; purgeUserData apaga os objetos"
+      ],
+      "mutations_planned": [
+          "EO1 não comprime (grava o CSV cru) ⇒ G1",
+          "EO2 gunzip sem limite de saída ⇒ G2",
+          "EO3 get não confere o sha ⇒ G3 (e C-suite)",
+          "EO4 put não confere o objeto já existente ⇒ G3",
+          "EO5 put sobrescreve (não usa putIfAbsent) ⇒ G3/G5",
+          "EO6 created sempre true ⇒ C2/G5",
+          "EO7 deleteAll sem a barra final do prefixo ⇒ C9/G6",
+          "EO8 erro do store ecoa a mensagem ⇒ G4",
+          "EO9 exceção do store não capturada ⇒ G4/C11",
+          "EO10 chave sem .gz ou fora do prefixo do usuário ⇒ G1/C6",
+          "EO11 get devolve a referência do store (sem cópia) ⇒ C10",
+          "EO12 CORRUPT vira NOT_FOUND ⇒ G3",
+          "EO13 put não valida (pula checkPutArgs) ⇒ C3/C4/C5",
+          "EO14 sha conferido sobre o comprimido, não sobre o original ⇒ C1",
+          "EO15 adaptador importa fetch/env ⇒ G7"
+      ],
+      "baselines": "1306 linhas ✓ idênticas; só se acrescentam G1–G8 (8) ⇒ 1306 → 1314 ✓. C1–C12 não geram linha nova (rodam mais uma volta no `both`). Nenhum portão estático abre.",
+      "limites": "o adaptador NÃO fala com nenhuma nuvem: sem E7-11 o disco/memória continuam sendo o armazenamento real; a atomicidade do putIfAbsent depende de o R2 oferecer escrita condicional (NÃO verificado — é o 1º fato a medir no E7-11); cripto em repouso é a do provedor (não verificada); cota por plano e retenção não existem ainda; gzip não é determinístico entre versões do zlib (irrelevante: a chave e o sha são do conteúdo original)."
   }
 }
