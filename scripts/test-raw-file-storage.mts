@@ -1,13 +1,27 @@
 // E7-1: `RawFileStorage` (arquivo bruto do usuário, texto UTF-8 exato) — contrato testado contra a implementação de MEMÓRIA e a de DISCO. Escrito ANTES do código.
 // Expectativa: scripts/expectations/agent-answer.expected.json → e7_1 (D-S1…D-S10, C1–C12, D1–D5, S1, RSM1–RSM16).
+// E7-10: a MESMA suíte de contrato (C1–C12) roda também na 3ª implementação (objeto + gzip sobre um ObjectStore em memória) e entram G1–G8 (expectativa e7_10; mutações EO1–EO15).
+//   COLLECT=1 só para a análise de mutações.
 //   node scripts/test-raw-file-storage.mts
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
+import { gunzipSync, gzipSync } from "node:zlib"
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, truncateSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { newAliasTable } from "../src/lib/agent/label.ts"
+import { metricsQuery } from "../src/lib/agent-capabilities/metrics-query.ts"
+import { InMemorySaltKeyring } from "../src/lib/ingest/salt.ts"
+import { makeContext, registerImport } from "../src/lib/infra/dataset.ts"
+import { createMemoryConversationStore } from "../src/lib/infra/conversation-store.ts"
+import { createMemoryImportSourceStore } from "../src/lib/infra/import-source-store.ts"
+import { createMemoryObjectStore, type ObjectStore } from "../src/lib/infra/object-store.ts"
+import { createObjectRawFileStorage } from "../src/lib/infra/raw-file-storage-object.ts"
+import { createMemorySaltStore } from "../src/lib/infra/salt-store.ts"
+import { purgeUserData } from "../src/lib/infra/user-purge.ts"
 import { createDiskRawFileStorage } from "../src/lib/infra/raw-file-storage-disk.ts"
+import { synthCsv } from "./_evidence-fixtures.mts"
 import { MAX_RAW_FILE_BYTES, createMemoryRawFileStorage, isValidSha256, isValidUserId, rawFileKey, type RawFileStorage } from "../src/lib/infra/raw-file-storage.ts"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,13 +38,18 @@ interface Impl { name: string; make: () => { s: RawFileStorage; root?: string; d
 const TMPS: string[] = []
 const IMPLS: Impl[] = [
   { name: "memória", make: () => ({ s: createMemoryRawFileStorage(), done: () => {} }) },
+  { name: "objeto+gzip", make: () => ({ s: createObjectRawFileStorage(createMemoryObjectStore()), done: () => {} }) },
   { name: "disco", make: () => { const root = mkdtempSync(join(tmpdir(), "raw-file-")); TMPS.push(root); return { s: createDiskRawFileStorage(root), root, done: () => rmSync(root, { recursive: true, force: true }) } } },
 ]
-/** Roda `fn` contra as DUAS implementações (o contrato é o mesmo). */
+/** Roda `fn` contra TODAS as implementações (o contrato é o mesmo). */
 const both = async (fn: (s: RawFileStorage, name: string, root?: string) => Promise<void>): Promise<void> => {
   for (const impl of IMPLS) { const m = impl.make(); try { await fn(m.s, impl.name, m.root) } finally { m.done() } }
 }
-const test = async (name: string, fn: () => Promise<void>): Promise<void> => { await fn(); passed += 1; console.log(`✓ ${name}`) }
+const failed: string[] = []
+const test = async (name: string, fn: () => Promise<void>): Promise<void> => {
+  if (process.env.COLLECT) { try { await fn(); passed += 1 } catch { failed.push(name.split(" ")[0]) } return }
+  await fn(); passed += 1; console.log(`✓ ${name}`)
+}
 const files = (dir: string): string[] => (existsSync(dir) ? readdirSync(dir).sort() : [])
 
 await test("C1 — IDA E VOLTA nas duas implementações: BOM, CRLF, multibyte UTF-8 e 1 byte ⇒ `get` devolve exatamente os mesmos bytes; sha256(get) == o pedido", async () => {
@@ -293,5 +312,133 @@ await test("S1 — ESTÁTICA: raw-file-storage.ts importa só ./hash.ts e não c
   assert.equal(/model\s+ImportSource\b/.test(readFileSync(`${ROOT}prisma/schema.prisma`, "utf8")), false, "o rascunho do ImportSource fica no doc, não no schema")
 })
 
+// ───────────────────────────── OBJETO + GZIP (E7-10) ─────────────────────────────
+const MAXB = MAX_RAW_FILE_BYTES
+const BIG_CSV = "Instrumento;Conta;Preco\n" + "MGC 12-26;Sim101;2000.50\n".repeat(4000)
+const objKey = (u: string, h: string): string => `users/${u}/imports/${h}.csv.gz`
+const mkObj = (): { s: RawFileStorage; store: ReturnType<typeof createMemoryObjectStore> } => { const store = createMemoryObjectStore(); return { s: createObjectRawFileStorage(store), store } }
+const hex = (b: Uint8Array): string => Buffer.from(b).toString("hex")
+const getRaw = async (store: ObjectStore, key: string): Promise<Uint8Array> => { const r: Any = await store.get(key); assert.equal(r.ok, true, `objeto ${key}`); return r.bytes }
+const plant = async (store: ObjectStore, key: string, bytes: Uint8Array): Promise<void> => { await store.delete(key); const r: Any = await store.putIfAbsent(key, bytes); assert.equal(r.ok, true) }
+
+await test("G1 — LAYOUT E COMPRESSÃO: o objeto fica em users/{u}/imports/{sha}.csv.gz, é gzip (1f 8b), MENOR que o CSV repetitivo, gunzip == bytes; nenhuma chave fora desse molde", async () => {
+  const { s, store } = mkObj(); const b = enc(BIG_CSV), h = sha(b), b2 = enc(CSV)
+  assert.deepEqual(await s.put(U1, h, b), { ok: true, created: true }); assert.equal((await s.put(U2, sha(b2), b2)).ok, true)
+  assert.deepEqual(store.keys().sort(), [objKey(U1, h), objKey(U2, sha(b2))].sort())
+  for (const k of store.keys()) assert.match(k, /^users\/[A-Za-z0-9_-]{1,64}\/imports\/[0-9a-f]{64}\.csv\.gz$/)
+  const raw = await getRaw(store, objKey(U1, h))
+  assert.deepEqual([raw[0], raw[1]], [0x1f, 0x8b], "gzip")
+  assert.ok(raw.length < b.length / 2, `comprimido (${raw.length}) deveria ser bem menor que o original (${b.length})`)
+  assert.deepEqual([...gunzipSync(raw)], [...b])
+  assert.deepEqual([...(((await s.get(U1, h)) as Any).bytes as Uint8Array)], [...b])
+  // a porta em memória também não tem aliasing (nem na entrada, nem na saída)
+  const mine = enc("xyz"); assert.deepEqual(await store.putIfAbsent("k/1", mine), { ok: true, created: true }); mine.fill(0)
+  const g1: Any = await store.get("k/1"); assert.equal(new TextDecoder().decode(g1.bytes), "xyz"); g1.bytes.fill(1)
+  assert.equal(new TextDecoder().decode(((await store.get("k/1")) as Any).bytes), "xyz")
+})
+
+/** Resumo curto do resultado (nunca imprime 25 MiB num diff de asserção). */
+const brief = (r: Any): string => (r.ok ? `OK(${r.bytes?.length ?? "?"} bytes)` : r.code)
+
+await test("G2 — GZIP BOMB: objeto de sha VÁLIDO que descomprime acima de 25 MiB ⇒ get CORRUPT (nunca os bytes); exatamente 25 MiB ⇒ ok", async () => {
+  const { s, store } = mkObj()
+  const over = new Uint8Array(MAXB + 1).fill(7), hOver = sha(over)
+  await plant(store, objKey(U1, hOver), gzipSync(over))
+  assert.equal(brief(await s.get(U1, hOver)), "CORRUPT", "o sha confere, mas a saída passa do teto")
+  const huge = new Uint8Array(200 * 1024 * 1024), hHuge = sha(huge)
+  await plant(store, objKey(U1, hHuge), gzipSync(huge))
+  assert.equal(brief(await s.get(U1, hHuge)), "CORRUPT", "200 MiB descomprimidos")
+  const exact = new Uint8Array(MAXB).fill(3), hExact = sha(exact)
+  assert.equal((await s.put(U1, hExact, exact)).ok, true)
+  const g: Any = await s.get(U1, hExact); assert.equal(g.ok, true); assert.equal(g.bytes.length, MAXB)
+})
+
+await test("G3 — CORRUPÇÃO: outro gzip válido, lixo e truncado ⇒ get CORRUPT; put do mesmo conteúdo sobre o corrompido ⇒ CORRUPT; o objeto NÃO é apagado nem sobrescrito", async () => {
+  const { s, store } = mkObj(); const b = enc(BIG_CSV), h = sha(b); const key = objKey(U1, h)
+  assert.equal((await s.put(U1, h, b)).ok, true); const good = await getRaw(store, key)
+  const variants: Array<[string, Uint8Array]> = [["outro gzip válido", gzipSync(enc("outro conteúdo"))], ["lixo", enc("isto não é gzip")], ["truncado", good.slice(0, Math.floor(good.length / 2))], ["vazio", new Uint8Array(1)]]
+  for (const [why, bad] of variants) {
+    await plant(store, key, bad)
+    assert.deepEqual(await s.get(U1, h), FAIL("CORRUPT"), why)
+    assert.deepEqual(await s.put(U1, h, b), FAIL("CORRUPT"), `${why}: put não conserta em silêncio`)
+    assert.equal(hex(await getRaw(store, key)), hex(bad), `${why}: o objeto segue como estava`)
+  }
+  await plant(store, key, good); assert.equal(((await s.get(U1, h)) as Any).ok, true, "íntegro volta a ler")
+  assert.deepEqual(await s.put(U1, h, b), { ok: true, created: false })
+})
+
+await test("G4 — FALHAS DO STORE: cada método da porta rejeitando, lançando, devolvendo forma inesperada ou código desconhecido ⇒ STORAGE_ERROR, sem eco do marcador e sem lançar", async () => {
+  const b = enc(CSV), h = sha(b)
+  const modes: Array<[string, () => unknown]> = [["rejeita", () => Promise.reject(new Error("SEGREDO-DA-NUVEM /chave"))], ["lança", () => { throw new Error("SEGREDO-DA-NUVEM /chave") }], ["forma estranha", () => ({ ok: "sim" })], ["null", () => null], ["código desconhecido", () => ({ ok: false, code: "SEGREDO-DA-NUVEM" })]]
+  for (const method of ["putIfAbsent", "get", "delete", "deleteByPrefix"] as const) {
+    for (const [mode, fault] of modes) {
+      const base = createMemoryObjectStore(); await base.putIfAbsent(objKey(U1, h), gzipSync(b)) // existe: put chega ao get; delete/deleteAll têm o que apagar
+      const faulty: Any = { putIfAbsent: base.putIfAbsent.bind(base), get: base.get.bind(base), delete: base.delete.bind(base), deleteByPrefix: base.deleteByPrefix.bind(base), [method]: fault }
+      const s = createObjectRawFileStorage(faulty as ObjectStore)
+      const calls: Array<[string, () => Promise<unknown>]> = []
+      if (method === "putIfAbsent") calls.push(["put (novo)", () => s.put(U1, sha(enc("novo")), enc("novo"))])
+      if (method === "get") { calls.push(["get", () => s.get(U1, h)]); calls.push(["put (existente)", () => s.put(U1, h, b)]) }
+      if (method === "delete") calls.push(["delete", () => s.delete(U1, h)])
+      if (method === "deleteByPrefix") calls.push(["deleteAll", () => s.deleteAllForUser(U1)])
+      for (const [what, call] of calls) {
+        let r: unknown; try { r = await call() } catch { assert.fail(`${method}/${mode}/${what}: lançou`) }
+        assert.deepEqual(r, FAIL("STORAGE_ERROR"), `${method}/${mode}/${what}`)
+        assert.equal(JSON.stringify(r).includes("SEGREDO"), false)
+      }
+    }
+  }
+})
+
+await test("G5 — CONCORRÊNCIA: 20 put simultâneos do mesmo conteúdo ⇒ 1 objeto, todos ok, exatamente 1 com created:true", async () => {
+  const { s, store } = mkObj(); const b = enc(BIG_CSV), h = sha(b)
+  const rs: Any[] = await Promise.all(Array.from({ length: 20 }, () => s.put(U1, h, b)))
+  assert.equal(rs.every((r) => r.ok), true); assert.equal(rs.filter((r) => r.created).length, 1)
+  assert.equal(store.keys().length, 1)
+})
+
+await test("G6 — PREFIXO: 'abc' × 'abcd': deleteAllForUser('abc') conta certo e deixa os outros usuários byte a byte iguais", async () => {
+  const { s, store } = mkObj(); const a = enc("A"), b = enc("B"), c = enc("C")
+  for (const [u, x] of [["abc", a], ["abc", b], ["abcd", c], [U2, a]] as Array<[string, Uint8Array]>) assert.equal((await s.put(u, sha(x), x)).ok, true)
+  const snap = async (): Promise<string> => { const out: string[] = []; for (const k of store.keys().sort()) if (!k.startsWith("users/abc/")) out.push(`${k}=${hex(await getRaw(store, k))}`); return out.join("\n") }
+  const before = await snap()
+  assert.deepEqual(await s.deleteAllForUser("abc"), { ok: true, deleted: 2 }); assert.deepEqual(await s.deleteAllForUser("abc"), { ok: true, deleted: 0 })
+  assert.equal(await snap(), before); assert.equal(store.keys().some((k) => k.startsWith("users/abc/")), false)
+})
+
+await test("G7 — ESTÁTICA: object-store.ts não importa nada; o adaptador importa só node:zlib, ./hash.ts, ./raw-file-storage.ts e ./object-store.ts, sem fetch/env/aws/s3/cloudflare; só ele importa a porta; nada fora de infra/ importa nenhum dos dois", async () => {
+  const strip = (x: string): string => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1")
+  const read = (p: string): string => strip(readFileSync(`${ROOT}${p}`, "utf8"))
+  const importsOf = (code: string): string[] => [...code.matchAll(/^(?:import|export)\s[^"'\n]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1])
+  const port = read("src/lib/infra/object-store.ts"), ad = read("src/lib/infra/raw-file-storage-object.ts")
+  assert.deepEqual(importsOf(port), [])
+  assert.deepEqual(importsOf(ad).sort(), ["./hash.ts", "./object-store.ts", "./raw-file-storage.ts", "node:zlib"])
+  for (const [n, code] of [["porta", port], ["adaptador", ad]]) assert.equal(/\bfetch\s*\(|process\.env|\b(aws|s3|cloudflare|r2)\b|node:(fs|net|http|https|crypto)/i.test(code), false, `${n}: dependência proibida`)
+  const infra = readdirSync(`${ROOT}src/lib/infra`).filter((f) => f.endsWith(".ts"))
+  assert.deepEqual(infra.filter((f) => /object-store/.test(read(`src/lib/infra/${f}`))), ["raw-file-storage-object.ts"])
+  for (const dir of ["agent", "agent-capabilities", "evidence", "metrics", "ingest", "domain"]) for (const f of readdirSync(`${ROOT}src/lib/${dir}`).filter((x) => x.endsWith(".ts"))) assert.equal(/object-store|raw-file-storage-object/.test(read(`src/lib/${dir}/${f}`)), false, `${dir}/${f}`)
+})
+
+await test("G8 — PONTA A PONTA: registerImport + makeContext + metrics.query sobre o adaptador dão o MESMO resultado que sobre a memória pura; purgeUserData apaga os objetos", async () => {
+  const p2 = (x: number): string => String(x).padStart(2, "0")
+  const text = synthCsv(Array.from({ length: 80 }, (_, i) => ({ entryPrice: 2000 + (i % 13), exitPrice: 2000 + (i % 13) + ((i % 5) - 2), entryAt: `${p2(1 + (i % 28))}/03/2026 ${p2(9 + (i % 7))}:00:00`, exitAt: `${p2(1 + (i % 28))}/03/2026 ${p2(9 + (i % 7))}:30:00`, account: i % 3 === 0 ? "Sim101" : "Sim102" })) as Any)
+  const kr = new InMemorySaltKeyring(); kr.ensure(U1)
+  const objStore = createMemoryObjectStore()
+  const variants = [["memória", createMemoryRawFileStorage()], ["objeto+gzip", createObjectRawFileStorage(objStore)]] as const
+  const results: string[] = []
+  const importStores = variants.map(() => createMemoryImportSourceStore())
+  for (const [i, [name, rawStorage]] of variants.entries()) {
+    const deps: Any = { rawStorage, importStore: importStores[i], salt: kr }
+    const reg: Any = await registerImport(deps, { userId: U1, text, context: { sourceTz: "America/New_York" }, fileName: "export.csv" }); assert.equal(reg.ok, true, `${name}: ${reg.code}`)
+    const made: Any = await makeContext(deps, { userId: U1, pin: { sources: [{ fileSha256: reg.fileSha256 }], analysis: {} } }); assert.equal(made.ok, true, `${name}: ${made.code}`)
+    const out: Any = metricsQuery({ metricIds: ["netPnl", "winRate"], filters: {}, options: {} }, { ...made.ctx, aliases: newAliasTable(made.ctx.refEpoch) })
+    assert.equal(out.result.ok, true, name); results.push(JSON.stringify(out.result))
+  }
+  assert.equal(results[0], results[1], "o resultado (inclusive o evidenceRef) não depende de o arquivo estar comprimido no repouso")
+  assert.equal(objStore.keys().length, 1)
+  const purge: Any = await purgeUserData({ rawStorage: variants[1][1], importStore: importStores[1], conversationStore: createMemoryConversationStore(), saltStore: createMemorySaltStore() } as Any, { userId: U1 })
+  assert.equal(purge.ok, true, JSON.stringify(purge)); assert.equal(purge.purged.rawFiles, 1); assert.equal(objStore.keys().length, 0)
+})
+
 for (const r of TMPS) rmSync(r, { recursive: true, force: true })
+if (process.env.COLLECT) { console.log(`FAILED:${failed.join(",")}`); process.exit(failed.length > 0 ? 1 : 0) }
 console.log(`\n${passed} testes ok`)
