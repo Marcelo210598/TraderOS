@@ -59,9 +59,11 @@ export interface LiveDb {
   reset(): Promise<void>
   close(): Promise<void>
 }
-export async function connectLiveDb(): Promise<LiveDb> {
+/** `pooled`: usa a URL do POOLER (pgbouncer) do mesmo banco de teste (`E7_TEST_DATABASE_URL_POOLED`) — passa pela MESMA trava. */
+export async function connectLiveDb(which: "direct" | "pooled" = "direct"): Promise<LiveDb> {
   if (!liveEnabled()) throw new Error("PRISMA_LIVE=1 é necessário para testar contra um banco")
-  const testUrl = process.env.E7_TEST_DATABASE_URL ?? fromEnvFile(".env.local", "E7_TEST_DATABASE_URL")
+  const key = which === "pooled" ? "E7_TEST_DATABASE_URL_POOLED" : "E7_TEST_DATABASE_URL"
+  const testUrl = process.env[key] ?? fromEnvFile(".env.local", key)
   const prods = [process.env.DATABASE_URL, process.env.DIRECT_URL, fromEnvFile(".env", "DATABASE_URL"), fromEnvFile(".env", "DIRECT_URL"), fromEnvFile(".env.local", "DATABASE_URL"), fromEnvFile(".env.local", "DIRECT_URL")]
   for (const prod of prods) {
     const verdict = assertSafeTestDatabase(testUrl, prod)
