@@ -166,6 +166,7 @@ Vega IA agora é o maior diferencial vs Trademetria (80k users, R$49,90/mês Pro
 ## 29/09/2026 — Mesas prop: 5 no ar
 Lucid, FFF, Apex, Tradeify e Bulenox em `/mesas`. Cron vigia Lucid, FFF e Bulenox (JSON); Apex, Tradeify e preços da Bulenox = conferência manual com lembrete mensal. Detalhe: `historico/2026-09-29.md`.
 - **AI Partner — 19/10/2026 (E7-7, backup `acddf47`; origin intocado)** — `infra/user-purge.ts`: exclusão em cascata LGPD (`purgeUserData`, `deleteImportFile`, `deleteConversation`), `BundleCache.purgeUser` com geração; `test:domain` 1258 → **1275 ✓**. Retomar por `historico/2026-10-19.md` e `agent-answer-plano.md` §41.
+- **AI Partner — 20/10/2026 (E7-12, origin intocado)** — cota de arquivos por plano (Free 2/5 MiB, Starter 20/50 MiB, Pro 100/250 MiB), 1337 ✓; falta a fiação à rota/UI e decidir se o Free usa o AI Partner.
 - **AI Partner — 20/10/2026 (E7-11, origin intocado)** — cliente R2 (SigV4 próprio, CAS via If-None-Match, validado ao vivo); 1323 ✓; PENDENTE: revogar/recriar o token (chaves vazaram em print); próximo E7-12 (cota por plano) e fiação.
 - **AI Partner — 20/10/2026 (E7-10, origin intocado)** — RawFileStorage sobre ObjectStore com gzip (sem nuvem ainda); 1314 ✓; próximo E7-11 (R2, exige conta) e E7-12 (cota por plano).
 - **AI Partner — 20/10/2026 (E7-9, backup `f58008a`; origin intocado)** — mensagens da conversa no mesmo delta (user literal ≤4.000; assistant = answer + rendered + citations derivadas; 200 msgs/64 KiB); 1306 ✓.
