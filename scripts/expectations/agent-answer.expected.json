@@ -6233,7 +6233,10 @@
       "src/lib/agent-capabilities/evidence-explain.ts (ALTERADO): o handle do envelope E o da entry passam a ter evidenceRef = explainPageRef(ref, page); o resto do handle (evidenceHash, verdict, population, refEpoch, freshness) é o do assess, intacto",
       "src/lib/infra/turn-session.ts (ALTERADO): a entry do explain agora vai ao ledger (sempre 'add'; ver D-X5 corrigida); sem spec e sem aquecer o cache para o ref derivado; ledger recusa ⇒ ENGINE_REFUSED sem entregar o resultado",
       "scripts/test-agent-evidence-explain.mts (ALTERADO): EX11 e os testes que assertam o ref do handle passam a assertar o derivado; casos novos X1–X6",
-      "scripts/test-turn-session.mts (ALTERADO): K4 e C5 reescritos (a entry do explain agora entra no ledger); casos novos T1–T8"
+      "scripts/test-turn-session.mts (ALTERADO): K4 e C5 reescritos (a entry do explain agora entra no ledger); casos novos T1–T8",
+      "src/lib/agent-capabilities/evidence-refresh.ts (ALTERADO, 1 linha, D-X7): entrada STALE cuja capability não é reexecutável ⇒ ARGS_INVALID antes de consultar a spec",
+      "scripts/test-agent-evidence-refresh.mts (ALTERADO): RF10 passa a citar a entrada do explain pelo ref derivado; caso novo RF14",
+      "test-agent-evidence-explain.mts e test-agent-evidence-refresh.mts ganham o modo COLLECT=1 (só para a análise de mutações; sem efeito no modo normal)"
     ],
     "nao_muda": "ClaimSchema {ref,path,mode}; ledger.ts (addEvidence/refreshEvidence/rotateEpoch); conversation-store.ts (formato dos deltas, replay, CAS, MAX_LEDGER_ENTRIES = 500); regenerate.ts; bundle-cache.ts; slot-path.ts/views.ts (a view e as folhas do explain são as mesmas); validadores e render; portão Q2 (agent-capabilities/ continua sem importar infra/ nem node:).",
     "fatos_lidos_e_medidos": {
@@ -6241,7 +6244,7 @@
       "derivado_no_ledger": "MEDIDO: refs derivados das páginas 1 e 2 são distintos entre si e do original; ledger aceita os dois; reinserir a mesma entrada é idempotente. Nem o ledger nem o ConversationStore conferem ref × evidenceHash (só o formato do ref); a conferência ref × hash existe só nos caminhos do BUNDLE (assess, explain, regenerate, bundle-cache), que o ref derivado nunca alcança.",
       "citacao": "MEDIDO: renderSlot('evidence.explain@1', view, 'trades[0].pnlNet') = 'US$ 37,60'; trades[25] numa página de 20 ⇒ SLOT_PATH_INVALID. Num teste de ponta a ponta o texto da resposta precisa ser válido (a sonda levou SCOPE_OVERCLAIM pelo texto de exemplo, não pela estrutura).",
       "epoca": "MEDIDO (probe79): após rotateEpoch, a MESMA entrada derivada na época nova dá LEDGER_CONFLICT no addEvidence e passa no refreshEvidence. CORREÇÃO (20/10, ao escrever os testes): esse cenário NÃO ocorre no turn-session, porque o sal é obrigatório (SALT_REQUIRED) e o ref analítico MUDA a cada época (K5 já afirma newRef ≠ oldRef); como o derivado é função do ref analítico, ele também muda. A operação 'refresh' para o explain seria código morto inalcançável de ponta a ponta e foi RETIRADA (YAGNI): o explain grava sempre 'add'.",
-      "explain_sobre_derivado": "LIDO (regenerate.ts:56): prepareBundle de um ref que tem entrada mas NÃO tem spec devolve NOT_FOUND ⇒ bundleOf nulo ⇒ evidence.explain devolve NOT_FOUND. evidence.refresh de um ref cuja spec é nula devolve ARGS_INVALID (evidence-refresh.ts:68). Ambos sem mudar código.",
+      "explain_sobre_derivado": "LIDO (regenerate.ts:56): prepareBundle de um ref que tem entrada mas NÃO tem spec devolve NOT_FOUND ⇒ bundleOf nulo ⇒ evidence.explain devolve NOT_FOUND (sem mudar código). CORREÇÃO (20/10, medido ao escrever o T6): evidence.refresh de um ref STALE cuja spec é nula devolve FILE_NOT_AVAILABLE (evidence-refresh.ts:67), NÃO ARGS_INVALID como eu tinha escrito (li a linha 68 errado); ARGS_INVALID só vem de ref CURRENT ou de spec com capability não reexecutável. FILE_NOT_AVAILABLE seria enganoso (o arquivo está lá) e o contrato já diz que refresh de explain é ARGS_INVALID (plano §298). Ver D-X7.",
       "portao_q2": "LIDO (test-agent-capabilities-static Q2): agent-capabilities/ só importa ../agent, ../evidence, ../metrics, './' e zod; sem infra/ nem node:. sha256Hex/canonicalJson vivem em infra/hash.ts (node:crypto) e NÃO são reexportados por evidence/hash.ts. Por isso a fórmula mora em evidence/hash.ts (que já importa infra/hash.ts) e o evidence-explain.ts a chama (D-X2).",
       "ledger_tamanho": "LIDO: MAX_LEDGER_ENTRIES = 500 (conversation-store). Cada página de explain ocupa UMA entrada; o orçamento do turno (8 chamadas) limita a 8 por turno. Estourar o teto continua sendo LIMIT_ENTRIES no commit (comportamento existente, não muda).",
       "vetor_dourado": "Calculado em Python (hashlib) e conferido no TS: ref 'ev_'+'0'*32, página 1 ⇒ JSON canônico {\"page\":1,\"ref\":\"ev_00000000000000000000000000000000\",\"v\":\"explain@1\"} ⇒ ev_4c4b76c1154754bec4e97f05538da8de; página 2 ⇒ ev_b40511fff15ae88eec589686227345d6."
@@ -6252,7 +6255,8 @@
       "D-X3": "O handle do envelope e o da entry são IDÊNTICOS e só diferem do handle do assess no evidenceRef. evidenceHash segue sendo o do bundle analítico (o modelo nunca o vê; a prova continua sendo a do bundle).",
       "D-X4": "O explain NÃO cria spec e NÃO aquece o cache para o ref derivado: o ref derivado não é regenerável nem refrescável. explain sobre ref derivado ⇒ NOT_FOUND; refresh de ref derivado STALE ⇒ ARGS_INVALID; o caminho para atualizar é refazer o explain sobre o ref analítico (já atualizado).",
       "D-X5": "[CORRIGIDA em 20/10] No ledger, repetir o MESMO explain (mesmo ref e página, mesma época) é idempotente (add devolve o mesmo ledger e NÃO gera escrita). Após a rotação o ref analítico muda, logo o derivado é um ref NOVO e entra por 'add'; o derivado antigo fica STALE para sempre (auditoria). Qualquer entrada diferente já existente no mesmo ref derivado (CURRENT ou STALE) ⇒ ledger recusa ⇒ ENGINE_REFUSED, ledger intacto e o resultado NÃO é entregue ao modelo (fail-closed, igual ao caminho analítico).",
-      "D-X6": "Mensagem de contrato: o texto D-T4 do turn-session.ts e o limite 'explain não citável' dos registros (progress, histórico, resumo, plano §40) passam a ser históricos; o E7-8 os substitui."
+      "D-X7":"[NOVA, 20/10, em consequência do T6 medido] evidence-refresh.ts confere a capability da ENTRADA do ledger: se não é reexecutável (explain/refresh), devolve ARGS_INVALID ANTES de consultar a spec. Uma linha; não muda nenhum resultado das entradas analíticas (RF6 intacto; analítica sem spec segue FILE_NOT_AVAILABLE). Caso novo RF14; mutação EX19.",
+    "D-X6": "Mensagem de contrato: o texto D-T4 do turn-session.ts e o limite 'explain não citável' dos registros (progress, histórico, resumo, plano §40) passam a ser históricos; o E7-8 os substitui."
     },
     "cases": [
       "X1 vetor dourado: explainPageRef('ev_'+'0'*32, 1) e (…, 2) iguais aos valores calculados em Python; formato ev_[0-9a-f]{32}",
@@ -6273,6 +6277,7 @@
     "changed_existing": [
       "test-agent-evidence-explain.mts EX11 ('mesmo evidenceRef do pedido') ⇒ passa a assertar o derivado; demais asserções do handle seguem",
       "test-turn-session.mts K4 ('a entrada NÃO vai ao ledger') ⇒ reescrito para 'vai ao ledger por ref derivado'; C5 (turno só de explain) ⇒ commita também a entrada, não só a tabela de alias",
+      "RF10 (test-agent-evidence-refresh.mts) citava a entry do explain pelo ref ANALÍTICO ⇒ passa a citar pelo derivado (achado pelo teste, era o 4º afetado; o título não muda)",
       "qualquer outro teste que compare o evidenceRef do envelope do explain com o pedido: o red mostra a lista exata; cada mudança é justificada no relatório"
     ],
     "mutations_planned": [
@@ -6293,9 +6298,12 @@
       "EX15 entrada do explain fora do commit (só no ledger de trabalho) ⇒ T4",
       "EX16 aquece o cache com o bundle sob o ref derivado ⇒ T8",
       "EX17 repetição idêntica gera escrita duplicada ⇒ T3",
-      "EX18 evidence-explain.ts importa infra/hash.ts ou node:crypto ⇒ Q2 (já existente)"
+      "EX18 evidence-explain.ts importa infra/hash.ts ou node:crypto ⇒ Q2 (já existente)",
+      "EX19 evidence-refresh sem a conferência da capability da entrada ⇒ T6/RF14",
+      "EX14b (acrescentada) as DUAS conferências do ref no explain removidas ⇒ X6 (a EX14 isolada é equivalente: há duas defesas redundantes)",
+      "EX16 EQUIVALENTE por construção: BundleCache.put recusa o bundle sob um ref que não é o do seu hash (INVALID_ARGS); o T8 passa a afirmar isso"
     ],
-    "baselines": "1275 linhas ✓ idênticas, exceto as linhas de EX11, K4 e C5 (títulos/asserções mudam DE PROPÓSITO, listadas no relatório) e as que o red revelar. Esperado ≈ 1275 → 1289 ✓ (+14 casos). Portão Q2 e demais portões estáticos: intocados.",
+    "baselines": "1275 linhas ✓ idênticas, exceto as linhas de EX11, K4 e C5 (títulos/asserções mudam DE PROPÓSITO, listadas no relatório) e as que o red revelar. Esperado ≈ 1275 → 1289 ✓ (+14 casos); MEDIDO: 1290 (+15: o RF14 do D-X7). Portão Q2 e demais portões estáticos: intocados.",
     "limites": "o ref derivado não é regenerável nem refrescável (precisa refazer o explain); uma página = uma entrada (teto de 500 por conversa); a entry carrega o evidenceHash do bundle analítico, não o do derivado; explain de bundle muito grande gera muitas páginas e o modelo só cita as que pediu; sem mudança no contrato do modelo além do ref que ele vê no handle do explain."
   }
 }
