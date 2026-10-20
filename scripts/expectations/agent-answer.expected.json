@@ -6497,5 +6497,70 @@
       ],
       "baselines": "1314 linhas ✓ idênticas; acrescentam-se R1–R9 (9) ⇒ 1314 → 1323 ✓ (R10 ao vivo não conta). C1–C12 na 4ª implementação não geram linha. Nenhum portão estático abre (hash.ts já é o dono do node:crypto).",
       "limites": "as chaves vazaram em print (aceito pelo Marcelo; revogar/recriar quando puder); sem retry/backoff; `existed` do delete é informativo (HEAD+DELETE não é atômico); apagar por prefixo grande é lento (1 DELETE por chave) e parcial se falhar no meio; o teste ao vivo só roda manualmente com R2_LIVE=1; criptografia em repouso é a do provedor (não verificada); cota por plano/retenção (E7-12) não existem; a fiação à aplicação não existe."
+  },
+  "e7_12": {
+      "status": "EXPECTATIVA (20/10/2026) escrita ANTES do código do E7-12: cota de arquivos importados por plano (Free/Starter/Pro) para que o custo do R2 recaia só em quem assina e para barrar abuso. Os NÚMEROS da cota são proposta (D-Q2) e dependem do OK do Marcelo; a MECÂNICA não depende deles (a tabela é um dado). Fora: fiação à rota/UI do Next, cobrança, quotas de conversas.",
+      "files": [
+          "src/lib/plans.ts (ALTERADO, aditivo): novo export `PLAN_IMPORT_QUOTAS: Record<PlanKey, { files, bytes }>` — NÃO entra em `PlanLimits` (usado por plan-guard.ts e src/app/page.tsx; mexer ali obrigaria a mudar a UI e o plan-guard)",
+          "src/lib/infra/import-source-store.ts (ALTERADO, aditivo): `list(userId)` na interface, na memória e no disco (o store já tem as linhas com `fileBytes`; faltava enumerá-las)",
+          "src/lib/infra/import-quota.ts (NOVO): `registerImportWithQuota(deps, req, plan)`, `getImportUsage(importStore, userId, plan)` e a tabela injetável para teste; `registerImport` (dataset.ts) NÃO muda",
+          "scripts/test-import-source-store.mts (ALTERADO, aditivo): L1–L3 (list)",
+          "scripts/test-import-quota.mts (NOVO, entra no test:domain): Q1–Q11",
+          "package.json (test:domain) e docs (§46 + este bloco)"
+      ],
+      "nao_muda": "dataset.ts/registerImport, raw-file-storage*, object-store*, user-purge.ts (deleteImportFile já libera a cota porque apaga a linha), conversation-store, turn-session, plan-guard.ts, `PlanLimits`/`PLAN_LIMITS`, UI/rotas; nenhum portão estático abre; sem rede, sem credencial, sem dependência nova.",
+      "fatos_lidos_e_medidos": {
+          "planos": "LIDO (plans.ts): FREE, TRADER (exibido 'Starter', R$19,90), PRO (R$97). `PlanLimits` tem tradesPerMonth/setups/vegaPerMonth/accounts/integrations; Free tem vegaPerMonth 0 ('análise da Vega (IA) a partir do Starter') — NÃO sei se o AI Partner será liberado no Free: a tabela de cota aceita Free pequeno (D-Q2) e o Marcelo decide. plans.ts não importa nada (puro). `PLAN_LIMITS` é lido por plan-guard.ts e src/app/page.tsx ⇒ por isso a cota vai em export separado.",
+          "onde_o_arquivo_entra": "LIDO (dataset.ts): `registerImport(deps, req)` não conhece plano; calcula bytes e sha, roda o pipeline, grava 1º o arquivo (RawFileStorage.put) e 2º a linha (ImportSourceStore.put); mesma chave+conteúdo ⇒ created:false (idempotente). Para checar cota ANTES de gravar basta calcular bytes/sha do texto (mesmo UTF-8 + sha256Hex) num invólucro.",
+          "contagem": "LIDO (import-source-store.ts): a interface só tem put/get/delete/deleteAllForUser — NÃO há como listar/contar os arquivos do usuário; cada linha traz `fileBytes` (tamanho original). ⇒ é preciso `list(userId)`.",
+          "custo_cota": "CALCULADO (R2: US$0,015/GB-mês acima de 10 GB grátis; CSV real do NT8 comprime ≈4,2×, uso 4×): com a proposta Free 5 MiB / Starter 50 MiB / Pro 250 MiB por usuário, o armazenado no pior caso é ≈1,25 / 12,5 / 62,5 MiB. 10.000 usuários Free no teto = 12 GB ⇒ ≈ US$0,03/mês; 1.000 Pro no teto = 61 GB ⇒ ≈ US$0,77/mês. Conclusão: o custo é desprezível; a cota é sobretudo proteção contra abuso e contra bug, e os números podem subir depois sem dor."
+      },
+      "decisions_DQ": {
+          "D-Q1": "Cota por USUÁRIO e por plano, em duas dimensões: nº de arquivos distintos (por sha) e soma dos bytes ORIGINAIS (`fileBytes` das linhas). Fonte da verdade da contagem = as linhas do ImportSourceStore (o que o usuário vê como 'meus arquivos').",
+          "D-Q2": "[NÚMEROS A APROVAR] FREE 2 arquivos / 5 MiB; TRADER (Starter) 20 / 50 MiB; PRO 100 / 250 MiB. O teto por arquivo continua 25 MiB (um Free não sobe arquivo > 5 MiB: bate na cota de bytes). Tabela em plans.ts (`PLAN_IMPORT_QUOTAS`), um dado só; monótona (Free ≤ Starter ≤ Pro).",
+          "D-Q3": "Verificar ANTES de gravar qualquer coisa, num invólucro `registerImportWithQuota(deps, req, plan)`: calcula bytes/sha do texto; se o arquivo (mesmo sha) JÁ está registrado, passa direto para registerImport (re-envio idempotente NÃO consome cota); senão exige files+1 ≤ limite E bytes+novo ≤ limite; excedeu ⇒ `{ok:false, code:'QUOTA_EXCEEDED', resource:'files'|'bytes', limit, used, suggestedPlan}` e NADA é gravado (nem arquivo, nem linha).",
+          "D-Q4": "`suggestedPlan` = o menor plano cuja cota comporta o pedido (Free→TRADER, TRADER→PRO); se nem o Pro comporta ⇒ null. Sem texto, nome de arquivo ou userId no resultado.",
+          "D-Q5": "Fail-closed: plano inválido (não é FREE/TRADER/PRO) ⇒ INVALID_ARGS sem I/O; falha ao listar ⇒ STORAGE_ERROR e nada é gravado. Linha CORROMPIDA conta como 1 arquivo e 0 bytes (e aparece em `corrupt` na leitura de uso): não trava o usuário por um incidente de integridade, mas também não some da conta.",
+          "D-Q6": "Apagar um arquivo (deleteImportFile/deleteAllForUser do E7-7) libera a cota sozinho (a contagem vem das linhas). Rebaixar de plano NÃO apaga nada: os arquivos existentes seguem legíveis; só novos envios ficam bloqueados enquanto o uso estiver acima da cota do plano novo.",
+          "D-Q7": "`getImportUsage(importStore, userId, plan)` devolve {files, bytes, corrupt, limits, remaining} para a UI mostrar 'você usou X de Y'.",
+          "D-Q8": "LIMITE DECLARADO (cota 'macia'): sem transação, N envios SIMULTÂNEOS de arquivos diferentes podem ultrapassar a cota por até N−1 arquivos; o próximo envio já é barrado. Arquivos órfãos no RawFileStorage (a linha falhou depois do put) não entram na conta. Não há cota para conversas/mensagens (já têm tetos próprios, E7-9) nem retenção por tempo."
+      },
+      "cases": [
+          "L1 list: vazio ⇒ rows [] corrupt 0; N linhas voltam ordenadas por fileSha256, em cópia; outro usuário isolado (memória e disco)",
+          "L2 list depois de delete e de deleteAllForUser reflete a remoção",
+          "L3 list: userId inválido ⇒ INVALID_ARGS sem eco; disco: linha corrompida ⇒ conta em `corrupt` e as outras seguem",
+          "Q1 tabela: PLAN_IMPORT_QUOTAS tem os 3 planos, inteiros positivos, monótona; plans.ts segue sem imports; PlanLimits/PLAN_LIMITS INALTERADOS (mesmas chaves e valores)",
+          "Q2 arquivos: dentro da cota passa; a seguinte ⇒ QUOTA_EXCEEDED resource files, limit/used corretos; NADA gravado (raw e linhas iguais)",
+          "Q3 bytes: borda exata (usado+novo == limite ok; +1 byte ⇒ QUOTA_EXCEEDED bytes); arquivo maior que a cota inteira ⇒ bytes",
+          "Q4 idempotência: reenviar o MESMO arquivo no teto passa (created:false) e não consome cota; arquivo novo continua barrado",
+          "Q5 liberação: deleteImportFile e deleteAllForUser devolvem a cota (novo envio passa)",
+          "Q6 planos: mesmas importações passam no Starter/Pro e falham no Free; suggestedPlan Free→TRADER, TRADER→PRO, Pro estourado ⇒ null; rebaixar mantém leitura (makeContext) e bloqueia só novos envios",
+          "Q7 fail-closed: plano inválido/ausente/minúsculo ⇒ INVALID_ARGS sem I/O; userId inválido; list falhando ⇒ STORAGE_ERROR sem gravar nada; erros do registerImport passam sem mudar de código",
+          "Q8 isolamento e sem eco: o uso de outro usuário não conta; QUOTA_EXCEEDED tem EXATAMENTE as chaves ok/code/resource/limit/used/suggestedPlan; nenhum resultado contém o texto, fileName ou userId",
+          "Q9 uso: getImportUsage correto depois de importar e de apagar; linha corrompida conta 1 arquivo 0 bytes e aparece em corrupt",
+          "Q10 estática: import-quota.ts importa só ./dataset.ts, ./import-source-store.ts, ./raw-file-storage.ts, ./hash.ts e ../plans.ts; sem process.env/fetch/next/prisma; ninguém mais importa import-quota.ts; plans.ts sem imports",
+          "Q11 concorrência (limite declarado): 5 envios simultâneos de arquivos distintos com cota 2 ⇒ no máximo 2+4 arquivos e o envio seguinte é barrado"
+      ],
+      "mutations_planned": [
+          "EQ1 limite de arquivos com > no lugar de ≥ (off-by-one) ⇒ Q2",
+          "EQ2 limite de bytes off-by-one ⇒ Q3",
+          "EQ3 reenvio do mesmo sha conta como novo ⇒ Q4",
+          "EQ4 cota checada DEPOIS de gravar ⇒ Q2",
+          "EQ5 list inclui linhas de outro usuário ⇒ L1/Q8",
+          "EQ6 plano inválido aceito (cai no Pro) ⇒ Q7",
+          "EQ7 falha do list ignorada (passa) ⇒ Q7",
+          "EQ8 suggestedPlan errado ⇒ Q6",
+          "EQ9 linha corrompida ignorada na contagem ⇒ Q9/L3",
+          "EQ10 tabela do Free com valores do Pro ⇒ Q2/Q6",
+          "EQ11 resultado ecoa o fileName ⇒ Q8",
+          "EQ12 bytes somados com o tamanho comprimido/errado ⇒ Q3",
+          "EQ13 rebaixar apaga/ bloqueia leitura ⇒ Q6",
+          "EQ14 erro do registerImport traduzido para outro código ⇒ Q7",
+          "EQ15 list sem cópia (compartilha referência) ⇒ L1",
+          "EQ16 import-quota importa process.env/fetch ⇒ Q10",
+          "EQ17 PlanLimits alterado ⇒ Q1"
+      ],
+      "baselines": "1323 linhas ✓ idênticas; acrescentam-se L1–L3 (3) + Q1–Q11 (11) ⇒ 1323 → 1337 ✓. Pode haver ajuste em testes do import-source-store que comparam as chaves EXATAS do objeto do store (o red mostra). Nenhum portão estático abre.",
+      "limites": "números da cota são proposta e precisam do OK do Marcelo (a mecânica não depende deles); cota macia sob concorrência (até N−1 a mais); órfãos no RawFileStorage não contam; sem retenção por tempo; sem cota de conversas; sem fiação à rota/UI (o plano do usuário vem de quem chamar); contagem pelas linhas do ImportSourceStore (quem apagar o objeto por fora não libera cota)."
   }
 }
