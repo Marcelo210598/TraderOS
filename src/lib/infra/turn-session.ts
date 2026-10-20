@@ -18,11 +18,11 @@ import { rankGroupsCapability } from "../agent-capabilities/rank-groups.ts"
 import type { CapabilityErrorCode, CapabilityId } from "../agent/contract.ts"
 import { newAliasTable, type AliasTable } from "../agent/label.ts"
 import { addEvidence, refreshEvidence, rotateEpoch, type Ledger } from "../agent/ledger.ts"
-import { recordError, recordRejection, requestCall, newTurn, validatorStop, type TurnState } from "../agent/turn.ts"
+import { notices, recordError, recordRejection, requestCall, newTurn, validatorStop, type TurnState } from "../agent/turn.ts"
 import { validateAnswer } from "../agent/validate-answer.ts"
-import { stopResponse, type RenderedAnswer } from "../agent/render.ts"
+import { renderAnswer, stopResponse, type RenderedAnswer } from "../agent/render.ts"
 import type { BundleCache } from "./bundle-cache.ts"
-import type { Conversations, OpenConversation } from "./conversation-store.ts"
+import { MAX_USER_TEXT_CHARS, type Conversations, type OpenConversation, type TurnChange } from "./conversation-store.ts"
 import { parseDatasetPin, type DatasetPin } from "./dataset-pin.ts"
 import { makeContext, type DatasetCode, type DatasetDeps, type DatasetSaltProvider } from "./dataset.ts"
 import { isValidUserId, type RawFileStorage } from "./raw-file-storage.ts"
@@ -44,6 +44,8 @@ export interface OpenTurnRequest {
   readonly conversationId?: string | null
   /** O dataset do turno, escolhido pelo SERVIDOR. */
   readonly pin: unknown
+  /** E7-9: a pergunta do usuário, LITERAL (string não vazia após trim, ≤ 4.000 caracteres). Ausente ⇒ o turno não grava mensagem do usuário. */
+  readonly userMessage?: string
 }
 export type OpenTurnCode = "INVALID_ARGS" | "SALT_REQUIRED" | "NOT_FOUND" | "STORAGE_ERROR"
 export type CommitCode = "TURN_CLOSED" | "TURN_CONFLICT" | "LIMIT_EXCEEDED" | "COMMIT_REJECTED" | "STORAGE_ERROR"
@@ -86,7 +88,7 @@ const toCapabilityCode = (code: string): CapabilityErrorCode =>
 
 const mapCommit = (code: string): CommitCode =>
   code === "CONFLICT" ? "TURN_CONFLICT"
-  : code === "LIMIT_ENTRIES" || code === "LIMIT_ROW" || code === "LIMIT_DELTA" ? "LIMIT_EXCEEDED"
+  : code === "LIMIT_ENTRIES" || code === "LIMIT_ROW" || code === "LIMIT_DELTA" || code === "LIMIT_MESSAGES" ? "LIMIT_EXCEEDED"
   : code === "STORAGE_ERROR" || code === "CORRUPT" ? "STORAGE_ERROR"
   : "COMMIT_REJECTED"
 
@@ -97,7 +99,9 @@ export async function openTurn(deps: TurnDeps, req: OpenTurnRequest): Promise<{ 
     const { conversations, salts } = deps
     if (typeof conversations.create !== "function" || typeof conversations.open !== "function" || typeof conversations.commitTurn !== "function" || typeof salts.load !== "function") return bad("INVALID_ARGS")
     if (deps.cache !== undefined && (!isRecord(deps.cache) || typeof deps.cache.getOrLoad !== "function" || typeof deps.cache.put !== "function")) return bad("INVALID_ARGS")
-    if (!isRecord(req) || Object.keys(req).some((k) => !["userId", "conversationId", "pin"].includes(k))) return bad("INVALID_ARGS")
+    if (!isRecord(req) || Object.keys(req).some((k) => !["userId", "conversationId", "pin", "userMessage"].includes(k))) return bad("INVALID_ARGS")
+    const { userMessage } = req
+    if (userMessage !== undefined && (typeof userMessage !== "string" || userMessage.trim() === "" || userMessage.length > MAX_USER_TEXT_CHARS)) return bad("INVALID_ARGS")
     const { userId } = req
     if (!isValidUserId(userId)) return bad("INVALID_ARGS")
     const pin = parseDatasetPin(req.pin)
@@ -112,13 +116,13 @@ export async function openTurn(deps: TurnDeps, req: OpenTurnRequest): Promise<{ 
 
     const got = conversationId === undefined || conversationId === null ? await conversations.create(userId, cur.saltId) : await conversations.open(userId, conversationId)
     if (!got.ok) return bad(got.code === "NOT_FOUND" ? "NOT_FOUND" : got.code === "INVALID_ARGS" ? "INVALID_ARGS" : "STORAGE_ERROR")
-    return { ok: true, session: buildSession(deps, userId, pin, provider, cur.saltId, got.open) }
+    return { ok: true, session: buildSession(deps, userId, pin, provider, cur.saltId, got.open, userMessage) }
   } catch {
     return bad("STORAGE_ERROR")
   }
 }
 
-function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provider: DatasetSaltProvider, saltId: string, open: OpenConversation): TurnSession {
+function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provider: DatasetSaltProvider, saltId: string, open: OpenConversation, userMessage?: string): TurnSession {
   const dsDeps: DatasetDeps = { rawStorage: deps.rawStorage, importStore: deps.importStore, salt: provider }
   const regDeps = { ...dsDeps, ...(deps.cache !== undefined ? { cache: deps.cache } : {}) }
 
@@ -135,6 +139,7 @@ function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provi
   const specs = new Map<string, { capability: string; args: unknown; pin: DatasetPin }>()
   let state = newTurn()
   let closed = false
+  let assistant: { readonly answer: unknown; readonly rendered: unknown } | null = null // E7-9 (D-M5): o PRIMEIRO desfecho terminal do validate
 
   const specWork = (ref: string): { capability: string; args: unknown } | null => {
     const mine = specs.get(ref)
@@ -145,7 +150,7 @@ function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provi
     return mine !== undefined ? clone(mine.pin) : open.pinOf(ref)
   }
   /** A conversa como o regenerador a lê: ledger/aliases de TRABALHO + specs e pins do turno e persistidos. */
-  const view = (): OpenConversation => ({ conversationId: open.conversationId, version: open.version, epoch: ledger.epoch, ledger, aliases, specOf: specWork, pinOf: pinWork })
+  const view = (): OpenConversation => ({ conversationId: open.conversationId, version: open.version, epoch: ledger.epoch, ledger, aliases, specOf: specWork, pinOf: pinWork, messages: open.messages })
 
   const ctxMemo = new Map<string, ReturnType<typeof makeContext>>()
   const ctxFor = async (pin: DatasetPin): ReturnType<typeof makeContext> => {
@@ -260,21 +265,36 @@ function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provi
   async function doValidate(answer: unknown, question?: string): Promise<ValidateOutcome> {
     if (closed) return { ok: false, code: "TURN_CLOSED" }
     const verdict = validateAnswer({ answer, ledger, stop: validatorStop(state), ...(typeof question === "string" ? { question } : {}) })
-    if (verdict.ok) return { ok: true, claims: verdict.claims }
-    const rec = recordRejection(state, verdict.reasons)
+    let reasons: readonly string[] = verdict.ok ? [] : verdict.reasons
+    if (verdict.ok) {
+      const rendered = renderAnswer({ answer, ledger, notices: notices(state), stop: validatorStop(state), ...(typeof question === "string" ? { question } : {}) })
+      if (rendered.ok) {
+        if (assistant === null) assistant = { answer: clone(answer), rendered: clone(rendered.rendered) }
+        return { ok: true, claims: verdict.claims }
+      }
+      reasons = ["STRUCTURE_INVALID"] // D-M9: render falho de resposta aceita = rejeição fail-closed
+    }
+    const rec = recordRejection(state, reasons as never)
     state = rec.state
-    return rec.action === "REGENERATE" ? { ok: false, action: "REGENERATE", feedback: rec.feedback } : { ok: false, action: "STOP", stopReason: rec.stopReason, response: stopResponse(state) }
+    if (rec.action === "REGENERATE") return { ok: false, action: "REGENERATE", feedback: rec.feedback }
+    const response = stopResponse(state)
+    if (assistant === null) assistant = { answer: null, rendered: clone(response) }
+    return { ok: false, action: "STOP", stopReason: rec.stopReason, response }
   }
 
   async function doCommit(): Promise<CommitOutcome> {
     if (closed) return { ok: false, code: "TURN_CLOSED" }
     closed = true // fechada com sucesso OU não: um turno perdedor não se reaproveita
     ctxMemo.clear()
-    const change: { rotateTo?: string; writes?: typeof writes; specs?: Array<{ evidenceRef: string; capability: string; args: unknown; pin: DatasetPin }>; aliases?: AliasTable } = {}
+    const change: { rotateTo?: string; writes?: typeof writes; specs?: Array<{ evidenceRef: string; capability: string; args: unknown; pin: DatasetPin }>; aliases?: AliasTable; messages?: NonNullable<TurnChange["messages"]> } = {}
     if (rotateTo !== null) change.rotateTo = rotateTo
     if (writes.length > 0) change.writes = writes
     if (specs.size > 0) change.specs = [...specs].map(([evidenceRef, s]) => ({ evidenceRef, capability: s.capability, args: s.args, pin: s.pin }))
     if (jstr(aliases) !== initialAliases) change.aliases = aliases
+    const messages: Array<NonNullable<TurnChange["messages"]>[number]> = []
+    if (userMessage !== undefined) messages.push({ role: "user", text: userMessage })
+    if (assistant !== null) messages.push({ role: "assistant", answer: assistant.answer, rendered: assistant.rendered })
+    if (messages.length > 0) change.messages = messages
     if (Object.keys(change).length === 0) return { ok: true, committed: false, version: open.version }
     try {
       const r = await deps.conversations.commitTurn(open, change)

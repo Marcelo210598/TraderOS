@@ -6,7 +6,7 @@
 // Nada lança; erros são códigos fixos, sem mensagem, sem caminho e sem eco. O valor das specs/alias nunca contém nome de conta: refs de alias são hashes `acc_/str_/lbl_` (formato conferido); specs não podem conter nenhum.
 import { link, lstat, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises"
 import { isAbsolute, join, relative, resolve } from "node:path"
-import { CAPABILITY_IDS, EVIDENCE_REF_RE } from "../agent/contract.ts"
+import { AgentAnswerSchema, CAPABILITY_IDS, CombinedVerdictSchema, EVIDENCE_REF_RE, type AgentAnswer } from "../agent/contract.ts"
 import { newAliasTable, type AliasTable } from "../agent/label.ts"
 import { addEvidence, lookupRef, newLedger, refreshEvidence, rotateEpoch, type Ledger } from "../agent/ledger.ts"
 import { parseDatasetPin, type DatasetPin } from "./dataset-pin.ts"
@@ -15,6 +15,10 @@ import { canonicalJson, randomHex } from "./hash.ts"
 export const MAX_LEDGER_ENTRIES = 500
 export const MAX_ROW_BYTES = 256 * 1024
 export const MAX_DELTA_BYTES = 2 * 1024 * 1024
+/** E7-9 (D-M3/D-M6): texto do usuário ≤ 4.000 caracteres; ≤ 200 mensagens por conversa; ≤ 64 KiB (JSON) por mensagem. */
+export const MAX_USER_TEXT_CHARS = 4000
+export const MAX_MESSAGES = 200
+export const MAX_MESSAGE_BYTES = 64 * 1024
 const MAX_VERSION = 999_999
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/
 const EPOCH_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/
@@ -32,7 +36,13 @@ const sameJson = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON
 // ───────────────────────────── tipos do log ─────────────────────────────
 export interface LedgerWrite { readonly op: "add" | "refresh"; readonly capability: string; readonly handle: unknown; readonly view: unknown }
 export interface SpecWrite { readonly evidenceRef: string; readonly capability: string; readonly args: unknown; /** E7-4 (D-B2): os arquivos e preferências exatos da consulta; sem ele não há como regenerar a Evidence. */ readonly pin: DatasetPin }
-export interface DeltaBody { readonly rotateTo: string | null; readonly writes: readonly LedgerWrite[]; readonly specs: readonly SpecWrite[]; readonly alias: AliasTable | null }
+/** E7-9: a mensagem como vai no delta (sem `turn`/`createdAt`: são os do delta). `rendered` é um REGISTRO do que o usuário viu (D-M1); `citations` é DERIVADA do answer (distintas, ordenadas). */
+export type RenderedRecord = { readonly segments: readonly Record<string, unknown>[]; readonly banner: { readonly combined: string | null; readonly label: string | null }; readonly stopReason: "REGEN_EXHAUSTED" | null }
+export type UserMessageRecord = { readonly role: "user"; readonly text: string }
+export type AssistantMessageRecord = { readonly role: "assistant"; readonly answer: AgentAnswer | null; readonly rendered: RenderedRecord; readonly citations: readonly string[] }
+export type MessageRecord = UserMessageRecord | AssistantMessageRecord
+export type StoredMessage = MessageRecord & { readonly turn: number; readonly createdAt: string }
+export interface DeltaBody { readonly rotateTo: string | null; readonly writes: readonly LedgerWrite[]; readonly specs: readonly SpecWrite[]; readonly alias: AliasTable | null; /** Ausente = []. Presente = 1 a 2 itens: no máximo um user e um assistant, user primeiro (D-M7). */ readonly messages?: readonly MessageRecord[] }
 export interface StoredDelta extends DeltaBody { readonly version: number; readonly createdAt: string }
 export interface CorruptDelta { readonly version: number; readonly corrupt: true }
 export interface ConversationMeta { readonly userId: string; readonly conversationId: string; readonly epoch: string; readonly createdAt: string }
@@ -70,12 +80,60 @@ export function parseAliasTable(x: unknown): AliasTable | null {
   }
 }
 
+// ───────────────────────────── mensagens (E7-9) ─────────────────────────────
+const keysOf = (x: Record<string, unknown>): string => Object.keys(x).sort().join(",")
+const citationsOf = (answer: AgentAnswer): string[] => [...new Set([...answer.segments.flatMap((s) => (s.kind === "slot" ? [s.ref] : s.kind === "phrase" && s.ref !== undefined ? [s.ref] : [])), ...answer.claims.map((c) => c.ref)])].sort()
+const SEGMENT_KEYS: Record<string, string> = { text: "kind,text", value: "combined,kind,mode,path,ref,text", phrase: "code,kind,text", server_text: "kind,text" }
+function parseRendered(x: unknown): RenderedRecord | null {
+  if (!isRecord(x) || keysOf(x) !== "banner,segments,stopReason" || !Array.isArray(x.segments) || x.segments.length === 0) return null
+  if (x.stopReason !== null && x.stopReason !== "REGEN_EXHAUSTED") return null
+  const b = x.banner
+  if (!isRecord(b) || keysOf(b) !== "combined,label" || (b.label !== null && typeof b.label !== "string") || (b.combined !== null && !CombinedVerdictSchema.safeParse(b.combined).success)) return null
+  for (const seg of x.segments) {
+    if (!isRecord(seg) || typeof seg.kind !== "string" || keysOf(seg) !== SEGMENT_KEYS[seg.kind] || typeof seg.text !== "string") return null
+    if (seg.kind === "value" && (typeof seg.ref !== "string" || !EVIDENCE_REF_RE.test(seg.ref) || typeof seg.path !== "string" || (seg.mode !== "ASSERT" && seg.mode !== "LABELED") || !CombinedVerdictSchema.safeParse(seg.combined).success)) return null
+    if (seg.kind === "phrase" && typeof seg.code !== "string") return null
+  }
+  return clone({ segments: x.segments as Record<string, unknown>[], banner: { combined: b.combined as string | null, label: b.label as string | null }, stopReason: x.stopReason as "REGEN_EXHAUSTED" | null })
+}
+/** Uma mensagem. `stored` = como está no delta (com `citations`, que precisam ser EXATAMENTE as derivadas do answer); senão a entrada do commit (sem `citations`, que são calculadas aqui). Inválida ⇒ null. */
+export function parseMessage(x: unknown, stored: boolean): MessageRecord | null {
+  try {
+    if (!isRecord(x)) return null
+    if (x.role === "user") {
+      if (keysOf(x) !== "role,text" || typeof x.text !== "string" || x.text.trim() === "" || x.text.length > MAX_USER_TEXT_CHARS) return null
+      return { role: "user", text: x.text }
+    }
+    if (x.role !== "assistant" || keysOf(x) !== (stored ? "answer,citations,rendered,role" : "answer,rendered,role")) return null
+    let answer: AgentAnswer | null = null
+    if (x.answer !== null) { const p = AgentAnswerSchema.safeParse(x.answer); if (!p.success) return null; answer = clone(p.data) }
+    const rendered = parseRendered(x.rendered)
+    if (rendered === null || (answer === null) !== (rendered.stopReason === "REGEN_EXHAUSTED")) return null // STOP ⇔ answer nulo
+    const citations = answer === null ? [] : citationsOf(answer)
+    if (stored && !sameJson(x.citations, citations)) return null
+    return { role: "assistant", answer, rendered, citations }
+  } catch {
+    return null
+  }
+}
+function parseMessages(x: unknown, stored: boolean): readonly MessageRecord[] | null {
+  if (!Array.isArray(x) || x.length < 1 || x.length > 2) return null
+  const out: MessageRecord[] = []
+  for (const m of x) { const p = parseMessage(m, stored); if (p === null) return null; out.push(p) }
+  if (out.length === 2 && !(out[0].role === "user" && out[1].role === "assistant")) return null
+  return out
+}
+const deepFreeze = <T,>(x: T): T => { if (typeof x === "object" && x !== null && !Object.isFrozen(x)) { for (const v of Object.values(x)) deepFreeze(v); Object.freeze(x) } return x }
+
 /** Formato do delta (não a semântica do ledger — essa é do domínio). Devolve uma CÓPIA; inválido ⇒ null. */
 export function parseDeltaBody(x: unknown): DeltaBody | null {
   try {
     if (!isRecord(x)) return null
-    const keys = Object.keys(x).sort().join(",")
+    const hasMessages = Object.hasOwn(x, "messages")
+    const keys = Object.keys(x).filter((k) => k !== "messages").sort().join(",")
     if (keys !== "alias,rotateTo,specs,writes" && keys !== "alias,createdAt,rotateTo,specs,version,writes") return null
+    let messages: readonly MessageRecord[] | null = null
+    if (hasMessages) { messages = parseMessages(x.messages, true); if (messages === null) return null }
     if (x.rotateTo !== null && (typeof x.rotateTo !== "string" || !EPOCH_RE.test(x.rotateTo))) return null
     if (!Array.isArray(x.writes) || !Array.isArray(x.specs)) return null
     const writes: LedgerWrite[] = []
@@ -94,7 +152,7 @@ export function parseDeltaBody(x: unknown): DeltaBody | null {
     }
     let alias: AliasTable | null = null
     if (x.alias !== null) { alias = parseAliasTable(x.alias); if (alias === null) return null }
-    return { rotateTo: x.rotateTo as string | null, writes, specs, alias }
+    return { rotateTo: x.rotateTo as string | null, writes, specs, alias, ...(messages !== null ? { messages } : {}) }
   } catch {
     return null
   }
@@ -249,7 +307,7 @@ export function createDiskConversationStore(rootDir: string, overrides: Partial<
         if (!(await exists(join(dir, "meta.json")))) return conversationStoreFailure("NOT_FOUND")
         if (expectedVersion > 0 && !(await exists(join(dir, vName(expectedVersion))))) return conversationStoreFailure("CONFLICT") // versão futura: não há como "pular" o log
         const version = expectedVersion + 1
-        const r = await createExclusive(dir, vName(version), JSON.stringify({ alias: checked.delta.alias, createdAt, rotateTo: checked.delta.rotateTo, specs: checked.delta.specs, version, writes: checked.delta.writes }))
+        const r = await createExclusive(dir, vName(version), JSON.stringify({ alias: checked.delta.alias, createdAt, ...(checked.delta.messages !== undefined ? { messages: checked.delta.messages } : {}), rotateTo: checked.delta.rotateTo, specs: checked.delta.specs, version, writes: checked.delta.writes }))
         return r === "created" ? { ok: true, version } : conversationStoreFailure("CONFLICT")
       } catch {
         return conversationStoreFailure("STORAGE_ERROR")
@@ -294,6 +352,7 @@ interface Model {
   readonly specs: ReadonlyMap<string, { readonly capability: string; readonly args: unknown; readonly pin: DatasetPin }>
   readonly alias: AliasTable | null
   readonly seq: number
+  readonly messages: readonly StoredMessage[]
 }
 const currentEpoch = (m: { epochs: readonly string[] }): string => m.epochs[m.epochs.length - 1]
 
@@ -326,7 +385,8 @@ function foldDelta(m: Model, d: StoredDelta): Model | null {
     specs.set(s.evidenceRef, { capability: s.capability, args: s.args, pin: s.pin })
   }
   if (d.alias !== null && checkAliasStep(m.alias, epochs[epochs.length - 1], d.alias) !== null) return null
-  return { ...m, version: d.version, epochs, rows, specs, alias: d.alias ?? m.alias, seq }
+  const messages = d.messages === undefined ? m.messages : [...m.messages, ...d.messages.map((msg) => ({ ...clone(msg), turn: d.version, createdAt: d.createdAt }) as StoredMessage)]
+  return { ...m, version: d.version, epochs, rows, specs, alias: d.alias ?? m.alias, seq, messages }
 }
 
 /** Remonta o ledger pelas funções PURAS, em ordem (índice da época, seq). Linha inválida, época desconhecida ou contagem diferente ⇒ null. */
@@ -364,13 +424,15 @@ export interface OpenConversation {
   specOf(evidenceRef: string): { capability: string; args: unknown } | null
   /** O pin de dataset da spec do ref (cópia canônica), ou null. A forma de `specOf` NÃO muda (o refresh depende dela). */
   pinOf(evidenceRef: string): DatasetPin | null
+  /** E7-9: TODAS as mensagens da conversa (≤ 200), em ordem, como cópias profundas CONGELADAS. `turn` = versão do delta; `createdAt` = o do delta. "Últimas N" é fatia de quem consome. */
+  readonly messages: readonly StoredMessage[]
 }
 export type ConversationErrorCode =
   | "INVALID_ARGS" | "NOT_FOUND" | "DUPLICATE" | "CONFLICT" | "CORRUPT" | "STORAGE_ERROR"
   | "LEDGER_ENTRY_INVALID" | "LEDGER_CONFLICT" | "LEDGER_EPOCH_INVALID"
   | "ALIAS_INVALID" | "ALIAS_EPOCH_MISMATCH" | "ALIAS_NOT_EXTENDING"
   | "SPEC_INVALID" | "SPEC_REF_UNKNOWN" | "SPEC_HAS_REAL_REF" | "SPEC_CONFLICT"
-  | "LIMIT_ENTRIES" | "LIMIT_ROW" | "LIMIT_DELTA"
+  | "LIMIT_ENTRIES" | "LIMIT_ROW" | "LIMIT_DELTA" | "MESSAGE_INVALID" | "LIMIT_MESSAGES"
 export interface ConversationFailure { readonly ok: false; readonly code: ConversationErrorCode }
 const fail = (code: ConversationErrorCode): ConversationFailure => ({ ok: false, code })
 
@@ -383,6 +445,8 @@ export interface TurnChange {
   readonly specs?: ReadonlyArray<{ readonly evidenceRef: string; readonly capability: string; readonly args: unknown; readonly pin: DatasetPin }>
   /** A tabela de alias que a capacidade devolveu (da época vigente, só crescendo pelo fim). */
   readonly aliases?: AliasTable
+  /** E7-9: 1 a 2 mensagens (user e/ou assistant, user primeiro) gravadas no MESMO delta. O assistant vai SEM `citations` (derivadas aqui e conferidas contra o ledger do commit). */
+  readonly messages?: ReadonlyArray<{ readonly role: "user"; readonly text: string } | { readonly role: "assistant"; readonly answer: unknown; readonly rendered: unknown }>
 }
 
 export interface Conversations {
@@ -400,7 +464,7 @@ export function createConversations(deps: { store: ConversationStore; now?: () =
   const makeOpen = (m: Model, ledger: Ledger): OpenConversation => {
     const aliases = m.alias !== null && m.alias.epoch === currentEpoch(m) ? m.alias : newAliasTable(currentEpoch(m))
     const open: OpenConversation = Object.freeze({
-      conversationId: m.conversationId, version: m.version, epoch: currentEpoch(m), ledger, aliases,
+      conversationId: m.conversationId, version: m.version, epoch: currentEpoch(m), ledger, aliases, messages: deepFreeze(clone(m.messages) as StoredMessage[]),
       specOf: (ref: string) => { const s = typeof ref === "string" && EVIDENCE_REF_RE.test(ref) ? m.specs.get(ref) : undefined; return s === undefined ? null : clone({ capability: s.capability, args: s.args }) },
       pinOf: (ref: string) => { const s = typeof ref === "string" && EVIDENCE_REF_RE.test(ref) ? m.specs.get(ref) : undefined; return s === undefined ? null : clone(s.pin) },
     })
@@ -408,7 +472,7 @@ export function createConversations(deps: { store: ConversationStore; now?: () =
     return open
   }
   const build = (meta: ConversationMeta, deltas: ReadonlyArray<StoredDelta | CorruptDelta>): { readonly ok: true; readonly open: OpenConversation } | ConversationFailure => {
-    let m: Model | null = { userId: meta.userId, conversationId: meta.conversationId, version: 0, epochs: [meta.epoch], rows: new Map(), specs: new Map(), alias: null, seq: 0 }
+    let m: Model | null = { userId: meta.userId, conversationId: meta.conversationId, version: 0, epochs: [meta.epoch], rows: new Map(), specs: new Map(), alias: null, seq: 0, messages: [] }
     for (const d of deltas) {
       if ("corrupt" in d) return fail("CORRUPT")
       const body = parseDeltaBody(d) // defesa em profundidade: qualquer store (memória, disco, o futuro Prisma) é revalidado aqui
@@ -445,10 +509,10 @@ export function createConversations(deps: { store: ConversationStore; now?: () =
     async commitTurn(open, change) {
       try {
         const m = models.get(open)
-        if (m === undefined || !isRecord(change) || Object.keys(change).some((k) => !["rotateTo", "writes", "specs", "aliases"].includes(k))) return fail("INVALID_ARGS")
+        if (m === undefined || !isRecord(change) || Object.keys(change).some((k) => !["rotateTo", "writes", "specs", "aliases", "messages"].includes(k))) return fail("INVALID_ARGS")
         const { rotateTo, writes = [], specs = [] } = change
         if (!Array.isArray(writes) || !Array.isArray(specs) || (rotateTo !== undefined && typeof rotateTo !== "string")) return fail("INVALID_ARGS")
-        if (rotateTo === undefined && writes.length === 0 && specs.length === 0 && change.aliases === undefined) return fail("INVALID_ARGS") // commit vazio não avança a versão
+        if (rotateTo === undefined && writes.length === 0 && specs.length === 0 && change.aliases === undefined && change.messages === undefined) return fail("INVALID_ARGS") // commit vazio não avança a versão
 
         // 1) ledger: SÓ as funções puras decidem
         let ledger = open.ledger
@@ -491,16 +555,28 @@ export function createConversations(deps: { store: ConversationStore; now?: () =
           specWrites.push({ evidenceRef: s.evidenceRef, capability: s.capability, args: clone(s.args), pin })
         }
 
+        // 3b) mensagens (E7-9): formato, limites, citações no ledger do MESMO commit (STALE inclusive)
+        let messages: readonly MessageRecord[] | undefined
+        if (change.messages !== undefined) {
+          const parsed = parseMessages(change.messages, false)
+          if (parsed === null) return fail("MESSAGE_INVALID")
+          if (m.messages.length + parsed.length > MAX_MESSAGES || parsed.some((msg) => bytesOf(msg) > MAX_MESSAGE_BYTES)) return fail("LIMIT_MESSAGES")
+          for (const msg of parsed) if (msg.role === "assistant" && msg.citations.some((r) => lookupRef(ledger, r) === null)) return fail("MESSAGE_INVALID")
+          messages = parsed
+        }
+
         // 4) o que se grava é a forma NORMALIZADA que o domínio aceitou (saída do zod), não a entrada crua
         const body: DeltaBody = {
           rotateTo: rotateTo ?? null,
           writes: writes.map((w, i) => { const e = lookupRef(ledger, written[i])!; return { op: (w as { op: "add" | "refresh" }).op, capability: e.capability, handle: clone(e.handle), view: clone(e.view) } }),
           specs: specWrites,
           alias,
+          ...(messages !== undefined ? { messages } : {}),
         }
-        const res = await store.commit(m.userId, m.conversationId, m.version, body, now())
+        const at = now() // o MESMO instante vai ao store e à remontagem (a mensagem herda o createdAt do delta)
+        const res = await store.commit(m.userId, m.conversationId, m.version, body, at)
         if (!res.ok) return mapStore(res.code)
-        const next = foldDelta(m, { version: res.version, createdAt: now(), ...parseDeltaBody(body)! })
+        const next = foldDelta(m, { version: res.version, createdAt: at, ...parseDeltaBody(body)! })
         const nextLedger = next === null ? null : ledgerOf(next)
         return next === null || nextLedger === null ? fail("STORAGE_ERROR") : { ok: true, version: res.version, open: makeOpen(next, nextLedger) }
       } catch {

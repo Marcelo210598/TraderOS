@@ -2,6 +2,7 @@
 // (ledger, specs, aliases), traduz falhas SEM inventar código novo e grava UM commit atômico no fim (CAS, sem retry).
 // Expectativa escrita ANTES do código: scripts/expectations/agent-answer.expected.json → e7_6 (D-T0…D-T9; O1–O3, K1–K9, C1–C5, V1–V2, S1–S2; mutações EM1–EM16).
 // E7-8 (citabilidade do evidence.explain): expectativa e7_8 (D-X1…D-X6; T1–T8); K4 e C5 reescritos (a entrada do explain agora vai ao ledger, por ref derivado por página).
+// E7-9 (mensagens da conversa): expectativa e7_9 (D-M1…D-M9; N1–N8): userMessage no openTurn, resposta terminal registrada no validate, gravada no commit.
 //   node scripts/test-turn-session.mts       (COLLECT=1 só para a análise de mutações)
 import assert from "node:assert/strict"
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs"
@@ -17,6 +18,7 @@ import { metricsQuery } from "../src/lib/agent-capabilities/metrics-query.ts"
 import { rankGroupsCapability } from "../src/lib/agent-capabilities/rank-groups.ts"
 import { newAliasTable } from "../src/lib/agent/label.ts"
 import { addEvidence, isStale, newLedger } from "../src/lib/agent/ledger.ts"
+import { notices } from "/Users/marcelodifoggiajunior/Desktop/Projetos AI/TraderOS/src/lib/agent/turn.ts"
 import { renderAnswer, stopResponse } from "../src/lib/agent/render.ts"
 import { explainPageRef } from "../src/lib/evidence/hash.ts"
 import { InMemorySaltKeyring } from "../src/lib/ingest/salt.ts"
@@ -683,6 +685,146 @@ await test("S2 — tripwire de imports: só turn-session.ts (além de regenerate
   assert.equal(/from\s+["'](node:)?crypto["']/.test(code), false, "importa node:crypto")
   assert.equal(/process\.env|\bfetch\s*\(|prisma|anthropic|openai|@ai-sdk/i.test(code), false, "dependência proibida (sem LLM, sem ambiente, sem rede)")
   assert.equal(/\buserId\s*:\s*[a-zA-Z.]*args/.test(code) || /args\.userId|args\)\.userId/.test(code), false, "userId nunca vem dos args")
+})
+
+// ───────────────────────────── N: mensagens da conversa (E7-9) ─────────────────────────────
+const goodAnswer = (ref: string): Any => ({ segments: [{ kind: "text", text: "Segue o valor:" }, { kind: "slot", ref, path: "metrics[0].value" }, { kind: "phrase", code: "POPULATION_DECLARED", ref }], claims: [{ ref, path: "metrics[0].value", mode: "ASSERT" }] })
+const otherAnswer = (ref: string): Any => ({ segments: [{ kind: "text", text: "Outro valor:" }, { kind: "slot", ref, path: "metrics[1].value" }, { kind: "phrase", code: "POPULATION_DECLARED", ref }], claims: [{ ref, path: "metrics[1].value", mode: "ASSERT" }] })
+const withMessage = async (e: Env, userMessage: string | undefined, sha: string, conversationId?: string | null, extra: Any = {}): Promise<Any> => {
+  const r: Any = await openTurn(turnDeps(e, extra), { userId: U1, pin: PIN({}, sha), conversationId, ...(userMessage !== undefined ? { userMessage } : {}) } as Any)
+  assert.equal(r.ok, true, `openTurn: ${r.code}`)
+  return r.session
+}
+const messagesOf = async (e: Env, id: string): Promise<Any[]> => { const r: Any = await createConversations({ store: e.conv() }).open(U1, id); assert.equal(r.ok, true, r.code); return r.open.messages }
+
+await test("N1 — userMessage: válida (inclusive 4.000) é gravada LITERAL no commit; não-string/null/vazia/só espaços/4.001/objeto ⇒ INVALID_ARGS; ausente ⇒ nada muda (turno vazio segue committed:false)", async () => {
+  await both(async (e) => {
+    const sha = await register(e, csvOf(60, 1))
+    for (const v of [5, null, "", "   \n\t", "x".repeat(4001), { a: 1 }, ["oi"]]) assert.deepEqual(await openTurn(turnDeps(e), { userId: U1, pin: PIN({}, sha), userMessage: v } as Any), { ok: false, code: "INVALID_ARGS" }, `${e.name}: ${jstr(v).slice(0, 30)}`)
+    for (const text of ["  qual o resultado?  ", "y".repeat(4000)]) {
+      const s = await withMessage(e, text, sha); const c: Any = await s.commit()
+      assert.deepEqual([c.ok, c.committed, c.version], [true, true, 1], e.name)
+      assert.deepEqual((await messagesOf(e, s.conversationId)).map((m) => [m.role, m.text]), [["user", text]], `${e.name}: literal (sem trim, sem alteração)`)
+    }
+    const none = await withMessage(e, undefined, sha); const c0: Any = await none.commit()
+    assert.deepEqual([c0.ok, c0.committed, c0.version], [true, false, 0], `${e.name}: sem userMessage o turno vazio não commita`)
+    const calls = await withMessage(e, undefined, sha); await calls.call("metrics.query@1", Q); await calls.commit()
+    assert.deepEqual(await messagesOf(e, calls.conversationId), [], `${e.name}: sem userMessage e sem resposta, nenhuma mensagem`)
+  })
+})
+
+await test("N2 — resposta ACEITA vira a mensagem do assistente na ordem [user, assistant]: answer validado + rendered IGUAL ao renderAnswer(mesmo answer/ledger/notices) + citations; o ledger e a época não alteram o registrado", async () => {
+  await both(async (e) => {
+    const sha = await register(e, csvOf(80, 2))
+    const s = await withMessage(e, "resultado e taxa de acerto?", sha); const ref = refOfResult(((await s.call("metrics.query@1", Q)) as Any).result)
+    const good = goodAnswer(ref); const v: Any = await s.validate(good); assert.equal(v.ok, true, `${e.name}: ${jstr(v)}`)
+    const expected: Any = renderAnswer({ answer: good, ledger: s.ledger(), notices: notices(s.state()), stop: null })
+    assert.equal(expected.ok, true, e.name)
+    assert.equal((await s.commit() as Any).committed, true, e.name)
+    const msgs = await messagesOf(e, s.conversationId)
+    assert.deepEqual(msgs.map((m) => [m.role, m.turn]), [["user", 1], ["assistant", 1]], `${e.name}: ordem`)
+    assert.deepEqual(msgs[1].answer, good, e.name); assert.deepEqual(msgs[1].citations, [ref], e.name)
+    assert.equal(jstr(msgs[1].rendered), jstr(expected.rendered), `${e.name}: rendered == renderAnswer`)
+    assert.ok(msgs[1].rendered.segments.some((g: Any) => g.kind === "value" && g.ref === ref), `${e.name}: o valor está no texto renderizado`)
+    // o registro NÃO é recalculado: depois de a época girar o ref vira STALE, mas a mensagem relida é a mesma
+    e.kr.rotate(U1); const s2 = await withMessage(e, undefined, sha, s.conversationId)
+    assert.equal(jstr((await messagesOf(e, s2.conversationId))[1].rendered), jstr(expected.rendered), `${e.name}: registro intacto após rotação`)
+  })
+})
+
+await test("N3 — STOP: após 3 rejeições a mensagem do assistente é answer NULO + rendered == stopResponse(state) (stopReason REGEN_EXHAUSTED), sem texto do modelo", async () => {
+  await both(async (e) => {
+    const sha = await register(e, csvOf(60, 1))
+    const s = await withMessage(e, "pergunta", sha); await s.call("metrics.query@1", Q)
+    for (let i = 0; i < 2; i++) assert.equal(((await s.validate({ nope: i })) as Any).action, "REGENERATE", e.name)
+    const stop: Any = await s.validate({ nope: "SEGREDO-DO-MODELO" }); assert.equal(stop.action, "STOP", e.name)
+    await s.commit()
+    const msgs = await messagesOf(e, s.conversationId); const a = msgs[1]
+    assert.deepEqual([a.role, a.answer, a.citations, a.rendered.stopReason], ["assistant", null, [], "REGEN_EXHAUSTED"], e.name)
+    assert.equal(jstr(a.rendered), jstr(stop.response), `${e.name}: == a resposta devolvida pelo validate`)
+    assert.equal(jstr(a.rendered), jstr(stopResponse(s.state())), `${e.name}: == stopResponse(state)`)
+    assert.equal(jstr(msgs).includes("SEGREDO-DO-MODELO"), false, e.name)
+  })
+})
+
+await test("N4 — o PRIMEIRO desfecho terminal vence: REGENERATE não grava; aceito seguido de outro aceito ou de rejeição não muda o registrado; STOP seguido de resposta válida também não", async () => {
+  await both(async (e) => {
+    const sha = await register(e, csvOf(80, 2))
+    const s = await withMessage(e, "q", sha); const ref = refOfResult(((await s.call("metrics.query@1", Q)) as Any).result)
+    assert.equal(((await s.validate({ nope: 1 })) as Any).action, "REGENERATE", e.name)
+    const first = goodAnswer(ref); assert.equal(((await s.validate(first)) as Any).ok, true, e.name)
+    assert.equal(((await s.validate(otherAnswer(ref))) as Any).ok, true, `${e.name}: o 2º aceito`)
+    assert.equal(((await s.validate({ nope: 2 })) as Any).ok, false, e.name)
+    await s.commit()
+    const a = (await messagesOf(e, s.conversationId))[1]
+    assert.deepEqual(a.answer, first, `${e.name}: o primeiro aceito (nem a rejeição anterior, nem os posteriores)`)
+    // STOP primeiro, resposta válida depois
+    const t = await withMessage(e, "q2", sha); const r2 = refOfResult(((await t.call("metrics.query@1", Q)) as Any).result)
+    for (let i = 0; i < 3; i++) await t.validate({ nope: i })
+    assert.equal(((await t.validate(goodAnswer(r2))) as Any).ok !== undefined, true, e.name)
+    await t.commit()
+    const b = (await messagesOf(e, t.conversationId))[1]
+    assert.deepEqual([b.answer, b.rendered.stopReason], [null, "REGEN_EXHAUSTED"], `${e.name}: o STOP, que veio primeiro, permanece`)
+  })
+})
+
+await test("N5 — turno SÓ com a mensagem do usuário (sem chamadas, sem resposta) commita (committed:true, versão +1) e a conversa reaberta traz a mensagem; um 2º turno acumula na ordem", async () => {
+  await both(async (e) => {
+    const sha = await register(e, csvOf(60, 1))
+    const s = await withMessage(e, "primeira", sha); const c: Any = await s.commit(); assert.deepEqual([c.ok, c.committed, c.version], [true, true, 1], e.name)
+    const t = await withMessage(e, "segunda", sha, s.conversationId); const c2: Any = await t.commit(); assert.deepEqual([c2.committed, c2.version], [true, 2], e.name)
+    assert.deepEqual((await messagesOf(e, s.conversationId)).map((m) => [m.turn, m.text]), [[1, "primeira"], [2, "segunda"]], e.name)
+  })
+})
+
+await test("N6 — notices: com uma capacidade que FALHOU no turno a resposta renderizada traz a frase de falha e é IGUAL ao renderAnswer direto com os mesmos notices (e diferente do render sem eles)", async () => {
+  await both(async (e) => {
+    const sha = await register(e, csvOf(80, 2))
+    const s = await withMessage(e, "q", sha)
+    const bad: Any = await s.call("metrics.query@1", { metricIds: ["inexistente"] }); assert.equal(bad.result.ok, false, e.name)
+    const ref = refOfResult(((await s.call("metrics.query@1", Q)) as Any).result)
+    assert.deepEqual(notices(s.state()), ["CAPABILITY_FAILED"], e.name)
+    const good = goodAnswer(ref); const v: Any = await s.validate(good); assert.equal(v.ok, true, `${e.name}: ${jstr(v)}`)
+    const withN: Any = renderAnswer({ answer: good, ledger: s.ledger(), notices: ["CAPABILITY_FAILED"], stop: null }), without: Any = renderAnswer({ answer: good, ledger: s.ledger(), notices: [], stop: null })
+    assert.notEqual(jstr(withN.rendered), jstr(without.rendered), `${e.name}: o fixture distingue`)
+    await s.commit()
+    const a = (await messagesOf(e, s.conversationId))[1]
+    assert.equal(jstr(a.rendered), jstr(withN.rendered), `${e.name}: com notices`)
+    assert.ok(a.rendered.segments.some((g: Any) => g.kind === "phrase" && g.code === "CAPABILITY_FAILED"), e.name)
+  })
+})
+
+await test("N7 — TURN_CONFLICT: duas sessões na mesma versão, ambas com mensagens: a perdedora recebe TURN_CONFLICT e NENHUMA mensagem dela é gravada; a vencedora persiste", async () => {
+  await both(async (e) => {
+    const sha = await register(e, csvOf(80, 2))
+    const base = await withMessage(e, "base", sha); await base.commit()
+    const a = await withMessage(e, "vencedora", sha, base.conversationId), b = await withMessage(e, "perdedora", sha, base.conversationId)
+    await a.call("metrics.query@1", Q); await b.call("exit.breakdown@1", CAPS["exit.breakdown@1"].args)
+    assert.deepEqual([((await a.commit()) as Any).ok, await b.commit()], [true, { ok: false, code: "TURN_CONFLICT" }], e.name)
+    const msgs = await messagesOf(e, base.conversationId)
+    assert.deepEqual(msgs.map((m) => m.text), ["base", "vencedora"], e.name)
+    assert.equal(jstr(msgs).includes("perdedora"), false, e.name)
+  })
+})
+
+await test("N8 — erros traduzidos SEM código novo e sem eco: LIMIT_MESSAGES ⇒ LIMIT_EXCEEDED; MESSAGE_INVALID ⇒ COMMIT_REJECTED; a mensagem do usuário não aparece em nenhum resultado; o limite real de 200 chega como LIMIT_EXCEEDED", async () => {
+  const e = memEnv(); const sha = await register(e, csvOf(60, 1)); const SECRET = "SEGREDO-DO-USUARIO-7741"
+  for (const [code, expected] of [["LIMIT_MESSAGES", "LIMIT_EXCEEDED"], ["MESSAGE_INVALID", "COMMIT_REJECTED"]] as const) {
+    const real = createConversations({ store: e.conv() })
+    const s = await withMessage(e, SECRET, sha, undefined, { conversations: { create: real.create.bind(real), open: real.open.bind(real), commitTurn: async () => ({ ok: false, code }) } })
+    const r: Any = await s.commit(); assert.deepEqual(r, { ok: false, code: expected }, code); assert.equal(jstr(r).includes(SECRET), false, code)
+    assert.deepEqual(await s.commit(), { ok: false, code: "TURN_CLOSED" }, `${code}: sessão fechada`)
+  }
+  // o limite REAL: 100 turnos de 2 mensagens enchem a conversa; o próximo turno com mensagem é recusado
+  let id: string | undefined
+  for (let i = 0; i < 100; i++) {
+    const s = await withMessage(e, `u${i}`, sha, id); id = s.conversationId
+    await s.call("metrics.query@1", Q); const ref = refOfResult(((await s.call("metrics.query@1", Q)) as Any).result)
+    assert.equal(((await s.validate(goodAnswer(ref))) as Any).ok, true, `turno ${i}`); const c: Any = await s.commit(); assert.equal(c.ok, true, `turno ${i}: ${jstr(c)}`)
+  }
+  const full = await withMessage(e, SECRET, sha, id); const lim: Any = await full.commit()
+  assert.deepEqual(lim, { ok: false, code: "LIMIT_EXCEEDED" }); assert.equal(jstr(lim).includes(SECRET), false)
+  assert.equal((await messagesOf(e, id!)).length, 200)
 })
 
 for (const r of TMPS) rmSync(r, { recursive: true, force: true })
