@@ -1,5 +1,17 @@
 # TraderOS — Progresso
 
+## ✅ 20/10/2026 — AI Partner: E7-13 Portão C (testes ao vivo do Prisma em branch real do Neon) — código no backup; origin intocado
+PORTÃO C (ao vivo) CONCLUÍDO em branch descartável (`ep-quiet-sun-…`); produção (`ep-lucky-glitter-…`) não foi tocada. Trava `assertSafeTestDatabase` aprovada. Migração de teste aplicada com sucesso após marcar migrações legadas como aplicadas. Suíte offline segue em **1343 ✓** (o teste ao vivo entra em `test:domain` mas se auto-pula sem `PRISMA_LIVE=1`). 6 testes novos ao vivo (`scripts/test-prisma-live.mts`, LV1–LV6) todos verdes:
+- LV1: CAS real com 10 commits concorrentes na mesma versão (5 direta, 5 pooler) ⇒ exatamente 1 vence e 9 dão CONFLICT.
+- LV2: transação interativa funciona pelo pooler com rollback real em caso de PK duplicada (preserva versão).
+- LV3: cascata da FK apaga deltas no delete e deleteAllForUser; isolamento estrito entre usuários com mesmo conversationId; versão futura dá CONFLICT.
+- LV4: integridade de bytes (0..255) e datas (string original preservada); CAS de recifragem do sal (apenas 1 de 2 recifragens simultâneas vence).
+- LV5: purgeUserData sobre adaptadores Prisma zera dados do usuário alvo sem tocar no outro.
+- LV6: latências medidas na conexão direta (~37ms commit / 19ms leitura) e pooler (~33ms commit / 18ms leitura); conexão leva ~120ms.
+Mutações ao vivo EP11–EP15 e EP17 pegas. P6 do sal relaxado apenas para rede real do Prisma.
+PENDÊNCIA DE SEGURANÇA: senha de produção exposta na conversa devido à herança de credencial do papel neondb_owner pelo Neon na criação da branch. Necessário rotacionar a senha de `neondb_owner` no Neon antes de subir para produção (junto com o token R2 da Cloudflare).
+PRÓXIMO: PORTÃO D (produção) só com aprovação explícita + snapshot no Neon.
+
 ## ✅ 20/10/2026 — AI Partner: E7-13 Portão B (adaptadores Prisma offline) — código no backup (expectativa `cc093a3`); origin intocado; NENHUM banco tocado
 PORTÃO B (offline) FEITO; nenhum banco tocado. Suíte **1337 → 1343 ✓** (P1–P6 em `scripts/test-prisma-stores.mts`), tsc 0, ESLint 0 erros, estabilidade 8×, 20 mutações offline pegas (EP12/EP14/contrato real só no portão C). `prisma/schema.prisma`: +64 linhas, 0 remoções (hash do legado travado): `AiUserSalt`, `AiImportSource`, `AiConversation`, `AiConversationDelta` (prefixo Ai, SEM FK p/ User, payloads/datas em TEXTO, colunas snake_case). Migração `20261020150000_add_ai_partner_storage` gerada OFFLINE (4 CREATE TABLE + FK interna cascade). Adaptadores `infra/prisma-{port,salt-store,import-source-store,conversation-store}.ts` com cliente INJETADO (não importam @prisma/client); commit da conversa = `updateMany where version=expected` + insert do delta numa transação. `scripts/_prisma-live.mts`: `assertSafeTestDatabase` recusa o MESMO SERVIDOR da produção (ignora -pooler e porta) e conexão só com PRISMA_LIVE=1 + E7_TEST_DATABASE_URL (nunca DATABASE_URL). Contrato dos 3 stores ganhou a impl. Prisma só com PRISMA_LIVE=1. Erro meu: `prisma format` reformatou o schema legado (revertido; NUNCA rodar format). Prisma 7.8; são 11 migrações + lock. PRÓXIMO = PORTÃO C: Marcelo cria branch descartável no Neon e põe E7_TEST_DATABASE_URL no .env.local (nunca no chat); aplico a migração SÓ na branch (DATABASE_URL=… prisma migrate deploy), rodo suítes e mutações ao vivo (EP11–EP15) e meço: transação interativa pelo pooler, latência, Bytes/2 MiB. PORTÃO D (produção) só com OK separado + snapshot.
 
