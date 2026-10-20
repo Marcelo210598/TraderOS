@@ -17,6 +17,8 @@ import { makeContext, registerImport } from "../src/lib/infra/dataset.ts"
 import { createMemoryConversationStore } from "../src/lib/infra/conversation-store.ts"
 import { createMemoryImportSourceStore } from "../src/lib/infra/import-source-store.ts"
 import { createMemoryObjectStore, type ObjectStore } from "../src/lib/infra/object-store.ts"
+import { createR2ObjectStore, loadR2Config } from "../src/lib/infra/object-store-r2.ts"
+import { createFakeS3 } from "./_fake-s3.mts"
 import { createObjectRawFileStorage } from "../src/lib/infra/raw-file-storage-object.ts"
 import { createMemorySaltStore } from "../src/lib/infra/salt-store.ts"
 import { purgeUserData } from "../src/lib/infra/user-purge.ts"
@@ -39,6 +41,12 @@ const TMPS: string[] = []
 const IMPLS: Impl[] = [
   { name: "memória", make: () => ({ s: createMemoryRawFileStorage(), done: () => {} }) },
   { name: "objeto+gzip", make: () => ({ s: createObjectRawFileStorage(createMemoryObjectStore()), done: () => {} }) },
+  { name: "R2+gzip (S3 falso)", make: () => {
+    const env = { R2_ACCOUNT_ID: "0123456789abcdef0123456789abcdef", R2_BUCKET: "test-bucket", R2_ACCESS_KEY_ID: "fedcba9876543210fedcba9876543210", R2_SECRET_ACCESS_KEY: "ab".repeat(32) }
+    const cfg = loadR2Config(env); if (!cfg.ok) throw new Error("config de teste inválida")
+    const fake = createFakeS3({ accountId: env.R2_ACCOUNT_ID, bucket: env.R2_BUCKET, accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY })
+    return { s: createObjectRawFileStorage(createR2ObjectStore(cfg.config, { fetch: fake.fetch as never })), done: () => {} }
+  } },
   { name: "disco", make: () => { const root = mkdtempSync(join(tmpdir(), "raw-file-")); TMPS.push(root); return { s: createDiskRawFileStorage(root), root, done: () => rmSync(root, { recursive: true, force: true }) } } },
 ]
 /** Roda `fn` contra TODAS as implementações (o contrato é o mesmo). */
@@ -405,7 +413,7 @@ await test("G6 — PREFIXO: 'abc' × 'abcd': deleteAllForUser('abc') conta certo
   assert.equal(await snap(), before); assert.equal(store.keys().some((k) => k.startsWith("users/abc/")), false)
 })
 
-await test("G7 — ESTÁTICA: object-store.ts não importa nada; o adaptador importa só node:zlib, ./hash.ts, ./raw-file-storage.ts e ./object-store.ts, sem fetch/env/aws/s3/cloudflare; só ele importa a porta; nada fora de infra/ importa nenhum dos dois", async () => {
+await test("G7 — ESTÁTICA: object-store.ts não importa nada; o adaptador importa só node:zlib, ./hash.ts, ./raw-file-storage.ts e ./object-store.ts, sem fetch/env/aws/s3/cloudflare; só o adaptador gzip e o cliente R2 (E7-11) importam a porta; nada fora de infra/ importa nenhum dos dois", async () => {
   const strip = (x: string): string => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1")
   const read = (p: string): string => strip(readFileSync(`${ROOT}${p}`, "utf8"))
   const importsOf = (code: string): string[] => [...code.matchAll(/^(?:import|export)\s[^"'\n]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1])
@@ -414,7 +422,7 @@ await test("G7 — ESTÁTICA: object-store.ts não importa nada; o adaptador imp
   assert.deepEqual(importsOf(ad).sort(), ["./hash.ts", "./object-store.ts", "./raw-file-storage.ts", "node:zlib"])
   for (const [n, code] of [["porta", port], ["adaptador", ad]]) assert.equal(/\bfetch\s*\(|process\.env|\b(aws|s3|cloudflare|r2)\b|node:(fs|net|http|https|crypto)/i.test(code), false, `${n}: dependência proibida`)
   const infra = readdirSync(`${ROOT}src/lib/infra`).filter((f) => f.endsWith(".ts"))
-  assert.deepEqual(infra.filter((f) => /object-store/.test(read(`src/lib/infra/${f}`))), ["raw-file-storage-object.ts"])
+  assert.deepEqual(infra.filter((f) => /object-store/.test(read(`src/lib/infra/${f}`))), ["object-store-r2.ts", "raw-file-storage-object.ts"])
   for (const dir of ["agent", "agent-capabilities", "evidence", "metrics", "ingest", "domain"]) for (const f of readdirSync(`${ROOT}src/lib/${dir}`).filter((x) => x.endsWith(".ts"))) assert.equal(/object-store|raw-file-storage-object/.test(read(`src/lib/${dir}/${f}`)), false, `${dir}/${f}`)
 })
 

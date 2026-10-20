@@ -2,7 +2,7 @@
 // O domínio e as métricas continuam puros; quem precisa de identidade/prova chama estas funções.
 // Sem criptografia manual: SHA-256 da plataforma.
 
-import { createHash, randomBytes } from "node:crypto"
+import { createHash, createHmac, randomBytes } from "node:crypto"
 
 /** `bytes` bytes aleatórios criptográficos, em hex minúsculo (2×bytes chars). Fonte única de aleatoriedade (CSPRNG da plataforma). */
 export const randomHex = (bytes: number): string => randomBytes(bytes).toString("hex")
@@ -42,3 +42,6 @@ export function canonicalJson(value: unknown): string {
 
 /** SHA-256 do JSON canônico. */
 export const hashCanonical = (value: unknown): string => sha256Hex(canonicalJson(value))
+
+/** HMAC-SHA256 (E7-11: a assinatura SigV4 do cliente R2 é uma cadeia de HMACs). Devolve os bytes; chave e dado como string (UTF-8) ou bytes. Mesma regra: o único lugar com `node:crypto` é este arquivo. */
+export const hmacSha256 = (key: string | Uint8Array, data: string | Uint8Array): Uint8Array => new Uint8Array(createHmac("sha256", key).update(data).digest())
