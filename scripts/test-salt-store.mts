@@ -10,6 +10,8 @@ import { inspect } from "node:util"
 import { createSaltCipher, type SaltCipher, type Sealed } from "../src/lib/infra/cipher.ts"
 import { createDiskSaltStore, createMemorySaltStore, createPersistentSalts, SaltStoreError, saltStoreFailure, type SaltRow, type SaltStore, type StoredRow } from "../src/lib/infra/salt-store.ts"
 import { InMemorySaltKeyring, SaltError, generateSalt, isStrongSalt, saltCheck } from "../src/lib/ingest/salt.ts"
+import { createPrismaSaltStore } from "../src/lib/infra/prisma-salt-store.ts"
+import { connectLiveDb, liveEnabled } from "./_prisma-live.mts"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -34,12 +36,18 @@ const flip = (u: Uint8Array, i: number): Uint8Array => { const c = new Uint8Arra
 
 // ── armazenamentos: memória e disco, mesma bateria ──
 const TMPS: string[] = []
-interface Impl { name: string; make: () => { store: SaltStore; root?: string } }
+interface Impl { name: string; make: () => { store: SaltStore; root?: string } | Promise<{ store: SaltStore; root?: string }> }
 const IMPLS: Impl[] = [
   { name: "memória", make: () => ({ store: createMemorySaltStore() }) },
   { name: "disco", make: () => { const root = mkdtempSync(join(tmpdir(), "salt-store-")); TMPS.push(root); return { store: createDiskSaltStore(root), root } } },
 ]
-const both = async (fn: (store: SaltStore, name: string, root?: string) => Promise<void>): Promise<void> => { for (const impl of IMPLS) { const m = impl.make(); await fn(m.store, impl.name, m.root) } }
+// E7-13 (Portão C): a MESMA suíte de contrato também contra o Postgres do banco de TESTE (branch descartável do Neon). Só com PRISMA_LIVE=1 + E7_TEST_DATABASE_URL; a trava recusa a URL de produção.
+if (liveEnabled()) {
+  const live = await connectLiveDb()
+  IMPLS.push({ name: "prisma (banco de teste)", make: async () => { await live.reset(); return { store: createPrismaSaltStore(live.db) } } })
+  process.on("beforeExit", () => { void live.close() })
+}
+const both = async (fn: (store: SaltStore, name: string, root?: string) => Promise<void>): Promise<void> => { for (const impl of IMPLS) { const m = await impl.make(); await fn(m.store, impl.name, m.root) } }
 const wrapLoad = (base: SaltStore, f: (userId: string, rows: StoredRow[]) => StoredRow[]): SaltStore => ({ ...base, async loadUser(u) { const r = await base.loadUser(u); return r.ok ? { ok: true, rows: f(u, r.rows) } : r } })
 const rowsOf = async (s: SaltStore, u: string): Promise<SaltRow[]> => { const r = await s.loadUser(u); assert.equal(r.ok, true); return (r as Any).rows }
 const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p] })

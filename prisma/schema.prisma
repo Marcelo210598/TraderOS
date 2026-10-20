@@ -459,3 +459,67 @@ enum SubscriptionStatus {
   PAST_DUE
   TRIALING
 }
+
+// ─── AI Partner (E7-13) ──────────────────────────────────────────────────────
+// Tabelas NOVAS e INDEPENDENTES do resto do schema: sem relação com `User` (a exclusão do usuário é o `purgeUserData`, E7-7) e nenhum modelo, enum ou campo existente foi alterado.
+// Payloads JSON e datas ficam em TEXTO de propósito (ida e volta EXATA, a mesma régua de parse dos stores de memória/disco); bytes do sal em bytea. Ver scripts/expectations → e7_13.
+
+/// Linhas do chaveiro de sais (cifradas). `ciphertext`/`nonce`/`keyVersion` são nulos quando a linha está RETIRED.
+model AiUserSalt {
+  userId     String  @map("user_id")
+  saltId     String  @map("salt_id")
+  status     String
+  saltCheck  String  @map("salt_check")
+  ciphertext Bytes?
+  nonce      Bytes?
+  keyVersion Int?    @map("key_version")
+  createdAt  String  @map("created_at")
+  retiredAt  String? @map("retired_at")
+
+  @@id([userId, saltId])
+  @@map("ai_user_salts")
+}
+
+/// Metadados de um arquivo importado (o CONTEÚDO está no RawFileStorage/R2). `context` = JSON em texto.
+model AiImportSource {
+  userId     String  @map("user_id")
+  fileSha256 String  @map("file_sha256")
+  importId   String  @map("import_id")
+  fileName   String? @map("file_name")
+  fileBytes  Int     @map("file_bytes")
+  hasBom     Boolean @map("has_bom")
+  lineEnding String  @map("line_ending")
+  hashBasis  String  @map("hash_basis")
+  context    String
+  createdAt  String  @map("created_at")
+
+  @@id([userId, fileSha256])
+  @@map("ai_import_sources")
+}
+
+/// Uma conversa do agente. `version` é a cabeça do log de deltas (travamento otimista).
+model AiConversation {
+  userId         String @map("user_id")
+  conversationId String @map("conversation_id")
+  epoch          String
+  createdAt      String @map("created_at")
+  version        Int    @default(0)
+
+  deltas AiConversationDelta[]
+
+  @@id([userId, conversationId])
+  @@map("ai_conversations")
+}
+
+/// Um delta atômico do log da conversa (v1, v2, …). `body` = o JSON do delta em texto.
+model AiConversationDelta {
+  userId         String @map("user_id")
+  conversationId String @map("conversation_id")
+  version        Int
+  body           String
+
+  conversation AiConversation @relation(fields: [userId, conversationId], references: [userId, conversationId], onDelete: Cascade)
+
+  @@id([userId, conversationId, version])
+  @@map("ai_conversation_deltas")
+}

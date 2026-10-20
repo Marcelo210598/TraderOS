@@ -6,6 +6,8 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, sy
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { createDiskImportSourceStore, createMemoryImportSourceStore, importSourceFailure, type ImportSourceStore } from "../src/lib/infra/import-source-store.ts"
+import { createPrismaImportSourceStore } from "../src/lib/infra/prisma-import-source-store.ts"
+import { connectLiveDb, liveEnabled } from "./_prisma-live.mts"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -23,12 +25,18 @@ const row = (o: Any = {}): Any => ({
   createdAt: "2026-10-19T12:00:00.000Z", ...o,
 })
 const TMPS: string[] = []
-interface Impl { name: string; make: () => { store: ImportSourceStore; root?: string } }
+interface Impl { name: string; make: () => { store: ImportSourceStore; root?: string } | Promise<{ store: ImportSourceStore; root?: string }> }
 const IMPLS: Impl[] = [
   { name: "memória", make: () => ({ store: createMemoryImportSourceStore() }) },
   { name: "disco", make: () => { const root = mkdtempSync(join(tmpdir(), "import-src-")); TMPS.push(root); return { store: createDiskImportSourceStore(root), root } } },
 ]
-const both = async (fn: (store: ImportSourceStore, name: string, root?: string) => Promise<void>): Promise<void> => { for (const impl of IMPLS) { const m = impl.make(); await fn(m.store, impl.name, m.root) } }
+// E7-13 (Portão C): a MESMA suíte de contrato também contra o Postgres do banco de TESTE (branch descartável do Neon). Só com PRISMA_LIVE=1 + E7_TEST_DATABASE_URL; a trava recusa a URL de produção.
+if (liveEnabled()) {
+  const live = await connectLiveDb()
+  IMPLS.push({ name: "prisma (banco de teste)", make: async () => { await live.reset(); return { store: createPrismaImportSourceStore(live.db) } } })
+  process.on("beforeExit", () => { void live.close() })
+}
+const both = async (fn: (store: ImportSourceStore, name: string, root?: string) => Promise<void>): Promise<void> => { for (const impl of IMPLS) { const m = await impl.make(); await fn(m.store, impl.name, m.root) } }
 const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p] })
 
 await test("T1 — ida e volta (memória e disco): put cria, get devolve a MESMA linha em cópia (mexer no retorno ou na entrada depois do put não altera o guardado)", async () => {

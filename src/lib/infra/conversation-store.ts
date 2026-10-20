@@ -27,7 +27,7 @@ const KINDS = ["conta", "estrategia", "rotulo"] as const
 const REAL_REF_RE = /(?:^|[^a-z])(?:acc|str|lbl|pat)_[0-9a-f]{24}/
 const MAX_ALIASES = 26 + 26 ** 2 + 26 ** 3
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x)
-const isId = (x: unknown): x is string => typeof x === "string" && ID_RE.test(x)
+export const isId = (x: unknown): x is string => typeof x === "string" && ID_RE.test(x)
 const isIso = (x: unknown): x is string => typeof x === "string" && x.length >= 10 && x.length <= 40 && !Number.isNaN(Date.parse(x))
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 const bytesOf = (x: unknown): number => Buffer.byteLength(JSON.stringify(x), "utf8")
@@ -158,11 +158,11 @@ export function parseDeltaBody(x: unknown): DeltaBody | null {
   }
 }
 
-const parseStoredDelta = (x: unknown, version: number): StoredDelta | null => {
+export const parseStoredDelta = (x: unknown, version: number): StoredDelta | null => {
   const body = isRecord(x) && x.version === version && isIso(x.createdAt) ? parseDeltaBody(x) : null
   return body === null ? null : { version, createdAt: (x as { createdAt: string }).createdAt, ...body }
 }
-const parseMeta = (x: unknown, userId: string, conversationId: string): ConversationMeta | null => {
+export const parseMeta = (x: unknown, userId: string, conversationId: string): ConversationMeta | null => {
   if (!isRecord(x) || Object.keys(x).sort().join(",") !== "conversationId,createdAt,epoch,userId") return null
   return x.userId === userId && x.conversationId === conversationId && typeof x.epoch === "string" && EPOCH_RE.test(x.epoch) && isIso(x.createdAt) ? { userId, conversationId, epoch: x.epoch, createdAt: x.createdAt } : null
 }
@@ -172,7 +172,7 @@ function checkSizes(delta: DeltaBody): "ROW_TOO_LARGE" | "DELTA_TOO_LARGE" | nul
   for (const w of delta.writes) if (bytesOf({ handle: w.handle, view: w.view }) > MAX_ROW_BYTES) return "ROW_TOO_LARGE"
   return bytesOf(delta) > MAX_DELTA_BYTES ? "DELTA_TOO_LARGE" : null
 }
-function checkCommitArgs(userId: unknown, conversationId: unknown, expectedVersion: unknown, delta: unknown, createdAt: unknown): { readonly delta: DeltaBody } | ConversationStoreFailure {
+export function checkCommitArgs(userId: unknown, conversationId: unknown, expectedVersion: unknown, delta: unknown, createdAt: unknown): { readonly delta: DeltaBody } | ConversationStoreFailure {
   if (!isId(userId) || !isId(conversationId) || !Number.isInteger(expectedVersion) || (expectedVersion as number) < 0 || (expectedVersion as number) >= MAX_VERSION || !isIso(createdAt)) return conversationStoreFailure("INVALID_ARGS")
   const parsed = parseDeltaBody(delta)
   if (parsed === null) return conversationStoreFailure("INVALID_ARGS")

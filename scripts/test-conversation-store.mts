@@ -8,6 +8,8 @@ import { join } from "node:path"
 import { addEvidence, isStale, newLedger, refreshEvidence, rotateEpoch, type Ledger } from "../src/lib/agent/ledger.ts"
 import { buildVerdict } from "../src/lib/agent/verdict.ts"
 import { MAX_DELTA_BYTES, MAX_LEDGER_ENTRIES, MAX_ROW_BYTES, createConversations, createDiskConversationStore, createMemoryConversationStore, conversationStoreFailure, type ConversationStore, type Conversations, type OpenConversation, type TurnChange } from "../src/lib/infra/conversation-store.ts"
+import { createPrismaConversationStore } from "../src/lib/infra/prisma-conversation-store.ts"
+import { connectLiveDb, liveEnabled } from "./_prisma-live.mts"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -45,12 +47,18 @@ const spec = (e: Any, args: unknown = SPEC(), pin: unknown = PIN()): Any => ({ e
 
 // ── armazenamentos ──
 const TMPS: string[] = []
-interface Impl { name: string; make: () => { store: ConversationStore; root?: string } }
+interface Impl { name: string; make: () => { store: ConversationStore; root?: string } | Promise<{ store: ConversationStore; root?: string }> }
 const IMPLS: Impl[] = [
   { name: "memória", make: () => ({ store: createMemoryConversationStore() }) },
   { name: "disco", make: () => { const root = mkdtempSync(join(tmpdir(), "conv-store-")); TMPS.push(root); return { store: createDiskConversationStore(root), root } } },
 ]
-const both = async (fn: (store: ConversationStore, name: string, root?: string) => Promise<void>): Promise<void> => { for (const impl of IMPLS) { const m = impl.make(); await fn(m.store, impl.name, m.root) } }
+// E7-13 (Portão C): a MESMA suíte de contrato também contra o Postgres do banco de TESTE (branch descartável do Neon). Só com PRISMA_LIVE=1 + E7_TEST_DATABASE_URL; a trava recusa a URL de produção.
+if (liveEnabled()) {
+  const live = await connectLiveDb()
+  IMPLS.push({ name: "prisma (banco de teste)", make: async () => { await live.reset(); return { store: createPrismaConversationStore(live.db) } } })
+  process.on("beforeExit", () => { void live.close() })
+}
+const both = async (fn: (store: ConversationStore, name: string, root?: string) => Promise<void>): Promise<void> => { for (const impl of IMPLS) { const m = await impl.make(); await fn(m.store, impl.name, m.root) } }
 const facade = (store: ConversationStore): Conversations => createConversations({ store, now: FIXED })
 const walk = (dir: string): string[] => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p] })
 const codeOf = (r: Any): string => (r.ok ? "OK" : r.code)
