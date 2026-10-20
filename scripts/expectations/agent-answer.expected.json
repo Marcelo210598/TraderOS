@@ -6305,5 +6305,77 @@
     ],
     "baselines": "1275 linhas ✓ idênticas, exceto as linhas de EX11, K4 e C5 (títulos/asserções mudam DE PROPÓSITO, listadas no relatório) e as que o red revelar. Esperado ≈ 1275 → 1289 ✓ (+14 casos); MEDIDO: 1290 (+15: o RF14 do D-X7). Portão Q2 e demais portões estáticos: intocados.",
     "limites": "o ref derivado não é regenerável nem refrescável (precisa refazer o explain); uma página = uma entrada (teto de 500 por conversa); a entry carrega o evidenceHash do bundle analítico, não o do derivado; explain de bundle muito grande gera muitas páginas e o modelo só cita as que pediu; sem mudança no contrato do modelo além do ref que ele vê no handle do explain."
+  },
+  "e7_9": {
+    "status": "EXPECTATIVA (20/10/2026) escrita ANTES do código do E7-9 (persistência das MENSAGENS da conversa). Aprovados pelo Marcelo/Gemini: D-M1 opção (c) (answer estruturado + resposta renderizada), D-M2 (dentro do MESMO delta), D-M3 (texto do usuário literal ≤ 4.000), D-M4 (turn = versão do delta, createdAt = o do delta, citações conferidas contra o ledger), D-M5 (openTurn recebe userMessage; validate aceito registra; commit grava), D-M6 (≤ 200 mensagens por conversa, ≤ 64 KiB por mensagem, LIMIT_MESSAGES). Fora: montar o prompt do modelo a partir do histórico, resumo de histórico longo, LLM, UI, Prisma.",
+    "files": [
+      "src/lib/infra/conversation-store.ts (ALTERADO, aditivo): DeltaBody ganha `messages` OPCIONAL (delta antigo, sem a chave, continua legível); parse estrito das mensagens; fold remonta `messages`; OpenConversation.messages; TurnChange.messages; conferências no commitTurn (citações no ledger do commit, limites); 2 códigos novos: MESSAGE_INVALID e LIMIT_MESSAGES",
+      "src/lib/infra/turn-session.ts (ALTERADO): openTurn aceita `userMessage` (opcional); validate ACEITO renderiza (renderAnswer com notices(state)) e registra a resposta; STOP registra stopResponse; doCommit inclui as mensagens; mapCommit traduz os 2 códigos novos (sem CommitCode novo)",
+      "scripts/test-conversation-messages.mts (novo, entra no test:domain): casos do store (M1–M8)",
+      "scripts/test-turn-session.mts (ALTERADO, aditivo): casos do executor (N1–N8)",
+      "package.json: test:domain ganha o arquivo novo"
+    ],
+    "nao_muda": "ledger.ts, label.ts, contract.ts, render.ts, turn.ts, validate-*; as capacidades; regenerate.ts; bundle-cache.ts; user-purge.ts (a mensagem vive no delta: deleteConversation e purgeUserData já a apagam, só se TESTA); os portões estáticos (conversation-store já importa agent/contract.ts; turn-session já importa agent/render.ts e agent/turn.ts); sem LLM/UI/Prisma. Quando openTurn NÃO recebe userMessage e nada é registrado, o comportamento é IDÊNTICO ao de hoje (todos os testes existentes seguem iguais).",
+    "fatos_lidos": {
+      "delta": "LIDO (conversation-store.ts): parseDeltaBody exige EXATAMENTE as chaves alias,rotateTo,specs,writes (e, ao ler, createdAt+version); checkSizes limita cada linha do ledger a 256 KiB e o delta a 2 MiB; MAX_LEDGER_ENTRIES = 500; memória e disco usam o MESMO parseDeltaBody; o commit é um delta por turno com CAS (expectedVersion).",
+      "sessao": "LIDO (turn-session.ts): openTurn só aceita as chaves userId, conversationId, pin; doValidate só valida (validateAnswer) e devolve {ok, claims} — NÃO renderiza; a resposta de parada é stopResponse(state) (stopReason REGEN_EXHAUSTED); doCommit devolve committed:false quando o change está vazio (C5); mapCommit mapeia LIMIT_ENTRIES/LIMIT_ROW/LIMIT_DELTA→LIMIT_EXCEEDED e o resto desconhecido→COMMIT_REJECTED.",
+      "render": "LIDO (render.ts/turn.ts): renderAnswer({answer, ledger, notices, stop, question}) devolve RenderedAnswer {segments, banner, stopReason}; os notices vêm de turn.ts notices(state) (CAPABILITY_FAILED / FILE_NOT_AVAILABLE); o texto renderizado traz valores formatados e rótulos de alias, nunca ref real.",
+      "lgpd": "LIDO (E7-7): deleteConversation e purgeUserData apagam a conversa inteira (todos os deltas); logo mensagens dentro do delta são apagadas sem código novo."
+    },
+    "decisions_DM": {
+      "D-M1": "(aprovada, opção c) a mensagem do assistente guarda `answer` (AgentAnswer validado, ou null no STOP) e `rendered` (RenderedAnswer como o usuário viu, com banner e stopReason). O renderizado é um REGISTRO: não é recalculado depois (época/sal não o alteram).",
+      "D-M2": "(aprovada) as mensagens vão no MESMO delta do turno (campo `messages` opcional): um commit atômico, CAS, e o expurgo LGPD herdados.",
+      "D-M3": "(aprovada) texto do usuário literal: string, não vazia após trim, ≤ 4.000 caracteres (length); fora disso openTurn ⇒ INVALID_ARGS. Nada é varrido nem alterado. LIMITE DECLARADO: se o usuário digitar um nome de conta ou um segredo, ele é gravado (dado pessoal, apagado pela LGPD); proteger o prompt é da camada que monta o prompt.",
+      "D-M4": "(aprovada) `turn` = versão do delta e `createdAt` = o do delta (sem relógio por mensagem); `citations` = refs distintos e ORDENADOS citados no answer (slots, claims e frases com ref); cada citação precisa existir no ledger do MESMO commit (depois das escritas), STALE inclusive; senão MESSAGE_INVALID e nada é gravado.",
+      "D-M5": "(aprovada) openTurn({userMessage}) opcional; o PRIMEIRO desfecho terminal de validate (aceito OU STOP) é a mensagem do assistente do turno; REGENERATE não grava; chamadas de validate posteriores seguem funcionando mas NÃO mudam o registrado [ajuste meu: 'o primeiro vence']; commit grava [user?, assistant?] nessa ordem; turno só com mensagem do usuário também commita (committed:true).",
+      "D-M6": "(aprovada) ≤ 200 mensagens por conversa (soma dos deltas) e ≤ 64 KiB por mensagem (JSON); excesso ⇒ LIMIT_MESSAGES, nada gravado.",
+      "D-M7": "[MINHA] formato do delta compatível para trás: `messages` ausente = [] ; presente é array de 1 a 2 itens (no máximo um user e um assistant, user antes). Qualquer outra forma ⇒ delta inválido (INVALID_ARGS ao gravar; CorruptDelta ao ler).",
+      "D-M8": "[MINHA] sem leitura parcial: OpenConversation.messages traz TODAS (≤ 200), como cópias profundas congeladas; 'últimas N' é fatia de quem consome (sem getHistory novo). O comportamento de `question` em validate NÃO muda.",
+      "D-M9": "[MINHA] se o render do answer ACEITO falhar (ramo defensivo; renderAnswer repete a validação), o validate trata como rejeição STRUCTURE_INVALID (fail-closed, conta no limite de regenerações) e NADA é gravado. Não há teste de entrada para esse ramo (inalcançável com respostas aceitas); declarado como limite."
+    },
+    "cases": [
+      "M1 formato: delta SEM messages segue legível (memória e disco); com messages é gravado e relido igual; chaves extras/mensagem malformada/3 itens/duas do mesmo papel/assistant antes do user ⇒ INVALID_ARGS sem efeito",
+      "M2 limites: texto 4.000 ok e 4.001 recusado (turn-session); mensagem de 64 KiB ok e acima ⇒ LIMIT_MESSAGES; a 200ª ok e a 201ª ⇒ LIMIT_MESSAGES, versão inalterada",
+      "M3 leitura: open.messages na ordem, turn = versão do delta, createdAt = o do delta, citations ordenadas e distintas; cópias profundas congeladas (mutar a devolvida não muda o store)",
+      "M4 citações: ref desconhecido ⇒ MESSAGE_INVALID, nada gravado, versão igual; ref escrito NO MESMO commit é aceito; ref STALE é aceito",
+      "M5 atomicidade: mensagens + escritas do ledger no mesmo delta; CONFLICT (versão velha) não grava NADA de nenhum dos dois",
+      "M6 persistência em disco: reabrir em instâncias NOVAS devolve as mesmas mensagens; delta com mensagem corrompida vira CorruptDelta só daquela conversa",
+      "M7 LGPD: deleteConversation e purgeUserData removem as mensagens (memória e disco); nenhum byte do texto marcador sobra em arquivo algum; o outro usuário fica byte a byte idêntico",
+      "M8 isolamento: outro usuário não abre a conversa nem vê mensagens; erros sem eco do texto da mensagem",
+      "N1 openTurn(userMessage): válida grava no commit; inválida (não-string, vazia, só espaços, 4.001, objeto) ⇒ INVALID_ARGS; ausente ⇒ nada muda (committed:false em turno vazio, como hoje)",
+      "N2 resposta aceita: a mensagem do assistente = answer validado + rendered IGUAL a renderAnswer(mesmos answer/ledger/notices/stop); citations corretas; ordem [user, assistant]",
+      "N3 STOP: após 3 rejeições a mensagem é answer null + rendered = stopResponse(state) com stopReason REGEN_EXHAUSTED",
+      "N4 o primeiro desfecho vence: REGENERATE não grava; aceito seguido de outro validate (aceito ou rejeitado) não muda o registrado",
+      "N5 turno só com mensagem do usuário (sem chamadas, sem resposta) commita (committed:true, versão +1) e a conversa reaberta traz a mensagem",
+      "N6 notices: com capacidade falha no turno a resposta renderizada traz a frase de falha (CAPABILITY_FAILED), igual ao renderAnswer direto",
+      "N7 TURN_CONFLICT: duas sessões na mesma versão, ambas com mensagens: a perdedora recebe TURN_CONFLICT e nenhuma mensagem dela é gravada; a vencedora persiste",
+      "N8 tradução de erros: LIMIT_MESSAGES⇒LIMIT_EXCEEDED e MESSAGE_INVALID⇒COMMIT_REJECTED (conversations de mentira); sem eco do texto; o S2 (imports) segue verde"
+    ],
+    "mutations_planned": [
+      "EM1 parse ignora `messages` ⇒ M1/M3",
+      "EM2 delta antigo (sem messages) passa a ser recusado ⇒ M1",
+      "EM3 limite de 4.000 caracteres removido ⇒ N1",
+      "EM4 limite de 200 mensagens removido ⇒ M2",
+      "EM5 limite de 64 KiB por mensagem removido ⇒ M2",
+      "EM6 citações não conferidas contra o ledger ⇒ M4",
+      "EM7 citações sem ordenar/duplicadas ⇒ M3/N2",
+      "EM8 `turn` diferente da versão do delta ⇒ M3",
+      "EM9 createdAt da mensagem ≠ o do delta ⇒ M3",
+      "EM10 open.messages compartilha referência com o store (sem cópia/congelamento) ⇒ M3",
+      "EM11 rendered não é gravado (só o answer) ⇒ N2",
+      "EM12 STOP grava answer não nulo ou rendered diferente de stopResponse ⇒ N3",
+      "EM13 validate posterior sobrescreve o registrado ⇒ N4",
+      "EM14 REGENERATE também grava ⇒ N4",
+      "EM15 turno só com mensagem não commita ⇒ N5",
+      "EM16 mensagem vazia/só espaços aceita ⇒ N1",
+      "EM17 render sem notices(state) ⇒ N6",
+      "EM18 disco descarta `messages` ao gravar/reler ⇒ M6",
+      "EM19 mapCommit: LIMIT_MESSAGES ⇒ COMMIT_REJECTED ⇒ N8",
+      "EM20 ordem [assistant, user] ⇒ N2",
+      "EM21 CONFLICT ainda grava as mensagens ⇒ M5/N7",
+      "EM22 deleteConversation deixa a mensagem (ex.: mensagens em estrutura separada que não é apagada) ⇒ M7"
+    ],
+    "baselines": "1290 linhas ✓ idênticas; só se acrescentam os casos acima (1 arquivo novo de teste + casos aditivos no test-turn-session). Possível ajuste em testes que comparam o formato EXATO de OpenConversation ou do delta (o red mostra a lista; cada um é justificado no relatório). Nenhum portão estático abre. Esperado ≈ 1290 → 1306 ✓.",
+    "limites": "mensagem do usuário gravada LITERAL (dado pessoal; proteger o prompt é de outra camada); backups/snapshots/nuvem fora do expurgo (como no E7-7); 200 mensagens por conversa sem resumo; o renderizado guardado não é recalculado; o ramo defensivo de render falho (D-M9) não tem teste de entrada; nenhum prompt é montado aqui."
   }
 }

@@ -435,3 +435,12 @@ Conferi os 4 achados na prática antes de agir: **#1 REFUTADO** (a mutação do 
 - **Casos:** X1–X6 (derivação e capacidade) e T1–T8 (turno: ledger, citação ponta a ponta, idempotência, commit/reabertura, rotação, refresh, conflito, isolamento). Muda de propósito: EX11, K4, C5. **Mutações EX1–EX18.** Esperado ≈ 1275 → 1289 ✓.
 - **Limites declarados:** ref derivado não regenerável nem refrescável; uma página = uma entrada (teto de 500); a entry leva o `evidenceHash` do bundle analítico.
 - **Correção 2 (20/10, achada ao escrever os testes):** refresh de um ref derivado STALE dava `FILE_NOT_AVAILABLE` (spec nula), não `ARGS_INVALID` (erro de leitura meu). **D-X7:** `evidence-refresh.ts` confere a capability da entrada antes da spec (1 linha, caso RF14). RF10 também precisou citar o derivado. MEDIDO 1275 → 1290 ✓.
+
+## 43. Expectativa do E7-9 (20/10/2026) — persistência das mensagens da conversa
+- **Autorizado** pelo Marcelo/Gemini: D-M1 (c), D-M2…D-M6 como propostos. Detalhe em `scripts/expectations/agent-answer.expected.json` → `e7_9`.
+- **Lacuna:** o `ConversationStore` guarda ledger, specs, pins e aliases, mas não o diálogo. Sem a pergunta e a resposta de cada turno não há conversa de vários turnos.
+- **Desenho:** as mensagens vão no MESMO delta do turno (campo opcional `messages`; delta antigo segue legível). Usuário: texto literal ≤ 4.000. Assistente: `answer` validado (ou null no STOP) + `rendered` (o que o usuário viu). `turn` = versão do delta, `createdAt` = o do delta, `citations` conferidas contra o ledger do commit. Limites: 200 mensagens por conversa, 64 KiB por mensagem (`LIMIT_MESSAGES`); `MESSAGE_INVALID` para forma/citação inválida. LGPD herdada (a mensagem vive no delta).
+- **Executor:** `openTurn({userMessage})` opcional; o primeiro desfecho terminal de `validate` (aceito renderizado com `notices(state)`, ou STOP com `stopResponse`) é a mensagem do assistente; turno só com a pergunta também commita.
+- **Casos:** M1–M8 (store, arquivo novo) e N1–N8 (executor). **Mutações EM1–EM22.** Esperado ≈ 1290 → 1306 ✓.
+- **Limites declarados:** texto do usuário gravado literal (dado pessoal); 200 mensagens sem resumo; renderizado não é recalculado; ramo defensivo de render falho sem teste de entrada; prompt/LLM/UI fora.
+
