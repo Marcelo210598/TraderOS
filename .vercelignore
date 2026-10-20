@@ -7,3 +7,9 @@ historico/
 
 # Snapshots extras
 progress.md
+
+# Segredos e backups de ambiente: NUNCA vão no código-fonte do deploy (as variáveis de produção ficam nas Environment Variables da Vercel).
+# Com um .vercelignore presente a Vercel NÃO usa o .gitignore, então isto precisa estar aqui.
+.env
+.env.*
+!.env.example
