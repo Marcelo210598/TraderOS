@@ -422,7 +422,7 @@ await test("G7 — ESTÁTICA: object-store.ts não importa nada; o adaptador imp
   assert.deepEqual(importsOf(ad).sort(), ["./hash.ts", "./object-store.ts", "./raw-file-storage.ts", "node:zlib"])
   for (const [n, code] of [["porta", port], ["adaptador", ad]]) assert.equal(/\bfetch\s*\(|process\.env|\b(aws|s3|cloudflare|r2)\b|node:(fs|net|http|https|crypto)/i.test(code), false, `${n}: dependência proibida`)
   const infra = readdirSync(`${ROOT}src/lib/infra`).filter((f) => f.endsWith(".ts"))
-  assert.deepEqual(infra.filter((f) => /object-store/.test(read(`src/lib/infra/${f}`))), ["object-store-r2.ts", "raw-file-storage-object.ts"])
+  assert.deepEqual(infra.filter((f) => /["']\.\/object-store\.ts["']/.test(read(`src/lib/infra/${f}`))), ["object-store-r2.ts", "raw-file-storage-object.ts"])
   for (const dir of ["agent", "agent-capabilities", "evidence", "metrics", "ingest", "domain"]) for (const f of readdirSync(`${ROOT}src/lib/${dir}`).filter((x) => x.endsWith(".ts"))) assert.equal(/object-store|raw-file-storage-object/.test(read(`src/lib/${dir}/${f}`)), false, `${dir}/${f}`)
 })
 

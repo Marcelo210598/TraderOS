@@ -182,7 +182,7 @@ await test("R8 — chaves e prefixos inválidos (.., //, ., vazio, barra inicial
 })
 
 // ───────────────────────────── R9: estática ─────────────────────────────
-await test("R9 — ESTÁTICA: object-store-r2.ts importa só ./hash.ts e ./object-store.ts, sem node:*, process.env, @aws-sdk nem fetch global direto; hmacSha256 existe só em hash.ts; node:crypto só em hash.ts/cipher.ts; ninguém em src/ importa o cliente (só os testes)", async () => {
+await test("R9 — ESTÁTICA: object-store-r2.ts importa só ./hash.ts e ./object-store.ts, sem node:*, process.env, @aws-sdk nem fetch global direto; hmacSha256 existe só em hash.ts; node:crypto só em hash.ts/cipher.ts; só o montador de dependências do AI Partner (E7-14) importa o cliente; nada fora de infra/ o importa", async () => {
   const strip = (x: string): string => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1")
   const read = (p: string): string => strip(readFileSync(`${ROOT}${p}`, "utf8"))
   const importsOf = (code: string): string[] => [...code.matchAll(/^(?:import|export)\s[^"'\n]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1])
@@ -194,7 +194,7 @@ await test("R9 — ESTÁTICA: object-store-r2.ts importa só ./hash.ts e ./objec
   const infra = readdirSync(`${ROOT}src/lib/infra`).filter((f) => f.endsWith(".ts"))
   assert.deepEqual(infra.filter((f) => /node:crypto/.test(read(`src/lib/infra/${f}`))).sort(), ["cipher.ts", "hash.ts"], "node:crypto só em hash.ts/cipher.ts")
   assert.deepEqual(infra.filter((f) => /hmacSha256/.test(read(`src/lib/infra/${f}`))).sort(), ["hash.ts", "object-store-r2.ts"])
-  for (const f of infra.filter((x) => x !== "object-store-r2.ts")) assert.equal(/object-store-r2/.test(read(`src/lib/infra/${f}`)), false, `${f} importa o cliente`)
+  for (const f of infra.filter((x) => x !== "object-store-r2.ts" && x !== "ai-partner-deps.ts")) assert.equal(/object-store-r2/.test(read(`src/lib/infra/${f}`)), false, `${f} importa o cliente`) // E7-14: o montador de produção é o consumidor
   for (const dir of ["agent", "agent-capabilities", "evidence", "metrics", "ingest", "domain"]) for (const f of readdirSync(`${ROOT}src/lib/${dir}`).filter((x) => x.endsWith(".ts"))) assert.equal(/object-store-r2/.test(read(`src/lib/${dir}/${f}`)), false, `${dir}/${f}`)
 })
 

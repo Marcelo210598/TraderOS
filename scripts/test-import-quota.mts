@@ -210,14 +210,14 @@ await test("Q9 — uso: getImportUsage correto depois de importar e de apagar; l
   })
 })
 
-await test("Q10 — ESTÁTICA: import-quota.ts importa só ../plans.ts, ./dataset.ts, ./hash.ts, ./import-source-store.ts e ./raw-file-storage.ts, sem process.env/fetch/next/prisma/node:; ninguém mais importa import-quota.ts; o schema do Prisma e o plan-guard seguem como estavam", async () => {
+await test("Q10 — ESTÁTICA: import-quota.ts importa só ../plans.ts, ./dataset.ts, ./hash.ts, ./import-source-store.ts e ./raw-file-storage.ts, sem process.env/fetch/next/prisma/node:; só o tratador da rota (E7-14) importa import-quota.ts; o schema do Prisma e o plan-guard seguem como estavam", async () => {
   const strip = (x: string): string => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1")
   const read = (p: string): string => strip(readFileSync(`${ROOT}${p}`, "utf8"))
   const importsOf = (code: string): string[] => [...code.matchAll(/^(?:import|export)\s[^"'\n]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1])
   const code = read("src/lib/infra/import-quota.ts")
   assert.deepEqual(importsOf(code).sort(), ["../plans.ts", "./dataset.ts", "./hash.ts", "./import-source-store.ts", "./raw-file-storage.ts"])
   assert.equal(/process\.env|\bfetch\s*\(|from\s+["']next|prisma|node:|@aws-sdk/i.test(code), false, "dependência proibida")
-  for (const f of readdirSync(`${ROOT}src/lib/infra`).filter((x) => x.endsWith(".ts") && x !== "import-quota.ts")) assert.equal(/import-quota/.test(read(`src/lib/infra/${f}`)), false, `infra/${f}`)
+  for (const f of readdirSync(`${ROOT}src/lib/infra`).filter((x) => x.endsWith(".ts") && x !== "import-quota.ts" && x !== "ai-partner-imports.ts")) assert.equal(/import-quota/.test(read(`src/lib/infra/${f}`)), false, `infra/${f}`) // E7-14: o tratador da rota é o consumidor
   for (const dir of ["agent", "agent-capabilities", "evidence", "metrics", "ingest", "domain"]) for (const f of readdirSync(`${ROOT}src/lib/${dir}`).filter((x) => x.endsWith(".ts"))) assert.equal(/import-quota/.test(read(`src/lib/${dir}/${f}`)), false, `${dir}/${f}`)
   assert.equal(/PLAN_IMPORT_QUOTAS/.test(read("src/lib/plan-guard.ts")), false, "o plan-guard não foi tocado")
   assert.equal(/model\s+ImportSource\b/.test(readFileSync(`${ROOT}prisma/schema.prisma`, "utf8")), false)

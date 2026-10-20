@@ -75,6 +75,7 @@ const validKey = (x: unknown): x is string => {
 const xmlUnescape = (s: string): string => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&")
 const fail = (code: "INVALID_ARGS" | "NOT_FOUND" | "STORAGE_ERROR"): { readonly ok: false; readonly code: typeof code } => ({ ok: false, code })
 
+export type R2FetchLike = FetchLike
 type FetchLike = (url: string, init: { method: string; headers: Record<string, string>; body?: Uint8Array; signal: AbortSignal }) => Promise<Response>
 
 export function createR2ObjectStore(config: R2Config, options: { readonly fetch?: FetchLike; readonly now?: () => Date; readonly timeoutMs?: number } = {}): ObjectStore {
