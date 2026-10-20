@@ -3,7 +3,7 @@
 //   (ledger, specs, aliases) → traduz falhas SEM inventar código novo (D-T7) → grava UM commit atômico no fim (D-T2; CAS, sem retry ⇒ TURN_CONFLICT).
 //   · ctx memoizado por pin (o pipeline é caro, ≈225 ms por 5.000 linhas); os aliases devolvidos por uma chamada alimentam a seguinte.
 //   · época desatualizada ao abrir ⇒ ledger de trabalho rotacionado (entradas STALE) e `rotateTo` no commit; nada é refeito sozinho (D-T5).
-//   · evidence.explain devolve o resultado ao modelo mas a entrada NÃO vai ao ledger (D-T4: o ledger guarda uma entrada por ref e a do explain colide com a analítica).
+//   · evidence.explain: a entrada vai ao ledger por ref DERIVADO da página (E7-8; antes a D-T4 a deixava de fora porque colidia com a analítica).
 //   · evidence.refresh: o ref novo HERDA spec+pin do antigo (D-T6). `onBundle` aquece o cache (D-T8). `validate` = validateAnswer + recordRejection (D-T9).
 // Chamadas são serializadas (fila); sessão FECHADA após o commit (com sucesso ou não). Erros são resultados tipados com código fixo — nada lança, nada ecoa sal, caminho, nome de arquivo ou mensagem.
 import { evidenceExplain } from "../agent-capabilities/evidence-explain.ts"
@@ -198,7 +198,16 @@ function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provi
     }
     const out = evidenceExplain(args, { refEpoch: ledger.epoch, ...(source !== undefined ? { source: source as never } : {}), aliases, bundleOf })
     if (!out.result.ok) { failWith("evidence.explain@1", out.result.error?.code ?? "ENGINE_REFUSED"); return out.result }
-    aliases = out.aliases // o explain pode alocar alias de RÓTULO; a entrada dele NÃO vai ao ledger (D-T4)
+    // E7-8: a página do explain é uma evidência com ref DERIVADO; a entrada vai ao ledger (add: idempotente se igual; conflito ⇒ falha fechada, o resultado NÃO é entregue).
+    // Sem spec e sem aquecer o cache para o ref derivado: ele não é regenerável (o bundle é o do ref analítico).
+    if (out.entry === null) return failWith("evidence.explain@1", "ENGINE_REFUSED")
+    const pageRef = out.entry.handle.evidenceRef
+    const isNew = !Object.hasOwn(ledger.entries, pageRef)
+    const added = addEvidence(ledger, out.entry)
+    if (!added.ok) return failWith("evidence.explain@1", "ENGINE_REFUSED")
+    ledger = added.ledger
+    if (isNew) writes.push({ op: "add", entry: out.entry })
+    aliases = out.aliases // o explain pode alocar alias de RÓTULO
     return out.result
   }
 

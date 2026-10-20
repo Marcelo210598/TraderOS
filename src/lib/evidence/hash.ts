@@ -120,6 +120,20 @@ export function computeEvidenceHash(bundle: Omit<EvidenceBundle, "evidenceHash">
   return sha256Hex(`${EVIDENCE_DOMAIN}\0${canonicalJson(normalizeForHash(bundle))}`)
 }
 
+const EXPLAIN_REF_RE = /^ev_[0-9a-f]{32}$/
+/**
+ * E7-8 (D-X1): o ref CITÁVEL de uma página do evidence.explain. Cada página tem view própria e o ledger guarda uma entrada por ref; por isso a página ganha um ref derivado,
+ * `ev_` + 32 hex de sha256(JSON canônico de {v:"explain@1", ref, page}). Determinístico; sem época (o ref analítico já carrega o sal). Entrada inválida ⇒ null (nunca lança).
+ */
+export function explainPageRef(ref: unknown, page: unknown): string | null {
+  try {
+    if (typeof ref !== "string" || !EXPLAIN_REF_RE.test(ref) || typeof page !== "number" || !Number.isSafeInteger(page) || page < 1) return null
+    return `ev_${sha256Hex(canonicalJson({ v: "explain@1", ref, page })).slice(0, 32)}`
+  } catch {
+    return null
+  }
+}
+
 /** Sela o bundle: calcula e grava `evidenceHash`. (Verificar o conteúdo contra os trades é o E5.) */
 export function sealEvidence(bundle: Omit<EvidenceBundle, "evidenceHash">): EvidenceBundle {
   return { ...bundle, evidenceHash: computeEvidenceHash(bundle) }

@@ -1,6 +1,7 @@
 // E7-6: executor DETERMINÍSTICO do turno do agente (infra/turn-session.ts), sem LLM: abre a conversa, carrega o sal 1x, despacha as capacidades sobre o dataset fixado (pin), mantém o estado de trabalho
 // (ledger, specs, aliases), traduz falhas SEM inventar código novo e grava UM commit atômico no fim (CAS, sem retry).
 // Expectativa escrita ANTES do código: scripts/expectations/agent-answer.expected.json → e7_6 (D-T0…D-T9; O1–O3, K1–K9, C1–C5, V1–V2, S1–S2; mutações EM1–EM16).
+// E7-8 (citabilidade do evidence.explain): expectativa e7_8 (D-X1…D-X6; T1–T8); K4 e C5 reescritos (a entrada do explain agora vai ao ledger, por ref derivado por página).
 //   node scripts/test-turn-session.mts       (COLLECT=1 só para a análise de mutações)
 import assert from "node:assert/strict"
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs"
@@ -15,8 +16,9 @@ import { metricsGroups } from "../src/lib/agent-capabilities/metrics-groups.ts"
 import { metricsQuery } from "../src/lib/agent-capabilities/metrics-query.ts"
 import { rankGroupsCapability } from "../src/lib/agent-capabilities/rank-groups.ts"
 import { newAliasTable } from "../src/lib/agent/label.ts"
-import { isStale } from "../src/lib/agent/ledger.ts"
-import { stopResponse } from "../src/lib/agent/render.ts"
+import { addEvidence, isStale, newLedger } from "../src/lib/agent/ledger.ts"
+import { renderAnswer, stopResponse } from "../src/lib/agent/render.ts"
+import { explainPageRef } from "../src/lib/evidence/hash.ts"
 import { InMemorySaltKeyring } from "../src/lib/ingest/salt.ts"
 import { createBundleCache } from "../src/lib/infra/bundle-cache.ts"
 import { createConversations, createDiskConversationStore, createMemoryConversationStore, type ConversationStore } from "../src/lib/infra/conversation-store.ts"
@@ -215,7 +217,7 @@ await test("K3 — ORÇAMENTO: a 9ª chamada ⇒ BUDGET_EXCEEDED SEM executar (o
   })
 })
 
-await test("K4 — evidence.explain: usa o bundle (cache ou REGENERADO), devolve o MESMO resultado do explain direto, e a entrada NÃO vai ao ledger (D-T4); também funciona em turno novo, sem cache; ref desconhecido ⇒ NOT_FOUND", async () => {
+await test("K4 — evidence.explain: usa o bundle (cache ou REGENERADO), devolve o MESMO resultado do explain direto, e a entrada VAI ao ledger por ref DERIVADO da página (E7-8; antes D-T4 a deixava de fora); também funciona em turno novo, sem cache; ref desconhecido ⇒ NOT_FOUND sem entrada", async () => {
   await both(async (e) => {
     const sha = await register(e, csvOf(80, 2))
     const pin = PIN({}, sha)
@@ -229,10 +231,14 @@ await test("K4 — evidence.explain: usa o bundle (cache ou REGENERADO), devolve
       assert.deepEqual([x.ok, x.result.ok], [true, true], `${e.name}: ${jstr(x)}`)
       assert.equal(jstr(x.result), jstr(expected(page)), `${e.name}: página ${page}`)
     }
-    assert.equal(jstr(s.ledger()), before, `${e.name}: o explain NÃO mexeu no ledger`)
+    const after = s.ledger()
+    assert.equal(Object.keys(after.entries).length, Object.keys(JSON.parse(before).entries).length + 2, `${e.name}: o explain gravou UMA entrada por página`)
+    assert.equal(jstr(after.entries[ref]), jstr(JSON.parse(before).entries[ref]), `${e.name}: a entrada analítica ficou intacta`)
+    for (const page of [1, 2]) assert.equal(after.entries[explainPageRef(ref, page) as string].capability, "evidence.explain@1", `${e.name}: página ${page}`)
     assert.equal(((await s.commit()) as Any).ok, true)
     const back: Any = await createConversations({ store: e.conv() }).open(U1, s.conversationId)
     assert.equal(back.open.ledger.entries[ref].capability, "metrics.query@1", e.name)
+    assert.equal(back.open.ledger.entries[explainPageRef(ref, 1) as string].capability, "evidence.explain@1", e.name)
     // turno NOVO, sem cache: o bundle vem da regeneração (arquivo)
     const s2 = await open(e, pin, s.conversationId)
     const x2: Any = await s2.call("evidence.explain@1", { evidenceRef: ref, page: 1 })
@@ -240,6 +246,7 @@ await test("K4 — evidence.explain: usa o bundle (cache ou REGENERADO), devolve
     const ghost: Any = await s2.call("evidence.explain@1", { evidenceRef: "ev_" + "a".repeat(32), page: 1 })
     assert.deepEqual([ghost.ok, ghost.result.error.code], [true, "NOT_FOUND"], e.name)
     const badArgs: Any = await s2.call("evidence.explain@1", { evidenceRef: 5 }); assert.equal(badArgs.result.error.code, "ARGS_INVALID", e.name)
+    assert.equal(Object.keys(s2.ledger().entries).length, Object.keys(back.open.ledger.entries).length, `${e.name}: falhas do explain não gravam nada`)
   })
 })
 
@@ -421,7 +428,7 @@ await test("C4 — sessão FECHADA após o commit (com sucesso ou não): call, v
   })
 })
 
-await test("C5 — turno SEM escritas não avança a versão (committed:false): sem chamadas, só falhas, ou só repetição; um turno só de explain com tabela de alias nova COMMITA a tabela", async () => {
+await test("C5 — turno SEM escritas não avança a versão (committed:false): sem chamadas, só falhas, ou só repetição; um turno só de explain COMMITA a entrada nova (E7-8) e repeti-lo não commita", async () => {
   await both(async (e) => {
     const sha = await register(e, csvOf(60, 1))
     const empty = await open(e, PIN({}, sha)); const r0: Any = await empty.commit(); assert.deepEqual([r0.ok, r0.committed], [true, false], e.name)
@@ -434,7 +441,175 @@ await test("C5 — turno SEM escritas não avança a versão (committed:false): 
     const before = jstr(ex.aliases())
     const x: Any = await ex.call("evidence.explain@1", { evidenceRef: ref, page: 1 }); assert.equal(x.result.ok, true, e.name)
     const c: Any = await ex.commit()
-    assert.deepEqual([c.ok, c.committed], [true, jstr(ex.aliases()) !== before], `${e.name}: commita exatamente quando o explain alocou alias`)
+    assert.deepEqual([c.ok, c.committed], [true, true], `${e.name}: a entrada nova do explain é uma escrita (alias alocado: ${jstr(ex.aliases()) !== before})`)
+    const again = await open(e, PIN({}, sha), empty.conversationId)
+    assert.equal((await again.call("evidence.explain@1", { evidenceRef: ref, page: 1 }) as Any).result.ok, true, e.name)
+    const c2: Any = await again.commit()
+    assert.deepEqual([c2.ok, c2.committed], [true, false], `${e.name}: repetir o mesmo explain não escreve nada`)
+  })
+})
+
+// ───────────────────────────── T: citabilidade do evidence.explain (E7-8) ─────────────────────────────
+const exEntries = (ledger: Any): string[] => Object.keys(ledger.entries).filter((r) => ledger.entries[r].capability === "evidence.explain@1")
+const citeAnswer = (ref: string, path: string): Any => ({ segments: [{ kind: "text", text: "Segue o valor:" }, { kind: "slot", ref, path }, { kind: "phrase", code: "POPULATION_DECLARED", ref }], claims: [{ ref, path, mode: "ASSERT" }] })
+async function withExplain(e: Env, pages: number[] = [1]): Promise<{ s: Any; pin: Any; sha: string; ref: string; ds: string[] }> {
+  const sha = await register(e, csvOf(80, 2)); const pin = PIN({}, sha)
+  const s = await open(e, pin, undefined, { cache: createBundleCache() })
+  const q: Any = await s.call("metrics.query@1", Q); const ref = refOfResult(q.result)
+  for (const page of pages) assert.equal(((await s.call("evidence.explain@1", { evidenceRef: ref, page })) as Any).result.ok, true, e.name)
+  return { s, pin, sha, ref, ds: pages.map((p) => explainPageRef(ref, p) as string) }
+}
+
+await test("T1 — o explain entra no ledger do turno: UMA entrada por (ref, página), capability evidence.explain@1, handle com o ref DERIVADO e o evidenceHash do bundle analítico; a entrada analítica fica intacta; envelope == handle da entrada (sem o hash)", async () => {
+  await both(async (e) => {
+    const sha = await register(e, csvOf(80, 2)); const pin = PIN({}, sha)
+    const s = await open(e, pin, undefined, { cache: createBundleCache() })
+    const q: Any = await s.call("metrics.query@1", Q); const ref = refOfResult(q.result)
+    const analytic = jstr(s.ledger().entries[ref])
+    const x1: Any = await s.call("evidence.explain@1", { evidenceRef: ref, page: 1 }), x2: Any = await s.call("evidence.explain@1", { evidenceRef: ref, page: 2 })
+    const [d1, d2] = [explainPageRef(ref, 1) as string, explainPageRef(ref, 2) as string]
+    assert.notEqual(d1, d2, e.name)
+    assert.deepEqual(exEntries(s.ledger()).sort(), [d1, d2].sort(), `${e.name}: duas entradas do explain`)
+    assert.equal(Object.keys(s.ledger().entries).length, 3, e.name); assert.equal(jstr(s.ledger().entries[ref]), analytic, `${e.name}: a analítica não mudou`)
+    for (const [x, d] of [[x1, d1], [x2, d2]] as const) {
+      const en = s.ledger().entries[d]
+      assert.equal(x.result.evidence.evidenceRef, d, `${e.name}: o envelope leva o ref derivado`)
+      assert.equal(en.handle.evidenceRef, d, e.name)
+      assert.equal(en.handle.evidenceHash, s.ledger().entries[ref].handle.evidenceHash, `${e.name}: o hash é o do bundle analítico`)
+      assert.deepEqual({ ...en.handle, evidenceHash: undefined }, { ...x.result.evidence, evidenceHash: undefined }, `${e.name}: envelope == handle da entrada`)
+      assert.deepEqual(plain(en.view), plain(x.result.data), `${e.name}: a view da entrada é a que o modelo recebeu`)
+    }
+    assert.deepEqual([s.state().calls, s.state().failed], [3, []], e.name)
+  })
+})
+
+await test("T2 — CITAÇÃO ponta a ponta: slot em trades[0].pnlNet do ref derivado passa o validate e RENDERIZA o valor; o mesmo caminho sobre o ref ANALÍTICO, um índice fora da página e um caminho de outra view são rejeitados com SLOT_PATH_INVALID", async () => {
+  await both(async (e) => {
+    const { s, ds } = await withExplain(e, [1, 2])
+    const good = citeAnswer(ds[0], "trades[0].pnlNet")
+    const v: Any = await s.validate(good); assert.equal(v.ok, true, `${e.name}: ${jstr(v)}`); assert.equal(v.claims.length, 1)
+    const rendered: Any = renderAnswer({ answer: good, ledger: s.ledger(), notices: [] })
+    assert.equal(rendered.ok, true, e.name)
+    const slot = rendered.rendered.segments.find((g: Any) => g.kind === "value")
+    assert.match(String(slot.text), /^-?US\$ /, `${e.name}: ${jstr(slot)}`)
+    const p2: Any = await s.validate(citeAnswer(ds[1], "trades[0].pnlNet")); assert.equal(p2.ok, true, `${e.name}: página 2 também é citável (${jstr(p2)})`)
+    // a 3ª rejeição de uma sessão é STOP (sem feedback): cada caso ruim vai numa sessão nova, com o mesmo ledger
+    for (const [why, mk] of [["ref analítico", (r: string) => citeAnswer(r, "trades[0].pnlNet")], ["índice fora da página", (_r: string, d: string[]) => citeAnswer(d[0], "trades[20].pnlNet")], ["caminho de outra view", (_r: string, d: string[]) => citeAnswer(d[0], "metrics[0].value")]] as const) {
+      const w = await withExplain(e, [1])
+      const r: Any = await w.s.validate(mk(w.ref, w.ds)); assert.equal(r.ok, false, `${e.name}: ${why}`); assert.deepEqual(r.feedback, ["SLOT_PATH_INVALID"], `${e.name}: ${why}: ${jstr(r)}`)
+    }
+  })
+})
+
+await test("T3 — IDEMPOTÊNCIA: o mesmo explain duas vezes no turno ⇒ mesmo envelope e UMA entrada; num turno seguinte (sem cache) também; o commit do repetido não escreve nada (committed:false, versão igual)", async () => {
+  await both(async (e) => {
+    const { s, sha, pin, ref, ds } = await withExplain(e, [1])
+    const again: Any = await s.call("evidence.explain@1", { evidenceRef: ref, page: 1 })
+    assert.equal(again.result.evidence.evidenceRef, ds[0], e.name); assert.deepEqual(exEntries(s.ledger()), [ds[0]], `${e.name}: UMA entrada`)
+    const c: Any = await s.commit(); assert.deepEqual([c.ok, c.committed], [true, true], e.name)
+    const versionAfter = ((await createConversations({ store: e.conv() }).open(U1, s.conversationId)) as Any).open.version
+    const s2 = await open(e, pin, s.conversationId)
+    const x: Any = await s2.call("evidence.explain@1", { evidenceRef: ref, page: 1 })
+    assert.equal(x.result.ok, true, e.name); assert.equal(x.result.evidence.evidenceRef, ds[0], e.name)
+    assert.deepEqual(exEntries(s2.ledger()), [ds[0]], e.name)
+    const c2: Any = await s2.commit(); assert.deepEqual([c2.ok, c2.committed], [true, false], `${e.name}: repetição não escreve`)
+    assert.equal(((await createConversations({ store: e.conv() }).open(U1, s.conversationId)) as Any).open.version, versionAfter, `${e.name}: versão inalterada`)
+    void sha
+  })
+})
+
+await test("T4 — o commit PERSISTE a entrada do explain: reabrir em instâncias NOVAS devolve a mesma entrada (sem spec nem pin: não é regenerável) e a citação continua válida e renderizando o mesmo texto", async () => {
+  await both(async (e) => {
+    const { s, pin, ds } = await withExplain(e, [1, 2])
+    const good = citeAnswer(ds[0], "trades[0].pnlNet")
+    const before: Any = renderAnswer({ answer: good, ledger: s.ledger(), notices: [] })
+    assert.equal(((await s.commit()) as Any).ok, true)
+    const back: Any = await createConversations({ store: e.conv() }).open(U1, s.conversationId)
+    for (const d of ds) assert.deepEqual(plain(back.open.ledger.entries[d]), plain(s.ledger().entries[d]), `${e.name}: entrada persistida`)
+    assert.deepEqual([back.open.specOf(ds[0]), back.open.pinOf(ds[0])], [null, null], `${e.name}: o ref derivado não tem spec nem pin`)
+    const s2 = await open(e, pin, s.conversationId)
+    assert.equal(((await s2.validate(good)) as Any).ok, true, e.name)
+    assert.equal(jstr(renderAnswer({ answer: good, ledger: s2.ledger(), notices: [] })), jstr(before), `${e.name}: mesma renderização`)
+  })
+})
+
+await test("T5 — ROTAÇÃO de época: a entrada derivada antiga vira STALE (citar ⇒ STALE_REF); refresh do analítico + explain no ref NOVO grava um ref derivado NOVO (≠ do antigo) que passa a citação; o antigo segue STALE na auditoria", async () => {
+  await both(async (e) => {
+    const { s, pin, ref, ds } = await withExplain(e, [1])
+    assert.equal(((await s.commit()) as Any).ok, true)
+    e.kr.rotate(U1)
+    const s2 = await open(e, pin, s.conversationId)
+    assert.equal(isStale(s2.ledger(), s2.ledger().entries[ds[0]]), true, `${e.name}: derivada antiga STALE`)
+    const stale: Any = await s2.validate(citeAnswer(ds[0], "trades[0].pnlNet")); assert.equal(stale.ok, false, e.name); assert.ok(stale.feedback.includes("STALE_REF"), `${e.name}: ${jstr(stale)}`)
+    const r: Any = await s2.call("evidence.refresh@1", { evidenceRef: ref }); const newRef = refOfResult(r.result)
+    assert.notEqual(newRef, ref, e.name)
+    const x: Any = await s2.call("evidence.explain@1", { evidenceRef: newRef, page: 1 }); assert.equal(x.result.ok, true, `${e.name}: ${jstr(x)}`)
+    const dNew = explainPageRef(newRef, 1) as string
+    assert.notEqual(dNew, ds[0], e.name)
+    assert.equal(isStale(s2.ledger(), s2.ledger().entries[dNew]), false, `${e.name}: a nova é CURRENT`)
+    assert.equal(isStale(s2.ledger(), s2.ledger().entries[ds[0]]), true, `${e.name}: a antiga segue STALE`)
+    assert.equal(((await s2.validate(citeAnswer(dNew, "trades[0].pnlNet"))) as Any).ok, true, e.name)
+    assert.equal(((await s2.commit()) as Any).ok, true)
+    const back: Any = await createConversations({ store: e.conv() }).open(U1, s.conversationId)
+    assert.deepEqual(exEntries(back.open.ledger).sort(), [ds[0], dNew].sort(), `${e.name}: as duas ficam na conversa`)
+  })
+})
+
+await test("T6 — o ref derivado NÃO é regenerável nem refrescável: explain sobre ele ⇒ NOT_FOUND; refresh dele (CURRENT ou STALE) ⇒ ARGS_INVALID; nenhuma spec/pin nova é gravada", async () => {
+  await both(async (e) => {
+    const { s, pin, ds } = await withExplain(e, [1])
+    const ex: Any = await s.call("evidence.explain@1", { evidenceRef: ds[0], page: 1 }); assert.deepEqual([ex.ok, ex.result.error.code], [true, "NOT_FOUND"], e.name)
+    const rf: Any = await s.call("evidence.refresh@1", { evidenceRef: ds[0] }); assert.deepEqual([rf.ok, rf.result.error.code], [true, "ARGS_INVALID"], `${e.name}: CURRENT`)
+    assert.equal(((await s.commit()) as Any).ok, true)
+    e.kr.rotate(U1)
+    const s2 = await open(e, pin, s.conversationId)
+    const rf2: Any = await s2.call("evidence.refresh@1", { evidenceRef: ds[0] }); assert.deepEqual([rf2.ok, rf2.result.error.code], [true, "ARGS_INVALID"], `${e.name}: STALE`)
+    const back: Any = await createConversations({ store: e.conv() }).open(U1, s.conversationId)
+    assert.deepEqual([back.open.specOf(ds[0]), back.open.pinOf(ds[0])], [null, null], e.name)
+  })
+})
+
+await test("T7 — CONFLITO no ref derivado (entrada CURRENT diferente já no ledger): ENGINE_REFUSED, o ledger fica intacto, a falha é registrada e NENHUM dado do explain chega ao modelo", async () => {
+  await both(async (e) => {
+    const { s, pin, ref, ds } = await withExplain(e, [1])
+    assert.equal(((await s.commit()) as Any).ok, true)
+    // ledger FORJADO: a entrada do explain com a view alterada (mesmo ref derivado, conteúdo diferente)
+    const real = createConversations({ store: e.conv() })
+    const forged = { ...real, open: async (u: string, id: string): Promise<Any> => {
+      const got: Any = await real.open(u, id)
+      const entry = got.open.ledger.entries[ds[0]]
+      const mutated = { capability: entry.capability, handle: entry.handle, view: { ...entry.view, total: entry.view.total + 1 } }
+      const base: Any = addEvidence((newLedger(got.open.ledger.epoch) as Any).ledger, got.open.ledger.entries[ref])
+      const forgedLedger: Any = addEvidence(base.ledger, mutated)
+      assert.equal(forgedLedger.ok, true, "o ledger forjado precisa ser válido")
+      return { ok: true, open: { ...got.open, ledger: forgedLedger.ledger } }
+    } }
+    const s2: Any = (await openTurn(turnDeps(e, { conversations: forged }), { userId: U1, conversationId: s.conversationId, pin })).session
+    const before = jstr(s2.ledger())
+    const x: Any = await s2.call("evidence.explain@1", { evidenceRef: ref, page: 1 })
+    assert.deepEqual([x.ok, x.result.ok, x.result.error.code], [true, false, "ENGINE_REFUSED"], `${e.name}: ${jstr(x)}`)
+    assert.equal(x.result.data, null, e.name); assert.equal(jstr(x).includes("trades"), false, `${e.name}: nenhum dado do explain`)
+    assert.equal(jstr(s2.ledger()), before, `${e.name}: ledger intacto`)
+    assert.deepEqual(s2.state().failed, [{ capability: "evidence.explain@1", code: "ENGINE_REFUSED" }], e.name)
+  })
+})
+
+await test("T8 — ISOLAMENTO: o explain não aquece o cache sob o ref derivado (as estatísticas não mudam e get(derivado) é null); o outro usuário não vê a conversa nem a entrada", async () => {
+  await both(async (e) => {
+    const sha = await register(e, csvOf(80, 2)); const pin = PIN({}, sha)
+    const cache = createBundleCache()
+    const s = await open(e, pin, undefined, { cache })
+    const q: Any = await s.call("metrics.query@1", Q); const ref = refOfResult(q.result)
+    const stats = jstr(cache.stats())
+    for (const page of [1, 2]) assert.equal(((await s.call("evidence.explain@1", { evidenceRef: ref, page })) as Any).result.ok, true, e.name)
+    assert.equal(jstr(cache.stats()), stats, `${e.name}: cache inalterado pelo explain`)
+    for (const page of [1, 2]) { assert.equal(cache.get(U1, explainPageRef(ref, page) as string), null, e.name); assert.equal(cache.get(U2, explainPageRef(ref, page) as string), null, e.name) }
+    // por construção o cache NÃO aceita o bundle sob o ref derivado (ref × hash): é por isso que "aquecer o cache sob o derivado" é impossível
+    const oracle = await direct(e, "metrics.query@1", pin)
+    assert.deepEqual(cache.put(U1, explainPageRef(ref, 1) as string, oracle.bundle), { ok: false, code: "INVALID_ARGS" }, `${e.name}: o cache recusa o bundle sob o ref derivado`)
+    assert.equal(((await s.commit()) as Any).ok, true)
+    e.kr.ensure(U2)
+    assert.deepEqual(await openTurn(turnDeps(e), { userId: U2, pin: PIN({}, sha), conversationId: s.conversationId }), { ok: false, code: "NOT_FOUND" }, `${e.name}: outro usuário`)
   })
 })
 

@@ -1,5 +1,6 @@
 // E6.6-11: capacidade `evidence.explain@1` (detalhe dos trades de uma Evidence, ≤ K = 20 por página) + PD-3 (`DATA_NOT_PROVIDED`, motivo FIXO por folha). Testes escritos ANTES do código.
 // Expectativa: scripts/expectations/agent-answer.expected.json → e66_11 (D11-1…D11-13, EX1–EX14, EXM1–EXM20, fixtures CY, CZ e ADV).
+// E7-8 (citabilidade): e7_8 (D-X1…D-X6, X1–X6): o handle do explain tem o ref DERIVADO da página (evidence/hash.ts → explainPageRef).
 //   node scripts/test-agent-evidence-explain.mts
 import assert from "node:assert/strict"
 import { readFileSync, readdirSync } from "node:fs"
@@ -15,7 +16,7 @@ import { evidenceExplain } from "../src/lib/agent-capabilities/evidence-explain.
 import { metricsGroups } from "../src/lib/agent-capabilities/metrics-groups.ts"
 import { projectExplainPage } from "../src/lib/agent-capabilities/project.ts"
 import { derivedEvidenceBundle, explainDerived } from "../src/lib/evidence/explain-derived.ts"
-import { EVIDENCE_SCHEMA, sealEvidence } from "../src/lib/evidence/hash.ts"
+import { EVIDENCE_SCHEMA, explainPageRef, sealEvidence } from "../src/lib/evidence/hash.ts"
 import { verifyEvidence } from "../src/lib/evidence/verify.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
 import { toAnalyticsTrades } from "../src/lib/metrics/index.ts"
@@ -24,7 +25,11 @@ import { synthCsv, withRisk, type SynthRow } from "./_evidence-fixtures.mts"
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
 let passed = 0
-const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(`✓ ${name}`) }
+const failed: string[] = []
+const test = (name: string, fn: () => void) => {
+  if (process.env.COLLECT) { try { fn(); passed += 1 } catch { failed.push(name.split(" ")[0]) } return } // COLLECT=1 só para a análise de mutações
+  fn(); passed += 1; console.log(`✓ ${name}`)
+}
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const enc = (s: string) => new TextEncoder().encode(s)
 const BRT = "America/Sao_Paulo"
@@ -247,9 +252,10 @@ test("EX10 — FONTE (D11-1/D11-13): bundleOf ausente/não-função/null/undefin
   for (const c of [hostile, null, undefined, 5, ctx([Y.bundle], { refEpoch: "" })]) { assert.doesNotThrow(() => run(a, c as never)); assert.equal(call(a, c as never).ok, false) }
 })
 
-test("EX11 — HANDLE (D11-7): mesmo evidenceRef do pedido; sem arquivo NOT_VERIFIED + estrutural; com arquivo VERIFIED; adulterado TAMPERED_OR_MISMATCH; DERIVED/TOTAL/declared 6; não depende da página", () => {
+test("EX11 — HANDLE (D11-7, E7-8): evidenceRef DERIVADO da página (explainPageRef) e não o do pedido; sem arquivo NOT_VERIFIED + estrutural; com arquivo VERIFIED; adulterado TAMPERED_OR_MISMATCH; DERIVED/TOTAL/declared 6; não depende da página", () => {
   const r = okOf(call({ evidenceRef: Y.ref }, ctx([Y.bundle])))
-  assert.equal(r.evidence.evidenceRef, Y.ref)
+  assert.equal(r.evidence.evidenceRef, explainPageRef(Y.ref, 1))
+  assert.notEqual(r.evidence.evidenceRef, Y.ref)
   assert.equal(r.evidence.subject.type, "DERIVED")
   assert.equal(r.evidence.scope, "TOTAL")
   assert.equal(r.evidence.population.declared, 6)
@@ -262,7 +268,8 @@ test("EX11 — HANDLE (D11-7): mesmo evidenceRef do pedido; sem arquivo NOT_VERI
   const bad = okOf(call({ evidenceRef: Y.ref }, ctx([Y.bundle], { source: { files: { [Y.rec.importId]: enc(Y.csv.replace("2004", "2005")) } } })))
   assert.equal(bad.evidence.verdict.combined, "TAMPERED_OR_MISMATCH")
   const z1 = okOf(call({ evidenceRef: Z.ref, page: 1 }, ctx([Z.bundle]))), z2 = okOf(call({ evidenceRef: Z.ref, page: 2 }, ctx([Z.bundle])))
-  assert.deepEqual(z1.evidence, z2.evidence)
+  assert.deepEqual({ ...z1.evidence, evidenceRef: null }, { ...z2.evidence, evidenceRef: null }, "fora o ref, o handle não depende da página")
+  assert.notEqual(z1.evidence.evidenceRef, z2.evidence.evidenceRef)
 })
 
 test("EX12 — PRIVACIDADE (T2): a saída não tem tradeId, importId, rowNo, rowHash, rowRefs, accountRef/acc_, nomes de conta, arquivo, 'MGC 12-26', lbl_, hash de 64 hex, sal, userId; T0 injetado numa cópia do trade não passa", () => {
@@ -313,4 +320,82 @@ test("EX14 — SCHEMA/ENVELOPE: a view cabe em ExplainViewSchema (strict, ≤ 20
   assert.equal(r.contract, AGENT_CONTRACT_VERSION)
 })
 
+// ── E7-8: citabilidade — ref derivado por página ──
+const DERIVED_RE = /^ev_[0-9a-f]{32}$/
+const R0 = `ev_${"0".repeat(32)}`
+const noHash = (h: Any): Any => { const c = { ...h }; delete c.evidenceHash; return c }
+
+test("X1 — VETOR DOURADO (calculado em Python, independente do TS): explainPageRef(ev_0…0, 1) e (…, 2); formato ev_ + 32 hex minúsculos", () => {
+  assert.equal(explainPageRef(R0, 1), "ev_4c4b76c1154754bec4e97f05538da8de")
+  assert.equal(explainPageRef(R0, 2), "ev_b40511fff15ae88eec589686227345d6")
+  for (const p of [1, 2, 7, 250]) assert.match(explainPageRef(R0, p) as string, DERIVED_RE)
+})
+
+test("X2 — PROPRIEDADES: determinístico; página 1 ≠ 2 ≠ …; derivado ≠ original; ref diferente ⇒ derivado diferente; entradas inválidas ⇒ null (nunca lança, nunca um ev_ válido, sem eco)", () => {
+  assert.equal(explainPageRef(Y.ref, 1), explainPageRef(Y.ref, 1))
+  assert.equal(new Set([1, 2, 3, 4, 5].map((p) => explainPageRef(Y.ref, p))).size, 5)
+  assert.notEqual(explainPageRef(Y.ref, 1), Y.ref)
+  assert.notEqual(explainPageRef(Y.ref, 1), explainPageRef(Z.ref, 1))
+  assert.notEqual(explainPageRef(R0, 1), explainPageRef(`ev_${"1".repeat(32)}`, 1))
+  const badRefs: unknown[] = [undefined, null, 5, {}, [], "", "x", "ev_", Y.ref.slice(1), Y.ref + "0", Y.ref.toUpperCase(), `ev_${"g".repeat(32)}`]
+  for (const r of badRefs) assert.equal(explainPageRef(r as never, 1), null, String(r))
+  const badPages: unknown[] = [0, -1, 1.5, "1", null, undefined, NaN, Infinity, 2 ** 53]
+  for (const p of badPages) assert.equal(explainPageRef(Y.ref, p as never), null, String(p))
+  const hostile = { toString() { throw new Error("hostil") } }
+  assert.doesNotThrow(() => explainPageRef(hostile as never, 1)); assert.equal(explainPageRef(hostile as never, 1), null)
+})
+
+test("X3 — HANDLE da página: envelope.evidence == entry.handle; difere do handle do assess SÓ no evidenceRef (evidenceHash do bundle, verdict, population, refEpoch, freshness idênticos); dados e limits idênticos aos da projeção/assess", () => {
+  for (const [B, files] of [[Y, Y.files], [Z, Z.files]] as const) {
+    const out = run({ evidenceRef: B.ref, page: 1 }, ctx([B.bundle], { source: { files } }))
+    const r = okOf(out.result)
+    const assessed: Any = assessBundle(B.bundle, { refEpoch: "s1", source: { files } as never })
+    assert.equal(assessed.ok, true)
+    assert.deepEqual(r.evidence, noHash(out.entry.handle), "envelope == entry (o envelope não leva o evidenceHash)")
+    assert.deepEqual({ ...r.evidence, evidenceRef: null }, { ...noHash(assessed.handle), evidenceRef: null }, "o resto do handle é o do assess (o envelope não leva evidenceHash)")
+    assert.equal(r.evidence.evidenceRef, explainPageRef(B.ref, 1))
+    assert.equal(out.entry.handle.evidenceHash, B.bundle.evidenceHash, "o hash do handle da entry é o do BUNDLE analítico")
+    assert.equal(out.entry.handle.freshness, "CURRENT"); assert.equal(out.entry.handle.refEpoch, "s1")
+    assert.deepEqual(r.limits, assessed.limits)
+    assert.deepEqual(r.data, out.entry.view)
+  }
+})
+
+test("X4 — PÁGINAS: omitida == 1 (mesmo derivado); 1 e 2 têm derivados DISTINTOS e views distintas; o derivado de cada página é explainPageRef(ref, página)", () => {
+  const c = ctx([Z.bundle])
+  const o0 = run({ evidenceRef: Z.ref }, c), o1 = run({ evidenceRef: Z.ref, page: 1 }, c), o2 = run({ evidenceRef: Z.ref, page: 2 }, c)
+  assert.equal(o0.entry.handle.evidenceRef, o1.entry.handle.evidenceRef)
+  assert.equal(o1.entry.handle.evidenceRef, explainPageRef(Z.ref, 1)); assert.equal(o2.entry.handle.evidenceRef, explainPageRef(Z.ref, 2))
+  assert.notEqual(o1.entry.handle.evidenceRef, o2.entry.handle.evidenceRef)
+  assert.notEqual(JSON.stringify(o1.entry.view), JSON.stringify(o2.entry.view))
+  assert.equal(o2.result.evidence.evidenceRef, o2.entry.handle.evidenceRef)
+})
+
+test("X5 — FALHAS inalteradas: ARGS_INVALID / NOT_FOUND / ENGINE_REFUSED com o envelope fixo, entry nula, e NENHUM ref derivado nem o do pedido na saída", () => {
+  const derivedAll = [1, 2].map((p) => explainPageRef(Y.ref, p) as string)
+  const cases: Array<[unknown, Any, Any]> = [
+    [{ evidenceRef: Y.ref, page: 0 }, ctx([Y.bundle]), ARGS], [{ evidenceRef: Y.ref, page: 3 }, ctx([Y.bundle]), ARGS], [{ evidenceRef: 5 }, ctx([Y.bundle]), ARGS], [null, ctx([Y.bundle]), ARGS],
+    [{ evidenceRef: Y.ref }, ctx([]), NOTFOUND], [{ evidenceRef: Y.ref }, { refEpoch: "s1" }, NOTFOUND],
+    [{ evidenceRef: Y.ref }, ctx([Y.bundle], { refEpoch: "" }), REFUSED], [{ evidenceRef: Y.ref }, null, REFUSED],
+  ]
+  for (const d of derivedAll) assert.match(d, DERIVED_RE, "o derivado precisa existir para a varredura valer")
+  for (const [args, c, expected] of cases) {
+    const out = run(args, c)
+    assert.deepEqual(out.result, expected, JSON.stringify(args)); assert.equal(out.entry, null)
+    const dump = JSON.stringify(out)
+    for (const d of derivedAll) assert.equal(dump.includes(d), false, "ref derivado numa falha")
+    assert.equal(dump.includes(Y.ref), false, "eco do ref do pedido")
+  }
+})
+
+test("X6 — explain chamado com um ref DERIVADO: sem bundle ⇒ NOT_FOUND; com um bundleOf permissivo (devolve o bundle para QUALQUER ref) ⇒ ENGINE_REFUSED (o ref do pedido tem de ser o do bundle); nunca entrega dados nem entry", () => {
+  const d = explainPageRef(Y.ref, 1) as string
+  const a = run({ evidenceRef: d }, ctx([Y.bundle]))
+  assert.deepEqual(a.result, NOTFOUND); assert.equal(a.entry, null)
+  const b = run({ evidenceRef: d }, { refEpoch: "s1", bundleOf: () => Y.bundle })
+  assert.deepEqual(b.result, REFUSED); assert.equal(b.entry, null)
+  assert.equal(JSON.stringify(b).includes("trades"), false)
+})
+
+if (process.env.COLLECT) { console.log(`FAILED:${failed.join(",")}`); process.exit(failed.length > 0 ? 1 : 0) }
 console.log(`\n${passed} testes do E6.6-11 (evidence.explain@1) passaram`)

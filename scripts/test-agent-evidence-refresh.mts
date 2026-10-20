@@ -24,7 +24,7 @@ import { metricsQuery } from "../src/lib/agent-capabilities/metrics-query.ts"
 import { rankGroupsCapability } from "../src/lib/agent-capabilities/rank-groups.ts"
 import { derivedEvidenceBundle, explainDerived } from "../src/lib/evidence/explain-derived.ts"
 import { explainMetric, metricEvidenceBundle } from "../src/lib/evidence/explain-metric.ts"
-import { computeEvidenceHash } from "../src/lib/evidence/hash.ts"
+import { computeEvidenceHash, explainPageRef } from "../src/lib/evidence/hash.ts"
 import { runImportPipeline } from "../src/lib/ingest/pipeline.ts"
 import { InMemorySaltKeyring, generateSalt, saltCheck } from "../src/lib/ingest/salt.ts"
 import { calculateMetricsTraced, toAnalyticsTrades } from "../src/lib/metrics/index.ts"
@@ -33,7 +33,11 @@ import { synthCsv, withRisk, type SynthRow } from "./_evidence-fixtures.mts"
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
 let passed = 0
-const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(`✓ ${name}`) }
+const failed: string[] = []
+const test = (name: string, fn: () => void) => {
+  if (process.env.COLLECT) { try { fn(); passed += 1 } catch { failed.push(name.split(" ")[0]) } return } // COLLECT=1 só para a análise de mutações
+  fn(); passed += 1; console.log(`✓ ${name}`)
+}
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const exp: Any = JSON.parse(readFileSync(`${ROOT}scripts/expectations/agent-answer.expected.json`, "utf8")).e66_12
 const enc = (s: string) => new TextEncoder().encode(s)
@@ -315,9 +319,11 @@ test("RF10 — E2E VERIFIED_PARTIAL (receita REAL, bundle montado à mão como n
   assert.equal(ex.result.evidence.verdict.combined, "VERIFIED_PARTIAL", "uma capacidade REAL carrega o parcial")
   assert.deepEqual(ex.result.limits.map((l: Any) => l.code), ["S_POPULATION_PARTIAL", "L_SALT_CHECK_DIVERGENT"])
   const ledger: Any = (addEvidence((newLedger("s1") as Any).ledger, ex.entry) as Any).ledger
-  const segs = (extra: Any[]) => [{ kind: "text", text: "Trades:" }, { kind: "slot", ref, path: "total" }, ...extra]
-  const claims = [{ ref, path: "total", mode: "ASSERT" }]
-  const phrase = (code: string) => ({ kind: "phrase", code, ref })
+  const cref = ex.result.evidence.evidenceRef // E7-8: a entrada do explain é citada pelo ref DERIVADO da página, não pelo analítico
+  assert.equal(cref, explainPageRef(ref, 1)); assert.notEqual(cref, ref)
+  const segs = (extra: Any[]) => [{ kind: "text", text: "Trades:" }, { kind: "slot", ref: cref, path: "total" }, ...extra]
+  const claims = [{ ref: cref, path: "total", mode: "ASSERT" }]
+  const phrase = (code: string) => ({ kind: "phrase", code, ref: cref })
   const none = validateAnswer({ answer: { segments: segs([]), claims }, ledger, stop: null, question: "" }) as Any
   assert.equal(none.ok, false)
   assert.ok(none.reasons.includes("MISSING_PARTIAL_PHRASE"), JSON.stringify(none.reasons))
@@ -455,4 +461,14 @@ test("LR4 — entrada inválida ⇒ LEDGER_ENTRY_INVALID: época errada, freshne
   for (const bad of [null, undefined, 5, "x", []]) assert.deepEqual(refreshEvidence(s.ledger, bad), INVALID, String(bad))
 })
 
+test("RF14 — E7-8: entrada STALE cuja capability é evidence.explain@1 (ref derivado de página) ⇒ ARGS_INVALID ANTES de consultar a spec (spec nula, ausente, que lança ou analítica não muda o resultado); a entrada analítica sem spec segue FILE_NOT_AVAILABLE", () => {
+  const s = seed("metrics.query@1", W1N)
+  const L: Any = clone(s.ledger); L.entries[s.ref].capability = "evidence.explain@1"
+  for (const specOf of [() => null, undefined, () => { throw new Error("x") }, () => ({ capability: "metrics.query@1", args: SPECS["metrics.query@1"] })]) {
+    assert.deepEqual(evidenceRefresh({ evidenceRef: s.ref }, { ledger: L, specOf, regenerated: W2N.ctx } as Any).result, err("ARGS_INVALID"))
+  }
+  assert.deepEqual(evidenceRefresh({ evidenceRef: s.ref }, { ledger: s.ledger, specOf: () => null, regenerated: W2N.ctx } as Any).result, err("FILE_NOT_AVAILABLE"), "analítica sem spec: inalterado")
+})
+
+if (process.env.COLLECT) { console.log(`FAILED:${failed.join(",")}`); process.exit(failed.length > 0 ? 1 : 0) }
 console.log(`\n${passed} testes ok`)

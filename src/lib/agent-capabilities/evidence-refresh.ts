@@ -59,6 +59,7 @@ export function evidenceRefresh(rawArgs: unknown, ctx: RefreshContext): Evidence
     const entry = lookupRef(ledger as unknown as Ledger, evidenceRef)
     if (entry === null) return fail("NOT_FOUND")
     if (!isStale(ledger as unknown as Ledger, entry)) return fail("ARGS_INVALID") // já vigente: nada a refazer
+    if (!REEXECUTABLE.has(entry.capability)) return fail("ARGS_INVALID") // E7-8: ref derivado de página do explain (sem spec, não refrescável): erro honesto, não FILE_NOT_AVAILABLE
 
     const specOf = ctx.specOf
     if (typeof specOf !== "function") return fail("FILE_NOT_AVAILABLE")
