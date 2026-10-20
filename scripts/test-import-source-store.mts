@@ -134,6 +134,51 @@ await test("T5 — disco: 0600/0700, recusa symlink, arquivo corrompido ⇒ CORR
   assert.deepEqual([...new Set(diff.filter((r) => !(r.ok && r.created)).map((r) => (r.ok ? "idem" : r.code)))].filter((x) => x !== "CONFLICT"), [], "os demais levam CONFLICT")
 })
 
+// ── E7-12: `list(userId)` (para contar arquivos e bytes da cota) ──
+await test("L1 — list: vazio ⇒ rows [] e corrupt 0; N linhas voltam ORDENADAS por fileSha256, em cópia; outro usuário isolado (memória e disco)", async () => {
+  await both(async (store, name) => {
+    assert.deepEqual(await store.list(U1), { ok: true, rows: [], corrupt: 0 }, `${name}: vazio`)
+    for (const c of ["c", "a", "b"]) assert.equal(((await store.put(row({ fileSha256: SHA(c), fileBytes: 100 + c.charCodeAt(0) }))) as Any).ok, true, name)
+    await store.put(row({ userId: U2, fileSha256: SHA("a") }))
+    const got: Any = await store.list(U1)
+    assert.equal(got.ok, true, name); assert.equal(got.corrupt, 0, name)
+    assert.deepEqual(got.rows.map((r: Any) => r.fileSha256), [SHA("a"), SHA("b"), SHA("c")], `${name}: ordem por sha`)
+    assert.deepEqual(got.rows[0], row({ fileSha256: SHA("a"), fileBytes: 197 }), `${name}: a linha inteira`)
+    got.rows[0].fileName = "hack"; got.rows.pop(); (got.rows[0].context.exitReasonMap as Any[]).push({ pattern: "x", reason: "STOP" })
+    const again: Any = await store.list(U1); assert.equal(again.rows.length, 3, `${name}: cópia (o store não mudou)`); assert.equal(again.rows[0].fileName, "meu-export.csv", name)
+    const other: Any = await store.list(U2); assert.deepEqual(other.rows.map((r: Any) => r.userId), [U2], `${name}: o outro usuário só vê o dele`)
+  })
+})
+
+await test("L2 — list reflete delete e deleteAllForUser", async () => {
+  await both(async (store, name) => {
+    for (const c of ["a", "b", "c"]) await store.put(row({ fileSha256: SHA(c) }))
+    await store.put(row({ userId: U2, fileSha256: SHA("a") }))
+    await store.delete(U1, SHA("b"))
+    assert.deepEqual(((await store.list(U1)) as Any).rows.map((r: Any) => r.fileSha256), [SHA("a"), SHA("c")], name)
+    assert.deepEqual(await store.deleteAllForUser(U1), { ok: true, deleted: 2 }, name)
+    assert.deepEqual(await store.list(U1), { ok: true, rows: [], corrupt: 0 }, name)
+    assert.equal(((await store.list(U2)) as Any).rows.length, 1, `${name}: o outro usuário segue`)
+  })
+})
+
+await test("L3 — list: userId inválido ⇒ INVALID_ARGS sem eco; no disco, linha CORROMPIDA conta em `corrupt` e as outras seguem; arquivos estranhos e temporários são ignorados", async () => {
+  await both(async (store, name, root) => {
+    for (const bad of ["", "../x", "a/b", "x".repeat(65), 5, null, undefined, {}]) {
+      const r: Any = await store.list(bad as Any); assert.deepEqual(r, importSourceFailure("INVALID_ARGS"), `${name}: ${JSON.stringify(bad)}`)
+      assert.equal(JSON.stringify(r).includes("x".repeat(10)), false)
+    }
+    for (const c of ["a", "b", "c"]) await store.put(row({ fileSha256: SHA(c) }))
+    if (root === undefined) return
+    const dir = join(root, "import-sources", U1)
+    writeFileSync(join(dir, `${SHA("d")}.json`), "{ isto não é json")
+    writeFileSync(join(dir, `${SHA("e")}.json`), JSON.stringify({ ...row({ fileSha256: SHA("e") }), extra: 1 }))
+    writeFileSync(join(dir, `.${SHA("f")}.deadbeef.tmp`), "lixo"); writeFileSync(join(dir, "notas.txt"), "oi")
+    const r: Any = await store.list(U1)
+    assert.equal(r.ok, true, name); assert.equal(r.corrupt, 2, `${name}: 2 corrompidas`); assert.deepEqual(r.rows.map((x: Any) => x.fileSha256), [SHA("a"), SHA("b"), SHA("c")], `${name}: as íntegras seguem`)
+  })
+})
+
 await test("S1 — o que vai ao disco: só os campos da linha (sem sal, provider, fileHash nem conteúdo do arquivo); arquivos 0600", async () => {
   const root = mkdtempSync(join(tmpdir(), "import-src-")); TMPS.push(root)
   const store = createDiskImportSourceStore(root)

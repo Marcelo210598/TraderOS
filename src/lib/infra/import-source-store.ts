@@ -51,6 +51,8 @@ export interface ImportSourceStore {
   delete(userId: string, fileSha256: string): Promise<{ readonly ok: true; readonly existed: boolean } | ImportSourceFailure>
   /** E7-7 (LGPD): apaga TODAS as linhas do usuário (e o diretório dele em disco). Idempotente: sem dados ⇒ ok com 0. */
   deleteAllForUser(userId: string): Promise<{ readonly ok: true; readonly deleted: number } | ImportSourceFailure>
+  /** E7-12 (cota): TODAS as linhas do usuário, ordenadas por fileSha256, em cópia. Linha ilegível/corrompida NÃO derruba a listagem: entra em `corrupt` (e as outras seguem). Sem dados ⇒ rows [] e corrupt 0. */
+  list(userId: string): Promise<{ readonly ok: true; readonly rows: readonly ImportSourceRow[]; readonly corrupt: number } | ImportSourceFailure>
 }
 
 /** Contexto: só as chaves permitidas, formatos fechados; devolve CÓPIA com ordem de chaves canônica, ou null. */
@@ -134,6 +136,11 @@ export function createMemoryImportSourceStore(): ImportSourceStore {
       let deleted = 0
       for (const k of [...rows.keys()]) if (k.startsWith(`${userId}/`)) { rows.delete(k); deleted += 1 }
       return { ok: true, deleted }
+    },
+    async list(userId) {
+      if (!isValidUserId(userId)) return importSourceFailure("INVALID_ARGS")
+      const rowsOf = [...rows.entries()].filter(([k]) => k.startsWith(`${userId}/`)).map(([, r]) => copy(r)).sort((a, b) => (a.fileSha256 < b.fileSha256 ? -1 : 1))
+      return { ok: true, rows: rowsOf, corrupt: 0 }
     },
   }
 }
@@ -228,6 +235,26 @@ export function createDiskImportSourceStore(rootDir: string, overrides: Partial<
         try { deleted = (await ops.readdir(dir)).filter((n) => n.endsWith(".json") && !n.startsWith(".")).length } catch (e) { if (codeOf(e) !== "ENOENT") throw e }
         await ops.rm(dir, { recursive: true, force: true })
         return { ok: true, deleted }
+      } catch {
+        return importSourceFailure("STORAGE_ERROR")
+      }
+    },
+    async list(userId) {
+      try {
+        if (!isValidUserId(userId)) return importSourceFailure("INVALID_ARGS")
+        const dir = await prepare(userId, false)
+        if (dir === null) return importSourceFailure("STORAGE_ERROR")
+        let names: string[] = []
+        try { names = await ops.readdir(dir) } catch (e) { if (codeOf(e) === "ENOENT") return { ok: true, rows: [], corrupt: 0 }; throw e }
+        const rowsOf: ImportSourceRow[] = []
+        let corrupt = 0
+        for (const name of names.filter((n) => /^[0-9a-f]{64}\.json$/.test(n)).sort()) { // ordenado por sha; temporários (.x.tmp) e arquivos estranhos ficam de fora
+          const r = await readRow(dir, userId, name.slice(0, 64))
+          if ("row" in r) rowsOf.push(r.row)
+          else if (r.code === "CORRUPT") corrupt += 1
+          // NOT_FOUND: sumiu entre o readdir e a leitura (apagado agora): não conta
+        }
+        return { ok: true, rows: rowsOf, corrupt }
       } catch {
         return importSourceFailure("STORAGE_ERROR")
       }

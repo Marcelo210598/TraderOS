@@ -51,6 +51,20 @@ export const PLAN_LIMITS: Record<PlanKey, PlanLimits> = {
   },
 }
 
+// Cota de ARQUIVOS importados para o AI Partner (E7-12), por usuário: nº de arquivos distintos e soma dos bytes ORIGINAIS dos CSVs (cada um ≤ 25 MiB).
+// Fica fora de `PlanLimits` de propósito: PLAN_LIMITS é lido pelo plan-guard e pela página inicial. Custo no R2 (US$0,015/GB-mês acima de 10 GB grátis, CSV comprime ≈4×): mesmo no teto
+// 10.000 usuários Free ≈ 12 GB (≈US$0,03/mês) e 1.000 Pro ≈ 61 GB (≈US$0,77/mês) — a cota é sobretudo proteção contra abuso/bug; pode subir depois.
+export interface ImportQuota {
+  readonly files: number
+  readonly bytes: number
+}
+const MIB = 1024 * 1024
+export const PLAN_IMPORT_QUOTAS: Readonly<Record<PlanKey, Readonly<ImportQuota>>> = Object.freeze({
+  FREE: Object.freeze({ files: 2, bytes: 5 * MIB }),
+  TRADER: Object.freeze({ files: 20, bytes: 50 * MIB }),
+  PRO: Object.freeze({ files: 100, bytes: 250 * MIB }),
+})
+
 // Ordem de "força" do plano — útil pra comparar (ex.: TRADER já é o suficiente?)
 export const PLAN_RANK: Record<PlanKey, number> = { FREE: 0, TRADER: 1, PRO: 2 }
 
