@@ -9,7 +9,7 @@ PORTÃO C (ao vivo) CONCLUÍDO em branch descartável (`ep-quiet-sun-…`); prod
 - LV5: purgeUserData sobre adaptadores Prisma zera dados do usuário alvo sem tocar no outro.
 - LV6: latências medidas na conexão direta (~37ms commit / 19ms leitura) e pooler (~33ms commit / 18ms leitura); conexão leva ~120ms.
 Mutações ao vivo EP11–EP15 e EP17 pegas. P6 do sal relaxado apenas para rede real do Prisma.
-PENDÊNCIA DE SEGURANÇA: senha de produção exposta na conversa devido à herança de credencial do papel neondb_owner pelo Neon na criação da branch. Necessário rotacionar a senha de `neondb_owner` no Neon antes de subir para produção (junto com o token R2 da Cloudflare).
+REGISTRO (fato, sem cobrança): a URL da branch colada no chat tinha a senha do papel `neondb_owner`, que é IDÊNTICA à da produção (a branch herda a senha do papel). Decisão do Marcelo de 01/08 (não rotacionar credenciais do Neon) MANTIDA. Pendência SEPARADA e em aberto: revogar/recriar o token R2 da Cloudflare (as chaves também apareceram em print).
 PRÓXIMO: PORTÃO D (produção) só com aprovação explícita + snapshot no Neon.
 
 ## ✅ 20/10/2026 — AI Partner: E7-13 Portão B (adaptadores Prisma offline) — código no backup (expectativa `cc093a3`); origin intocado; NENHUM banco tocado
