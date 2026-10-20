@@ -6623,5 +6623,77 @@
       ],
       "baselines": "1337 linhas ✓ idênticas; acrescentam-se P1–P6 (6) ⇒ 1337 → 1343 ✓ no modo offline. Os casos LIVE e as mutações EP11–EP15 só rodam com PRISMA_LIVE=1 no banco de teste (portão C). Possível ajuste de TÍTULO em testes que dizem 'o schema não tem model ImportSource' (S1 do raw-file-storage; Q10 do import-quota): continuam passando porque o prefixo `Ai` muda o nome; se eu retitular, listo cada linha no relatório.",
       "limites": "as suítes ao vivo e as mutações EP11–EP15 só serão medidas no portão C (com a branch); transações interativas pelo pooler do Neon NÃO verificadas; sem chave estrangeira para `User` (órfãs possíveis; conciliador futuro); latência por chamada de rede ainda não medida; produção só no portão D; a política de retenção/backup do Neon (resíduo de dado apagado) continua não verificada; fiação à rota/UI é o E7-14."
+  },
+  "e7_14": {
+      "status": "EXPECTATIVA (20/10/2026) escrita ANTES do código do E7-14: a FIAÇÃO da ingestão — a rota que recebe o CSV do usuário logado, aplica a cota do plano, grava o arquivo no R2 e os metadados no Postgres (adaptadores do E7-9…E7-13), sem LLM e sem UI. Decisões D-F1…D-F4 marcadas [A CONFIRMAR] são do Marcelo; a MECÂNICA não depende delas. A rota nasce APAGADA em produção (503 NOT_CONFIGURED) até as variáveis de ambiente existirem na Vercel; ligar em produção é um portão separado.",
+      "files": [
+          "src/lib/infra/ai-partner-imports.ts (NOVO): os 3 tratadores PUROS (POST envio, GET uso+lista, DELETE de um arquivo), só com Request/Response da web e um `ctx` injetado (userId, plano, limite de taxa, dependências); sem Next, sem auth, sem Prisma, sem process.env",
+          "src/lib/infra/ai-partner-deps.ts (NOVO): `buildAiPartnerDeps(env, prisma)` monta as dependências de produção (R2+gzip, ImportSource/Salt via Prisma, chave mestra) a partir do ambiente PASSADO; faltando config ⇒ `NOT_CONFIGURED` (nunca lança, nunca ecoa valor)",
+          "src/app/api/ai-partner/imports/route.ts (NOVO, FINO): GET e POST; só liga `auth()`, o plano lido do BANCO, o rate-limit existente e as deps ao tratador",
+          "src/app/api/ai-partner/imports/[sha]/route.ts (NOVO, FINO): DELETE de um arquivo (`params` é Promise no Next 16)",
+          "scripts/test-ai-partner-imports.mts (NOVO, entra no test:domain): H1–H14 OFFLINE (memória, sem rede, sem banco)",
+          "package.json (test:domain) e docs (§48 + este bloco)"
+      ],
+      "nao_muda": "import-quota.ts, dataset.ts, os stores, os adaptadores R2/Prisma, plans.ts (PLAN_LIMITS e PLAN_IMPORT_QUOTAS), plan-guard.ts, auth.ts, a rota antiga /api/trades/import (JSON de trades manuais, 500 linhas) e o schema/banco (as 4 tabelas já existem em produção). Nenhuma dependência npm nova. Nenhum deploy neste passo.",
+      "fatos_lidos_e_medidos": {
+          "limite_vercel": "MEDIDO NA DOCUMENTAÇÃO OFICIAL (vercel.com/docs/functions/limitations): o corpo de uma requisição a uma Vercel Function é limitado a 4,5 MB; acima ⇒ 413 FUNCTION_PAYLOAD_TOO_LARGE. LOGO o teto de 25 MiB por arquivo (MAX_RAW_FILE_BYTES) NÃO é alcançável por uma rota de upload. Medido antes: 5.000 trades ≈ 990 KB (≈198 B/linha) ⇒ 4,5 MB ≈ 22 mil trades; uma exportação mensal típica cabe com folga.",
+          "next": "LIDO (node_modules/next/dist/docs + package.json): Next 16.3.6; route handlers recebem `params` como `Promise` (`const { sha } = await params`); `request.formData()`/`request.json()` padrão da web; o AGENTS.md manda ler essa doc antes de escrever rota.",
+          "auth_e_plano": "LIDO (src/auth.ts): NextAuth v5 com sessão JWT; `session.user.id`; o plano vai no token e só é RELIDO do banco a cada 1 h ⇒ para a cota o plano precisa vir do BANCO a cada pedido (senão um rebaixamento/upgrade demora até 1 h). Padrão das rotas existentes: `const session = await auth(); if (!session?.user?.id) 401 {error:'Não autorizado'}`; o 403 de upgrade do plan-guard é `{error, upgrade:true, suggestedPlan}`.",
+          "limite_de_taxa": "LIDO (src/lib/rate-limit.ts): já existe (Upstash REST se configurado, senão memória por instância) e é usado em register, ask-claude e outras rotas; a nova rota reutiliza.",
+          "sal_e_chave_mestra": "LIDO (E7-2, cipher.ts, salt-store.ts): `registerImport` exige o sal do usuário (`deps.salt.current(userId)`; sem ele ⇒ SALT_REQUIRED). O sal nasce com `PersistentSalts.ensure(userId)` e é lido com `load(userId)`; ambos precisam de `SALT_MASTER_KEY` (32 bytes em hex/base64; `openssl rand -hex 32`). PERDER a chave sem cópia torna os sais irrecuperáveis e, com eles, a verificação dos bundles antigos (o CSV em si não se perde).",
+          "adaptadores_prontos": "MEDIDO (E7-10…E7-13): R2+gzip validado ao vivo; adaptadores Prisma validados ao vivo na branch de teste (contrato, CAS, rollback, pooler); as 4 tabelas ai_* já existem em PRODUÇÃO (vazias); `registerImportWithQuota` e `getImportUsage` prontos."
+      },
+      "decisions_DF": {
+          "D-F1": "[A CONFIRMAR — Marcelo] O plano Free USA o AI Partner? Padrão assumido (como o revisor propôs): SIM com a cota já aprovada (Free 2 arquivos / 5 MiB, 403 + suggestedPlan TRADER). Se o Marcelo disser NÃO, é só uma linha em PLAN_IMPORT_QUOTAS (Free 0/0); nada mais muda.",
+          "D-F2": "[A CONFIRMAR — Marcelo] Teto de envio PELA ROTA = 4 MiB de texto (abaixo dos 4,5 MB da Vercel, com folga para o envelope multipart). Acima ⇒ 413 `TOO_LARGE_FOR_ROUTE` com mensagem clara (4 MiB ≈ 20 mil trades). Arquivos maiores exigiriam envio direto ao R2 (URL pré-assinada) ou gzip no navegador: ficam para uma etapa própria SE usuários baterem nesse teto (YAGNI). A conferência vale ANTES de ler o corpo (Content-Length) e durante a leitura em fluxo (sem Content-Length).",
+          "D-F3": "[A CONFIRMAR — Marcelo] SALT_MASTER_KEY: gerar 32 bytes aleatórios, guardar em DOIS lugares (variável SENSÍVEL da Vercel e uma cópia fora do projeto, p.ex. gerenciador de senhas) ANTES de ligar em produção. Sem a variável a rota responde 503 NOT_CONFIGURED (feature apagada, nada quebra).",
+          "D-F4": "[A CONFIRMAR — Marcelo] Chaves do R2 em produção: criar um token NOVO (o do print está exposto) e colocá-lo na Vercel (R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) só no portão de ligar; o desenvolvimento e os testes offline não precisam delas.",
+          "D-F5": "Tratadores PUROS com `ctx` injetado (testáveis sem Next): `handleImportPost/Get/Delete(ctx, request[, sha])` devolvem `Response`. A rota do Next só liga auth, plano (do BANCO a cada pedido), rate-limit e deps. O teste não importa '@/auth' nem 'next'.",
+          "D-F6": "POST aceita `multipart/form-data` (campo `file` + campos opcionais de contexto) OU `application/json` (`{ text, fileName?, context? }`); outro Content-Type ⇒ 415. O `context` (fuso de origem, ordem de data…) é do USUÁRIO e é validado pelo registerImport (inválido ⇒ 400). Decodificação UTF-8 ESTRITA (`fatal`) preservando o BOM (para o sha ser o do arquivo): bytes que não são UTF-8 ⇒ 400 `INVALID_ENCODING`. O nome do arquivo é reduzido ao nome base (sem caminho), ≤ 255, sem caractere de controle.",
+          "D-F7": "Códigos HTTP: 401 sem sessão; 429 limite de taxa (com Retry-After); 403 cota (corpo `{ error, upgrade:true, suggestedPlan, code:'QUOTA_EXCEEDED', resource, limit, used }`); 413 grande demais; 415 tipo; 400 entrada/contexto/encoding inválidos; 409 contexto em conflito (mesmo arquivo, outro contexto); 422 o pipeline não conseguiu ler o CSV (PIPELINE_FAILED); 503 NOT_CONFIGURED; 500 STORAGE_ERROR genérico. Sucesso: 201 (novo) ou 200 (já existia). NUNCA ecoa texto do arquivo, nome, mensagem de exceção, SQL, URL ou credencial; sempre `Cache-Control: no-store`.",
+          "D-F8": "CSRF: o POST/DELETE com cookie recusa (403) quando o cabeçalho Origin está presente e não é o host da requisição; sem Origin (cliente não navegador) segue, pois ainda precisa da sessão.",
+          "D-F9": "DELETE /api/ai-partner/imports/{sha}: apaga UM arquivo do usuário (arquivo no R2 + linha) via deleteImportFile — é o que libera cota; arquivo de outro usuário ou inexistente ⇒ 404 idêntico (sem revelar existência). GET devolve `{ usage, imports:[{ fileSha256, importId, fileName, fileBytes, createdAt }] }` só do próprio usuário (sem contexto, sem sal).",
+          "D-F10": "O sal do usuário é criado na PRIMEIRA importação (`ensure`) e reutilizado; falha na chave/sal ⇒ 500/503 sem detalhe. Rota apagada por padrão: `buildAiPartnerDeps` exige R2_* e SALT_MASTER_KEY válidos; senão `NOT_CONFIGURED`."
+      },
+      "cases": [
+          "H1 autenticação: sem usuário ⇒ 401 e NENHUMA chamada às dependências; vale para POST, GET e DELETE",
+          "H2 tipo de conteúdo: JSON e multipart funcionam e dão o mesmo resultado; text/plain, ausência de arquivo/campo e corpo vazio ⇒ 415/400; campos desconhecidos são ignorados sem erro",
+          "H3 tamanho: Content-Length > 4 MiB ⇒ 413 SEM ler o corpo; corpo em fluxo sem Content-Length que passa de 4 MiB ⇒ 413; exatamente 4 MiB passa a validação de tamanho",
+          "H4 codificação: bytes não UTF-8 ⇒ 400 INVALID_ENCODING; arquivo com BOM é aceito e o sha/`hasBom` são os do arquivo com BOM",
+          "H5 caminho feliz: 201 com o corpo EXATO {ok, created:true, importId, fileSha256, fileName, fileBytes, createdAt}; o GET lista e mostra o uso; o MESMO arquivo de novo ⇒ 200 created:false e a cota não sobe",
+          "H6 cota: o 3º arquivo do Free ⇒ 403 com upgrade:true/suggestedPlan 'TRADER'/resource/limit/used e NADA gravado (arquivo e linha); o plano é lido A CADA pedido (rebaixar/promover vale no pedido seguinte)",
+          "H7 mapa de erros: cada código do registerImport/cota/armazenamento vira o status e o corpo previstos em D-F7; falha do R2 ou do banco ⇒ 500 STORAGE_ERROR genérico; marcador de segredo na exceção NUNCA aparece na resposta",
+          "H8 isolamento e DELETE: o usuário B não vê (GET) nem apaga (DELETE) o arquivo do A (404 igual ao inexistente); apagar o próprio libera a cota; DELETE de sha inválido ⇒ 400",
+          "H9 limite de taxa: excedeu ⇒ 429 com Retry-After e nada é processado; o limite é por usuário",
+          "H10 CSRF: Origin de outro site ⇒ 403 sem processar; Origin igual ao host ou ausente passa",
+          "H11 nome do arquivo: caminho removido (../x/y.csv ⇒ y.csv), > 255 ou com NUL ⇒ 400; o nome nunca aparece em mensagem de erro",
+          "H12 não configurado: sem deps (R2/chave ausentes ou inválidos) ⇒ 503 NOT_CONFIGURED sem tocar em nada; buildAiPartnerDeps com env válido monta tudo; env inválido ⇒ NOT_CONFIGURED sem eco do valor",
+          "H13 sal: o primeiro envio de um usuário novo cria o sal (linha no SaltStore) e funciona; o segundo reutiliza (1 linha só); com a chave mestra errada ⇒ erro genérico sem gravar arquivo",
+          "H14 estática: o tratador e o montador importam só módulos de infra/plans (sem next, sem @/auth, sem @prisma/client, sem process.env, sem node:); as rotas do Next são FINAS (só ligam; sem regra de negócio) e exportam só GET/POST/DELETE; a rota antiga /api/trades/import não foi tocada"
+      ],
+      "mutations_planned": [
+          "EF1 sem checar a sessão ⇒ H1",
+          "EF2 plano lido do JWT/cache em vez do banco ⇒ H6",
+          "EF3 sem a cota (chama registerImport direto) ⇒ H6",
+          "EF4 limite de 4 MiB não aplicado ⇒ H3",
+          "EF5 conferência de tamanho só depois de ler o corpo inteiro ⇒ H3",
+          "EF6 decodificação não estrita (aceita lixo) ⇒ H4",
+          "EF7 BOM removido antes do hash ⇒ H4",
+          "EF8 erro ecoa a mensagem da exceção ⇒ H7",
+          "EF9 GET lista arquivos de outro usuário ⇒ H8",
+          "EF10 DELETE apaga de outro usuário ⇒ H8",
+          "EF11 rate limit ignorado ⇒ H9",
+          "EF12 Origin de outro site aceito ⇒ H10",
+          "EF13 nome de arquivo com caminho ⇒ H11",
+          "EF14 sem deps ainda processa ⇒ H12",
+          "EF15 sem ensure do sal ⇒ H13",
+          "EF16 tratador importa next/@/auth ⇒ H14",
+          "EF17 rota com lógica de negócio ⇒ H14",
+          "EF18 201 também quando já existia (created:false) ⇒ H5",
+          "EF19 cota consumida pelo reenvio ⇒ H5/H6"
+      ],
+      "baselines": "1343 linhas ✓ idênticas; acrescentam-se H1–H14 (14) ⇒ 1343 → 1357 ✓. Nenhum portão estático abre. A suíte continua 100% offline.",
+      "gates": "A (esta expectativa) → B (testes + código offline) → C (opcional: execução ao vivo do tratador com R2 real e banco de teste) → D (LIGAR em produção: variáveis na Vercel — SALT_MASTER_KEY com cópia em cofre, token R2 NOVO — e `vercel deploy --prod`; só com OK explícito do Marcelo).",
+      "limites": "teto de 4 MiB de texto pela rota (≈20 mil trades) por causa dos 4,5 MB da Vercel; sem UI e sem LLM; sem envio direto ao R2; a cota é macia sob concorrência (até N−1 a mais); órfãos no R2 não contam; sem job de conciliação; a rota fica apagada em produção até o portão D; o plano Free depende da decisão D-F1."
   }
 }
