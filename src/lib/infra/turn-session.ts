@@ -18,7 +18,7 @@ import { rankGroupsCapability } from "../agent-capabilities/rank-groups.ts"
 import type { CapabilityErrorCode, CapabilityId } from "../agent/contract.ts"
 import { newAliasTable, type AliasTable } from "../agent/label.ts"
 import { addEvidence, refreshEvidence, rotateEpoch, type Ledger } from "../agent/ledger.ts"
-import { notices, recordError, recordRejection, requestCall, newTurn, validatorStop, type TurnState } from "../agent/turn.ts"
+import { markBudgetExceeded, notices, recordError, recordRejection, requestCall, newTurn, validatorStop, type TurnState } from "../agent/turn.ts"
 import { validateAnswer } from "../agent/validate-answer.ts"
 import { renderAnswer, stopResponse, type RenderedAnswer } from "../agent/render.ts"
 import type { BundleCache } from "./bundle-cache.ts"
@@ -64,6 +64,8 @@ export interface TurnSession {
   readonly conversationId: string
   call(capability: unknown, args: unknown): Promise<CallOutcome>
   validate(answer: unknown, question?: string): Promise<ValidateOutcome>
+  /** E7-15a (D-L9): encerra o turno por orçamento de tokens: resposta canônica terminal (answer null), idempotente; turno já fechado ⇒ TURN_CLOSED. */
+  stopForBudget(): Promise<{ readonly ok: true; readonly response: RenderedAnswer } | { readonly ok: false; readonly code: "TURN_CLOSED" }>
   commit(): Promise<CommitOutcome>
   /** Estado de trabalho (somente leitura). */
   state(): TurnState
@@ -282,6 +284,14 @@ function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provi
     return { ok: false, action: "STOP", stopReason: rec.stopReason, response }
   }
 
+  async function doStopForBudget(): Promise<{ readonly ok: true; readonly response: RenderedAnswer } | { readonly ok: false; readonly code: "TURN_CLOSED" }> {
+    if (closed) return { ok: false, code: "TURN_CLOSED" }
+    state = markBudgetExceeded(state)
+    const response = stopResponse(state)
+    if (assistant === null) assistant = { answer: null, rendered: clone(response) }
+    return { ok: true, response }
+  }
+
   async function doCommit(): Promise<CommitOutcome> {
     if (closed) return { ok: false, code: "TURN_CLOSED" }
     closed = true // fechada com sucesso OU não: um turno perdedor não se reaproveita
@@ -312,6 +322,7 @@ function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provi
     conversationId: open.conversationId,
     call: (capability, args) => queued(() => doCall(capability, args)),
     validate: (answer, question) => queued(() => doValidate(answer, question)),
+    stopForBudget: () => queued(doStopForBudget),
     commit: () => queued(doCommit),
     state: () => state,
     ledger: () => ledger,

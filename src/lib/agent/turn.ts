@@ -45,6 +45,11 @@ export function recordRejection(state: TurnState, reasons: readonly RejectionRea
   return next.rejections > AGENT_MAX_REGENERATIONS ? { action: "STOP", stopReason: "REGEN_EXHAUSTED", state: next } : { action: "REGENERATE", feedback, state: next }
 }
 
+/** E7-15a (D-L9): o orçamento de TOKENS do turno acabou; marca o mesmo estado do orçamento de chamadas, para a resposta canônica de parada citar o limite. Idempotente. */
+export function markBudgetExceeded(state: TurnState): TurnState {
+  return state.budgetExceeded ? state : freeze({ ...state, budgetExceeded: true })
+}
+
 /** O `stop` que o validador recebe. */
 export const validatorStop = (state: TurnState): null | "BUDGET_CALLS" => (state.budgetExceeded ? "BUDGET_CALLS" : null)
 

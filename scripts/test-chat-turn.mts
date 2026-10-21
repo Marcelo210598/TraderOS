@@ -156,7 +156,7 @@ await test("L11 — erro do modelo (no início ou depois de uma ferramenta) ⇒ 
   const e = await env()
   const ok1 = await run(e, fake(() => final(refusal))); assert.equal(ok1.ok, true)
   const before = await messagesOf(e, ok1.conversationId); const v0 = ok1.version
-  for (const script of [(_: Any, n: number) => ({ kind: "error", code: "UPSTREAM" }), (_: Any, n: number) => n === 1 ? calls(["metrics_query", Q]) : { kind: "error", code: "TIMEOUT" }]) {
+  for (const script of [() => ({ kind: "error", code: "UPSTREAM" }), (_: Any, n: number) => n === 1 ? calls(["metrics_query", Q]) : { kind: "error", code: "TIMEOUT" }]) {
     const r = await run(e, fake(script as Any), { conversationId: ok1.conversationId }); assert.deepEqual(r, { ok: false, code: "MODEL_ERROR" })
     const o: Any = await createConversations({ store: e.store, now: () => NOW }).open(U1, ok1.conversationId)
     assert.equal(o.open.version, v0); assert.deepEqual((await messagesOf(e, ok1.conversationId)).length, before.length); assert.deepEqual(Object.keys(o.open.ledger.entries), [])
@@ -171,9 +171,11 @@ await test("L12 — CONFLICT no commit ⇒ TURN_CONFLICT, commitTurn chamado UMA
   assert.deepEqual(r, { ok: false, code: "TURN_CONFLICT" }); assert.equal(n, 1)
 })
 
-await test("L13 — determinismo: mesmo roteiro ⇒ mesma resposta e mesmas mensagens gravadas", async () => {
-  const mk = async (): Promise<[Any, Any[]]> => { const e = await env(); const r = await run(e, fake((req, n) => n === 1 ? calls(["metrics_query", Q]) : final(good(lastRef(req))))); return [r, (await messagesOf(e, r.conversationId)).map((m) => ({ ...m, createdAt: 0 }))] }
+await test("L13 — determinismo: mesmo roteiro, mesmo dataset e mesmo sal ⇒ mesma resposta e mesmas mensagens gravadas (conversas novas)", async () => {
+  const e = await env() // o sal é aleatório por ambiente: o determinismo vale com o MESMO sal
+  const mk = async (): Promise<[Any, Any[]]> => { const r = await run(e, fake((req, n) => n === 1 ? calls(["metrics_query", Q]) : final(good(lastRef(req))))); return [r, (await messagesOf(e, r.conversationId)).map((m) => ({ ...m, createdAt: 0 }))] }
   const [a, ma] = await mk(), [b, mb] = await mk()
+  assert.notEqual(a.conversationId, b.conversationId)
   assert.equal(jstr(a.response), jstr(b.response)); assert.equal(jstr(ma), jstr(mb)); assert.equal(a.tokens, b.tokens)
 })
 
@@ -200,7 +202,7 @@ await test("L16 — pergunta de 4.000 caracteres vai LITERAL ao modelo; vazia/s�
 
 await test("L17 — argumentos de runChatTurn inválidos (modelo sem complete, pin ruim, userId ruim, onStep não função) ⇒ INVALID_ARGS, sem lançar", async () => {
   const e = await env(); const ok = fake(() => final(refusal))
-  for (const extra of [{ model: {} }, { model: null }, { pin: { sources: [] } }, { userId: "x" }, { onStep: 5 }, { deps: null }]) assert.deepEqual(await run(e, ok, extra), { ok: false, code: "INVALID_ARGS" }, jstr(extra))
+  for (const extra of [{ model: {} }, { model: null }, { pin: { sources: [] } }, { userId: "../x" }, { userId: 5 }, { onStep: 5 }, { deps: null }]) assert.deepEqual(await run(e, ok, extra), { ok: false, code: "INVALID_ARGS" }, jstr(extra))
   assert.equal(ok.requests.length, 0)
 })
 
@@ -208,7 +210,7 @@ await test("L18 — CHAT_TOOLS: 8 ferramentas, nomes válidos para a API do mode
   assert.equal(CHAT_TOOLS.length, 8); assert.equal(new Set(CHAT_TOOLS.map((t: Any) => t.name)).size, 8)
   for (const t of CHAT_TOOLS as Any[]) { assert.match(t.name, /^[a-z0-9_-]{1,64}$/); assert.ok((CAPABILITY_IDS as readonly string[]).includes(t.capability), t.name); assert.equal(typeof t.description, "string"); assert.equal(typeof t.parameters, "object") }
   assert.deepEqual([...new Set((CHAT_TOOLS as Any[]).map((t) => t.capability))].sort(), [...CAPABILITY_IDS].sort())
-  const e = await env(); const f = fake((req, n) => n === 1 ? calls(["rm_rf", {}]) : final(refusal)); const r = await run(e, f); assert.equal(r.ok, true); assert.match(jstr(f.requests[1].messages), /ARGS_INVALID/)
+  const e = await env(); const f = fake((req, n) => n === 1 ? calls(["rm_rf", Q]) : final(refusal)); const r = await run(e, f); assert.equal(r.ok, true); assert.match(jstr(f.requests[1].messages), /ARGS_INVALID/)
   assert.deepEqual(f.requests[0].tools.map((t: Any) => t.name), (CHAT_TOOLS as Any[]).map((t) => t.name)); assert.ok(!jstr(f.requests[0].tools).includes("evidenceHash"))
 })
 
@@ -218,6 +220,24 @@ await test("L19 — teto absoluto: modelo que SÓ pede ferramentas (1 token) ou 
     const e = await env(); const f = fake(script as Any); const r = await run(e, f)
     assert.equal(r.ok, true); assert.equal(r.outcome, "STOPPED"); assert.ok(f.requests.length <= 12, `chamadas: ${f.requests.length}`)
   }
+})
+
+await test("L20 — uso ausente/inválido na resposta do modelo conta como o teto inteiro (fail-closed): não há 2ª chamada", async () => {
+  for (const usageValue of [undefined, null, NaN, -5, "9", Infinity]) {
+    const e = await env(); const f = fake(() => ({ ...calls(["metrics_query", Q]), usage: usageValue === undefined ? undefined : { totalTokens: usageValue } }))
+    const r = await run(e, f); assert.equal(r.ok, true, String(usageValue)); assert.equal(r.outcome, "STOPPED", String(usageValue)); assert.equal(f.requests.length, 1, String(usageValue)); assert.equal(r.tokens, MAX_TOKENS_PER_TURN)
+  }
+})
+
+await test("L21 — modelo que devolve tool_calls com lista VAZIA para sempre (não consome o orçamento de capacidades) é parado pelo teto absoluto de chamadas", async () => {
+  const e = await env(); const f = fake((_: Any, n: number) => n > 50 ? { kind: "error", code: "TIMEOUT" } : { kind: "tool_calls", calls: [], usage: usage(1) })
+  const r = await run(e, f); assert.equal(r.ok, true, "o laço tem de terminar sozinho, não por erro do modelo"); assert.equal(r.outcome, "STOPPED"); assert.equal(f.requests.length, 12)
+})
+
+await test("L22 — depois de toolChoice none, tool_calls do modelo contam como RESPOSTA FINAL rejeitada: 2 ARGS_INVALID + 3 tool_calls ⇒ para na 5ª chamada, sem executar mais capacidade", async () => {
+  const e = await env(); const bad = ["metrics_query", { metricIds: ["nope"], filters: {}, options: {} }] as [string, unknown]
+  const f = fake(() => calls(bad)); const r = await run(e, f)
+  assert.equal(r.ok, true); assert.equal(r.outcome, "STOPPED"); assert.equal(f.requests.length, 5)
 })
 
 await test("S1 — TurnSession.stopForBudget: devolve a resposta canônica (BUDGET_LIMIT_REACHED), é idempotente, grava UMA mensagem do assistente (answer null) e some das chamadas seguintes", async () => {

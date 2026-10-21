@@ -19,7 +19,7 @@ const test = (name: string, fn: () => void) => { fn(); passed += 1; console.log(
 
 test("S0 — sanidade: os 3 arquivos novos existem e o varredor os enxerga; o diretório tem EXATAMENTE os 15 arquivos esperados", () => {
   for (const f of NEW) assert.equal(existsSync(join(ROOT, "src/lib/agent", f)), true, f)
-  assert.deepEqual(all.map((f) => f.name).sort(), ["catalog.ts", "contract.ts", "format.ts", "label.ts", "ledger.ts", "lexicon.ts", "phrases.ts", "render.ts", "slot-path.ts", "turn.ts", "validate-answer.ts", "validate-structure.ts", "validate-text.ts", "verdict.ts", "views.ts"])
+  assert.deepEqual(all.map((f) => f.name).sort(), ["catalog.ts", "contract.ts", "format.ts", "label.ts", "ledger.ts", "lexicon.ts", "phrases.ts", "render.ts", "slot-path.ts", "system-prompt.ts", "turn.ts", "validate-answer.ts", "validate-structure.ts", "validate-text.ts", "verdict.ts", "views.ts"])
   assert.equal(mine.length, 3)
 })
 

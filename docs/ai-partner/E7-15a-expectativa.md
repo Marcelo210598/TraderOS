@@ -48,3 +48,6 @@ Mutações previstas (EL1…): remover o teto de tokens; mandar o hash ao modelo
 - **D-L13 Passos de progresso:** `onStep` recebe `{ kind:"capability", label }` (rótulo de `CAPABILITY_LABELS`) e `{ kind:"validating" }`; nunca argumentos nem números.
 - **API:** `runChatTurn({ deps, model, userId, pin, question, conversationId?, onStep? }) ⇒ { ok:true, conversationId, version, outcome:"ANSWERED"|"STOPPED", response, tokens, modelCalls } | { ok:false, code }`.
 - Testes adicionais: L17 argumentos inválidos; L18 ferramentas; L19 teto absoluto; S1 `stopForBudget`.
+
+## 5. Resultado (21/10/2026)
+Suíte `scripts/test-chat-turn.mts`: 23 testes (L1–L22, S1), estável em 3 execuções; `test:domain` 1381 ✓, tsc 0, ESLint 0 erros. Mutações EL1–EL26: 26/26 pegas. A análise achou um buraco real (EL18): `tool_calls` com lista vazia não consome o orçamento de capacidades; só o teto absoluto de 12 chamadas (D-L10) o fecha ⇒ L21. EL23/EL24 mostraram testes fracos ⇒ L18 reforçado e L22 novo. Guardas de isolamento ganharam exceção nominal para `infra/chat-turn.ts` (mesmo padrão do E7-6).
