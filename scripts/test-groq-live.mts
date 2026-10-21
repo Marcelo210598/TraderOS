@@ -22,14 +22,14 @@ const KEY = keyOf(), MODEL = "qwen/qwen3.8-27b", USD_BRL = 5.5
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 const USD = (p: number, c: number): number => (p * 0.8 + c * 4) / 1e6
 const budget = { tokens: 0, stop: false, why: "" }
-interface Rec { status: number; prompt: number; completion: number; cached: number | null; ms: number; remTokens: string | null; remReq: string | null; limTokens: string | null; limReq: string | null }
+interface Rec { resetTokens: string | null; status: number; prompt: number; completion: number; cached: number | null; ms: number; remTokens: string | null; remReq: string | null; limTokens: string | null; limReq: string | null }
 const recs: Rec[] = []
 /** fetch REAL com registro de uso/cabeçalhos (nunca de autorização) e disjuntor de orçamento. */
 const liveFetch = async (url: string, init: Any): Promise<Any> => {
   if (budget.stop) throw new Error("orçamento/429: parado")
   const t0 = performance.now(); const res = await fetch(url, init); const text = await res.text(); let u: Any = {}
   try { u = JSON.parse(text).usage ?? {} } catch { /* corpo não JSON */ }
-  const r: Rec = { status: res.status, prompt: u.prompt_tokens ?? 0, completion: u.completion_tokens ?? 0, cached: u.prompt_tokens_details?.cached_tokens ?? null, ms: Math.round(performance.now() - t0), remTokens: res.headers.get("x-ratelimit-remaining-tokens"), remReq: res.headers.get("x-ratelimit-remaining-requests"), limTokens: res.headers.get("x-ratelimit-limit-tokens"), limReq: res.headers.get("x-ratelimit-limit-requests") }
+  const r: Rec = { resetTokens: res.headers.get("x-ratelimit-reset-tokens"), status: res.status, prompt: u.prompt_tokens ?? 0, completion: u.completion_tokens ?? 0, cached: u.prompt_tokens_details?.cached_tokens ?? null, ms: Math.round(performance.now() - t0), remTokens: res.headers.get("x-ratelimit-remaining-tokens"), remReq: res.headers.get("x-ratelimit-remaining-requests"), limTokens: res.headers.get("x-ratelimit-limit-tokens"), limReq: res.headers.get("x-ratelimit-limit-requests") }
   recs.push(r); budget.tokens += r.prompt + r.completion
   if (res.status === 429) { budget.stop = true; budget.why = "429" }
   if (budget.tokens > 70_000) { budget.stop = true; budget.why = "orçamento de 70.000 tokens" }
@@ -47,6 +47,8 @@ const raw = async (body: Any): Promise<{ status: number; ms: number; prompt: num
 const base = { model: MODEL, reasoning_effort: "none", reasoning_format: "hidden", max_tokens: 60, temperature: 0.2 }
 const msgs = [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: 'Responda só com o objeto JSON {"segments":[{"kind":"text","text":"ok"}],"claims":[]}' }]
 
+const SKIP_PROBES = process.env.GROQ_SKIP_PROBES === "1"
+if (!SKIP_PROBES) {
 console.log("═══ SONDAS CRUAS ═══")
 const p1 = await raw({ ...base, messages: msgs, tools: wire(tools), tool_choice: "none" })
 console.log(`P1 corpo do cliente (tools compactas, tool_choice none): HTTP ${p1.status} ${p1.msg} | entrada ${p1.prompt} saída ${p1.completion} | ${p1.ms} ms`)
@@ -56,6 +58,7 @@ console.log(`P3 CACHE (mesmo prefixo, 2ª vez): HTTP ${p2.status} | entrada ${p2
 const p4 = await raw({ ...base, messages: [...msgs, { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "metrics_query", arguments: "{}" } }] }, { role: "tool", tool_call_id: "c1", content: '{"ok":false}' }] })
 console.log(`P4 SEM tools no pedido, com histórico de ferramenta: HTTP ${p4.status} ${p4.msg} | entrada ${p4.prompt}`)
 if (p1.status !== 200) { console.log("⚠ o corpo do cliente foi recusado; parando antes dos turnos"); process.exit(0) }
+}
 
 console.log("\n═══ 6 TURNOS REAIS ═══")
 const p2d = (n: number): string => String(n).padStart(2, "0")
@@ -68,10 +71,13 @@ interface Row { q: string; outcome: string; calls: number; tokens: number; ms: n
 const rows: Row[] = []
 for (const [i, q] of questions.entries()) {
   if (budget.stop) { console.log(`⚠ parado antes do turno ${i + 1}: ${budget.why}`); break }
-  if (i > 0) await sleep(62_000)
+  if (i > 0 || !SKIP_PROBES) await sleep(62_000) // o TPM de 8K/min é da organização: espera o minuto das sondas/turno anterior passar
   const before = recs.length; const used = new Set<string>(); const rejects: string[] = []
   const model = createGroqModelPort({ apiKey: KEY, model: MODEL, fetch: liveFetch as Any, now: () => Date.now(), deadlineAt: Date.now() + 120_000 })
-  const spy = { complete: async (req: Any): Promise<Any> => { const last = [...req.messages].reverse().find((m: Any) => m.role === "user"); const m = /Códigos: ([A-Z_, ]+)\./.exec(String(last?.content ?? "")); if (m && i >= 0 && last !== req.messages[1]) rejects.push(m[1]); const r = await model.complete(req); if (r.kind === "tool_calls") for (const c of r.calls) used.add(String(c.name)); return r } }
+  const seconds = (h: string | null): number => { if (h === null) return 0; const m = /^(?:(\d+)m)?(?:([\d.]+)s)?$/.exec(h.trim()); return m ? Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0) : 0 }
+  const spy = { complete: async (req: Any): Promise<Any> => {
+    const prev = recs[recs.length - 1]; if (prev !== undefined && Number(prev.remTokens) < 5600) { const w = Math.min(65, seconds(prev.resetTokens) + 2); console.log(`   … ritmo: restam ${prev.remTokens} tokens/min; espera ${w.toFixed(0)} s`); await sleep(w * 1000) } const last = [...req.messages].reverse().find((m: Any) => m.role === "user"); const m = /Códigos: ([A-Z_, ]+)\./.exec(String(last?.content ?? "")); if (m && i >= 0 && last !== req.messages[1]) rejects.push(m[1]); const n0 = recs.length; const r = await model.complete(req); if (r.kind === "tool_calls") for (const c of r.calls) used.add(String(c.name))
+    const lastRec = recs[recs.length - 1]; console.log(`   chamada ${n0 + 1 - before}: ${r.kind}${r.kind === "tool_calls" ? " " + r.calls.map((c: Any) => c.name).join("+") : ""}${r.kind === "error" ? " " + r.code : ""} | HTTP ${lastRec?.status} | entrada ${lastRec?.prompt} saída ${lastRec?.completion} | ${lastRec?.ms} ms`); return r } }
   const t0 = performance.now(); const out: Any = await runChatTurn({ deps, model: spy as Any, userId: U, pin: { sources: [{ fileSha256: reg.fileSha256 }], analysis: {} }, question: q })
   const mine = recs.slice(before); const pr = mine.reduce((a, r) => a + r.prompt, 0), co = mine.reduce((a, r) => a + r.completion, 0)
   const answer = out.ok ? (out.response.segments as Any[]).map((s) => s.text ?? "").join(" ") : ""
