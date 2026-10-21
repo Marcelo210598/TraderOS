@@ -6,7 +6,7 @@ import { CAPABILITY_LABELS } from "../agent/catalog.ts"
 import type { CapabilityId } from "../agent/contract.ts"
 import { composeAnswer, composeOffScope } from "../agent/composer.ts"
 import { renderAnswer, type RenderedAnswer } from "../agent/render.ts"
-import { SYSTEM_PROMPT } from "../agent/system-prompt.ts"
+import { systemPromptFor } from "../agent/system-prompt.ts"
 import { notices, validatorStop } from "../agent/turn.ts"
 import { openTurn, type CommitCode, type OpenTurnCode, type TurnDeps, type TurnSession } from "./turn-session.ts"
 
@@ -105,7 +105,7 @@ function describe(out: unknown): { content: string; argsInvalid: boolean; ref: s
 
 async function drive(session: TurnSession, model: ModelPort, question: string, onStep: ChatTurnRequest["onStep"], compose: typeof composeAnswer): Promise<ChatTurnResult> {
   const step = async (s: ChatStep): Promise<void> => { try { await onStep?.(s) } catch { /* o progresso é cortesia: nunca derruba o turno */ } }
-  const messages: ChatMessage[] = [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: question }]
+  const messages: ChatMessage[] = [{ role: "system", content: systemPromptFor(await session.dataPeriod()) }, { role: "user", content: question }]
   let tokens = 0, modelCalls = 0
 
   const finish = async (outcome: "ANSWERED" | "STOPPED", response: RenderedAnswer): Promise<ChatTurnResult> => {

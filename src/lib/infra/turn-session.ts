@@ -25,6 +25,7 @@ import type { BundleCache } from "./bundle-cache.ts"
 import { MAX_USER_TEXT_CHARS, type Conversations, type OpenConversation, type TurnChange } from "./conversation-store.ts"
 import { parseDatasetPin, type DatasetPin } from "./dataset-pin.ts"
 import { makeContext, type DatasetCode, type DatasetDeps, type DatasetSaltProvider } from "./dataset.ts"
+import { calculateMetrics } from "../metrics/index.ts"
 import { isValidUserId, type RawFileStorage } from "./raw-file-storage.ts"
 import type { ImportSourceStore } from "./import-source-store.ts"
 import { prepareBundle, regeneratedFor } from "./regenerate.ts"
@@ -69,6 +70,8 @@ export interface TurnSession {
   /** E7-16 (D-S1): encerra o turno porque nenhuma consulta deu certo: resposta canônica terminal (answer null), idempotente; turno já fechado ⇒ TURN_CLOSED. */
   stopWithFailure(): Promise<{ readonly ok: true; readonly response: RenderedAnswer } | { readonly ok: false; readonly code: "TURN_CLOSED" }>
   commit(): Promise<CommitOutcome>
+  /** E7-16 emenda (D-P1): período dos dados do pin (AAAA-MM-DD) para ancorar datas relativas do modelo; null se indisponível. NÃO cria evidência, NÃO conta chamada, NÃO muda estado. */
+  dataPeriod(): Promise<{ readonly from: string; readonly to: string } | null>
   /** Estado de trabalho (somente leitura). */
   state(): TurnState
   ledger(): Ledger
@@ -301,6 +304,19 @@ function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provi
     return { ok: true, response }
   }
 
+  async function doDataPeriod(): Promise<{ readonly from: string; readonly to: string } | null> {
+    if (closed) return null
+    try {
+      const made = await ctxFor(turnPin)
+      if (!made.ok) return null
+      const { timeZone, minSample } = made.ctx.analysis
+      const { period } = calculateMetrics(made.ctx.trades, { filters: {}, ...(timeZone !== undefined ? { timeZone } : {}), ...(minSample !== undefined ? { minSample } : {}) })
+      return period.fromLocalDate !== null && period.toLocalDate !== null ? { from: period.fromLocalDate, to: period.toLocalDate } : null
+    } catch {
+      return null
+    }
+  }
+
   async function doCommit(): Promise<CommitOutcome> {
     if (closed) return { ok: false, code: "TURN_CLOSED" }
     closed = true // fechada com sucesso OU não: um turno perdedor não se reaproveita
@@ -333,6 +349,7 @@ function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provi
     validate: (answer, question) => queued(() => doValidate(answer, question)),
     stopForBudget: () => queued(doStopForBudget),
     stopWithFailure: () => queued(doStopWithFailure),
+    dataPeriod: () => queued(doDataPeriod),
     commit: () => queued(doCommit),
     state: () => state,
     ledger: () => ledger,
