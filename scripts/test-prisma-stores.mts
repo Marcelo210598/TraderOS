@@ -225,7 +225,7 @@ await test("P5 — ESTÁTICA: os 3 adaptadores e a porta não importam @prisma/c
   }
   assert.deepEqual(importsOf(read("src/lib/infra/prisma-port.ts")), [], "a porta não importa nada")
   const infra = readdirSync(`${ROOT}src/lib/infra`).filter((x) => x.endsWith(".ts") && !files.includes(x))
-  for (const f of infra.filter((x) => x !== "ai-partner-deps.ts")) assert.equal(/prisma-(port|salt-store|import-source-store|conversation-store)/.test(read(`src/lib/infra/${f}`)), false, `infra/${f} importa um adaptador`) // E7-14: o montador de produção é o consumidor
+  for (const f of infra.filter((x) => x !== "ai-partner-deps.ts" && x !== "ai-partner-chat-deps.ts" /* E7-15c */)) assert.equal(/prisma-(port|salt-store|import-source-store|conversation-store|chat-quota-store)/.test(read(`src/lib/infra/${f}`)), false, `infra/${f} importa um adaptador`) // E7-14: o montador de produção é o consumidor
   for (const dir of ["agent", "agent-capabilities", "evidence", "metrics", "ingest", "domain"]) for (const f of readdirSync(`${ROOT}src/lib/${dir}`).filter((x) => x.endsWith(".ts"))) assert.equal(/infra\/prisma-/.test(read(`src/lib/${dir}/${f}`)), false, `${dir}/${f}`)
   assert.equal(readFileSync(`${ROOT}src/lib/prisma.ts`, "utf8").includes("new PrismaPg({ connectionString })"), true, "src/lib/prisma.ts intacto")
   assert.equal(sha256(readFileSync(`${ROOT}prisma.config.ts`, "utf8")).length, 64); assert.match(readFileSync(`${ROOT}prisma.config.ts`, "utf8"), /url:\s*process\.env\.DATABASE_URL!/)

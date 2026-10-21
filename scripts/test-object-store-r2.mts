@@ -194,7 +194,7 @@ await test("R9 — ESTÁTICA: object-store-r2.ts importa só ./hash.ts e ./objec
   const infra = readdirSync(`${ROOT}src/lib/infra`).filter((f) => f.endsWith(".ts"))
   assert.deepEqual(infra.filter((f) => /node:crypto/.test(read(`src/lib/infra/${f}`))).sort(), ["cipher.ts", "hash.ts"], "node:crypto só em hash.ts/cipher.ts")
   assert.deepEqual(infra.filter((f) => /hmacSha256/.test(read(`src/lib/infra/${f}`))).sort(), ["hash.ts", "object-store-r2.ts"])
-  for (const f of infra.filter((x) => x !== "object-store-r2.ts" && x !== "ai-partner-deps.ts")) assert.equal(/object-store-r2/.test(read(`src/lib/infra/${f}`)), false, `${f} importa o cliente`) // E7-14: o montador de produção é o consumidor
+  for (const f of infra.filter((x) => x !== "object-store-r2.ts" && x !== "ai-partner-deps.ts" && x !== "ai-partner-chat-deps.ts" /* E7-15c: o montador do chat repassa o fetch ao R2 */)) assert.equal(/object-store-r2/.test(read(`src/lib/infra/${f}`)), false, `${f} importa o cliente`) // E7-14: o montador de produção é o consumidor
   for (const dir of ["agent", "agent-capabilities", "evidence", "metrics", "ingest", "domain"]) for (const f of readdirSync(`${ROOT}src/lib/${dir}`).filter((x) => x.endsWith(".ts"))) assert.equal(/object-store-r2/.test(read(`src/lib/${dir}/${f}`)), false, `${dir}/${f}`)
 })
 

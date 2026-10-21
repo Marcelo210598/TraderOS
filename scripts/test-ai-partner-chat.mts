@@ -212,7 +212,7 @@ await test("H20 — a rota é FINA e o tratador PURO: rota exporta POST e maxDur
   const routePath = `${ROOT}src/app/api/ai-partner/chat/route.ts`; assert.equal(existsSync(routePath), true, "rota ausente"); const route = strip(readFileSync(routePath, "utf8"))
   assert.match(route, /export\s+const\s+maxDuration\s*=\s*60\b/); assert.match(route, /export\s+async\s+function\s+POST\b/); assert.doesNotMatch(route, /process\.env|\bfetch\s*\(|prisma|TextDecoder|JSON\.parse|groq/i); assert.ok(route.split("\n").filter((l) => l.trim() !== "").length <= 12, "rota grande demais")
   const ctxSrc = strip(readFileSync(`${ROOT}src/app/api/ai-partner/_ctx.ts`, "utf8")); assert.match(ctxSrc, /export\s+async\s+function\s+aiPartnerChatCtx\b/); assert.match(ctxSrc, /ai-partner-chat:/); assert.match(ctxSrc, /ai-partner-chat-global/); assert.match(ctxSrc, /select:\s*\{\s*plan:\s*true\s*\}/)
-  const h = strip(readFileSync(`${ROOT}src/lib/infra/ai-partner-chat.ts`, "utf8")); assert.doesNotMatch(h, /process\.env|\bfetch\s*\(|groq|from\s+["']next|@prisma|console\.|\bimport\s*\(/i)
+  const h = strip(readFileSync(`${ROOT}src/lib/infra/ai-partner-chat.ts`, "utf8")); assert.doesNotMatch(h, /process\.env|\bfetch\s*\(|api\.groq|groq-client|from\s+["']next|@prisma|console\.|\bimport\s*\(/i)
 })
 
 if (process.env.COLLECT) console.log(JSON.stringify({ passed, failed }))

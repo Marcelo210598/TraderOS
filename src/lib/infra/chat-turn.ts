@@ -1,15 +1,6 @@
 // Laço do chat do AI Partner (E7-15a): pergunta → ferramentas → resposta → validador → regeração → commit. A PORTA DO MODELO é injetada: este arquivo não conhece rede
 // nem ambiente (o provedor real entra no E7-15c). Expectativa: docs/ai-partner/E7-15a-expectativa.md (D-L1…D-L13). Nada do que o modelo recebe contém hash, nome de arquivo ou CSV:
 // só o envelope (PromptView) que o executor do turno já projeta, e códigos de rejeição (nunca o texto rejeitado).
-import { z } from "zod"
-import { EvidenceExplainArgsSchema } from "../agent-capabilities/evidence-explain.ts"
-import { EvidenceRefreshArgsSchema } from "../agent-capabilities/evidence-refresh.ts"
-import { ExitAnalysisArgsSchema } from "../agent-capabilities/exit-analysis.ts"
-import { ExitBreakdownArgsSchema } from "../agent-capabilities/exit-breakdown.ts"
-import { MetricsCompareArgsSchema } from "../agent-capabilities/metrics-compare.ts"
-import { MetricsGroupsArgsSchema } from "../agent-capabilities/metrics-groups.ts"
-import { MetricsQueryArgsSchema } from "../agent-capabilities/metrics-query.ts"
-import { RankGroupsArgsSchema } from "../agent-capabilities/rank-groups.ts"
 import { CAPABILITY_LABELS } from "../agent/catalog.ts"
 import type { CapabilityId } from "../agent/contract.ts"
 import { renderAnswer, type RenderedAnswer } from "../agent/render.ts"
@@ -24,18 +15,24 @@ export const MAX_MODEL_CALLS_PER_TURN = 12
 const MAX_CONSECUTIVE_ARGS_INVALID = 2
 
 interface ToolDef { readonly name: string; readonly capability: CapabilityId; readonly description: string; readonly parameters: object }
-const schemaOf = (s: z.ZodType): object => z.toJSONSchema(s, { io: "input", unrepresentable: "any" })
-const tool = (name: string, capability: CapabilityId, description: string, schema: z.ZodType): ToolDef => Object.freeze({ name, capability, description, parameters: schemaOf(schema) })
+// Ferramentas COMPACTAS (E7-15c, D-G10): cada chamada ao modelo leva o esquema de todas, e o plano base do provedor tem 8K tokens/min. Os valores válidos (metricIds, groupBy, filtros) ficam UMA vez no prompt do sistema;
+// aqui só a forma. A validação estrita continua no servidor (zod, em agent-capabilities/). Um teste (G15) garante que propriedades/obrigatórias daqui existem nos esquemas do servidor.
+const S = { type: "string" } as const
+const OBJ = { type: "object" } as const
+const LIST = { type: "array", items: S } as const
+const ORDER = { type: "string", enum: ["DESC", "ASC"] } as const
+const tool = (name: string, capability: CapabilityId, description: string, properties: Record<string, object>, required: string[] = []): ToolDef =>
+  Object.freeze({ name, capability, description, parameters: Object.freeze({ type: "object", properties, ...(required.length > 0 ? { required } : {}) }) })
 /** As 8 capacidades como ferramentas. O nome é o da API do modelo (sem "." nem "@"), mapeado 1:1 para o id da capacidade (D-L11). */
 export const CHAT_TOOLS: readonly ToolDef[] = Object.freeze([
-  tool("metrics_query", "metrics.query@1", "Métricas agregadas (resultado, taxa de acerto etc.) sobre os trades importados, com filtros opcionais.", MetricsQueryArgsSchema),
-  tool("metrics_groups", "metrics.groups@1", "Métricas agrupadas por conta, estratégia, horário e afins.", MetricsGroupsArgsSchema),
-  tool("exit_breakdown", "exit.breakdown@1", "Quebra dos trades por motivo de saída (alvo, stop, manual).", ExitBreakdownArgsSchema),
-  tool("metrics_compare", "metrics.compare@1", "Compara dois grupos ou dois períodos nas métricas pedidas.", MetricsCompareArgsSchema),
-  tool("rank_groups", "rank.groups@1", "Ranking de grupos por uma métrica.", RankGroupsArgsSchema),
-  tool("exit_analysis", "exit.analysis@1", "Análise por motivo de saída, com comparação opcional entre motivos.", ExitAnalysisArgsSchema),
-  tool("evidence_explain", "evidence.explain@1", "Detalha os trades (até 20 por página) que sustentam uma evidência já obtida.", EvidenceExplainArgsSchema),
-  tool("evidence_refresh", "evidence.refresh@1", "Refaz uma evidência desatualizada com os dados atuais.", EvidenceRefreshArgsSchema),
+  tool("metrics_query", "metrics.query@1", "Valores de métricas sobre os trades importados.", { metricIds: LIST, filters: OBJ, options: OBJ }, ["metricIds"]),
+  tool("metrics_groups", "metrics.groups@1", "Métricas agrupadas (por dia, hora, símbolo, conta…).", { groupBy: LIST, metricIds: LIST, filters: OBJ, options: OBJ }, ["groupBy", "metricIds"]),
+  tool("exit_breakdown", "exit.breakdown@1", "Trades por motivo de saída (alvo, stop, manual).", { filters: OBJ, options: OBJ }),
+  tool("metrics_compare", "metrics.compare@1", "Compara dois grupos ou dois períodos.", { mode: { type: "string", enum: ["GROUP", "PERIOD"] }, groupBy: LIST, a: OBJ, b: OBJ, metricIds: LIST, filters: OBJ, options: OBJ }, ["mode", "a", "b", "metricIds"]),
+  tool("rank_groups", "rank.groups@1", "Ranking de grupos por uma métrica.", { groupBy: LIST, metric: S, order: ORDER, filters: OBJ, options: OBJ }, ["groupBy"]),
+  tool("exit_analysis", "exit.analysis@1", "Análise por motivo de saída, com comparação opcional.", { compare: OBJ, filters: OBJ, options: OBJ }),
+  tool("evidence_explain", "evidence.explain@1", "Detalha os trades (até 20 por página) de uma evidência.", { evidenceRef: S, page: { type: "integer" } }, ["evidenceRef"]),
+  tool("evidence_refresh", "evidence.refresh@1", "Refaz uma evidência desatualizada.", { evidenceRef: S }, ["evidenceRef"]),
 ])
 const TOOL_BY_NAME: ReadonlyMap<string, ToolDef> = new Map(CHAT_TOOLS.map((t) => [t.name, t]))
 
@@ -47,8 +44,8 @@ export interface ChatMessage {
 }
 export interface ModelRequest { readonly messages: readonly ChatMessage[]; readonly tools: ReadonlyArray<{ readonly name: string; readonly description: string; readonly parameters: object }>; readonly toolChoice: "auto" | "none" }
 export type ModelReply =
-  | { readonly kind: "tool_calls"; readonly calls: ReadonlyArray<{ readonly id: string; readonly name: string; readonly arguments: unknown }>; readonly usage: { readonly totalTokens: number } }
-  | { readonly kind: "final"; readonly content: string; readonly usage: { readonly totalTokens: number } }
+  | { readonly kind: "tool_calls"; readonly calls: ReadonlyArray<{ readonly id: string; readonly name: string; readonly arguments: unknown }>; readonly usage: { readonly totalTokens?: number } }
+  | { readonly kind: "final"; readonly content: string; readonly usage: { readonly totalTokens?: number } }
   | { readonly kind: "error"; readonly code: string }
 export interface ModelPort { complete(req: ModelRequest): Promise<ModelReply> }
 export type ChatStep = { readonly kind: "capability"; readonly label: string } | { readonly kind: "validating" }

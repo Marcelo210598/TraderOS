@@ -3,9 +3,8 @@
 //     (prioridade), senão TURN_IN_PROGRESS; linha ausente ⇒ `create` com used 1 (violação de unicidade P2002 ⇒ repete o `updateMany` UMA vez, sem laço).
 //   · LIQUIDAÇÃO só pelo dono do lease (where inclui leaseId); REFUND também exige used > 0.
 //   · Qualquer falha do banco, resposta malformada ou linha corrompida ⇒ STORAGE_ERROR (fail-closed), sem mensagem, SQL, URL nem userId. Sem `@prisma/client`, sem SQL cru, sem ambiente: o cliente é INJETADO.
-import { CHAT_LEASE_MS, addMs, fail, parseReserve, parseSettle, parseUsage, type ChatQuotaStore } from "./chat-quota-store.ts"
+import { CHAT_LEASE_MS, FREE_POOL_USER_ID, addMs, fail, isRealUserId, parsePoolGive, parsePoolTake, parsePoolUsage, parseReserve, parseSettle, parseUsage, type ChatQuotaStore } from "./chat-quota-store.ts"
 import { attempt, countOf, isIsoString, isRecord, type PrismaModelPort } from "./prisma-port.ts"
-import { isValidUserId } from "./raw-file-storage.ts"
 
 /** Só o que este adaptador exige do cliente: a tabela `aiChatUsage` (o cliente real satisfaz isto e a `PrismaPort` do E7-13 ao mesmo tempo). */
 export interface PrismaChatUsagePort { readonly aiChatUsage: PrismaModelPort }
@@ -75,8 +74,46 @@ export function createPrismaChatQuotaStore(db: PrismaChatUsagePort): ChatQuotaSt
       const row = parseRow(r.value, req.userId, req.month)
       return row === null ? fail("STORAGE_ERROR") : { ok: true, used: row.used }
     },
+    async poolTake(raw) {
+      const req = parsePoolTake(raw)
+      if (req === null) return fail("INVALID_ARGS")
+      const { month, limit, now } = req
+      for (let round = 0; round < 2; round += 1) {
+        const upd = await attempt(() => model.updateMany({ where: { userId: FREE_POOL_USER_ID, month, used: { lt: limit } }, data: { used: { increment: 1 }, updatedAt: now } }))
+        const n = upd.ok ? countOf(upd.value) : null
+        if (n === null || n > 1) return fail("STORAGE_ERROR")
+        if (n === 1) return { ok: true }
+        const read = await attempt(() => model.findUnique({ where: keyOf(FREE_POOL_USER_ID, month) }))
+        if (!read.ok) return fail("STORAGE_ERROR")
+        if (read.value === null || read.value === undefined) {
+          if (round === 1) return fail("STORAGE_ERROR")
+          const made = await attempt(() => model.create({ data: { userId: FREE_POOL_USER_ID, month, used: 1, leaseId: null, leaseUntil: null, updatedAt: now } }))
+          if (made.ok) return { ok: true }
+          if (!made.unique) return fail("STORAGE_ERROR")
+          continue // perdeu a corrida da criação: tenta o updateMany uma vez
+        }
+        return parseRow(read.value, FREE_POOL_USER_ID, month) === null ? fail("STORAGE_ERROR") : { ok: false, code: "POOL_EXHAUSTED" }
+      }
+      return fail("STORAGE_ERROR")
+    },
+    async poolGive(raw) {
+      const req = parsePoolGive(raw)
+      if (req === null) return fail("INVALID_ARGS")
+      const r = await attempt(() => model.updateMany({ where: { userId: FREE_POOL_USER_ID, month: req.month, used: { gt: 0 } }, data: { used: { decrement: 1 }, updatedAt: req.now } }))
+      const n = r.ok ? countOf(r.value) : null
+      return n === null || n > 1 ? fail("STORAGE_ERROR") : { ok: true, applied: n === 1 }
+    },
+    async poolUsage(raw) {
+      const req = parsePoolUsage(raw)
+      if (req === null) return fail("INVALID_ARGS")
+      const r = await attempt(() => model.findUnique({ where: keyOf(FREE_POOL_USER_ID, req.month) }))
+      if (!r.ok) return fail("STORAGE_ERROR")
+      if (r.value === null || r.value === undefined) return { ok: true, used: 0 }
+      const row = parseRow(r.value, FREE_POOL_USER_ID, req.month)
+      return row === null ? fail("STORAGE_ERROR") : { ok: true, used: row.used }
+    },
     async deleteForUser(userId) {
-      if (!isValidUserId(userId)) return fail("INVALID_ARGS")
+      if (!isRealUserId(userId)) return fail("INVALID_ARGS")
       const r = await attempt(() => model.deleteMany({ where: { userId } }))
       const n = r.ok ? countOf(r.value) : null
       return n === null ? fail("STORAGE_ERROR") : { ok: true, deleted: n }

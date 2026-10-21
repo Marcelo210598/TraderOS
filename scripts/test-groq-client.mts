@@ -5,7 +5,17 @@ import assert from "node:assert/strict"
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { z } from "zod"
+import { EvidenceExplainArgsSchema } from "../src/lib/agent-capabilities/evidence-explain.ts"
+import { EvidenceRefreshArgsSchema } from "../src/lib/agent-capabilities/evidence-refresh.ts"
+import { ExitAnalysisArgsSchema } from "../src/lib/agent-capabilities/exit-analysis.ts"
+import { ExitBreakdownArgsSchema } from "../src/lib/agent-capabilities/exit-breakdown.ts"
+import { MetricsCompareArgsSchema } from "../src/lib/agent-capabilities/metrics-compare.ts"
+import { MetricsGroupsArgsSchema } from "../src/lib/agent-capabilities/metrics-groups.ts"
+import { MetricsQueryArgsSchema } from "../src/lib/agent-capabilities/metrics-query.ts"
+import { RankGroupsArgsSchema } from "../src/lib/agent-capabilities/rank-groups.ts"
 import { CAPABILITY_IDS } from "../src/lib/agent/contract.ts"
+import { METRIC_IDS } from "../src/lib/metrics/index.ts"
 import { InMemorySaltKeyring } from "../src/lib/ingest/salt.ts"
 import { createConversations, createMemoryConversationStore } from "../src/lib/infra/conversation-store.ts"
 import { registerImport } from "../src/lib/infra/dataset.ts"
@@ -95,7 +105,7 @@ await test("G7 — resposta final: <think>…</think>, <think> sem fechar e cerc
 
 await test("G8 — usage: total_tokens válido vira usage.totalTokens; ausente/negativo/NaN/texto ⇒ usage SEM totalTokens (o laço trata como o teto inteiro)", async () => {
   for (const [usage, expected] of [[{ total_tokens: 77 }, 77], [{ total_tokens: 0 }, 0], [undefined, undefined], [null, undefined], [{}, undefined], [{ total_tokens: -3 }, undefined], [{ total_tokens: "9" }, undefined], [{ total_tokens: Infinity }, undefined]] as Array<[Any, number | undefined]>) {
-    const f = fakeFetch(() => ok({ role: "assistant", content: "{}" }, usage)); const r: Any = await port(f).complete(REQ()); assert.equal(r.usage.totalTokens, expected, jstr(usage))
+    const f = fakeFetch(() => ({ status: 200, headers: { get: () => null }, text: async () => JSON.stringify({ choices: [{ message: { role: "assistant", content: "{}" } }], ...(usage === undefined ? {} : { usage }) }) })); const r: Any = await port(f).complete(REQ()); assert.equal(r.usage.totalTokens, expected, jstr(usage))
   }
 })
 
@@ -116,9 +126,10 @@ await test("G10 — NENHUM erro vaza: nem a chave, nem o texto do provedor, nem 
 await test("G11 — prazos: sem tempo restante ⇒ TIMEOUT SEM chamar o fetch; fetch que não responde é abortado pelo prazo da chamada e pelo prazo do turno", async () => {
   const never = (signalSeen: { s: Any }) => (_n: number, seen: Seen): Promise<Any> => new Promise((_, reject) => { signalSeen.s = seen.init.signal; seen.init.signal.addEventListener("abort", () => reject(Object.assign(new Error("a"), { name: "AbortError" }))) })
   const a = fakeFetch(() => final("{}")); assert.deepEqual(await port(a, { deadlineAt: NOW }).complete(REQ()), { kind: "error", code: "TIMEOUT" }); assert.equal(a.seen.length, 0, "não chamou o fetch")
+  const watchdog = <T,>(p: Promise<T>): Promise<T> => Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("travou: o cliente não abortou no prazo")), 3000))])
   const sig = { s: null as Any }; const b = fakeFetch(never(sig)); const t0 = performance.now()
-  assert.deepEqual(await port(b, { callTimeoutMs: 40 }).complete(REQ()), { kind: "error", code: "TIMEOUT" }); assert.ok(performance.now() - t0 < 1500); assert.equal(sig.s.aborted, true)
-  const c = fakeFetch(never({ s: null })); const t1 = performance.now(); assert.deepEqual(await port(c, { deadlineAt: NOW + 40, callTimeoutMs: 60_000 }).complete(REQ()), { kind: "error", code: "TIMEOUT" }); assert.ok(performance.now() - t1 < 1500, "o prazo do turno encurta a chamada")
+  assert.deepEqual(await watchdog(port(b, { callTimeoutMs: 40 }).complete(REQ())), { kind: "error", code: "TIMEOUT" }); assert.ok(performance.now() - t0 < 1500); assert.equal(sig.s.aborted, true)
+  const c = fakeFetch(never({ s: null })); const t1 = performance.now(); assert.deepEqual(await watchdog(port(c, { deadlineAt: NOW + 40, callTimeoutMs: 60_000 }).complete(REQ())), { kind: "error", code: "TIMEOUT" }); assert.ok(performance.now() - t1 < 1500, "o prazo do turno encurta a chamada")
   assert.equal(CALL_TIMEOUT_MS, 25_000)
 })
 
@@ -142,12 +153,23 @@ await test("G14 — só groq-client.ts conhece api.groq.com e nenhum arquivo do 
   assert.doesNotMatch(src, /process\.env|console\.|from\s+["']next|@prisma|\bimport\s*\(/)
 })
 
-await test("G15 — ferramentas COMPACTAS (D-G10): JSON de todas ≤ 7.000 caracteres, cada uma ≤ 1.500, 8 nomes, 1:1 com as capacidades; prompt do sistema ≤ 3.200 caracteres; nada de $schema/additionalProperties/default", async () => {
+await test("G15 — ferramentas COMPACTAS (D-G10): JSON de todas ≤ 4.500 caracteres, cada uma ≤ 900, 8 nomes 1:1 com as capacidades; prompt ≤ 5.200 e total fixo ≤ 9.500 (≈ 2.700 tokens); sem $schema/additionalProperties/default; o prompt lista TODOS os metricIds e os valores de groupBy; anti-deriva: propriedades e obrigatórias das ferramentas existem nos esquemas do servidor", async () => {
   const tools = (CHAT_TOOLS as Any[]).map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }))
-  assert.equal(tools.length, 8); assert.ok(jstr(tools).length <= 7000, `ferramentas: ${jstr(tools).length} caracteres`)
-  for (const t of tools) assert.ok(jstr(t).length <= 1500, `${t.function.name}: ${jstr(t).length}`)
+  assert.equal(tools.length, 8); assert.ok(jstr(tools).length <= 4500, `ferramentas: ${jstr(tools).length} caracteres`)
+  for (const t of tools) assert.ok(jstr(t).length <= 900, `${t.function.name}: ${jstr(t).length}`)
   assert.doesNotMatch(jstr(tools), /\$schema|additionalProperties|"default"/); assert.deepEqual([...new Set((CHAT_TOOLS as Any[]).map((t) => t.capability))].sort(), [...CAPABILITY_IDS].sort())
-  assert.ok(SYSTEM_PROMPT.length <= 3200, `prompt: ${SYSTEM_PROMPT.length}`)
+  assert.ok(SYSTEM_PROMPT.length <= 5200, `prompt: ${SYSTEM_PROMPT.length}`); assert.ok(jstr(tools).length + SYSTEM_PROMPT.length <= 9500, `fixo: ${jstr(tools).length + SYSTEM_PROMPT.length}`)
+  for (const id of METRIC_IDS as string[]) assert.ok(new RegExp(`(^|[^A-Za-z0-9])${id}([^A-Za-z0-9]|$)`).test(SYSTEM_PROMPT), `metricId ausente do prompt (palavra inteira): ${id}`)
+  for (const g of ["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "session", "symbol", "direction", "account", "strategy", "exitReason"]) assert.ok(SYSTEM_PROMPT.includes(g), `groupBy ausente do prompt: ${g}`)
+  const zodOf: Record<string, Any> = { "metrics.query@1": MetricsQueryArgsSchema, "metrics.groups@1": MetricsGroupsArgsSchema, "exit.breakdown@1": ExitBreakdownArgsSchema, "metrics.compare@1": MetricsCompareArgsSchema, "rank.groups@1": RankGroupsArgsSchema, "exit.analysis@1": ExitAnalysisArgsSchema, "evidence.explain@1": EvidenceExplainArgsSchema, "evidence.refresh@1": EvidenceRefreshArgsSchema }
+  const keysOf = (js: Any): { props: Set<string>; required: Set<string>; requiredAll: Set<string> } => { const branches: Any[] = js.oneOf ?? js.anyOf ?? [js]; const reqs: string[][] = branches.map((x) => x.required ?? []); return { props: new Set(branches.flatMap((x) => Object.keys(x.properties ?? {}))), required: new Set(reqs.flat()), requiredAll: new Set(reqs[0].filter((k) => reqs.every((r) => r.includes(k)))) } }
+  for (const t of CHAT_TOOLS as Any[]) {
+    const server = keysOf(z.toJSONSchema(zodOf[t.capability], { io: "input", unrepresentable: "any" })); const mine = keysOf(t.parameters)
+    for (const k of mine.props) assert.ok(server.props.has(k), `${t.name}: propriedade ${k} não existe no esquema do servidor`)
+    for (const k of mine.required) assert.ok(server.props.has(k), `${t.name}: obrigatória ${k} inexistente`)
+    for (const k of server.required) assert.ok(mine.props.has(k), `${t.name}: o servidor exige ${k} e a ferramenta não oferece`)
+    for (const k of server.requiredAll) assert.ok(mine.required.has(k), `${t.name}: o servidor exige ${k} sempre e a ferramenta não o marca como obrigatório`)
+  }
 })
 
 await test("G16 — INTEGRAÇÃO com o laço (runChatTurn + cliente Groq + fetch falso): turno com ferramenta + resposta válida ⇒ ANSWERED; nenhuma requisição leva hash, nome de arquivo ou chave; o histórico enviado na 2ª chamada tem assistant(tool_calls) e tool", async () => {

@@ -674,11 +674,11 @@ await test("S1 — NADA sai com sal, caminho, fileName ou mensagem: todos os res
   })
 })
 
-await test("S2 — tripwire de imports: só turn-session.ts (além de regenerate.ts e chat-turn.ts, E7-15a) importa agent-capabilities/; só ele, chat-turn.ts e conversation-store.ts importam agent/ dentro de infra/; não importa salt.ts nem node:crypto; sem Date/aleatório de módulo no fluxo de decisão", async () => {
+await test("S2 — tripwire de imports: só turn-session.ts (além de regenerate.ts) importa agent-capabilities/; só ele, chat-turn.ts e conversation-store.ts importam agent/ dentro de infra/; não importa salt.ts nem node:crypto; sem Date/aleatório de módulo no fluxo de decisão", async () => {
   const dir = join(ROOT, "src", "lib", "infra")
   const strip = (c: string): string => c.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
   const importers = (re: RegExp): string[] => readdirSync(dir).filter((f) => f.endsWith(".ts") && re.test(strip(readFileSync(join(dir, f), "utf8")))).sort()
-  assert.deepEqual(importers(/from\s+["'][^"']*agent-capabilities\//), ["chat-turn.ts", "regenerate.ts", "turn-session.ts"])
+  assert.deepEqual(importers(/from\s+["'][^"']*agent-capabilities\//), ["regenerate.ts", "turn-session.ts"])
   assert.deepEqual(importers(/from\s+["'][^"']*\.\.\/agent\//), ["chat-turn.ts", "conversation-store.ts", "turn-session.ts"])
   const code = strip(readFileSync(join(dir, "turn-session.ts"), "utf8"))
   assert.equal(/from\s+["'][^"']*ingest\/salt(\.ts)?["']/.test(code), false, "importa salt.ts")

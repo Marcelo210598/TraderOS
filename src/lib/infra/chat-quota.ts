@@ -4,7 +4,7 @@
 //   · 1 turno ativo por usuário (o lease da reserva); erro ao liquidar NUNCA esconde a resposta já paga (o lease vence sozinho).
 //   · Mês civil UTC; o limite vem do PLANO ATUAL a cada reserva (subir libera na hora; descer não apaga o uso). Apagar conversa/dados de IA NÃO toca aqui; só `deleteChatUsageForUser` (exclusão da conta).
 //   · Relógio e gerador de leaseId são INJETADOS (sem Date.now/aleatório de módulo). Resultados sem userId, leaseId nem texto; nada lança.
-import { PLAN_CHAT_QUOTAS, type PlanKey } from "../plans.ts"
+import { FREE_CHAT_POOL_PER_MONTH, PLAN_CHAT_QUOTAS, type PlanKey } from "../plans.ts"
 import { fail, monthKey, type ChatQuotaFailure, type ChatQuotaStore } from "./chat-quota-store.ts"
 import { isValidUserId } from "./raw-file-storage.ts"
 
@@ -16,11 +16,11 @@ export interface ChatQuotaDeps {
   readonly newLeaseId: () => string
 }
 export interface QuotaExceeded { readonly ok: false; readonly code: "QUOTA_EXCEEDED"; readonly limit: number; readonly used: number; readonly suggestedPlan: "TRADER" | "PRO" | null }
-export type QuotaBlock = QuotaExceeded | { readonly ok: false; readonly code: "TURN_IN_PROGRESS" } | ChatQuotaFailure
+export type QuotaBlock = QuotaExceeded | { readonly ok: false; readonly code: "TURN_IN_PROGRESS" } | { readonly ok: false; readonly code: "FREE_POOL_EXHAUSTED"; readonly upgrade: true; readonly suggestedPlan: "TRADER" } | ChatQuotaFailure
 
 const PLAN_ORDER: readonly PlanKey[] = ["FREE", "TRADER", "PRO"]
 /** Códigos em que NADA foi entregue por falha nossa/upstream: a reserva é devolvida (D-C7). */
-const REFUND_CODES: ReadonlySet<string> = new Set(["INVALID_ARGS", "SALT_REQUIRED", "NOT_FOUND", "STORAGE_ERROR", "MODEL_ERROR"])
+const REFUND_CODES: ReadonlySet<string> = new Set(["INVALID_ARGS", "SALT_REQUIRED", "NOT_FOUND", "STORAGE_ERROR", "MODEL_ERROR", "BUSY"])
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x)
 const isPlan = (x: unknown): x is PlanKey => typeof x === "string" && (PLAN_ORDER as readonly string[]).includes(x)
 const depsOk = (d: unknown): d is ChatQuotaDeps => isRecord(d) && isRecord(d.store) && typeof d.now === "function" && typeof d.newLeaseId === "function"
@@ -41,8 +41,17 @@ export async function withChatQuota<T>(deps: ChatQuotaDeps, req: { readonly user
       if (got.code === "QUOTA_EXCEEDED") return { ok: false, code: "QUOTA_EXCEEDED", limit: got.limit, used: got.used, suggestedPlan: suggestedPlanFor(req.plan, got.used) }
       return got.code === "TURN_IN_PROGRESS" ? { ok: false, code: "TURN_IN_PROGRESS" } : fail(got.code)
     }
+    // Plano Free (D-C12): depois da reserva do usuário, toma 1 do pool global; se o pool não dá, devolve a reserva e NÃO roda a fn.
+    let poolTaken = false
     const settle = async (outcome: "CONSUME" | "REFUND"): Promise<void> => {
       try { await store.settle({ userId: req.userId, month, leaseId, outcome, now: deps.now() }) } catch { /* o lease vence sozinho */ }
+      if (outcome === "REFUND" && poolTaken) { try { await store.poolGive({ month, now: deps.now() }) } catch { /* o pool é só um teto global */ } }
+    }
+    if (req.plan === "FREE") {
+      let taken: Awaited<ReturnType<ChatQuotaStore["poolTake"]>>
+      try { taken = await store.poolTake({ month, limit: FREE_CHAT_POOL_PER_MONTH, now: deps.now() }) } catch { taken = fail("STORAGE_ERROR") }
+      if (!taken.ok) { await settle("REFUND"); return taken.code === "POOL_EXHAUSTED" ? { ok: false, code: "FREE_POOL_EXHAUSTED", upgrade: true, suggestedPlan: "TRADER" } : fail(taken.code) }
+      poolTaken = true
     }
     let result: unknown
     try { result = await fn() } catch { await settle("REFUND"); return fail("STORAGE_ERROR") }
