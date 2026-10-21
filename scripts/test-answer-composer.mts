@@ -31,7 +31,7 @@ const MG = (n: number): Any => ({ groupBy: ["hour"], groups: Array.from({ length
 const bucket = (reason: string): Any => ({ reason, unit: "TRADE", count: 8, pnlNet: 25, pnlNetReason: null, share: 0.5, shareReason: null, coverage: { used: 24, total: 24, ratio: 1 } })
 const XB = (): Any => ({ buckets: [bucket("TARGET"), bucket("STOP")], reconciliation: "RECONCILED" })
 const CMP = (conclusive: boolean): Any => ({ a: { key: ["Sim101"], sampleSize: 12 }, b: { key: ["Sim102"], sampleSize: 12 }, deltas: [{ metricId: "netPnl", unit: "usd", a: 10, aReason: null, b: -5, bReason: null, delta: 15, ratio: null, reason: "RATIO_UNDEFINED" }], conclusive })
-const RK = (): Any => ({ orderedBy: "netPnl", rows: [{ rank: 1, key: ["Conta A"], value: mv("netPnl", 90, "usd"), sampleFlag: "OK", tiedWithPrevious: false, contribution: 0.6, contributionReason: null }, { rank: null, key: ["Conta B"], value: mv("netPnl", 5, "usd"), sampleFlag: "TINY", tiedWithPrevious: false, contribution: null, contributionReason: "UNAVAILABLE_SAMPLE" }] })
+const RK = (): Any => ({ orderedBy: "netPnl DESC", rows: [{ rank: 1, key: ["Conta A"], value: mv("netPnl", 90, "usd"), sampleFlag: "OK", tiedWithPrevious: false, contribution: 0.6, contributionReason: null }, { rank: null, key: ["Conta B"], value: mv("netPnl", 5, "usd"), sampleFlag: "TINY", tiedWithPrevious: false, contribution: null, contributionReason: "UNAVAILABLE_SAMPLE" }] })
 const XA = (): Any => ({ buckets: [bucket("TARGET"), bucket("MANUAL")], comparison: null, reconciliation: "RECONCILED" })
 
 interface H { verify?: string; source?: string; vcodes?: string[]; scodes?: string[]; flag?: string; conclusive?: boolean }
@@ -184,7 +184,7 @@ await test("C17 — toda dimensão de agrupamento (12) e todo 'ordenado por' (39
   assert.deepEqual(Object.keys(need().GROUP_TEXT).sort(), [...dims].sort())
   for (const d of dims) { const ledger = ledgerOf([entry("g", "metrics.groups@1", { ...MG(2), groupBy: [d] }, { source: "NOT_RUN" })]); check(ledger, answerOf(ledger, [REF("g")])) }
   const two = ledgerOf([entry("g", "metrics.groups@1", { ...MG(2), groupBy: ["dayOfWeek", "hour"] }, { source: "NOT_RUN" })]); check(two, answerOf(two, [REF("g")]))
-  for (const mdef of METRIC_CATALOG) { const ledger = ledgerOf([entry("r", "rank.groups@1", { ...RK(), orderedBy: mdef.id }, { source: "NOT_RUN" })]); check(ledger, answerOf(ledger, [REF("r")])) }
+  for (const mdef of METRIC_CATALOG) { const ledger = ledgerOf([entry("r", "rank.groups@1", { ...RK(), orderedBy: `${mdef.id} ${mdef.id.length % 2 === 0 ? "DESC" : "ASC"}` }, { source: "NOT_RUN" })]); check(ledger, answerOf(ledger, [REF("r")])) }
 })
 
 await test("C18 — metricId ou dimensão fora das tabelas do servidor ⇒ COMPOSE_FAILED (nunca texto improvisado a partir do dado)", () => {
@@ -204,6 +204,14 @@ await test("C19 — 3 evidências GRANDES (39 métricas cada, 3 refs): a respost
   const l2 = ledgerOf([entry("g", "metrics.groups@1", wide), entry("q", "metrics.query@1", big)])
   const b = answerOf(l2, [REF("g"), REF("q")]); check(l2, b)
   assert.ok(b.segments.length <= 200, `segmentos: ${b.segments.length}`); assert.ok(texts(b).includes(need().CUT_TEXT), "a lista longa de métricas depois de outro bloco é cortada com a frase")
+})
+
+await test("C20 — rank.groups: o cabeçalho diz a MÉTRICA e a ORDEM do jeito que o motor devolve ('<id> DESC|ASC', medido ao vivo); formato fora disso ⇒ COMPOSE_FAILED", () => {
+  for (const [ord, word] of [["netPnl DESC", "decrescente"], ["winRate ASC", "crescente"]] as const) {
+    const ledger = ledgerOf([entry("r", "rank.groups@1", { ...RK(), orderedBy: ord })]); const head = texts(answerOf(ledger, [REF("r")]))[0]
+    assert.ok(head.includes(need().METRIC_TEXT[ord.split(" ")[0]].toLowerCase()) && head.includes(word) && !/métrica:/.test(head), head)
+  }
+  for (const bad of ["netPnl", "netPnl SIDEWAYS", "inventada DESC", ""]) { const ledger = ledgerOf([entry("r", "rank.groups@1", { ...RK(), orderedBy: bad })]); assert.deepEqual(need().composeAnswer({ ledger, refs: [REF("r")] }), { ok: false, code: "COMPOSE_FAILED" }, bad) }
 })
 
 if (process.env.COLLECT) console.log(JSON.stringify({ passed, failed }))

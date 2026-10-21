@@ -102,7 +102,10 @@ const BLOCKS: Readonly<Partial<Record<CapabilityId, BlockFn>>> = {
   },
   "metrics.compare@1": (b, ref, v, mode) => compareBlock(b, ref, v, mode, ""),
   "rank.groups@1": (b, ref, v, mode) => {
-    b.text(`Ordenado por ${typeof v.orderedBy === "string" && Object.hasOwn(METRIC_TEXT, v.orderedBy) ? METRIC_TEXT[v.orderedBy].toLowerCase() : "métrica"}:`)
+    // o motor devolve `orderedBy` como "<metricId> <DESC|ASC>" (medido ao vivo no E7-16); fora disso é anomalia ⇒ COMPOSE_FAILED
+    const ord = typeof v.orderedBy === "string" ? /^([A-Za-z0-9]+) (DESC|ASC)$/.exec(v.orderedBy) : null
+    if (ord === null) throw new Error("COMPOSE_ORDER")
+    b.text(`Ordenado por ${label(ord[1]).toLowerCase()}, em ordem ${ord[2] === "DESC" ? "decrescente" : "crescente"}:`)
     const rows = arr(v.rows)
     for (let i = 0; i < rows.length; i++) {
       const r = isRecord(rows[i]) ? rows[i] as Record<string, unknown> : {}
