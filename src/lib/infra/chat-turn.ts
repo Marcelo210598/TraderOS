@@ -1,18 +1,21 @@
-// Laço do chat do AI Partner (E7-15a): pergunta → ferramentas → resposta → validador → regeração → commit. A PORTA DO MODELO é injetada: este arquivo não conhece rede
-// nem ambiente (o provedor real entra no E7-15c). Expectativa: docs/ai-partner/E7-15a-expectativa.md (D-L1…D-L13). Nada do que o modelo recebe contém hash, nome de arquivo ou CSV:
-// só o envelope (PromptView) que o executor do turno já projeta, e códigos de rejeição (nunca o texto rejeitado).
+// Laço do chat do AI Partner (E7-16): pergunta → o MODELO escolhe ferramentas (1 chamada) → o servidor executa → o COMPOSITOR monta a resposta → validador/render → commit.
+// O modelo nunca escreve o que o usuário vê: o texto dele é descartado. Reparo: UMA 2ª chamada, só se TODAS as ferramentas falharam com ARGS_INVALID (D-S1).
+// A PORTA DO MODELO é injetada: este arquivo não conhece rede nem ambiente. Expectativa: docs/ai-partner/E7-16-expectativa.md (D-S1…D-S10); o laço antigo (E7-15a) está no git.
+// Nada do que o modelo recebe contém hash, nome de arquivo ou CSV: só o envelope (PromptView) que o executor do turno já projeta e o código do erro.
 import { CAPABILITY_LABELS } from "../agent/catalog.ts"
 import type { CapabilityId } from "../agent/contract.ts"
+import { composeAnswer, composeOffScope } from "../agent/composer.ts"
 import { renderAnswer, type RenderedAnswer } from "../agent/render.ts"
 import { SYSTEM_PROMPT } from "../agent/system-prompt.ts"
 import { notices, validatorStop } from "../agent/turn.ts"
 import { openTurn, type CommitCode, type OpenTurnCode, type TurnDeps, type TurnSession } from "./turn-session.ts"
 
-/** Teto de tokens (soma dos `usage.totalTokens`) por turno; conferido ANTES de cada nova chamada ao modelo (D-L3b). Ponto de partida: o E7-15d mede e ajusta. */
-export const MAX_TOKENS_PER_TURN = 16000
-/** Teto absoluto de chamadas ao modelo por turno (D-L10): 8 capacidades + 3 respostas finais cabem com folga. */
-export const MAX_MODEL_CALLS_PER_TURN = 12
-const MAX_CONSECUTIVE_ARGS_INVALID = 2
+/** Teto de tokens (soma dos `usage.totalTokens`) por turno; conferido ANTES do reparo (D-S1). */
+export const MAX_TOKENS_PER_TURN = 6000
+/** Teto absoluto de chamadas ao modelo por turno (D-S1): a escolha da ferramenta + no máximo 1 reparo de argumentos. */
+export const MAX_MODEL_CALLS_PER_TURN = 2
+/** Ferramentas executadas por resposta do modelo (D-S3); as excedentes são ignoradas. */
+export const MAX_TOOL_CALLS_PER_TURN = 3
 
 interface ToolDef { readonly name: string; readonly capability: CapabilityId; readonly description: string; readonly parameters: object }
 // Ferramentas COMPACTAS (E7-15c, D-G10): cada chamada ao modelo leva o esquema de todas, e o plano base do provedor tem 8K tokens/min. Os valores válidos (metricIds, groupBy, filtros) ficam UMA vez no prompt do sistema;
@@ -23,7 +26,7 @@ const LIST = { type: "array", items: S } as const
 const ORDER = { type: "string", enum: ["DESC", "ASC"] } as const
 const tool = (name: string, capability: CapabilityId, description: string, properties: Record<string, object>, required: string[] = []): ToolDef =>
   Object.freeze({ name, capability, description, parameters: Object.freeze({ type: "object", properties, ...(required.length > 0 ? { required } : {}) }) })
-/** As 8 capacidades como ferramentas. O nome é o da API do modelo (sem "." nem "@"), mapeado 1:1 para o id da capacidade (D-L11). */
+/** As 6 capacidades analíticas como ferramentas (D-S4: evidence.explain/refresh precisam de um evidenceRef que o modelo, sem histórico entre turnos, não conhece). O nome é o da API do modelo (sem "." nem "@"), mapeado 1:1 para o id da capacidade (D-L11). */
 export const CHAT_TOOLS: readonly ToolDef[] = Object.freeze([
   tool("metrics_query", "metrics.query@1", "Valores de métricas sobre os trades importados.", { metricIds: LIST, filters: OBJ, options: OBJ }, ["metricIds"]),
   tool("metrics_groups", "metrics.groups@1", "Métricas agrupadas (por dia, hora, símbolo, conta…).", { groupBy: LIST, metricIds: LIST, filters: OBJ, options: OBJ }, ["groupBy", "metricIds"]),
@@ -31,8 +34,6 @@ export const CHAT_TOOLS: readonly ToolDef[] = Object.freeze([
   tool("metrics_compare", "metrics.compare@1", "Compara dois grupos ou dois períodos.", { mode: { type: "string", enum: ["GROUP", "PERIOD"] }, groupBy: LIST, a: OBJ, b: OBJ, metricIds: LIST, filters: OBJ, options: OBJ }, ["mode", "a", "b", "metricIds"]),
   tool("rank_groups", "rank.groups@1", "Ranking de grupos por uma métrica.", { groupBy: LIST, metric: S, order: ORDER, filters: OBJ, options: OBJ }, ["groupBy"]),
   tool("exit_analysis", "exit.analysis@1", "Análise por motivo de saída, com comparação opcional.", { compare: OBJ, filters: OBJ, options: OBJ }),
-  tool("evidence_explain", "evidence.explain@1", "Detalha os trades (até 20 por página) de uma evidência.", { evidenceRef: S, page: { type: "integer" } }, ["evidenceRef"]),
-  tool("evidence_refresh", "evidence.refresh@1", "Refaz uma evidência desatualizada.", { evidenceRef: S }, ["evidenceRef"]),
 ])
 const TOOL_BY_NAME: ReadonlyMap<string, ToolDef> = new Map(CHAT_TOOLS.map((t) => [t.name, t]))
 
@@ -58,8 +59,10 @@ export interface ChatTurnRequest {
   readonly question: unknown
   readonly conversationId?: string | null
   readonly onStep?: (step: ChatStep) => void | Promise<void>
+  /** Compositor injetável (testes simulam falha); padrão: o do servidor. */
+  readonly compose?: typeof composeAnswer
 }
-export type ChatTurnCode = OpenTurnCode | CommitCode | "MODEL_ERROR"
+export type ChatTurnCode = OpenTurnCode | CommitCode | "MODEL_ERROR" | "COMPOSE_FAILED"
 export type ChatTurnResult =
   | { readonly ok: true; readonly conversationId: string; readonly version: number; readonly outcome: "ANSWERED" | "STOPPED"; readonly response: RenderedAnswer; readonly tokens: number; readonly modelCalls: number }
   | { readonly ok: false; readonly code: ChatTurnCode }
@@ -78,76 +81,80 @@ export async function runChatTurn(req: ChatTurnRequest): Promise<ChatTurnResult>
   try {
     if (!isRecord(req) || !isRecord(req.model) || typeof req.model.complete !== "function") return fail("INVALID_ARGS")
     if (req.onStep !== undefined && typeof req.onStep !== "function") return fail("INVALID_ARGS")
+    if (req.compose !== undefined && typeof req.compose !== "function") return fail("INVALID_ARGS")
     const question = req.question
     if (typeof question !== "string") return fail("INVALID_ARGS")
     const opened = await openTurn(req.deps, { userId: req.userId, conversationId: req.conversationId, pin: req.pin, userMessage: question })
     if (!opened.ok) return fail(opened.code)
-    return await drive(opened.session, req.model, question, req.onStep)
+    return await drive(opened.session, req.model, question, req.onStep, req.compose ?? composeAnswer)
   } catch {
     return fail("STORAGE_ERROR")
   }
 }
 
-async function drive(session: TurnSession, model: ModelPort, question: string, onStep: ChatTurnRequest["onStep"]): Promise<ChatTurnResult> {
+type CallResult = { ok: boolean; code?: string; result?: Record<string, unknown> }
+/** O envelope devolvido ao modelo no reparo e o que o servidor precisa saber de cada chamada. */
+function describe(out: unknown): { content: string; argsInvalid: boolean; ref: string | null } {
+  const o = (isRecord(out) ? out : {}) as CallResult
+  if (o.ok !== true) return { content: jstr({ ok: false, error: { code: o.code } }), argsInvalid: o.code === "ARGS_INVALID", ref: null }
+  const r = isRecord(o.result) ? o.result : {}
+  const err = isRecord(r.error) ? r.error.code : undefined
+  const ev = isRecord(r.evidence) ? r.evidence.evidenceRef : undefined
+  return { content: jstr(r), argsInvalid: r.ok !== true && err === "ARGS_INVALID", ref: r.ok === true && typeof ev === "string" ? ev : null }
+}
+
+async function drive(session: TurnSession, model: ModelPort, question: string, onStep: ChatTurnRequest["onStep"], compose: typeof composeAnswer): Promise<ChatTurnResult> {
   const step = async (s: ChatStep): Promise<void> => { try { await onStep?.(s) } catch { /* o progresso é cortesia: nunca derruba o turno */ } }
   const messages: ChatMessage[] = [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: question }]
-  let tokens = 0, modelCalls = 0, invalidInARow = 0
-  let toolChoice: "auto" | "none" = "auto"
+  let tokens = 0, modelCalls = 0
 
   const finish = async (outcome: "ANSWERED" | "STOPPED", response: RenderedAnswer): Promise<ChatTurnResult> => {
     const c = await session.commit()
     return c.ok ? { ok: true, conversationId: session.conversationId, version: c.version, outcome, response, tokens, modelCalls } : fail(c.code)
   }
+  /** Valida (auto-checagem) e comita uma resposta feita pelo servidor; qualquer recusa é bug nosso: COMPOSE_FAILED, sem regerar. */
+  const answer = async (made: unknown): Promise<ChatTurnResult> => {
+    await step({ kind: "validating" })
+    const verdict = await session.validate(made, question)
+    if (!verdict.ok) return fail("action" in verdict ? "COMPOSE_FAILED" : "TURN_CLOSED")
+    const state = session.state()
+    const rendered = renderAnswer({ answer: made, ledger: session.ledger(), notices: notices(state), stop: validatorStop(state), question })
+    return rendered.ok ? finish("ANSWERED", rendered.rendered) : fail("COMPOSE_FAILED")
+  }
+  const failureStop = async (): Promise<ChatTurnResult> => {
+    const stopped = await session.stopWithFailure()
+    return stopped.ok ? finish("STOPPED", stopped.response) : fail("TURN_CLOSED")
+  }
 
   for (;;) {
-    if (tokens >= MAX_TOKENS_PER_TURN || modelCalls >= MAX_MODEL_CALLS_PER_TURN) {
-      const stopped = await session.stopForBudget()
-      return stopped.ok ? finish("STOPPED", stopped.response) : fail("TURN_CLOSED")
-    }
-    const reply = await model.complete({ messages: messages.map((m) => ({ ...m })), tools: API_TOOLS, toolChoice })
+    const reply = await model.complete({ messages: messages.map((m) => ({ ...m })), tools: API_TOOLS, toolChoice: "auto" })
     modelCalls += 1
     if (!isRecord(reply) || reply.kind === "error") return fail("MODEL_ERROR")
     tokens += tokensOf(reply)
 
-    if (reply.kind === "tool_calls" && toolChoice === "auto" && Array.isArray(reply.calls)) {
-      messages.push({ role: "assistant", content: "", toolCalls: reply.calls.map((c) => ({ id: String(c.id), name: String(c.name), arguments: c.arguments })) })
-      for (const call of reply.calls) {
-        const def = TOOL_BY_NAME.get(String(call.name))
-        const out = await session.call(def !== undefined ? def.capability : String(call.name), call.arguments)
-        let content: string
-        if (!out.ok) {
-          content = jstr({ ok: false, error: { code: out.code } })
-          if (out.code === "BUDGET_EXCEEDED") toolChoice = "none"
-          if (out.code === "ARGS_INVALID") invalidInARow += 1
-        } else {
-          content = jstr(out.result)
-          if (def !== undefined) await step({ kind: "capability", label: CAPABILITY_LABELS[def.capability] })
-          if (out.result.ok) invalidInARow = 0
-          else if (out.result.error?.code === "ARGS_INVALID") invalidInARow += 1
-        }
-        if (invalidInARow >= MAX_CONSECUTIVE_ARGS_INVALID) toolChoice = "none"
-        messages.push({ role: "tool", toolCallId: String(call.id), content })
-      }
-      continue
-    }
+    // sem ferramenta (texto, lista vazia): o texto do modelo é DESCARTADO; resposta fixa do servidor (D-S2)
+    if (reply.kind !== "tool_calls" || !Array.isArray(reply.calls) || reply.calls.length === 0) return messages.length > 2 ? failureStop() : answer(composeOffScope()) // depois do reparo, "sem ferramenta" = a consulta nunca foi corrigida
 
-    // resposta final — ou `tool_calls` fora de hora (toolChoice none), que conta como resposta final inválida (D-L6b)
-    await step({ kind: "validating" })
-    let parsed: unknown = undefined
-    if (reply.kind === "final" && typeof reply.content === "string") { try { parsed = JSON.parse(reply.content) } catch { parsed = undefined } }
-    const verdict = await session.validate(parsed, question)
-    if (verdict.ok) {
-      const state = session.state()
-      const rendered = renderAnswer({ answer: parsed, ledger: session.ledger(), notices: notices(state), stop: validatorStop(state), question })
-      if (!rendered.ok) return fail("STORAGE_ERROR") // inalcançável: validate só aceita o que renderiza
-      return finish("ANSWERED", rendered.rendered)
+    const chosen = reply.calls.slice(0, MAX_TOOL_CALLS_PER_TURN)
+    const results: Array<{ id: string; content: string; argsInvalid: boolean; ref: string | null }> = []
+    for (const call of chosen) {
+      const def = TOOL_BY_NAME.get(String(call.name))
+      const out = await session.call(def !== undefined ? def.capability : String(call.name), call.arguments)
+      if (isRecord(out) && out.ok === true && def !== undefined) await step({ kind: "capability", label: CAPABILITY_LABELS[def.capability] })
+      results.push({ id: String(call.id), ...describe(out) })
     }
-    if ("action" in verdict && verdict.action === "REGENERATE") {
-      // só CÓDIGOS voltam ao modelo; o texto rejeitado não entra no histórico
-      messages.push({ role: "user", content: `A resposta anterior foi rejeitada pelo validador. Códigos: ${verdict.feedback.join(", ")}. Reenvie o objeto JSON completo corrigido.` })
+    const refs = results.flatMap((r) => (r.ref === null ? [] : [r.ref]))
+    if (refs.length > 0) {
+      let composed: ReturnType<typeof composeAnswer>
+      try { composed = compose({ ledger: session.ledger(), refs }) } catch { return fail("COMPOSE_FAILED") }
+      return composed.ok ? answer(composed.answer) : fail("COMPOSE_FAILED")
+    }
+    // nada deu certo: reparo SÓ se todas falharam por ARGS_INVALID e ainda há chamada e orçamento (D-S1)
+    if (results.every((r) => r.argsInvalid) && modelCalls < MAX_MODEL_CALLS_PER_TURN && tokens < MAX_TOKENS_PER_TURN) {
+      messages.push({ role: "assistant", content: "", toolCalls: chosen.map((c) => ({ id: String(c.id), name: String(c.name), arguments: c.arguments })) })
+      for (const r of results) messages.push({ role: "tool", toolCallId: r.id, content: r.content })
       continue
     }
-    if ("action" in verdict && verdict.action === "STOP") return finish("STOPPED", verdict.response)
-    return fail("TURN_CLOSED")
+    return failureStop()
   }
 }

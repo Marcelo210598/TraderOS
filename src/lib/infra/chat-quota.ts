@@ -1,5 +1,5 @@
 // Regras da cota mensal do chat (E7-15b, D-C1…D-C10): o invólucro que a rota do chat chama AO REDOR do turno (`withChatQuota`): reserva ANTES de qualquer chamada ao modelo (fail-closed), roda o turno, liquida.
-//   · DEVOLVE a reserva quando nada foi entregue por falha nossa/upstream: INVALID_ARGS, SALT_REQUIRED, NOT_FOUND, STORAGE_ERROR, MODEL_ERROR, ou a fn LANÇAR. CONSOME em resposta (ok) e em TURN_CLOSED, TURN_CONFLICT,
+//   · DEVOLVE a reserva quando nada foi entregue por falha nossa/upstream: INVALID_ARGS, SALT_REQUIRED, NOT_FOUND, STORAGE_ERROR, MODEL_ERROR, COMPOSE_FAILED (E7-16: bug do compositor, nada foi entregue), ou a fn LANÇAR. CONSOME em resposta (ok) e em TURN_CLOSED, TURN_CONFLICT,
 //     LIMIT_EXCEEDED, COMMIT_REJECTED, código desconhecido ou resultado malformado (o modelo pode ter rodado: devolver aí daria uso grátis infinito).
 //   · 1 turno ativo por usuário (o lease da reserva); erro ao liquidar NUNCA esconde a resposta já paga (o lease vence sozinho).
 //   · Mês civil UTC; o limite vem do PLANO ATUAL a cada reserva (subir libera na hora; descer não apaga o uso). Apagar conversa/dados de IA NÃO toca aqui; só `deleteChatUsageForUser` (exclusão da conta).
@@ -20,7 +20,7 @@ export type QuotaBlock = QuotaExceeded | { readonly ok: false; readonly code: "T
 
 const PLAN_ORDER: readonly PlanKey[] = ["FREE", "TRADER", "PRO"]
 /** Códigos em que NADA foi entregue por falha nossa/upstream: a reserva é devolvida (D-C7). */
-const REFUND_CODES: ReadonlySet<string> = new Set(["INVALID_ARGS", "SALT_REQUIRED", "NOT_FOUND", "STORAGE_ERROR", "MODEL_ERROR", "BUSY"])
+const REFUND_CODES: ReadonlySet<string> = new Set(["INVALID_ARGS", "SALT_REQUIRED", "NOT_FOUND", "STORAGE_ERROR", "MODEL_ERROR", "BUSY", "COMPOSE_FAILED"])
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x)
 const isPlan = (x: unknown): x is PlanKey => typeof x === "string" && (PLAN_ORDER as readonly string[]).includes(x)
 const depsOk = (d: unknown): d is ChatQuotaDeps => isRecord(d) && isRecord(d.store) && typeof d.now === "function" && typeof d.newLeaseId === "function"

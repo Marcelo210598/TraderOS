@@ -81,7 +81,7 @@ await test("G3 — mensagens no formato OpenAI: system/user literais; assistant 
 await test("G4 — ferramentas no formato {type:'function',function:{name,description,parameters}}; nada além disso", async () => {
   const f = fakeFetch(() => final("{}")); const tools = (CHAT_TOOLS as Any[]).map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }))
   await port(f).complete(REQ({ tools })); const sent = f.seen[0].body.tools
-  assert.equal(sent.length, 8); for (const [i, t] of sent.entries()) { assert.deepEqual(Object.keys(t).sort(), ["function", "type"]); assert.equal(t.type, "function"); assert.deepEqual(Object.keys(t.function).sort(), ["description", "name", "parameters"]); assert.equal(t.function.name, tools[i].name) }
+  assert.equal(sent.length, 6); for (const [i, t] of sent.entries()) { assert.deepEqual(Object.keys(t).sort(), ["function", "type"]); assert.equal(t.type, "function"); assert.deepEqual(Object.keys(t.function).sort(), ["description", "name", "parameters"]); assert.equal(t.function.name, tools[i].name) }
 })
 
 await test("G5 — resposta com tool_calls ⇒ {kind:'tool_calls', calls com id/name/arguments já em OBJETO, usage.totalTokens}; tool_calls tem prioridade sobre content", async () => {
@@ -153,12 +153,12 @@ await test("G14 — só groq-client.ts conhece api.groq.com e nenhum arquivo do 
   assert.doesNotMatch(src, /process\.env|console\.|from\s+["']next|@prisma|\bimport\s*\(/)
 })
 
-await test("G15 — ferramentas COMPACTAS (D-G10): JSON de todas ≤ 4.500 caracteres, cada uma ≤ 900, 8 nomes 1:1 com as capacidades; prompt ≤ 5.200 e total fixo ≤ 9.500 (≈ 2.700 tokens); sem $schema/additionalProperties/default; o prompt lista TODOS os metricIds e os valores de groupBy; anti-deriva: propriedades e obrigatórias das ferramentas existem nos esquemas do servidor", async () => {
+await test("G15 — ferramentas COMPACTAS (D-G10): E7-16: 6 ferramentas (sem evidence_*), JSON de todas ≤ 3.200 caracteres, cada uma ≤ 900; prompt ≤ 2.800 e total fixo ≤ 5.600; sem $schema/additionalProperties/default; o prompt lista TODOS os metricIds e os valores de groupBy; anti-deriva: propriedades e obrigatórias das ferramentas existem nos esquemas do servidor", async () => {
   const tools = (CHAT_TOOLS as Any[]).map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }))
-  assert.equal(tools.length, 8); assert.ok(jstr(tools).length <= 4500, `ferramentas: ${jstr(tools).length} caracteres`)
+  assert.equal(tools.length, 6); assert.ok(jstr(tools).length <= 3200, `ferramentas: ${jstr(tools).length} caracteres`)
   for (const t of tools) assert.ok(jstr(t).length <= 900, `${t.function.name}: ${jstr(t).length}`)
-  assert.doesNotMatch(jstr(tools), /\$schema|additionalProperties|"default"/); assert.deepEqual([...new Set((CHAT_TOOLS as Any[]).map((t) => t.capability))].sort(), [...CAPABILITY_IDS].sort())
-  assert.ok(SYSTEM_PROMPT.length <= 5200, `prompt: ${SYSTEM_PROMPT.length}`); assert.ok(jstr(tools).length + SYSTEM_PROMPT.length <= 9500, `fixo: ${jstr(tools).length + SYSTEM_PROMPT.length}`)
+  assert.doesNotMatch(jstr(tools), /\$schema|additionalProperties|"default"/); assert.deepEqual([...new Set((CHAT_TOOLS as Any[]).map((t) => t.capability))].sort(), [...CAPABILITY_IDS].filter((c) => !c.startsWith("evidence.")).sort())
+  assert.ok(SYSTEM_PROMPT.length <= 2800, `prompt: ${SYSTEM_PROMPT.length}`); assert.ok(jstr(tools).length + SYSTEM_PROMPT.length <= 5600, `fixo: ${jstr(tools).length + SYSTEM_PROMPT.length}`)
   for (const id of METRIC_IDS as string[]) assert.ok(new RegExp(`(^|[^A-Za-z0-9])${id}([^A-Za-z0-9]|$)`).test(SYSTEM_PROMPT), `metricId ausente do prompt (palavra inteira): ${id}`)
   for (const g of ["day", "tradingDay", "week", "month", "dayOfWeek", "hour", "session", "symbol", "direction", "account", "strategy", "exitReason"]) assert.ok(SYSTEM_PROMPT.includes(g), `groupBy ausente do prompt: ${g}`)
   const zodOf: Record<string, Any> = { "metrics.query@1": MetricsQueryArgsSchema, "metrics.groups@1": MetricsGroupsArgsSchema, "exit.breakdown@1": ExitBreakdownArgsSchema, "metrics.compare@1": MetricsCompareArgsSchema, "rank.groups@1": RankGroupsArgsSchema, "exit.analysis@1": ExitAnalysisArgsSchema, "evidence.explain@1": EvidenceExplainArgsSchema, "evidence.refresh@1": EvidenceRefreshArgsSchema }
@@ -172,20 +172,16 @@ await test("G15 — ferramentas COMPACTAS (D-G10): JSON de todas ≤ 4.500 carac
   }
 })
 
-await test("G16 — INTEGRAÇÃO com o laço (runChatTurn + cliente Groq + fetch falso): turno com ferramenta + resposta válida ⇒ ANSWERED; nenhuma requisição leva hash, nome de arquivo ou chave; o histórico enviado na 2ª chamada tem assistant(tool_calls) e tool", async () => {
+await test("G16 — INTEGRAÇÃO com o laço E7-16 (runChatTurn + cliente Groq + fetch falso): UMA chamada com ferramenta ⇒ ANSWERED (resposta composta pelo servidor); nenhuma requisição leva hash, nome de arquivo ou chave; o histórico enviado na 2ª chamada tem assistant(tool_calls) e tool", async () => {
   const U = "cmd3h2k0a0000abcd1234efgh", p2 = (x: number): string => String(x).padStart(2, "0")
   const csv = synthCsv(Array.from({ length: 24 }, (_, i) => ({ entryPrice: 2000 + (i % 13), exitPrice: 2000 + (i % 13) + ((i % 5) - 2), entryAt: `${p2(1 + (i % 28))}/03/2026 ${p2(9 + (i % 7))}:00:00`, exitAt: `${p2(1 + (i % 28))}/03/2026 ${p2(9 + (i % 7))}:30:00`, account: i % 3 === 0 ? "Sim101" : "Sim102" })) as Any)
   const raw = createMemoryRawFileStorage(), imp = createMemoryImportSourceStore(), kr = new InMemorySaltKeyring(); kr.ensure(U)
   const reg: Any = await registerImport({ rawStorage: raw, importStore: imp, salt: kr }, { userId: U, text: csv, context: { sourceTz: "America/New_York" }, fileName: "export.csv" }); assert.equal(reg.ok, true)
-  const f = fakeFetch((n, s) => {
-    if (n === 1) return ok({ role: "assistant", content: null, tool_calls: [toolCall("c1", "metrics_query", '{"metricIds":["netPnl","winRate"],"filters":{},"options":{}}')] }, { total_tokens: 900 })
-    const ref = /ev_[0-9a-f]{32}/.exec(jstr(s.body.messages))![0]
-    return final(jstr({ segments: [{ kind: "text", text: "Segue o valor:" }, { kind: "slot", ref, path: "metrics[0].value" }, { kind: "phrase", code: "POPULATION_DECLARED", ref }], claims: [{ ref, path: "metrics[0].value", mode: "ASSERT" }] }), { total_tokens: 1000 })
-  })
+  const f = fakeFetch(() => ok({ role: "assistant", content: null, tool_calls: [toolCall("c1", "metrics_query", '{"metricIds":["netPnl","winRate"],"filters":{},"options":{}}')] }, { total_tokens: 900 }))
   const deps: Any = { rawStorage: raw, importStore: imp, conversations: createConversations({ store: createMemoryConversationStore() }), salts: { load: async () => ({ provider: kr, unavailable: [] }) } }
   const r: Any = await runChatTurn({ deps, model: port(f), userId: U, pin: { sources: [{ fileSha256: reg.fileSha256 }], analysis: {} }, question: "Qual foi meu resultado?" })
-  assert.equal(r.ok, true, jstr(r)); assert.equal(r.outcome, "ANSWERED"); assert.equal(r.tokens, 1900); assert.equal(f.seen.length, 2)
-  const second = f.seen[1].body.messages; assert.deepEqual(second.map((m: Any) => m.role), ["system", "user", "assistant", "tool"]); assert.equal(second[2].tool_calls[0].id, "c1"); assert.equal(second[3].tool_call_id, "c1")
+  assert.equal(r.ok, true, jstr(r)); assert.equal(r.outcome, "ANSWERED"); assert.equal(r.tokens, 900); assert.equal(f.seen.length, 1); assert.equal(r.modelCalls, 1)
+  assert.deepEqual(f.seen[0].body.messages.map((m: Any) => m.role), ["system", "user"]); assert.ok(r.response.segments.some((x: Any) => x.kind === "value"))
   const all = jstr(f.seen.map((s) => s.body)) + jstr(f.seen.map((s) => s.init.headers))
   assert.doesNotMatch(all.replace(KEY, ""), /[0-9a-f]{64}|export\.csv|Sim101|evidenceHash|fileSha256/); assert.ok(!jstr(f.seen.map((s) => s.body)).includes(KEY))
 })

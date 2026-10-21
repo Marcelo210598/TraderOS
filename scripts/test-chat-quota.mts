@@ -236,7 +236,7 @@ await test("Q4 — turno em andamento: 2ª chamada do MESMO usuário ⇒ TURN_IN
 })
 
 await test("Q5 — quem consome e quem devolve (D-C7): todos os códigos do turno", async () => {
-  const REFUND = ["INVALID_ARGS", "SALT_REQUIRED", "NOT_FOUND", "STORAGE_ERROR", "MODEL_ERROR", "BUSY"], CONSUME = ["TURN_CLOSED", "TURN_CONFLICT", "LIMIT_EXCEEDED", "COMMIT_REJECTED", "CODIGO_NOVO_DESCONHECIDO"]
+  const REFUND = ["INVALID_ARGS", "SALT_REQUIRED", "NOT_FOUND", "STORAGE_ERROR", "MODEL_ERROR", "BUSY", "COMPOSE_FAILED"], CONSUME = ["TURN_CLOSED", "TURN_CONFLICT", "LIMIT_EXCEEDED", "COMMIT_REJECTED", "CODIGO_NOVO_DESCONHECIDO"]
   for (const [codes, expected] of [[REFUND, 0], [CONSUME, 1]] as const) for (const code of codes) {
     const c = mkDeps(); const r = await withChatQuota(c.deps, { userId: U1, plan: "TRADER" }, async () => ({ ok: false, code }))
     assert.deepEqual(r, { ok: false, code }, code); assert.deepEqual(await c.store.usage({ userId: U1, month: M }), { ok: true, used: expected }, `${code}: uso`)
