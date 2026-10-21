@@ -13,6 +13,7 @@ import { createMemoryImportSourceStore } from "../src/lib/infra/import-source-st
 import { createMemoryRawFileStorage } from "../src/lib/infra/raw-file-storage.ts"
 import { createMemorySaltStore } from "../src/lib/infra/salt-store.ts"
 import { deleteConversation, purgeUserData } from "../src/lib/infra/user-purge.ts"
+import { connectLiveDb, liveEnabled, type LiveDb } from "./_prisma-live.mts"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any
@@ -69,12 +70,20 @@ function fakeClient(): Fake {
   return { client, rows, log, failAll, onCreate }
 }
 
-interface Impl { name: string; make: () => { store: Any; fake?: Fake } }
+interface Impl { name: string; make: () => { store: Any; fake?: Fake }; reset?: () => Promise<void> }
 const IMPLS: Impl[] = [
   { name: "memória", make: () => ({ store: createMemoryChatQuotaStore() }) },
   { name: "Prisma (cliente de mentira)", make: () => { const fake = fakeClient(); return { store: createPrismaChatQuotaStore(fake.client), fake } } },
 ]
-const each = async (fn: (i: Impl) => Promise<void>): Promise<void> => { for (const i of IMPLS) await fn(i) }
+// AO VIVO (E7-15b, Portão C): só com PRISMA_LIVE=1 e E7_TEST_DATABASE_URL(_POOLED) da branch descartável (a trava recusa produção). O MESMO contrato C1–C9 roda no Postgres real, direto e pelo pooler.
+const LIVE: LiveDb[] = []
+if (liveEnabled()) {
+  for (const which of ["direct", "pooled"] as const) {
+    const live = await connectLiveDb(which); LIVE.push(live)
+    IMPLS.push({ name: `Postgres real (${which === "direct" ? "conexão direta" : "pooler"})`, make: () => ({ store: createPrismaChatQuotaStore(live.db) }), reset: async () => { await live.db.aiChatUsage.deleteMany({}) } })
+  }
+} else if (!process.env.COLLECT) console.log("… contrato AO VIVO do Postgres pulado: rode com PRISMA_LIVE=1 (precisa de E7_TEST_DATABASE_URL e _POOLED)")
+const each = async (fn: (i: Impl) => Promise<void>): Promise<void> => { for (const i of IMPLS) { await i.reset?.(); await fn(i) } }
 
 // ═════ contrato do ChatQuotaStore (roda nas duas implementações) ═════
 await test("C1 — primeira reserva cria o contador: used 1; usage lê 1; linha ausente lê 0", async () => each(async ({ name, make }) => {
@@ -351,6 +360,50 @@ await test("P6 — schema e migração: modelo AiChatUsage (PK userId+month, sem
   assert.doesNotMatch(sql, /\b(DROP|ALTER|DELETE|UPDATE|TRUNCATE|INSERT|REFERENCES|FOREIGN)\b/i)
   for (const col of ["user_id", "month", "used", "lease_id", "lease_until", "updated_at"]) assert.match(sql, new RegExp(`"${col}"`), col)
 })
+
+// ═════ só no Postgres real ═════
+if (LIVE.length > 0) {
+  const [direct, pooled] = LIVE
+  await test("V1 — 10 PRIMEIRAS reservas simultâneas da mesma linha nova (corrida real de criação, P2002 de verdade) ⇒ EXATAMENTE 1 dona; as outras TURN_IN_PROGRESS; nenhum STORAGE_ERROR", async () => {
+    for (const live of LIVE) {
+      await live.db.aiChatUsage.deleteMany({}); const store = createPrismaChatQuotaStore(live.db)
+      const rs: Any[] = await Promise.all(Array.from({ length: 10 }, (_, i) => store.reserve(rq(U1, `V${i}`, 0, 5))))
+      assert.equal(rs.filter((r) => r.ok).length, 1, jstr(rs)); assert.equal(rs.filter((r) => r.code === "TURN_IN_PROGRESS").length, 9, jstr(rs))
+      assert.deepEqual(await store.usage({ userId: U1, month: M }), { ok: true, used: 1 })
+    }
+  })
+  await test("V2 — a ordem de TEXTO ISO no Postgres real == a cronológica (o `lt` do lease): 150 pares de instantes de 2026–2028, incluindo viradas de mês/ano e milissegundos", async () => {
+    const pad = (n: number, w = 2): string => String(n).padStart(w, "0"); let seed = 12345; const rnd = (n: number): number => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n }
+    const iso = (): string => new Date(Date.UTC(2026 + rnd(3), rnd(12), 1 + rnd(28), rnd(24), rnd(60), rnd(60), rnd(1000))).toISOString()
+    const pairs = [["2026-12-31T23:59:59.999Z", "2027-01-01T00:00:00.000Z"], ["2026-10-21T12:01:30.000Z", "2026-10-21T12:01:30.001Z"], ["2026-09-30T23:59:59.999Z", "2026-10-01T00:00:00.000Z"], ["2026-10-21T09:00:00.000Z", "2026-10-21T10:00:00.000Z"], ...Array.from({ length: 146 }, () => [iso(), iso()])]
+    void pad
+    const rows: Any[] = await Promise.all(pairs.map(([a, b]) => direct.db.$queryRawUnsafe("SELECT ($1::text < $2::text) AS lt", a, b)))
+    pairs.forEach(([a, b], i) => assert.equal(rows[i][0].lt, a < b, `${a} < ${b}`))
+  })
+  await test("V3 — 10 trabalhadores × limite 3 no pooler E na conexão direta ao mesmo tempo (20 trabalhadores, usuários diferentes): cada usuário recebe EXATAMENTE 3; a latência de reserva+liquidação é medida", async () => {
+    await direct.db.aiChatUsage.deleteMany({}); const sd = createPrismaChatQuotaStore(direct.db), sp = createPrismaChatQuotaStore(pooled.db)
+    const counts: Record<string, number> = { [U1]: 0, [U2]: 0 }; let tick = 0; const lat: number[] = []
+    const worker = async (store: Any, user: string, i: number): Promise<void> => {
+      for (let guard = 0; ; guard += 1) {
+        assert.ok(guard < 800, "laço sem fim"); const t0 = performance.now(); const r: Any = await store.reserve(rq(user, `X${user.slice(-2)}${i}`, (tick += 1), 3))
+        if (r.ok) { counts[user] += 1; await store.settle(st(user, `X${user.slice(-2)}${i}`, "CONSUME", tick)); lat.push(performance.now() - t0); continue }
+        if (r.code === "QUOTA_EXCEEDED") return
+        assert.equal(r.code, "TURN_IN_PROGRESS")
+      }
+    }
+    await Promise.all([...Array.from({ length: 10 }, (_, i) => worker(sd, U1, i)), ...Array.from({ length: 10 }, (_, i) => worker(sp, U2, i))])
+    assert.deepEqual(counts, { [U1]: 3, [U2]: 3 }); lat.sort((a, b) => a - b); console.log(`   latência reserva+liquidação: p50 ${lat[Math.floor(lat.length / 2)].toFixed(0)} ms, máx ${lat[lat.length - 1].toFixed(0)} ms (${lat.length} amostras)`)
+  })
+  await test("V4 — a tabela real: colunas e tipos esperados; PK composta (user_id, month); nenhuma outra tabela ganhou coluna (as 4 ai_* e o legado seguem como estavam)", async () => {
+    const cols: Any[] = await direct.db.$queryRawUnsafe("SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'ai_chat_usage' ORDER BY ordinal_position")
+    assert.deepEqual(cols.map((c) => `${c.column_name}:${c.data_type}:${c.is_nullable}`), ["user_id:text:NO", "month:text:NO", "used:integer:NO", "lease_id:text:YES", "lease_until:text:YES", "updated_at:text:NO"])
+    const pk: Any[] = await direct.db.$queryRawUnsafe("SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) WHERE i.indrelid = 'ai_chat_usage'::regclass AND i.indisprimary ORDER BY a.attnum")
+    assert.deepEqual(pk.map((r) => r.attname), ["user_id", "month"])
+    const tables: Any[] = await direct.db.$queryRawUnsafe("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'ai\\_%' ORDER BY 1")
+    assert.deepEqual(tables.map((t) => t.table_name), ["ai_chat_usage", "ai_conversation_deltas", "ai_conversations", "ai_import_sources", "ai_user_salts"])
+  })
+  for (const live of LIVE) { await live.db.aiChatUsage.deleteMany({}); await live.close() }
+}
 
 if (process.env.COLLECT) console.log(JSON.stringify({ passed, failed }))
 else console.log(`\n${passed} testes ✓`)
