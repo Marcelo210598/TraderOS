@@ -37,3 +37,14 @@ L14 passos de progresso só com rótulos do catálogo.
 L15 o arquivo do laço não contém `fetch`, `process.env`, `groq`.
 L16 pergunta literal e ≤ 4000 vai ao modelo sem alteração.
 Mutações previstas (EL1…): remover o teto de tokens; mandar o hash ao modelo; regerar sem limite; aceitar `<think>`; ignorar `ARGS_INVALID`; comitar após erro do modelo; trocar códigos de rejeição por texto da resposta rejeitada.
+
+## 4. Emenda (21/10/2026, ao escrever os testes) — decisões que a suíte fixou
+- **D-L9 `stopForBudget`:** o `TurnSession` não tinha como encerrar o turno por orçamento de tokens (o `stopResponse` só nasce de rejeição). Ganha `stopForBudget()`: marca orçamento esgotado, registra a resposta canônica terminal (`answer: null`, com a frase `BUDGET_LIMIT_REACHED`) e é idempotente. Sem código novo no contrato.
+- **D-L3b Quando o teto vale:** confere ANTES de cada nova chamada ao modelo: soma acumulada ≥ 16000 ⇒ não chama de novo. Uma resposta final que cruza o teto, se válida, é aceita (já foi paga).
+- **D-L6b `toolChoice: "none"`:** depois de `BUDGET_EXCEEDED` ou de 2 `ARGS_INVALID` seguidos, as próximas chamadas ao modelo saem com `toolChoice: "none"`. O contador de inválidas zera numa chamada de capacidade bem-sucedida. Se mesmo assim o modelo devolver `tool_calls`, conta como resposta final rejeitada (`STRUCTURE_INVALID`).
+- **D-L10 Teto absoluto:** `MAX_MODEL_CALLS_PER_TURN = 12`; nenhum roteiro de modelo faz o laço passar disso.
+- **D-L11 Nomes das ferramentas:** `CHAT_TOOLS` (8) com nomes `metrics_query`, `metrics_groups`, … (a API do modelo não aceita `.`/`@`), mapeados 1:1 para `CAPABILITY_IDS`. Nome desconhecido ⇒ `ARGS_INVALID` e consome uma chamada.
+- **D-L12 Erro do modelo:** `kind:"error"` em qualquer ponto ⇒ `{ ok:false, code:"MODEL_ERROR" }` e NENHUM commit (a conversa não muda; a rota do E7-15b não cobra cota).
+- **D-L13 Passos de progresso:** `onStep` recebe `{ kind:"capability", label }` (rótulo de `CAPABILITY_LABELS`) e `{ kind:"validating" }`; nunca argumentos nem números.
+- **API:** `runChatTurn({ deps, model, userId, pin, question, conversationId?, onStep? }) ⇒ { ok:true, conversationId, version, outcome:"ANSWERED"|"STOPPED", response, tokens, modelCalls } | { ok:false, code }`.
+- Testes adicionais: L17 argumentos inválidos; L18 ferramentas; L19 teto absoluto; S1 `stopForBudget`.
