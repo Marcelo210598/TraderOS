@@ -1,5 +1,5 @@
 // E7-15d: medição AO VIVO do chat na Groq. SÓ roda com GROQ_LIVE=1 e GROQ_API_KEY no .env.local (lida só aqui; nunca impressa). Fora do test:domain. Dataset sintético em memória; nada de produção.
-// Expectativa: docs/ai-partner/E7-15d-expectativa.md. Orçamento: aborta em qualquer 429 ou acima de 70.000 tokens; 62 s entre turnos; sem retry.
+// Expectativa: docs/ai-partner/E7-15d-expectativa.md. Orçamento: aborta em qualquer 429 ou acima de 30.000 tokens (E7-16: laço de 1 chamada); espera só se o TPM estiver baixo; sem retry.
 //   GROQ_LIVE=1 node scripts/test-groq-live.mts
 import { existsSync, readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
@@ -32,7 +32,7 @@ const liveFetch = async (url: string, init: Any): Promise<Any> => {
   const r: Rec = { resetTokens: res.headers.get("x-ratelimit-reset-tokens"), status: res.status, prompt: u.prompt_tokens ?? 0, completion: u.completion_tokens ?? 0, cached: u.prompt_tokens_details?.cached_tokens ?? null, ms: Math.round(performance.now() - t0), remTokens: res.headers.get("x-ratelimit-remaining-tokens"), remReq: res.headers.get("x-ratelimit-remaining-requests"), limTokens: res.headers.get("x-ratelimit-limit-tokens"), limReq: res.headers.get("x-ratelimit-limit-requests") }
   recs.push(r); budget.tokens += r.prompt + r.completion
   if (res.status === 429) { budget.stop = true; budget.why = "429" }
-  if (budget.tokens > 70_000) { budget.stop = true; budget.why = "orçamento de 70.000 tokens" }
+  if (budget.tokens > 30_000) { budget.stop = true; budget.why = "orçamento de 30.000 tokens" }
   return { status: res.status, headers: res.headers, text: async () => text }
 }
 const tools = (CHAT_TOOLS as Any[]).map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }))
@@ -71,7 +71,7 @@ interface Row { q: string; outcome: string; calls: number; tokens: number; ms: n
 const rows: Row[] = []
 for (const [i, q] of questions.entries()) {
   if (budget.stop) { console.log(`⚠ parado antes do turno ${i + 1}: ${budget.why}`); break }
-  if (i > 0 || !SKIP_PROBES) await sleep(62_000) // o TPM de 8K/min é da organização: espera o minuto das sondas/turno anterior passar
+  { const prev = recs[recs.length - 1]; if (prev !== undefined && Number(prev.remTokens) < 4000) { const w = Math.min(65, ((): number => { const m = /^(?:(\d+)m)?(?:([\d.]+)s)?$/.exec((prev.resetTokens ?? "").trim()); return m ? Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0) : 30 })() + 2); console.log(`   … ritmo entre turnos: restam ${prev.remTokens} tokens/min; espera ${w.toFixed(0)} s`); await sleep(w * 1000) } } // E7-16: 1 chamada ≈ 2K tokens; só espera se o TPM de 8K/min (da organização) estiver baixo
   const before = recs.length; const used = new Set<string>(); const rejects: string[] = []
   const model = createGroqModelPort({ apiKey: KEY, model: MODEL, fetch: liveFetch as Any, now: () => Date.now(), deadlineAt: Date.now() + 120_000 })
   const seconds = (h: string | null): number => { if (h === null) return 0; const m = /^(?:(\d+)m)?(?:([\d.]+)s)?$/.exec(h.trim()); return m ? Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0) : 0 }
@@ -83,7 +83,7 @@ for (const [i, q] of questions.entries()) {
   const answer = out.ok ? (out.response.segments as Any[]).map((s) => s.text ?? "").join(" ") : ""
   rows.push({ q, outcome: out.ok ? out.outcome : `ERRO ${out.code}`, calls: mine.length, tokens: pr + co, ms: Math.round(performance.now() - t0), used: [...used].join("+") || "-", rej: [...new Set(rejects)].join("|") || "-", costBrl: USD(pr, co) * USD_BRL, answerChars: answer.length })
   const r = rows[rows.length - 1]; console.log(`T${i + 1} ${r.outcome.padEnd(9)} chamadas ${r.calls} | tokens ${r.tokens} (entrada ${pr}, saída ${co}) | ${r.ms} ms | ferramentas ${r.used} | rejeições ${r.rej} | ≈R$ ${r.costBrl.toFixed(3)}`)
-  if (answer) console.log(`   resposta: ${answer.slice(0, 220).replace(/\s+/g, " ")}${answer.length > 220 ? "…" : ""}`)
+  if (answer) console.log(`   resposta: ${answer.slice(0, 700).replace(/\s+/g, " ")}${answer.length > 700 ? "…" : ""}`)
 }
 const tot = rows.reduce((a, r) => a + r.tokens, 0), cost = rows.reduce((a, r) => a + r.costBrl, 0)
 console.log("\n═══ RESUMO ═══")
