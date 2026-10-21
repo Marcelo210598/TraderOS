@@ -523,3 +523,16 @@ model AiConversationDelta {
   @@id([userId, conversationId, version])
   @@map("ai_conversation_deltas")
 }
+
+/// Uso mensal do chat do AI Partner (E7-15b): só CONTADORES e a trava de 1 turno ativo (lease). Sem conteúdo de conversa e sem FK (apagar conversa/dados de IA NÃO zera a cota; só a exclusão da conta apaga estas linhas). `month` = "YYYY-MM" em UTC; datas em TEXTO ISO.
+model AiChatUsage {
+  userId     String  @map("user_id")
+  month      String
+  used       Int     @default(0)
+  leaseId    String? @map("lease_id")
+  leaseUntil String? @map("lease_until")
+  updatedAt  String  @map("updated_at")
+
+  @@id([userId, month])
+  @@map("ai_chat_usage")
+}
