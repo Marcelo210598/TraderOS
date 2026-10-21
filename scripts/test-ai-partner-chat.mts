@@ -106,7 +106,7 @@ await test("H5 — corpo inválido ⇒ 400 INVALID_REQUEST (ou 413 se grande) SE
 
 await test("H6 — plano lido do BANCO a cada pedido; plano inválido/ausente ⇒ 500 STORAGE_ERROR sem cota nem modelo; o limite do uso vem do plano (FREE 15, PRO 300)", async () => {
   for (const plan of [null, undefined, "ADMIN", 5, "free"]) { const rig = await mkRig(); const { ctx, log } = mkCtx(rig, { plan: plan === undefined ? null : plan }); const r = await ask(ctx); assert.equal(r.status, 500, String(plan)); assert.equal((await body(r)).code, "STORAGE_ERROR"); assert.deepEqual([rig.calls.quota, rig.calls.model], [0, 0]); assert.deepEqual(log.plans, [UA]) }
-  const rig = await mkRig(); assert.equal((await body(await ask(mkCtx(rig, { plan: "FREE" }).ctx))).usage.limit, 15); const rig2 = await mkRig(); assert.equal((await body(await ask(mkCtx(rig2, { plan: "PRO" }).ctx))).usage.limit, 300)
+  const rig = await mkRig(); assert.equal((await body(await ask(mkCtx(rig, { plan: "FREE" }).ctx))).usage.limit, 3); const rig2 = await mkRig(); assert.equal((await body(await ask(mkCtx(rig2, { plan: "PRO" }).ctx))).usage.limit, 300)
 })
 
 await test("H7 — SEM importação ⇒ 409 NO_IMPORTS ANTES da cota, da guarda global e do modelo (nenhuma chamada, nenhum uso)", async () => {
@@ -124,7 +124,7 @@ await test("H9 — SUCESSO: 200 {ok, conversationId, outcome ANSWERED, response 
   assert.equal(TURN_DEADLINE_MS, 50_000)
   const rig = await mkRig(); const { ctx, log } = mkCtx(rig); const q = "  Qual foi meu resultado?\n"; const r = await ask(ctx, { question: q }); const b = await body(r)
   assert.equal(r.status, 200); assert.equal(r.headers.get("cache-control"), "no-store"); assert.match(r.headers.get("content-type") ?? "", /application\/json/)
-  assert.deepEqual(Object.keys(b).sort(), ["conversationId", "ok", "outcome", "response", "usage"]); assert.equal(b.ok, true); assert.equal(b.outcome, "ANSWERED"); assert.deepEqual(b.usage, { used: 1, limit: 15, remaining: 14 }); assert.deepEqual(Object.keys(b.response).sort(), ["banner", "segments", "stopReason"])
+  assert.deepEqual(Object.keys(b).sort(), ["conversationId", "ok", "outcome", "response", "usage"]); assert.equal(b.ok, true); assert.equal(b.outcome, "ANSWERED"); assert.deepEqual(b.usage, { used: 1, limit: 3, remaining: 2 }); assert.deepEqual(Object.keys(b.response).sort(), ["banner", "segments", "stopReason"])
   assert.deepEqual(log.models, [Date.parse(ISO) + TURN_DEADLINE_MS]); assert.deepEqual(log.leases, ["T1"]); assert.equal(log.requests[0].messages.find((m: Any) => m.role === "user").content, q); assert.equal(await usageOf(rig), 1); assert.equal(log.guard, 1)
 })
 
@@ -133,10 +133,10 @@ await test("H10 — a MESMA conversa continua com conversationId (4 mensagens); 
   assert.equal(b.conversationId, a.conversationId); assert.equal(b.usage.used, 2); const o: Any = await createConversations({ store: rig.conv, now: () => ISO }).open(UA, a.conversationId); assert.equal(o.open.messages.length, 4)
 })
 
-await test("H11 — cota esgotada ⇒ 403 QUOTA_EXCEEDED {upgrade, limit, used, suggestedPlan}; o modelo NÃO é criado; a guarda global não é consumida", async () => {
-  const rig = await mkRig(); for (let i = 0; i < 15; i += 1) { await ask(mkCtx(rig).ctx) }
+await test("H11 — cota esgotada ⇒ 403 QUOTA_EXCEEDED {upgrade, limit, used, suggestedPlan}; o modelo NÃO é criado; a guarda global NÃO é consumida (ela roda dentro do turno, depois da reserva)", async () => {
+  const rig = await mkRig(); for (let i = 0; i < 3; i += 1) { await ask(mkCtx(rig).ctx) }
   const { ctx, log } = mkCtx(rig); const before = rig.calls.model; const r = await ask(ctx); const b = await body(r)
-  assert.equal(r.status, 403); assert.equal(b.code, "QUOTA_EXCEEDED"); assert.equal(b.upgrade, true); assert.equal(b.limit, 15); assert.equal(b.used, 15); assert.equal(b.suggestedPlan, "TRADER"); assert.equal(rig.calls.model, before); assert.deepEqual(log.models, [])
+  assert.equal(r.status, 403); assert.equal(b.code, "QUOTA_EXCEEDED"); assert.equal(b.upgrade, true); assert.equal(b.limit, 3); assert.equal(b.used, 3); assert.equal(b.suggestedPlan, "TRADER"); assert.equal(rig.calls.model, before); assert.deepEqual(log.models, []); assert.equal(log.guard, 0)
 })
 
 await test("H12 — turno em andamento do MESMO usuário ⇒ 409 TURN_IN_PROGRESS sem criar o modelo; outro usuário não é afetado", async () => {
@@ -157,10 +157,17 @@ await test("H14 — conversationId de OUTRO usuário ou inexistente ⇒ 404 NOT_
   for (const id of [bConv.conversationId, "cmd3h2k0a0000nope00000001"]) { const r = await ask(mkCtx(rig).ctx, { question: "oi", conversationId: id }); assert.equal(r.status, 404, id); assert.equal((await body(r)).code, "NOT_FOUND"); assert.equal(await usageOf(rig), 0) }
 })
 
-await test("H15 — guarda global da Groq: estouro ⇒ 429 BUSY com Retry-After, SEM consumir cota e SEM criar o modelo; depois da checagem de importações e ANTES da reserva", async () => {
+await test("H15 — guarda global da Groq: estouro ⇒ 429 BUSY com Retry-After; o modelo NÃO é criado e a cota VOLTA (uso 0, lease livre); a guarda roda DENTRO do turno, DEPOIS da reserva (assim Free sem cota/pool nunca a consome)", async () => {
   assert.equal(GROQ_GLOBAL_TURNS_PER_MIN, 1)
   const rig = await mkRig(); const { ctx, log } = mkCtx(rig, { guard: { ok: false, retryAfterSec: 30 } }); const r = await ask(ctx)
-  assert.equal(r.status, 429); assert.equal((await body(r)).code, "BUSY"); assert.equal(r.headers.get("retry-after"), "30"); assert.equal(log.guard, 1); assert.equal(await usageOf(rig), 0); assert.deepEqual([rig.calls.quota, rig.calls.model], [0, 0])
+  assert.equal(r.status, 429); assert.equal((await body(r)).code, "BUSY"); assert.equal(r.headers.get("retry-after"), "30"); assert.equal(log.guard, 1); assert.equal(await usageOf(rig), 0); assert.equal(rig.calls.model, 0); assert.equal((await ask(mkCtx(rig).ctx)).status, 200, "o lease foi liberado")
+})
+
+await test("H21 — pool global do Free esgotado ⇒ 403 FREE_POOL_EXHAUSTED {upgrade, suggestedPlan TRADER}; modelo e guarda global NÃO são tocados; uso do usuário 0; TRADER/PRO seguem normalmente", async () => {
+  const rig = await mkRig(); for (let i = 0; i < 300; i += 1) await rig.quota.poolTake({ month: MONTH, limit: 300, now: ISO })
+  const { ctx, log } = mkCtx(rig); const r = await ask(ctx); const b = await body(r)
+  assert.equal(r.status, 403); assert.equal(b.code, "FREE_POOL_EXHAUSTED"); assert.equal(b.upgrade, true); assert.equal(b.suggestedPlan, "TRADER"); assert.deepEqual([rig.calls.model, log.guard], [0, 0]); assert.equal(await usageOf(rig), 0)
+  assert.equal((await ask(mkCtx(rig, { plan: "TRADER" }).ctx)).status, 200); assert.equal((await ask(mkCtx(rig, { plan: "PRO" }).ctx)).status, 200)
 })
 
 await test("H16 — falhas do commit: CONFLICT ⇒ 409 TURN_CONFLICT; limite da conversa ⇒ 409 CONVERSATION_FULL; ambos CONSOMEM a cota (o modelo rodou); sem eco", async () => {

@@ -4,8 +4,8 @@
 import assert from "node:assert/strict"
 import { readFileSync, readdirSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { PLAN_CHAT_QUOTAS } from "../src/lib/plans.ts"
-import { CHAT_LEASE_MS, createMemoryChatQuotaStore, monthKey } from "../src/lib/infra/chat-quota-store.ts"
+import { FREE_CHAT_POOL_PER_MONTH, PLAN_CHAT_QUOTAS } from "../src/lib/plans.ts"
+import { CHAT_LEASE_MS, FREE_POOL_USER_ID, createMemoryChatQuotaStore, monthKey } from "../src/lib/infra/chat-quota-store.ts"
 import { createPrismaChatQuotaStore } from "../src/lib/infra/prisma-chat-quota-store.ts"
 import { deleteChatUsageForUser, getChatUsage, withChatQuota } from "../src/lib/infra/chat-quota.ts"
 import { createMemoryConversationStore } from "../src/lib/infra/conversation-store.ts"
@@ -174,13 +174,37 @@ await test("C9 — argumentos inválidos ⇒ INVALID_ARGS sem efeito (reserve, s
   assert.deepEqual(await store.usage({ userId: U1, month: M }), { ok: true, used: 1 }, `${name}: nada mudou`)
 }))
 
+// ═════ pool global do plano Free (D-C12): UM contador por mês para TODOS os Free, sem lease ═════
+const pq = (limit = 3, ms = 0, month = M): Any => ({ month, limit, now: at(ms) })
+await test("C10 — pool: poolTake até o limite; o seguinte ⇒ POOL_EXHAUSTED; poolGive devolve 1 (idempotente no zero); poolUsage lê; meses independentes", async () => each(async ({ name, make }) => {
+  const { store } = make()
+  assert.deepEqual(await store.poolUsage({ month: M }), { ok: true, used: 0 }, name)
+  for (let i = 0; i < 3; i += 1) assert.deepEqual(await store.poolTake(pq(3, i)), { ok: true }, `${name} #${i + 1}`)
+  assert.deepEqual(await store.poolTake(pq(3, 9)), { ok: false, code: "POOL_EXHAUSTED" }, name); assert.deepEqual(await store.poolUsage({ month: M }), { ok: true, used: 3 }, name)
+  assert.deepEqual(await store.poolGive({ month: M, now: at(10) }), { ok: true, applied: true }, name); assert.deepEqual(await store.poolTake(pq(3, 11)), { ok: true }, name)
+  assert.deepEqual(await store.poolTake(pq(3, 12, "2026-11")), { ok: true }, `${name}: outro mês`); assert.deepEqual(await store.poolUsage({ month: "2026-11" }), { ok: true, used: 1 }, name)
+  for (let i = 0; i < 5; i += 1) await store.poolGive({ month: "2026-11", now: at(20 + i) })
+  assert.deepEqual(await store.poolUsage({ month: "2026-11" }), { ok: true, used: 0 }, `${name}: nunca abaixo de 0`); assert.deepEqual(await store.poolGive({ month: "2026-11", now: at(30) }), { ok: true, applied: false }, name)
+}))
+
+await test("C11 — pool: 10 trabalhadores disputando limite 3 ⇒ EXATAMENTE 3 takes; o pool NÃO serializa (sem lease); o pool não aparece nos usuários e o expurgo de um usuário não o toca; userId reservado do pool é recusado nas reservas", async () => each(async ({ name, make }) => {
+  const { store } = make(); let ok = 0
+  await Promise.all(Array.from({ length: 10 }, async (_, i) => { for (let g = 0; g < 50; g += 1) { const r: Any = await store.poolTake(pq(3, i)); if (r.ok) { ok += 1; return } if (r.code === "POOL_EXHAUSTED") return; assert.fail(jstr(r)) } }))
+  assert.equal(ok, 3, name); assert.deepEqual(await store.poolUsage({ month: M }), { ok: true, used: 3 }, name)
+  assert.deepEqual(await store.deleteForUser(U1), { ok: true, deleted: 0 }, `${name}: o pool não é de usuário nenhum`); assert.deepEqual(await store.poolUsage({ month: M }), { ok: true, used: 3 }, name)
+  assert.deepEqual(await store.reserve(rq(FREE_POOL_USER_ID, "L1", 0)), { ok: false, code: "INVALID_ARGS" }, name); assert.deepEqual(await store.usage({ userId: FREE_POOL_USER_ID, month: M }), { ok: false, code: "INVALID_ARGS" }, name)
+  for (const patch of [{ month: "2026-13" }, { limit: 0 }, { limit: 1.5 }, { now: "ontem" }, { extra: 1 }]) assert.deepEqual(await store.poolTake({ ...pq(), ...patch }), { ok: false, code: "INVALID_ARGS" }, `${name}: ${jstr(patch)}`)
+  assert.deepEqual(await store.poolGive({ month: "x", now: at(0) }), { ok: false, code: "INVALID_ARGS" }, name); assert.deepEqual(await store.poolUsage({ month: "x" }), { ok: false, code: "INVALID_ARGS" }, name)
+}))
+
 // ═════ regras de negócio (withChatQuota, getChatUsage, deleteChatUsageForUser) ═════
 interface Clock { ms: number; deps: Any; store: Any }
 const mkDeps = (store: Any = createMemoryChatQuotaStore(), ms = 0): Clock => { let n = 0; const c: Clock = { ms, store, deps: null }; c.deps = { store, now: () => at(c.ms), newLeaseId: () => `L${(n += 1)}` }; return c }
 const okFn = async (): Promise<Any> => ({ ok: true, outcome: "ANSWERED", marker: "R" })
 
-await test("Q1 — PLAN_CHAT_QUOTAS: FREE 15, TRADER 100, PRO 300; inteiros positivos, crescentes, congelado", async () => {
-  assert.deepEqual({ ...PLAN_CHAT_QUOTAS }, { FREE: 15, TRADER: 100, PRO: 300 })
+await test("Q1 — PLAN_CHAT_QUOTAS: FREE 3 (o mínimo do mínimo), TRADER 100, PRO 300; pool global dos Free 300/mês; inteiros positivos, crescentes, congelado", async () => {
+  assert.deepEqual({ ...PLAN_CHAT_QUOTAS }, { FREE: 3, TRADER: 100, PRO: 300 })
+  assert.equal(FREE_CHAT_POOL_PER_MONTH, 300); assert.equal(FREE_POOL_USER_ID, "pool-free-chat")
   assert.ok(Object.isFrozen(PLAN_CHAT_QUOTAS)); assert.ok(PLAN_CHAT_QUOTAS.FREE < PLAN_CHAT_QUOTAS.TRADER && PLAN_CHAT_QUOTAS.TRADER < PLAN_CHAT_QUOTAS.PRO)
   for (const v of Object.values(PLAN_CHAT_QUOTAS) as number[]) assert.ok(Number.isInteger(v) && v > 0)
 })
@@ -193,7 +217,7 @@ await test("Q2 — mês civil em UTC: virada de ano, fuso ignorado; resetsAt = 1
 })
 
 await test("Q3 — no limite do plano ⇒ QUOTA_EXCEEDED com limit, used e suggestedPlan; a fn NÃO é chamada", async () => {
-  for (const [plan, limit, suggested] of [["FREE", 15, "TRADER"], ["TRADER", 100, "PRO"], ["PRO", 300, null]] as const) {
+  for (const [plan, limit, suggested] of [["FREE", 3, "TRADER"], ["TRADER", 100, "PRO"], ["PRO", 300, null]] as const) {
     const c = mkDeps(); let calls = 0
     for (let i = 0; i < limit; i += 1) { const r: Any = await withChatQuota(c.deps, { userId: U1, plan }, async () => { calls += 1; return okFn() }); assert.equal(r.ok, true, `${plan} #${i + 1}`); c.ms += 10 }
     const r: Any = await withChatQuota(c.deps, { userId: U1, plan }, async () => { calls += 1; return okFn() })
@@ -212,7 +236,7 @@ await test("Q4 — turno em andamento: 2ª chamada do MESMO usuário ⇒ TURN_IN
 })
 
 await test("Q5 — quem consome e quem devolve (D-C7): todos os códigos do turno", async () => {
-  const REFUND = ["INVALID_ARGS", "SALT_REQUIRED", "NOT_FOUND", "STORAGE_ERROR", "MODEL_ERROR"], CONSUME = ["TURN_CLOSED", "TURN_CONFLICT", "LIMIT_EXCEEDED", "COMMIT_REJECTED", "CODIGO_NOVO_DESCONHECIDO"]
+  const REFUND = ["INVALID_ARGS", "SALT_REQUIRED", "NOT_FOUND", "STORAGE_ERROR", "MODEL_ERROR", "BUSY"], CONSUME = ["TURN_CLOSED", "TURN_CONFLICT", "LIMIT_EXCEEDED", "COMMIT_REJECTED", "CODIGO_NOVO_DESCONHECIDO"]
   for (const [codes, expected] of [[REFUND, 0], [CONSUME, 1]] as const) for (const code of codes) {
     const c = mkDeps(); const r = await withChatQuota(c.deps, { userId: U1, plan: "TRADER" }, async () => ({ ok: false, code }))
     assert.deepEqual(r, { ok: false, code }, code); assert.deepEqual(await c.store.usage({ userId: U1, month: M }), { ok: true, used: expected }, `${code}: uso`)
@@ -241,18 +265,18 @@ await test("Q7 — a fn NÃO roda e NADA é gravado com plano/usuário inválido
 await test("Q8 — 50 chamadas paralelas do mesmo usuário: no máximo 1 fn por vez, nunca mais que o limite, nenhum resultado fora do conjunto permitido", async () => {
   const c = mkDeps(); let running = 0, maxRunning = 0, calls = 0
   const results: Any[] = await Promise.all(Array.from({ length: 50 }, async (_, i) => { await Promise.resolve(); c.ms = i; return withChatQuota(c.deps, { userId: U1, plan: "FREE" }, async () => { calls += 1; running += 1; maxRunning = Math.max(maxRunning, running); await Promise.resolve(); await Promise.resolve(); running -= 1; return okFn() }) }))
-  assert.equal(maxRunning, 1); assert.ok(calls >= 1 && calls <= 15, `fn rodou ${calls}×`)
+  assert.equal(maxRunning, 1); assert.ok(calls >= 1 && calls <= 3, `fn rodou ${calls}×`)
   for (const r of results) assert.ok(r.ok === true || ["TURN_IN_PROGRESS", "QUOTA_EXCEEDED"].includes(r.code), jstr(r))
-  const u: Any = await c.store.usage({ userId: U1, month: M }); assert.ok(u.used <= 15 && u.used === calls)
+  const u: Any = await c.store.usage({ userId: U1, month: M }); assert.ok(u.used <= 3 && u.used === calls)
 })
 
 await test("Q9 — o mês seguinte zera; usuários independentes; subir de plano libera na hora; descer NÃO apaga o uso (e bloqueia se já passou)", async () => {
-  const c = mkDeps(); for (let i = 0; i < 15; i += 1) { await withChatQuota(c.deps, { userId: U1, plan: "FREE" }, okFn); c.ms += 10 }
+  const c = mkDeps(); for (let i = 0; i < 3; i += 1) { await withChatQuota(c.deps, { userId: U1, plan: "FREE" }, okFn); c.ms += 10 }
   assert.equal(((await withChatQuota(c.deps, { userId: U1, plan: "FREE" }, okFn)) as Any).code, "QUOTA_EXCEEDED")
   assert.equal(((await withChatQuota(c.deps, { userId: U2, plan: "FREE" }, okFn)) as Any).ok, true, "outro usuário")
   assert.equal(((await withChatQuota(c.deps, { userId: U1, plan: "TRADER" }, okFn)) as Any).ok, true, "subir libera já")
   const d = mkDeps(); for (let i = 0; i < 50; i += 1) { await withChatQuota(d.deps, { userId: U1, plan: "TRADER" }, okFn); d.ms += 10 }
-  assert.deepEqual(await withChatQuota(d.deps, { userId: U1, plan: "FREE" }, okFn), { ok: false, code: "QUOTA_EXCEEDED", limit: 15, used: 50, suggestedPlan: "TRADER" })
+  assert.deepEqual(await withChatQuota(d.deps, { userId: U1, plan: "FREE" }, okFn), { ok: false, code: "QUOTA_EXCEEDED", limit: 3, used: 50, suggestedPlan: "TRADER" })
   assert.deepEqual(await d.store.usage({ userId: U1, month: M }), { ok: true, used: 50 })
   const e = mkDeps(); for (let i = 0; i < 300; i += 1) { await withChatQuota(e.deps, { userId: U1, plan: "PRO" }, okFn); e.ms += 10 }
   assert.equal(((await withChatQuota(e.deps, { userId: U1, plan: "FREE" }, okFn)) as Any).suggestedPlan, null, "nenhum plano acima comporta 300")
@@ -260,7 +284,7 @@ await test("Q9 — o mês seguinte zera; usuários independentes; subir de plano
 })
 
 await test("Q10 — apagar conversa e purgeUserData (LGPD) NÃO mexem no uso; só deleteChatUsageForUser (exclusão da conta) apaga", async () => {
-  const c = mkDeps(); for (let i = 0; i < 5; i += 1) { await withChatQuota(c.deps, { userId: U1, plan: "FREE" }, okFn); c.ms += 10 }
+  const c = mkDeps(); for (let i = 0; i < 5; i += 1) { await withChatQuota(c.deps, { userId: U1, plan: "TRADER" }, okFn); c.ms += 10 }
   const conversationStore = createMemoryConversationStore()
   const deps = { rawStorage: createMemoryRawFileStorage(), importStore: createMemoryImportSourceStore(), conversationStore, saltStore: createMemorySaltStore() }
   assert.equal(((await deleteConversation(deps, { userId: U1, conversationId: "cmd3h2k0a0000conv00000001" })) as Any).ok, true)
@@ -283,7 +307,7 @@ await test("Q11 — resultados sem userId, leaseId nem texto; QUOTA_EXCEEDED com
 
 await test("Q12 — getChatUsage: { used, limit, remaining, resetsAt }; remaining nunca negativo; plano inválido ⇒ INVALID_ARGS", async () => {
   const c = mkDeps(); await withChatQuota(c.deps, { userId: U1, plan: "FREE" }, okFn)
-  assert.deepEqual(await getChatUsage(c.deps, { userId: U1, plan: "FREE" }), { ok: true, used: 1, limit: 15, remaining: 14, resetsAt: "2026-11-01T00:00:00.000Z" })
+  assert.deepEqual(await getChatUsage(c.deps, { userId: U1, plan: "FREE" }), { ok: true, used: 1, limit: 3, remaining: 2, resetsAt: "2026-11-01T00:00:00.000Z" })
   const d = mkDeps(); for (let i = 0; i < 50; i += 1) { await withChatQuota(d.deps, { userId: U1, plan: "TRADER" }, okFn); d.ms += 10 }
   assert.equal(((await getChatUsage(d.deps, { userId: U1, plan: "FREE" })) as Any).remaining, 0)
   assert.deepEqual(await getChatUsage(c.deps, { userId: U1, plan: "X" as Any }), { ok: false, code: "INVALID_ARGS" })
@@ -298,6 +322,20 @@ await test("Q13 — os módulos da cota não têm relógio/aleatório de módulo
 })
 
 // ═════ adaptador Prisma (forma exata das chamadas) ═════
+await test("Q14 — pool do Free em withChatQuota: Free toma 1 do pool por turno; pool esgotado ⇒ FREE_POOL_EXHAUSTED {upgrade TRADER}, fn NÃO roda, o uso do usuário VOLTA e o lease é liberado; TRADER/PRO não tocam no pool; REFUND devolve ao pool, CONSUME mantém; falha do pool ⇒ STORAGE_ERROR sem rodar a fn", async () => {
+  const c = mkDeps(); await withChatQuota(c.deps, { userId: U1, plan: "FREE" }, okFn); assert.deepEqual(await c.store.poolUsage({ month: M }), { ok: true, used: 1 })
+  for (const plan of ["TRADER", "PRO"] as const) { const d = mkDeps(); await withChatQuota(d.deps, { userId: U2, plan }, okFn); assert.deepEqual(await d.store.poolUsage({ month: M }), { ok: true, used: 0 }, plan) }
+  const e = mkDeps(); await withChatQuota(e.deps, { userId: U1, plan: "FREE" }, async () => ({ ok: false, code: "MODEL_ERROR" })); assert.deepEqual(await e.store.poolUsage({ month: M }), { ok: true, used: 0 }, "REFUND devolve ao pool"); assert.deepEqual(await e.store.usage({ userId: U1, month: M }), { ok: true, used: 0 })
+  const f = mkDeps(); await withChatQuota(f.deps, { userId: U1, plan: "FREE" }, async () => ({ ok: false, code: "LIMIT_EXCEEDED" })); assert.deepEqual(await f.store.poolUsage({ month: M }), { ok: true, used: 1 }, "CONSUME mantém"); await withChatQuota(f.deps, { userId: U2, plan: "FREE" }, async () => { throw new Error("x") }); assert.deepEqual(await f.store.poolUsage({ month: M }), { ok: true, used: 1 }, "fn que lança devolve")
+  const g = mkDeps(); for (let i = 0; i < FREE_CHAT_POOL_PER_MONTH; i += 1) await g.store.poolTake({ month: M, limit: FREE_CHAT_POOL_PER_MONTH, now: at(i) }); let ran = 0
+  const r = await withChatQuota(g.deps, { userId: U1, plan: "FREE" }, async () => { ran += 1; return okFn() }); assert.deepEqual(r, { ok: false, code: "FREE_POOL_EXHAUSTED", upgrade: true, suggestedPlan: "TRADER" }); assert.equal(ran, 0)
+  assert.deepEqual(await g.store.usage({ userId: U1, month: M }), { ok: true, used: 0 }, "o uso volta"); assert.equal(((await withChatQuota(g.deps, { userId: U1, plan: "TRADER" }, okFn)) as Any).ok, true, "pagante segue (e o lease do Free foi liberado)")
+  const h = mkDeps(); const broken = { ...h.store, poolTake: async () => ({ ok: false, code: "STORAGE_ERROR" }) }; let ran2 = 0
+  assert.deepEqual(await withChatQuota(mkDeps(broken).deps, { userId: U1, plan: "FREE" }, async () => { ran2 += 1; return okFn() }), { ok: false, code: "STORAGE_ERROR" }); assert.equal(ran2, 0); assert.deepEqual(await h.store.usage({ userId: U1, month: M }), { ok: true, used: 0 })
+  const order = mkDeps(); for (let i = 0; i < 3; i += 1) { await withChatQuota(order.deps, { userId: U1, plan: "FREE" }, okFn); order.ms += 10 } const before = await order.store.poolUsage({ month: M })
+  assert.equal(((await withChatQuota(order.deps, { userId: U1, plan: "FREE" }, okFn)) as Any).code, "QUOTA_EXCEEDED"); assert.deepEqual(await order.store.poolUsage({ month: M }), before, "cota do usuário esgotada NÃO consome o pool")
+})
+
 await test("P1 — reserve = UM updateMany atômico: where { userId, month, used lt limite, OR [lease nulo, lease lt agora] }, data { used increment 1, leaseId, leaseUntil, updatedAt }", async () => {
   const f = fakeClient(); const s = createPrismaChatQuotaStore(f.client); await s.reserve(rq(U1, "L1", 0)); await s.reserve(rq(U1, "L2", CHAT_LEASE_MS + 5))
   const upd = f.log.filter((l) => l.method === "updateMany")
@@ -348,6 +386,18 @@ await test("P5 — QUALQUER falha do banco ⇒ STORAGE_ERROR sem eco (URL/mensag
   }
   { const g = fakeClient(); (g.client.aiChatUsage as Any).create = async () => { throw new Error("SECRET-DB-URL") }; const t = createPrismaChatQuotaStore(g.client); const r = await t.reserve(rq(U1, "L1", 0)); assert.deepEqual(r, { ok: false, code: "STORAGE_ERROR" }); assert.doesNotMatch(jstr(r), /SECRET/); assert.deepEqual(g.log.map((l) => l.method), ["updateMany", "findUnique"], "falha que não é P2002 não repete") }
   assert.throws(() => createPrismaChatQuotaStore({} as Any), TypeError); assert.throws(() => createPrismaChatQuotaStore(null as Any), TypeError)
+})
+
+await test("P7 — pool no Prisma: take = updateMany { userId do pool, month, used lt limite } com increment; linha ausente ⇒ findUnique → create { used 1, sem lease }; P2002 ⇒ repete UMA vez; give = updateMany { used gt 0 } com decrement; falhas ⇒ STORAGE_ERROR sem eco", async () => {
+  const f = fakeClient(); const s = createPrismaChatQuotaStore(f.client); await s.poolTake(pq(3, 0)); await s.poolTake(pq(3, 5)); await s.poolGive({ month: M, now: at(7) })
+  assert.deepEqual(f.log.map((l) => l.method), ["updateMany", "findUnique", "create", "updateMany", "updateMany"])
+  assert.deepEqual(f.log[0].args, { where: { userId: FREE_POOL_USER_ID, month: M, used: { lt: 3 } }, data: { used: { increment: 1 }, updatedAt: at(0) } })
+  assert.deepEqual(f.log[2].args, { data: { userId: FREE_POOL_USER_ID, month: M, used: 1, leaseId: null, leaseUntil: null, updatedAt: at(0) } })
+  assert.deepEqual(f.log[4].args, { where: { userId: FREE_POOL_USER_ID, month: M, used: { gt: 0 } }, data: { used: { decrement: 1 }, updatedAt: at(7) } })
+  const g = fakeClient(); const t = createPrismaChatQuotaStore(g.client); g.onCreate.fn = (): void => { g.rows.set(`${FREE_POOL_USER_ID}|${M}`, { userId: FREE_POOL_USER_ID, month: M, used: 1, leaseId: null, leaseUntil: null, updatedAt: at(0) }) }
+  assert.deepEqual(await t.poolTake(pq(3, 0)), { ok: true }); assert.deepEqual(g.log.map((l) => l.method), ["updateMany", "findUnique", "create", "updateMany"])
+  const h = fakeClient(); const u = createPrismaChatQuotaStore(h.client); h.failAll.on = true
+  for (const r of [await u.poolTake(pq()), await u.poolGive({ month: M, now: at(0) }), await u.poolUsage({ month: M })] as Any[]) { assert.deepEqual(r, { ok: false, code: "STORAGE_ERROR" }); assert.doesNotMatch(jstr(r), /SECRET|postgres|senha/) }
 })
 
 await test("P6 — schema e migração: modelo AiChatUsage (PK userId+month, sem relação), migração SÓ cria a tabela nova, modelos anteriores intactos, nenhum DROP/ALTER/DELETE", async () => {

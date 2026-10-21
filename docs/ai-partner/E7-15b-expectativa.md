@@ -47,3 +47,11 @@ Mutações previstas (EQ1…): tirar `used < limite`; ignorar o lease; `settle` 
 1. Mês civil UTC (D-C2) — ok?
 2. Contadores sobrevivem a "apagar meus dados de IA" e saem só com a conta (D-C8) — ok?
 3. Migration em produção (tabela nova, aditiva) só no Portão D, com backup, ensaio e seu OK.
+
+## 5. Emenda (21/10/2026) — plano Free no mínimo do mínimo (decisão do Marcelo)
+- **D-C1 revisada:** `PLAN_CHAT_QUOTAS.FREE` passa de 15 para **3** turnos/mês (uma "provinha"); Trader 100 e Pro 300 seguem provisórios.
+- **D-C12 Pool global do Free:** `FREE_CHAT_POOL_PER_MONTH = 300` turnos/mês para TODOS os usuários Free somados ⇒ teto fixo de gasto (≈ R$ 15–50/mês por estimativa), qualquer que seja o número de contas Free. Esgotado ⇒ `FREE_POOL_EXHAUSTED` (`upgrade:true, suggestedPlan:"TRADER"`).
+- **Mecânica:** o pool é uma linha da MESMA tabela `ai_chat_usage` (userId reservado `pool-free-chat`, mês, `used`, SEM lease): **nenhuma migração nova**. Novas operações do `ChatQuotaStore`: `poolTake({month,limit,now})` (atômica: `updateMany used < limite` com `increment`; linha ausente ⇒ `create`; P2002 ⇒ repete 1×), `poolGive({month,now})` (`used > 0`, `decrement`, idempotente) e `poolUsage({month})`. O userId do pool é RECUSADO nas reservas/uso de usuário e `deleteForUser` não o apaga.
+- **Ordem em `withChatQuota` (plano Free):** reserva do usuário primeiro (cota e lease); só então toma 1 do pool; se o pool falha ⇒ devolve a reserva do usuário (REFUND) e responde `FREE_POOL_EXHAUSTED`/`STORAGE_ERROR` SEM rodar a fn. Cota do usuário esgotada NÃO consome o pool. No REFUND o pool também recebe de volta; no CONSUME fica. Trader/Pro nunca tocam no pool.
+- **Códigos que devolvem a reserva:** `BUSY` entra na lista (a guarda global da Groq passa a rodar DENTRO do turno, depois da reserva, para que Free sem cota/pool nunca a consuma e nunca bloqueie pagantes).
+- Testes: C10–C11 (contrato do pool em memória, Prisma de mentira e ao vivo), Q14, P7; Q1, Q3, Q8, Q9, Q10, Q12 ajustados ao 3.
