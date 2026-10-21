@@ -65,6 +65,10 @@ export const PLAN_IMPORT_QUOTAS: Readonly<Record<PlanKey, Readonly<ImportQuota>>
   PRO: Object.freeze({ files: 100, bytes: 250 * MIB }),
 })
 
+// Cota MENSAL do chat do AI Partner (E7-15b, D-C1): turnos (uma pergunta = 1) por mês civil UTC. PONTO DE PARTIDA: o E7-15d mede o custo real por turno e ajusta.
+// Fica fora de PlanLimits de propósito (como PLAN_IMPORT_QUOTAS): é do AI Partner, não do restante do produto.
+export const PLAN_CHAT_QUOTAS: Readonly<Record<PlanKey, number>> = Object.freeze({ FREE: 15, TRADER: 100, PRO: 300 })
+
 // Ordem de "força" do plano — útil pra comparar (ex.: TRADER já é o suficiente?)
 export const PLAN_RANK: Record<PlanKey, number> = { FREE: 0, TRADER: 1, PRO: 2 }
 

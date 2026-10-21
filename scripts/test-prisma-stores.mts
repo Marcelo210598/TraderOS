@@ -82,7 +82,7 @@ await test("P1 — schema ADITIVO: o texto anterior ao marcador tem o MESMO sha2
   const at = s.indexOf(MARKER); assert.ok(at > 0, "marcador do E7-13 ausente")
   assert.equal(sha256(s.slice(0, at).trimEnd()), SCHEMA_BASELINE_SHA, "algo ANTES do marcador mudou (modelo/enum/campo legado ou o generator/datasource)")
   const added = s.slice(at)
-  assert.deepEqual([...added.matchAll(/^model (\w+) \{/gm)].map((m) => m[1]).sort(), ["AiConversation", "AiConversationDelta", "AiImportSource", "AiUserSalt"])
+  assert.deepEqual([...added.matchAll(/^model (\w+) \{/gm)].map((m) => m[1]).sort(), ["AiChatUsage" /* E7-15b: tabela aditiva de uso mensal do chat */, "AiConversation", "AiConversationDelta", "AiImportSource", "AiUserSalt"])
   assert.equal(/^enum /m.test(added), false, "nenhum enum novo"); assert.equal(/^(generator|datasource) /m.test(added), false)
   const block = (name: string): string => new RegExp(`^model ${name} \\{[\\s\\S]*?^\\}`, "m").exec(added)![0]
   for (const [name, table, pk] of [["AiUserSalt", "ai_user_salts", "userId, saltId"], ["AiImportSource", "ai_import_sources", "userId, fileSha256"], ["AiConversation", "ai_conversations", "userId, conversationId"], ["AiConversationDelta", "ai_conversation_deltas", "userId, conversationId, version"]]) {
@@ -103,7 +103,7 @@ await test("P2 — migração: UMA pasta nova (…add_ai_partner_storage); o .sq
   const mine = readdirSync(dir).filter((n) => statSync(`${dir}${n}`).isDirectory() && /add_ai_partner_storage/.test(n))
   assert.equal(mine.length, 1, "exatamente uma migração do E7-13")
   const parts: string[] = []
-  for (const n of readdirSync(dir).sort()) { if (mine.includes(n)) continue; const p = `${dir}${n}`; parts.push(`${n}\0${readFileSync(statSync(p).isDirectory() ? `${p}/migration.sql` : p, "utf8")}\0`) }
+  for (const n of readdirSync(dir).sort()) { if (mine.includes(n) || /add_ai_chat_usage$/.test(n) /* E7-15b: migração aditiva posterior, coberta pelo P6 do test-chat-quota */) continue; const p = `${dir}${n}`; parts.push(`${n}\0${readFileSync(statSync(p).isDirectory() ? `${p}/migration.sql` : p, "utf8")}\0`) }
   assert.equal(parts.length, 12, "11 migrações + migration_lock.toml"); assert.equal(sha256(parts.join("")), MIGRATIONS_BASELINE_SHA, "uma migração antiga mudou")
   const sql = readFileSync(`${dir}${mine[0]}/migration.sql`, "utf8")
   const withoutFkActions = sql.replace(/ON\s+(?:DELETE|UPDATE)\s+(?:CASCADE|RESTRICT|NO ACTION|SET NULL|SET DEFAULT)/gi, "") // as ações da FK não são comandos
@@ -215,8 +215,8 @@ await test("P5 — ESTÁTICA: os 3 adaptadores e a porta não importam @prisma/c
   const strip = (x: string): string => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1")
   const read = (p: string): string => strip(readFileSync(`${ROOT}${p}`, "utf8"))
   const importsOf = (code: string): string[] => [...code.matchAll(/^(?:import|export)\s[^"'\n]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1])
-  const files = ["prisma-port.ts", "prisma-salt-store.ts", "prisma-import-source-store.ts", "prisma-conversation-store.ts"]
-  const ALLOWED = ["./prisma-port.ts", "./salt-store.ts", "./import-source-store.ts", "./conversation-store.ts", "./raw-file-storage.ts", "./cipher.ts", "../domain/canonical.ts"]
+  const files = ["prisma-port.ts", "prisma-salt-store.ts", "prisma-import-source-store.ts", "prisma-conversation-store.ts", "prisma-chat-quota-store.ts" /* E7-15b */]
+  const ALLOWED = ["./prisma-port.ts", "./salt-store.ts", "./import-source-store.ts", "./conversation-store.ts", "./raw-file-storage.ts", "./cipher.ts", "../domain/canonical.ts", "./chat-quota-store.ts" /* E7-15b */]
   for (const f of files) {
     assert.equal(existsSync(`${ROOT}src/lib/infra/${f}`), true, f)
     const code = read(`src/lib/infra/${f}`)
