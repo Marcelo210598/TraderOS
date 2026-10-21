@@ -4,7 +4,6 @@
 import assert from "node:assert/strict"
 import { existsSync, readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { InMemorySaltKeyring } from "../src/lib/ingest/salt.ts"
 import { CHAT_USER_PER_MIN, GROQ_GLOBAL_TURNS_PER_MIN, MAX_CHAT_BODY_BYTES, TURN_DEADLINE_MS, handleChatPost, type AiPartnerChatCtx } from "../src/lib/infra/ai-partner-chat.ts"
 import { buildAiPartnerChatDeps } from "../src/lib/infra/ai-partner-chat-deps.ts"
 import { createMemoryChatQuotaStore } from "../src/lib/infra/chat-quota-store.ts"
@@ -63,7 +62,7 @@ function mkCtx(rig: Rig | null, o: { userId?: string | null; plan?: unknown; lim
     rateLimit: async (u) => { log.limited.push(u); return o.limit ?? { ok: true, retryAfterSec: 0 } },
     globalGuard: async () => { log.guard += 1; return o.guard ?? { ok: true, retryAfterSec: 0 } },
     deps: rig === null ? null : (o.deps ?? rig.deps),
-    makeModel: (deadlineAt: number) => { rig && (rig.calls.model += 1); log.models.push(deadlineAt); let n = 0; return { complete: async (req: Any) => { n += 1; log.requests.push(JSON.parse(JSON.stringify(req))); return (o.script ?? happy)(req, n) } } },
+    makeModel: (deadlineAt: number) => { if (rig !== null) rig.calls.model += 1; log.models.push(deadlineAt); let n = 0; return { complete: async (req: Any) => { n += 1; log.requests.push(JSON.parse(JSON.stringify(req))); return (o.script ?? happy)(req, n) } } },
     clock: { iso: () => ISO, ms: () => Date.parse(ISO) },
     newLeaseId: () => { lease += 1; log.leases.push(`T${lease}`); return `T${lease}` },
   } as Any
