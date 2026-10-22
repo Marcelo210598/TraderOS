@@ -364,7 +364,7 @@ await test("P2 — splitEmptyRows: linha com só a contagem e o resto indisponí
 await test("P3 — a tela usa o polimento: legenda das colunas em <details> 'O que significa cada coluna', 'Sem ocorrências:' para linhas vazias, o aviso de recálculo só com showIntro e as respostas anteriores passadas por `prior` (varredura do código-fonte)", () => {
   const scr = readFileSync(`${ROOT}src/components/ai-partner/ai-partner-screen.tsx`, "utf8"), lay = readFileSync(`${ROOT}src/components/ai-partner/answer-layout.tsx`, "utf8")
   for (const re of [/introState\(prior\)/, /showIntro && view\.banner\.verdict === "verified"/, /hideNotes=\{seenNotes\}/, /prior=\{state\.messages\.slice\(0, idx\)/]) assert.match(scr, re, String(re))
-  for (const re of [/<details/, /O que significa cada coluna/, /Sem ocorrências:/, /splitEmptyRows\(block\.rows\)/, /hideNotes\.has\(block\.text\)/, /block\.tone === "info"/, /block\.columns\.length > 5/]) assert.match(lay, re, String(re))
+  for (const re of [/<details/, /O que significa cada coluna/, /Sem ocorrências:/, /splitEmptyRows\(block\.rows\)/, /hideNotes\.has\(block\.text\)/, /block\.tone === "info"/, /block\.columns\.length > 5\b/]) assert.match(lay, re, String(re))
 })
 
 if (process.env.COLLECT) console.log(JSON.stringify({ passed, failed }))
