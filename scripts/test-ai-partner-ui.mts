@@ -16,7 +16,7 @@ const test = async (name: string, fn: () => Promise<void> | void): Promise<void>
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 // os módulos ainda não existem na fase vermelha: import tardio
 const load = async (f: string): Promise<Any> => import(`../src/lib/ai-partner-ui/${f}.ts`).catch(() => null)
-const mod = { view: await load("view"), errors: await load("errors"), chat: await load("chat-state"), guards: await load("guards"), transport: await load("transport") }
+const mod = { help: await load("help"), view: await load("view"), errors: await load("errors"), chat: await load("chat-state"), guards: await load("guards"), transport: await load("transport") }
 const need = (m: Any, name: string): Any => { assert.ok(m, `src/lib/ai-partner-ui/${name}.ts ainda não existe`); return m }
 const jstr = (x: unknown): string => JSON.stringify(x)
 const REF = `ev_${"a".repeat(32)}`
@@ -214,7 +214,7 @@ await test("U6d — importações: list ⇒ {ok,imports,usage}; upload ⇒ multi
 })
 
 await test("U6e — nenhuma dessas camadas tem dangerouslySetInnerHTML, innerHTML, eval, process.env, localStorage nem import dinâmico (varredura do código-fonte)", () => {
-  for (const f of ["view", "errors", "chat-state", "guards", "transport"]) {
+  for (const f of ["view", "errors", "chat-state", "guards", "transport", "help"]) {
     const src = readFileSync(`${ROOT}src/lib/ai-partner-ui/${f}.ts`, "utf8")
     assert.doesNotMatch(src.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, ""), /dangerouslySetInnerHTML|innerHTML|\beval\s*\(|new Function|localStorage|sessionStorage|\bimport\s*\(/, f)
   }
@@ -270,6 +270,37 @@ await test("L4 — nenhum e-mail real no repositório: o endereço do dono nunca
   try { if (readFileSync(`${ROOT}.env.example`, "utf8").toLowerCase().includes(owner)) hits.push(".env.example") } catch { /* sem .env.example */ }
   assert.deepEqual(hits, [])
   for (const f of ["src/lib/ai-partner-ui/guards.ts", "src/app/api/ai-partner/_ctx.ts", "src/app/(app)/ai-partner/page.tsx"]) assert.doesNotMatch(SRC(f), /[\w.+-]+@[\w-]+\.[a-z]{2,}/i, `${f} tem e-mail fixo`)
+})
+
+// ── instrução ao usuário (help.ts) ──
+await test("H1 — help: exemplos sem conselho/previsão (nenhum pede dica, comprar, vender, melhorar), ≤ 4000 caracteres e únicos; os 5 itens de ajuda cobrem independência das perguntas, escopo, limites, 'trade = ciclo' e selos; texto puro (sem HTML)", () => {
+  const h = need(mod.help, "help")
+  assert.ok(h.SUGGESTIONS.length >= 4 && new Set(h.SUGGESTIONS).size === h.SUGGESTIONS.length)
+  for (const q of h.SUGGESTIONS) { assert.ok(q.length > 5 && q.length <= 4000, q); assert.doesNotMatch(q, /dica|compr|vend|melhor(ar|e)\b|previs|devo|conselho|recomend/i, q) }
+  assert.equal(Object.isFrozen(h.SUGGESTIONS), true); assert.equal(Object.isFrozen(h.HELP_ITEMS), true)
+  const all = h.HELP_ITEMS.map((i: Any) => `${i.title} ${i.text}`).join(" | ")
+  assert.equal(h.HELP_ITEMS.length, 5)
+  for (const re of [/independente/i, /não lembro/i, /repita/i, /conselho/i, /ciclo de posição/i, /da entrada até a posição zerar/i, /27 linhas.*15 trades/i, /verificado/i]) assert.match(all, re, String(re))
+  assert.doesNotMatch(all, /[<>]|https?:|javascript:/i)
+})
+await test("H2 — isNoDataReply: sem valor e sem selo (recusa/fora de escopo/interrompida) ⇒ true; qualquer valor ou selo ⇒ false; entrada vinda de toBlocks", () => {
+  const h = need(mod.help, "help"), v = need(mod.view, "view")
+  const off = v.toBlocks({ segments: [{ kind: "text", text: "Só analiso os dados de trades que você importou." }], banner: { combined: null, label: "" }, stopReason: null })
+  assert.equal(h.isNoDataReply(off), true)
+  const stopped = v.toBlocks({ segments: [{ kind: "server_text", text: "Não consegui montar uma resposta confiável." }], banner: { combined: null, label: "" }, stopReason: "REGEN_EXHAUSTED" })
+  assert.equal(h.isNoDataReply(stopped), true)
+  const withValue = v.toBlocks({ segments: [{ kind: "value", text: "R$ 1,00", combined: "VERIFIED", mode: "ASSERT" }], banner: { combined: null, label: "" }, stopReason: null })
+  assert.equal(h.isNoDataReply(withValue), false)
+  const withBanner = v.toBlocks({ segments: [{ kind: "text", text: "x" }], banner: { combined: "NOT_VERIFIED", label: "Não verificado" }, stopReason: null })
+  assert.equal(h.isNoDataReply(withBanner), false)
+  const withNote = v.toBlocks({ segments: [{ kind: "text", text: "x" }, { kind: "phrase", code: "POPULATION_DECLARED", text: "Considerando a população declarada de 15 trades." }], banner: { combined: null, label: "" }, stopReason: null })
+  assert.equal(h.isNoDataReply(withNote), false, "nota (phrase) conta como conteúdo")
+})
+await test("H3 — a tela usa a instrução: chips das SUGGESTIONS e 'Como perguntar' no estado vazio e dentro da conversa, e as sugestões voltam abaixo de uma resposta sem dados (varredura do código-fonte)", () => {
+  const src = readFileSync(`${ROOT}src/components/ai-partner/ai-partner-screen.tsx`, "utf8")
+  for (const re of [/from "@\/lib\/ai-partner-ui\/help"/, /<HelpList \/>/, /Como perguntar/, /isNoDataReply\(m\.view\)/, /<Suggestions onPick=\{send\}/]) assert.match(src, re, String(re))
+  assert.equal((src.match(/<HelpList \/>/g) ?? []).length, 2, "estado vazio + dentro da conversa")
+  assert.doesNotMatch(src, /dangerouslySetInnerHTML/)
 })
 
 if (process.env.COLLECT) console.log(JSON.stringify({ passed, failed }))

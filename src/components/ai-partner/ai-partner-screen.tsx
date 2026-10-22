@@ -7,14 +7,8 @@ import Link from "next/link"
 import { canSend, chatReducer, initialChatState, MAX_QUESTION_CHARS, pendingConversationId, pendingQuestion } from "@/lib/ai-partner-ui/chat-state"
 import { errorView, type ErrorView } from "@/lib/ai-partner-ui/errors"
 import type { ImportRow, Transport } from "@/lib/ai-partner-ui/transport"
+import { HELP_ITEMS, SUGGESTIONS, isNoDataReply } from "@/lib/ai-partner-ui/help"
 import type { AnswerView, DisplayBlock, Verdict } from "@/lib/ai-partner-ui/view"
-
-const SUGGESTIONS = [
-  "Qual foi meu resultado e minha taxa de acerto?",
-  "Qual conta foi melhor?",
-  "Como estão minhas saídas por motivo?",
-  "Quantos trades fiz por hora do dia?",
-] as const
 
 const VERDICT_STYLE: Record<Verdict, { glyph: string; cls: string }> = {
   verified: { glyph: "✓", cls: "border-profit/40 bg-profit/10 text-profit" },
@@ -58,6 +52,32 @@ function AnswerBody({ view }: { view: AnswerView }) {
         </ul>
       ) : null}
       {view.stopped ? <p className="text-xs text-muted-foreground">A resposta foi interrompida por segurança. Reformule a pergunta.</p> : null}
+    </div>
+  )
+}
+
+function HelpList() {
+  return (
+    <dl className="space-y-2.5 text-sm">
+      {HELP_ITEMS.map((h) => (
+        <div key={h.title}>
+          <dt className="font-medium text-foreground">{h.title}</dt>
+          <dd className="text-muted-foreground">{h.text}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function Suggestions({ onPick, disabled }: { onPick: (q: string) => void; disabled: boolean }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {SUGGESTIONS.map((q) => (
+        <button key={q} type="button" disabled={disabled} onClick={() => onPick(q)}
+          className="min-h-9 rounded-full border border-border bg-background px-3 py-1 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50">
+          {q}
+        </button>
+      ))}
     </div>
   )
 }
@@ -152,15 +172,9 @@ export function AiPartnerScreen({ transport }: { transport: Transport }) {
           {state.messages.length === 0 && !state.pending ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Pergunte sobre os trades do arquivo que você enviou. Eu respondo só com números conferidos pelo motor, sem conselho de compra ou venda.</p>
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTIONS.map((s) => (
-                  <button key={s} type="button" disabled={!hasImports || state.pending} onClick={() => send(s)}
-                    className="min-h-9 rounded-full border border-border bg-background px-3 py-1 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50">
-                    {s}
-                  </button>
-                ))}
-              </div>
+              <Suggestions onPick={send} disabled={!hasImports || state.pending} />
               {!hasImports && imports !== null ? <p className="text-xs text-muted-foreground">Envie um CSV ao lado para liberar as perguntas.</p> : null}
+              <div className="rounded-lg border border-border bg-background p-3"><h2 className="mb-2 text-sm font-semibold text-foreground">Como perguntar</h2><HelpList /></div>
             </div>
           ) : null}
           {state.messages.map((m) =>
@@ -169,7 +183,10 @@ export function AiPartnerScreen({ transport }: { transport: Transport }) {
                 <p className="max-w-[85%] whitespace-pre-line break-words rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground">{m.text}</p>
               </div>
             ) : (
-              <div key={m.id} className="max-w-[95%] rounded-2xl rounded-bl-sm border border-border bg-background px-3 py-2.5 text-sm"><AnswerBody view={m.view} /></div>
+              <div key={m.id} className="max-w-[95%] space-y-2">
+                <div className="rounded-2xl rounded-bl-sm border border-border bg-background px-3 py-2.5 text-sm"><AnswerBody view={m.view} /></div>
+                {isNoDataReply(m.view) ? <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Perguntas que eu respondo (veja também “Como perguntar” abaixo):</p><Suggestions onPick={send} disabled={state.pending} /></div> : null}
+              </div>
             ),
           )}
           {state.pending ? (
@@ -179,6 +196,12 @@ export function AiPartnerScreen({ transport }: { transport: Transport }) {
           ) : null}
           {state.error ? <ErrorNotice key={state.nextId + state.error.code} error={state.error} onRetry={() => dispatch({ type: "retry" })} onNew={() => dispatch({ type: "newConversation" })} onImport={() => fileRef.current?.click()} /> : null}
         </div>
+        {state.messages.length > 0 ? (
+          <details className="border-t border-border px-3 pt-2 text-sm">
+            <summary className="min-h-9 cursor-pointer py-1.5 font-medium text-foreground focus-visible:outline-2 focus-visible:outline-ring">Como perguntar</summary>
+            <div className="max-h-56 overflow-y-auto pb-2"><HelpList /></div>
+          </details>
+        ) : null}
         <form className="border-t border-border p-3" onSubmit={(e) => { e.preventDefault(); send(draft) }}>
           <label htmlFor={inputId} className="sr-only">Sua pergunta</label>
           <div className="flex items-end gap-2">
