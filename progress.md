@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 22/10/2026 — AI Partner: E7-20 no ar (meutrade.app) + polimento das respostas (pós-feedback do teste logado) — origin intocado `eb8a28a`; polimento aguarda deploy
+Teste logado do layout: cartões e tabelas corretos (números batem com o CSV). Polimento só de tela: explicação ("valores recalculados", notas info) só na 1ª resposta da conversa (`introState`), legenda das colunas recolhida ("O que significa cada coluna"), linhas vazias das saídas resumidas ("Sem ocorrências: alvo, misto"; `splitEmptyRows`). `test:domain` verde, 32 testes de UI, mutações pegas (a de "mínimo de 2 células" exigiu reforço do teste).
+
 ## ✅ 22/10/2026 — AI Partner: E7-20 respostas em cartões e tabelas com explicação (medido ao vivo) — origin intocado `eb8a28a`; deploy pendente (Marcelo)
 Feedback do teste logado (selo em todo valor, texto corrido, saídas ilegíveis, sem explicação) ⇒ `src/lib/agent/layout.ts` (`buildLayout`, `METRIC_HELP`): estrutura da `view` + cada célula = `text`/`combined` do valor renderizado de mesmo (ref,path); sem número novo; falha ⇒ null (tela usa texto corrido); só na resposta HTTP (não gravado). 6 capacidades (cartões, tabela por grupo, ranking, 2 tabelas de saída, comparação). Tela: selo 1× no topo e só fora de "verificado" nas células, cartão por linha no celular, só negativo em vermelho. `test:domain` 1547 ✓, mutações pegas após reforço (equivalentes: valor duplicado no rendered, checagem de integridade redundante com o texto sem números, unit fora de LEG/TRADE barrada pelo esquema). AO VIVO (3 perguntas, 4.620 tokens, ~1.540/turno, 0 divergência de célula vs texto corrido).
 
