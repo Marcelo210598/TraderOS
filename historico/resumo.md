@@ -188,3 +188,4 @@ Lucid, FFF, Apex, Tradeify e Bulenox em `/mesas`. Cron vigia Lucid, FFF e Buleno
 - **AI Partner — 22/10/2026 (E7-17 corrigido)** — desempate por `id` no motor (bug intermitente do `compare` PERIOD por empate de saída × sal); 1506 ✓. Groq Developer indisponível por alta demanda; liberação do chat aguarda isso + teste logado.
 - **AI Partner — 22/10/2026 (E7-18 trava por e-mail)** — página e chat só para e-mails da lista (`AI_PARTNER_ALLOWED_EMAILS`) + `AI_PARTNER_UI=1`; 1510 ✓. Próximo: checklist de produção (snapshot Neon, 2 variáveis Vercel, deploy) só com OK do Marcelo.
 - **AI Partner — 22/10/2026 (teste logado em produção)** — funcionou ponta a ponta só para o e-mail do Marcelo; guarda global da Groq 1→4/min; falta novo deploy do ajuste e conferir números vs CSV.
+- **AI Partner — 22/10/2026 (instrução ao usuário)** — 'Como perguntar' + sugestões após recusa; números do teste logado conferidos contra o CSV. Próximo: deploy e avaliar memória entre perguntas.

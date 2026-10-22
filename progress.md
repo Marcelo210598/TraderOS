@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 22/10/2026 — AI Partner: instrução ao usuário na tela + números do teste logado conferidos contra o CSV — origin intocado `eb8a28a`
+Conferido contra o CSV (soma das linhas, oráculo do fixture): −US$ 1.041,90; 5 de 15 ciclos = 33,33% (por linhas seria 37,04%); período 24/09–01/10; 27 linhas ⇒ 15 trades. Tela: "Como perguntar" (5 avisos: perguntas independentes, escopo, limites, trade = ciclo, selos) no estado vazio e dentro da conversa; sugestões voltam abaixo de resposta sem dados. `test:domain` 1513 ✓, mutações 7/7. Pendente: deploy (guarda 4/min + instrução) pelo Marcelo; apagar arquivo na tela; memória entre perguntas (a estudar).
+
 ## ✅ 22/10/2026 — AI Partner: TESTE LOGADO EM PRODUÇÃO OK (meutrade.app/ai-partner, só e-mail do Marcelo) + guarda global 1→4 turnos/min — origin intocado `eb8a28a`
 Deploy `vercel deploy --prod` (Aliased meutrade.app) feito pelo Marcelo após snapshot Neon `backup-pre-ai-partner-ui-live` e vars `AI_PARTNER_UI`/`AI_PARTNER_ALLOWED_EMAILS`. Resultado: tela carrega (PRO), upload CSV NT8 ok, 1ª pergunta ⇒ "✓ Verificado" (−US$ 1.041,90; 33,33%; 15 trades; uso 1/300); 2ª pergunta barrada pela guarda global (1 turno/min, 429 BUSY, cota devolvida), retry ⇒ resposta fixa de fora de escopo (consome turno, uso 2/300, como desenhado). Sem 5xx nos logs. Ajuste: `GROQ_GLOBAL_TURNS_PER_MIN` 4 (turno ≈1,5K tokens × 4 < 8K/min). Falta: novo deploy do ajuste; apagar arquivo pela tela (Marcelo); conferir números contra o CSV; Groq Developer indisponível (alta demanda).
 
