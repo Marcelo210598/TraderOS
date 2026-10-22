@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 22/10/2026 — AI Partner: polimento no ar + correção de tabela larga (colunas cortadas no teste logado) — origin intocado `eb8a28a`; correção aguarda deploy
+Teste logado do polimento OK (1ª resposta completa; 2ª enxuta; legendas fechadas; 'Sem ocorrências'). Defeito visto no print: tabela 'Por conta' com 7 métricas cortada com rolagem lateral. Correção só de tela: 6+ colunas ⇒ um cartão por linha (2 por linha em tela larga), cabeçalhos quebram linha, bolha do layout ocupa a largura toda. `test:domain` verde, mutação coberta.
+
 ## ✅ 22/10/2026 — AI Partner: E7-20 no ar (meutrade.app) + polimento das respostas (pós-feedback do teste logado) — origin intocado `eb8a28a`; polimento aguarda deploy
 Teste logado do layout: cartões e tabelas corretos (números batem com o CSV). Polimento só de tela: explicação ("valores recalculados", notas info) só na 1ª resposta da conversa (`introState`), legenda das colunas recolhida ("O que significa cada coluna"), linhas vazias das saídas resumidas ("Sem ocorrências: alvo, misto"; `splitEmptyRows`). `test:domain` verde, 32 testes de UI, mutações pegas (a de "mínimo de 2 células" exigiu reforço do teste).
 
