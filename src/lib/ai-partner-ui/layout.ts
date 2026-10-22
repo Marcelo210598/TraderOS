@@ -70,3 +70,21 @@ export function toLayout(input: unknown): AnswerLayout | null {
     return null
   }
 }
+
+type TableBlock = Extract<LayoutBlock, { kind: "table" }>
+/** Linha "vazia": tem pelo menos 2 células e TODAS, menos a primeira (a contagem), são indisponíveis (nota). Ex.: motivo de saída sem ocorrência. */
+export const isEmptyRow = (r: TableBlock["rows"][number]): boolean => r.cells.length >= 2 && r.cells.slice(1).every((c) => c.note !== null)
+/** Separa as linhas com dado das vazias (que a tela resume numa linha só). Se TODAS forem vazias, nada é escondido. */
+export function splitEmptyRows(rows: TableBlock["rows"]): { readonly shown: TableBlock["rows"]; readonly empty: readonly string[] } {
+  const empty = rows.filter(isEmptyRow)
+  if (empty.length === 0 || empty.length === rows.length) return { shown: rows, empty: [] }
+  return { shown: rows.filter((r) => !isEmptyRow(r)), empty: empty.map((r) => r.label) }
+}
+
+/** Explicações que já apareceram em respostas ANTERIORES da conversa: a tela não as repete (só a 1ª resposta com layout leva a explicação inteira). */
+export function introState(prior: readonly { readonly layout: AnswerLayout | null }[]): { readonly showIntro: boolean; readonly seenNotes: ReadonlySet<string> } {
+  const seen = new Set<string>()
+  let any = false
+  for (const v of prior) { if (v.layout === null) continue; any = true; for (const b of v.layout.blocks) if (b.kind === "note" && b.tone === "info") seen.add(b.text) }
+  return { showIntro: !any, seenNotes: seen }
+}

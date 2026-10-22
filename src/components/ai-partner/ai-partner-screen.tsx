@@ -7,6 +7,7 @@ import Link from "next/link"
 import { canSend, chatReducer, initialChatState, MAX_QUESTION_CHARS, pendingConversationId, pendingQuestion } from "@/lib/ai-partner-ui/chat-state"
 import { errorView, type ErrorView } from "@/lib/ai-partner-ui/errors"
 import type { ImportRow, Transport } from "@/lib/ai-partner-ui/transport"
+import { introState } from "@/lib/ai-partner-ui/layout"
 import { AnswerLayoutView } from "./answer-layout"
 import { HELP_ITEMS, SUGGESTIONS, isNoDataReply } from "@/lib/ai-partner-ui/help"
 import type { AnswerView, DisplayBlock, Verdict } from "@/lib/ai-partner-ui/view"
@@ -34,7 +35,8 @@ function ValueChip({ block }: { block: Extract<DisplayBlock, { kind: "value" }> 
   )
 }
 
-function AnswerBody({ view }: { view: AnswerView }) {
+function AnswerBody({ view, prior }: { view: AnswerView; prior: readonly AnswerView[] }) {
+  const { showIntro, seenNotes } = introState(prior)
   const notes = view.blocks.filter((b): b is Extract<DisplayBlock, { kind: "note" }> => b.kind === "note")
   const flow = view.blocks.filter((b) => b.kind !== "note")
   const banner = view.banner ? (
@@ -42,14 +44,14 @@ function AnswerBody({ view }: { view: AnswerView }) {
       <p className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${VERDICT_STYLE[view.banner.verdict].cls}`}>
         <span aria-hidden="true">{VERDICT_STYLE[view.banner.verdict].glyph}</span>{view.banner.label}
       </p>
-      {view.layout && view.banner.verdict === "verified" ? <p className="text-xs text-muted-foreground">Todos os valores foram recalculados de forma independente a partir do seu arquivo.</p> : null}
+      {view.layout && showIntro && view.banner.verdict === "verified" ? <p className="text-xs text-muted-foreground">Todos os valores foram recalculados de forma independente a partir do seu arquivo.</p> : null}
     </div>
   ) : null
   if (view.layout) {
     return (
       <div className="space-y-3">
         {banner}
-        <AnswerLayoutView layout={view.layout} />
+        <AnswerLayoutView layout={view.layout} hideNotes={seenNotes} />
         {notes.length > 0 ? <ul className="space-y-1 border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">{notes.map((n, i) => <li key={i}>{n.text}</li>)}</ul> : null}
         {view.stopped ? <p className="text-xs text-muted-foreground">A resposta foi interrompida por segurança. Reformule a pergunta.</p> : null}
       </div>
@@ -192,14 +194,14 @@ export function AiPartnerScreen({ transport }: { transport: Transport }) {
               <div className="rounded-lg border border-border bg-background p-3"><h2 className="mb-2 text-sm font-semibold text-foreground">Como perguntar</h2><HelpList /></div>
             </div>
           ) : null}
-          {state.messages.map((m) =>
+          {state.messages.map((m, idx) =>
             m.role === "user" ? (
               <div key={m.id} className="flex justify-end">
                 <p className="max-w-[85%] whitespace-pre-line break-words rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground">{m.text}</p>
               </div>
             ) : (
               <div key={m.id} className="max-w-[95%] space-y-2">
-                <div className="rounded-2xl rounded-bl-sm border border-border bg-background px-3 py-2.5 text-sm"><AnswerBody view={m.view} /></div>
+                <div className="rounded-2xl rounded-bl-sm border border-border bg-background px-3 py-2.5 text-sm"><AnswerBody view={m.view} prior={state.messages.slice(0, idx).flatMap((x) => (x.role === "assistant" ? [x.view] : []))} /></div>
                 {isNoDataReply(m.view) ? <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Perguntas que eu respondo (veja também “Como perguntar” abaixo):</p><Suggestions onPick={send} disabled={state.pending} /></div> : null}
               </div>
             ),

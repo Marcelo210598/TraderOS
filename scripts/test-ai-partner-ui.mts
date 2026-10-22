@@ -340,5 +340,32 @@ await test("Y8c — a tela desenha o layout: componente AnswerLayoutView usado n
   for (const src of [scr, lay]) assert.doesNotMatch(src.replace(/\/\/.*$/gm, ""), /dangerouslySetInnerHTML|innerHTML|\beval\s*\(/)
 })
 
+// ── polimento da tela (E7-20b): sem repetição entre respostas, legendas recolhidas, linhas vazias resumidas ──
+await test("P1 — introState: a 1ª resposta com layout leva a explicação inteira; depois só o selo; notas 'info' já vistas não se repetem e as de 'caveat' sempre aparecem; respostas sem layout não contam", () => {
+  const l = need(mod.layout, "layout")
+  const lay = (notes: Array<[string, string]>) => l.toLayout({ blocks: [{ kind: "title", text: "T" }, ...notes.map(([text, tone]) => ({ kind: "note", text, tone }))] })
+  assert.deepEqual([l.introState([]).showIntro, [...l.introState([]).seenNotes]], [true, []])
+  assert.equal(l.introState([{ layout: null }, { layout: null }]).showIntro, true, "texto corrido não conta")
+  const a = lay([["Explicação A", "info"], ["Cuidado X", "caveat"]]), s1 = l.introState([{ layout: null }, { layout: a }])
+  assert.equal(s1.showIntro, false); assert.deepEqual([...s1.seenNotes], ["Explicação A"], "caveat nunca entra no 'já visto'")
+  const s2 = l.introState([{ layout: a }, { layout: lay([["Explicação B", "info"]]) }]); assert.deepEqual([...s2.seenNotes].sort(), ["Explicação A", "Explicação B"])
+})
+await test("P2 — splitEmptyRows: linha com só a contagem e o resto indisponível é 'vazia' e vai para o resumo; linhas com dado ficam; se TODAS forem vazias nada é escondido; tabela de 1 coluna nunca esconde", () => {
+  const l = need(mod.layout, "layout")
+  const cell = (text: string, note: string | null = null) => ({ text, verdict: "verified", note })
+  const row = (label: string, ...cells: Any[]) => ({ label, tag: null, cells })
+  const empty = row("alvo", cell("0"), cell("—", "sem ordens"), cell("—", "sem ordens")), full = row("stop", cell("6"), cell("-US$ 566,60"), cell("54,38%")), partial = row("manual", cell("4"), cell("—", "sem ordens"), cell("-6,64%"))
+  const r = l.splitEmptyRows([empty, full, partial, row("misto", cell("0"), cell("—", "x"), cell("—", "x"))])
+  assert.deepEqual(r.shown.map((x: Any) => x.label), ["stop", "manual"]); assert.deepEqual(r.empty, ["alvo", "misto"])
+  const all = [empty, row("misto", cell("0"), cell("—", "x"), cell("—", "x"))]; assert.deepEqual(l.splitEmptyRows(all), { shown: all, empty: [] })
+  const one = [row("a", cell("—", "sem")), row("b", cell("5"))]; assert.deepEqual(l.splitEmptyRows(one).empty, [], "1 coluna: não há 'contagem + resto'"); assert.equal(l.isEmptyRow(row("a", cell("—", "sem"))), false, "1 célula nunca é linha vazia"); assert.equal(l.isEmptyRow(empty), true)
+  assert.deepEqual(l.splitEmptyRows([full]), { shown: [full], empty: [] })
+})
+await test("P3 — a tela usa o polimento: legenda das colunas em <details> 'O que significa cada coluna', 'Sem ocorrências:' para linhas vazias, o aviso de recálculo só com showIntro e as respostas anteriores passadas por `prior` (varredura do código-fonte)", () => {
+  const scr = readFileSync(`${ROOT}src/components/ai-partner/ai-partner-screen.tsx`, "utf8"), lay = readFileSync(`${ROOT}src/components/ai-partner/answer-layout.tsx`, "utf8")
+  for (const re of [/introState\(prior\)/, /showIntro && view\.banner\.verdict === "verified"/, /hideNotes=\{seenNotes\}/, /prior=\{state\.messages\.slice\(0, idx\)/]) assert.match(scr, re, String(re))
+  for (const re of [/<details/, /O que significa cada coluna/, /Sem ocorrências:/, /splitEmptyRows\(block\.rows\)/, /hideNotes\.has\(block\.text\)/, /block\.tone === "info"/]) assert.match(lay, re, String(re))
+})
+
 if (process.env.COLLECT) console.log(JSON.stringify({ passed, failed }))
 else console.log(`\n${passed} testes ✓`)
