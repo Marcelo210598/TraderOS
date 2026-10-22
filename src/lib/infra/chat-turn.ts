@@ -6,6 +6,7 @@ import { CAPABILITY_LABELS } from "../agent/catalog.ts"
 import type { CapabilityId } from "../agent/contract.ts"
 import { composeAnswer, composeOffScope } from "../agent/composer.ts"
 import { renderAnswer, type RenderedAnswer } from "../agent/render.ts"
+import { buildLayout } from "../agent/layout.ts"
 import { MEMORY_HEADER, MEMORY_INSTRUCTION, MEMORY_MAX_CHARS, buildMemory } from "../agent/memory.ts"
 import { systemPromptFor } from "../agent/system-prompt.ts"
 import { notices, validatorStop } from "../agent/turn.ts"
@@ -64,10 +65,12 @@ export interface ChatTurnRequest {
   readonly compose?: typeof composeAnswer
   /** Memória curta injetável (testes simulam falha); padrão: `buildMemory`. Síncrona: qualquer coisa que não seja um texto válido vira "sem memória". */
   readonly memory?: (messages: readonly unknown[], specOf: (ref: string) => unknown) => unknown
+  /** Layout (cartões/tabelas, E7-20) injetável (testes simulam falha); padrão: `buildLayout`. Só sai na resposta HTTP, nunca na conversa gravada. */
+  readonly layout?: (input: { readonly ledger: unknown; readonly refs: readonly string[] }, rendered: unknown) => unknown
 }
 export type ChatTurnCode = OpenTurnCode | CommitCode | "MODEL_ERROR" | "COMPOSE_FAILED"
 export type ChatTurnResult =
-  | { readonly ok: true; readonly conversationId: string; readonly version: number; readonly outcome: "ANSWERED" | "STOPPED"; readonly response: RenderedAnswer; readonly tokens: number; readonly modelCalls: number }
+  | { readonly ok: true; readonly conversationId: string; readonly version: number; readonly outcome: "ANSWERED" | "STOPPED"; readonly response: RenderedAnswer; /** E7-20: cartões/tabelas (ou null) — só na resposta HTTP */ readonly layout: unknown; readonly tokens: number; readonly modelCalls: number }
   | { readonly ok: false; readonly code: ChatTurnCode }
 
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x)
@@ -86,11 +89,12 @@ export async function runChatTurn(req: ChatTurnRequest): Promise<ChatTurnResult>
     if (req.onStep !== undefined && typeof req.onStep !== "function") return fail("INVALID_ARGS")
     if (req.compose !== undefined && typeof req.compose !== "function") return fail("INVALID_ARGS")
     if (req.memory !== undefined && typeof req.memory !== "function") return fail("INVALID_ARGS")
+    if (req.layout !== undefined && typeof req.layout !== "function") return fail("INVALID_ARGS")
     const question = req.question
     if (typeof question !== "string") return fail("INVALID_ARGS")
     const opened = await openTurn(req.deps, { userId: req.userId, conversationId: req.conversationId, pin: req.pin, userMessage: question })
     if (!opened.ok) return fail(opened.code)
-    return await drive(opened.session, req.model, question, req.onStep, req.compose ?? composeAnswer, req.memory ?? buildMemory)
+    return await drive(opened.session, req.model, question, req.onStep, req.compose ?? composeAnswer, req.memory ?? buildMemory, req.layout ?? buildLayout)
   } catch {
     return fail("STORAGE_ERROR")
   }
@@ -118,24 +122,26 @@ function memoryFor(session: TurnSession, memory: NonNullable<ChatTurnRequest["me
   }
 }
 
-async function drive(session: TurnSession, model: ModelPort, question: string, onStep: ChatTurnRequest["onStep"], compose: typeof composeAnswer, memory: NonNullable<ChatTurnRequest["memory"]>): Promise<ChatTurnResult> {
+async function drive(session: TurnSession, model: ModelPort, question: string, onStep: ChatTurnRequest["onStep"], compose: typeof composeAnswer, memory: NonNullable<ChatTurnRequest["memory"]>, layout: NonNullable<ChatTurnRequest["layout"]>): Promise<ChatTurnResult> {
   const step = async (s: ChatStep): Promise<void> => { try { await onStep?.(s) } catch { /* o progresso é cortesia: nunca derruba o turno */ } }
   const mem = memoryFor(session, memory)
   const messages: ChatMessage[] = [{ role: "system", content: systemPromptFor(await session.dataPeriod()) + (mem === null ? "" : `\n\n${MEMORY_INSTRUCTION}\n${mem}`) }, { role: "user", content: question }]
   let tokens = 0, modelCalls = 0
 
-  const finish = async (outcome: "ANSWERED" | "STOPPED", response: RenderedAnswer): Promise<ChatTurnResult> => {
+  const finish = async (outcome: "ANSWERED" | "STOPPED", response: RenderedAnswer, layoutOf: unknown = null): Promise<ChatTurnResult> => {
     const c = await session.commit()
-    return c.ok ? { ok: true, conversationId: session.conversationId, version: c.version, outcome, response, tokens, modelCalls } : fail(c.code)
+    return c.ok ? { ok: true, conversationId: session.conversationId, version: c.version, outcome, response, layout: layoutOf, tokens, modelCalls } : fail(c.code)
   }
+  /** D-Y3: o layout é cortesia visual; qualquer falha ⇒ null (a tela usa o texto corrido). */
+  const layoutFor = (refs: readonly string[], rendered: RenderedAnswer): unknown => { try { return refs.length === 0 ? null : (layout({ ledger: session.ledger(), refs }, rendered) ?? null) } catch { return null } }
   /** Valida (auto-checagem) e comita uma resposta feita pelo servidor; qualquer recusa é bug nosso: COMPOSE_FAILED, sem regerar. */
-  const answer = async (made: unknown): Promise<ChatTurnResult> => {
+  const answer = async (made: unknown, refs: readonly string[] = []): Promise<ChatTurnResult> => {
     await step({ kind: "validating" })
     const verdict = await session.validate(made, question)
     if (!verdict.ok) return fail("action" in verdict ? "COMPOSE_FAILED" : "TURN_CLOSED")
     const state = session.state()
     const rendered = renderAnswer({ answer: made, ledger: session.ledger(), notices: notices(state), stop: validatorStop(state), question })
-    return rendered.ok ? finish("ANSWERED", rendered.rendered) : fail("COMPOSE_FAILED")
+    return rendered.ok ? finish("ANSWERED", rendered.rendered, layoutFor(refs, rendered.rendered)) : fail("COMPOSE_FAILED")
   }
   const failureStop = async (): Promise<ChatTurnResult> => {
     const stopped = await session.stopWithFailure()
@@ -163,7 +169,7 @@ async function drive(session: TurnSession, model: ModelPort, question: string, o
     if (refs.length > 0) {
       let composed: ReturnType<typeof composeAnswer>
       try { composed = compose({ ledger: session.ledger(), refs }) } catch { return fail("COMPOSE_FAILED") }
-      return composed.ok ? answer(composed.answer) : fail("COMPOSE_FAILED")
+      return composed.ok ? answer(composed.answer, refs) : fail("COMPOSE_FAILED")
     }
     // nada deu certo: reparo SÓ se todas falharam por ARGS_INVALID e ainda há chamada e orçamento (D-S1)
     if (results.every((r) => r.argsInvalid) && modelCalls < MAX_MODEL_CALLS_PER_TURN && tokens < MAX_TOKENS_PER_TURN) {

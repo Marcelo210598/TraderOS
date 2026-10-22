@@ -27,8 +27,8 @@ const MEMBER_ASSIGN = /\.combined\s*=(?!=)/
 const CAST = /\bas\s+(?:Verdict|EvidenceHandle)\b/
 
 test("G0 — o varredor enxerga o diretório (verdict.ts, contract.ts, views.ts, phrases.ts) e as regexes pegam o que devem (sanidade do próprio guarda)", () => {
-  // E6.6-1/2a/2b: format.ts, label.ts, slot-path.ts, ledger.ts, validate-structure.ts, lexicon.ts, validate-text.ts, validate-answer.ts, catalog.ts, turn.ts, render.ts, composer.ts (E7-16) e memory.ts (E7-19) entraram no diretório; a lista exata continua travada (arquivo novo sem aviso derruba este teste) e G1–G3 passam a varrê-los.
-  assert.deepEqual(files.map((f) => f.name).sort(), ["catalog.ts", "composer.ts", "contract.ts", "format.ts", "label.ts", "ledger.ts", "lexicon.ts", "memory.ts", "phrases.ts", "render.ts", "slot-path.ts", "system-prompt.ts", "turn.ts", "validate-answer.ts", "validate-structure.ts", "validate-text.ts", "verdict.ts", "views.ts"])
+  // E6.6-1/2a/2b: format.ts, label.ts, slot-path.ts, ledger.ts, validate-structure.ts, lexicon.ts, validate-text.ts, validate-answer.ts, catalog.ts, turn.ts, render.ts, composer.ts (E7-16), memory.ts (E7-19) e layout.ts (E7-20) entraram no diretório; a lista exata continua travada (arquivo novo sem aviso derruba este teste) e G1–G3 passam a varrê-los.
+  assert.deepEqual(files.map((f) => f.name).sort(), ["catalog.ts", "composer.ts", "contract.ts", "format.ts", "label.ts", "layout.ts", "ledger.ts", "lexicon.ts", "memory.ts", "phrases.ts", "render.ts", "slot-path.ts", "system-prompt.ts", "turn.ts", "validate-answer.ts", "validate-structure.ts", "validate-text.ts", "verdict.ts", "views.ts"])
   for (const bad of ['{ combined: "VERIFIED" }', "{ combined:'NOT_VERIFIED' }", "{ combined: `TAMPERED_OR_MISMATCH` }", 'x.combined = "VERIFIED_PARTIAL"', 'x["combined"] = y', "{ \"combined\": \"VERIFIED\" }"]) {
     assert.ok(ASSIGN_LITERAL.test(bad) || INDEX_ASSIGN.test(bad) || MEMBER_ASSIGN.test(bad), `regex não pegou: ${bad}`)
   }

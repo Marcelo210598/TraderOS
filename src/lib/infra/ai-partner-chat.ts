@@ -133,7 +133,7 @@ export async function handleChatPost(ctx: AiPartnerChatCtx, req: Request): Promi
 
     if (outcome.ok === true) {
       const usage = await getChatUsage(quotaDeps, { userId, plan })
-      return json(200, { ok: true, conversationId: outcome.conversationId, outcome: outcome.outcome, response: outcome.response, usage: usage.ok ? { used: usage.used, limit: usage.limit, remaining: usage.remaining } : null })
+      return json(200, { ok: true, conversationId: outcome.conversationId, outcome: outcome.outcome, response: outcome.layout === null || outcome.layout === undefined ? outcome.response : { ...(outcome.response as object), layout: outcome.layout }, usage: usage.ok ? { used: usage.used, limit: usage.limit, remaining: usage.remaining } : null })
     }
     switch (outcome.code) {
       case "QUOTA_EXCEEDED": return fail(403, "QUOTA_EXCEEDED", { upgrade: true, limit: outcome.limit, used: outcome.used, suggestedPlan: outcome.suggestedPlan })

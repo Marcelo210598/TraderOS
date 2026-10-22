@@ -16,7 +16,7 @@ const test = async (name: string, fn: () => Promise<void> | void): Promise<void>
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 // os módulos ainda não existem na fase vermelha: import tardio
 const load = async (f: string): Promise<Any> => import(`../src/lib/ai-partner-ui/${f}.ts`).catch(() => null)
-const mod = { help: await load("help"), view: await load("view"), errors: await load("errors"), chat: await load("chat-state"), guards: await load("guards"), transport: await load("transport") }
+const mod = { layout: await load("layout"), help: await load("help"), view: await load("view"), errors: await load("errors"), chat: await load("chat-state"), guards: await load("guards"), transport: await load("transport") }
 const need = (m: Any, name: string): Any => { assert.ok(m, `src/lib/ai-partner-ui/${name}.ts ainda não existe`); return m }
 const jstr = (x: unknown): string => JSON.stringify(x)
 const REF = `ev_${"a".repeat(32)}`
@@ -301,6 +301,43 @@ await test("H3 — a tela usa a instrução: chips das SUGGESTIONS e 'Como pergu
   for (const re of [/from "@\/lib\/ai-partner-ui\/help"/, /<HelpList \/>/, /Como perguntar/, /isNoDataReply\(m\.view\)/, /<Suggestions onPick=\{send\}/]) assert.match(src, re, String(re))
   assert.equal((src.match(/<HelpList \/>/g) ?? []).length, 2, "estado vazio + dentro da conversa")
   assert.doesNotMatch(src, /dangerouslySetInnerHTML/)
+})
+
+// ── E7-20: contrato do layout (formato do servidor) ──
+const WC = (text: string, combined = "VERIFIED", note: string | null = null): Any => ({ text, combined, note })
+const WIRE = (): Any => ({ blocks: [
+  { kind: "title", text: "Resultado por conta" },
+  { kind: "line", parts: [{ text: "Período: " }, { cell: WC("24/09/2026") }, { text: " a " }, { cell: WC("01/10/2026") }] },
+  { kind: "stats", items: [{ label: "Resultado após custos", help: "Soma dos ganhos e perdas.", cell: WC("-US$ 1.041,90") }, { label: "Taxa", help: null, cell: WC("33,33%", "NOT_VERIFIED") }] },
+  { kind: "table", caption: "Por trade", columns: [{ label: "Trades", help: null }, { label: "Resultado", help: "ajuda" }], rows: [{ label: "Conta A", tag: "amostra pequena", cells: [WC("8"), WC("—", "VERIFIED", "sem trades nesse motivo")] }] },
+  { kind: "note", text: "Mostrando só os primeiros grupos; refine o filtro para ver o resto.", tone: "caveat" },
+] })
+await test("Y8a — toLayout aceita o formato do SERVIDOR (combined do contrato, bloco line, note com tone) e mapeia para as palavras da tela; saída congelada; toBlocks carrega o layout e ignora o ausente", () => {
+  const l = need(mod.layout, "layout"), v = need(mod.view, "view")
+  const out = l.toLayout(WIRE()); assert.ok(out, "layout válido recusado")
+  assert.equal(out.blocks.length, 5); assert.equal(out.blocks[1].kind, "line"); assert.equal(out.blocks[1].parts[1].cell.verdict, "verified"); assert.equal(out.blocks[2].items[1].cell.verdict, "unverified")
+  assert.equal(out.blocks[3].rows[0].cells[1].note, "sem trades nesse motivo"); assert.equal(Object.isFrozen(out), true); assert.equal(Object.isFrozen(out.blocks[3].rows[0].cells[0]), true)
+  for (const [c, w] of [["VERIFIED", "verified"], ["VERIFIED_PARTIAL", "partial"], ["NOT_VERIFIED", "unverified"], ["TAMPERED_OR_MISMATCH", "mismatch"]]) { const x = WIRE(); x.blocks[2].items[0].cell.combined = c; assert.equal(l.toLayout(x).blocks[2].items[0].cell.verdict, w, c) }
+  const base = { segments: [{ kind: "text", text: "x" }], banner: { combined: "VERIFIED", label: "Verificado" }, stopReason: null }
+  assert.equal(v.toBlocks(base).layout, null); assert.equal(v.toBlocks({ ...base, layout: WIRE() }).layout.blocks.length, 5)
+  assert.equal(v.toBlocks({ ...base, layout: { blocks: "x" } }).layout, null, "layout malformado não derruba a resposta: cai no texto corrido")
+})
+await test("Y8b — toLayout recusa (⇒ null, sem lançar): veredito desconhecido (inclusive as palavras da tela), part com text E cell ou sem nenhum, bloco/kind/tone desconhecidos, tabela com linha de tamanho ≠ colunas, vazios, limites (≤30 blocos, ≤60 linhas, ≤12 colunas), texto enorme, campo extra", () => {
+  const l = need(mod.layout, "layout")
+  assert.ok(l.toLayout(WIRE()), "a base válida precisa ser aceita (senão as recusas abaixo seriam vazias)")
+  const bad = (mut: (x: Any) => void): void => { const x = WIRE(); mut(x); assert.equal(l.toLayout(x), null, JSON.stringify(x).slice(0, 80)) }
+  for (const v of ["verified", "VERIFIEDD", "", 5, null]) bad((x) => (x.blocks[2].items[0].cell.combined = v))
+  bad((x) => (x.blocks[1].parts[0] = { text: "a", cell: WC("1") })); bad((x) => (x.blocks[1].parts[0] = {})); bad((x) => (x.blocks[1].parts = []))
+  bad((x) => (x.blocks[0].kind = "chart")); bad((x) => (x.blocks[4].tone = "alert")); bad((x) => (x.blocks[3].rows[0].cells = [WC("8")])); bad((x) => (x.blocks[3].columns = [])); bad((x) => (x.blocks[3].rows = []))
+  bad((x) => (x.blocks = Array.from({ length: 31 }, () => ({ kind: "title", text: "t" })))); bad((x) => (x.blocks[3].rows = Array.from({ length: 61 }, () => ({ label: "a", tag: null, cells: [WC("1"), WC("2")] }))))
+  bad((x) => (x.blocks[3].columns = Array.from({ length: 13 }, (_, i) => ({ label: `c${i}`, help: null })))); bad((x) => (x.blocks[0].text = "t".repeat(401))); bad((x) => (x.blocks[0].extra = 1)); bad((x) => (x.blocks[2].items[0].cell.extra = 1))
+  for (const junk of [null, undefined, 5, "x", [], {}, { blocks: [] }, { blocks: [null] }, { blocks: 5 }]) assert.equal(l.toLayout(junk), null, jstr(junk))
+})
+await test("Y8c — a tela desenha o layout: componente AnswerLayoutView usado no AnswerBody, selo só fora de VERIFIED, 1 único aviso de 'valores recalculados', sem HTML cru (varredura do código-fonte)", () => {
+  const scr = readFileSync(`${ROOT}src/components/ai-partner/ai-partner-screen.tsx`, "utf8"), lay = readFileSync(`${ROOT}src/components/ai-partner/answer-layout.tsx`, "utf8")
+  assert.match(scr, /<AnswerLayoutView layout=\{view\.layout\}/); assert.match(scr, /if \(view\.layout\)/)
+  assert.match(lay, /cell\.verdict === "verified" \? null/, "selo só quando foge de verificado"); assert.match(lay, /block\.kind === "line"/)
+  for (const src of [scr, lay]) assert.doesNotMatch(src.replace(/\/\/.*$/gm, ""), /dangerouslySetInnerHTML|innerHTML|\beval\s*\(/)
 })
 
 if (process.env.COLLECT) console.log(JSON.stringify({ passed, failed }))

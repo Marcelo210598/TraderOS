@@ -7,6 +7,7 @@ import Link from "next/link"
 import { canSend, chatReducer, initialChatState, MAX_QUESTION_CHARS, pendingConversationId, pendingQuestion } from "@/lib/ai-partner-ui/chat-state"
 import { errorView, type ErrorView } from "@/lib/ai-partner-ui/errors"
 import type { ImportRow, Transport } from "@/lib/ai-partner-ui/transport"
+import { AnswerLayoutView } from "./answer-layout"
 import { HELP_ITEMS, SUGGESTIONS, isNoDataReply } from "@/lib/ai-partner-ui/help"
 import type { AnswerView, DisplayBlock, Verdict } from "@/lib/ai-partner-ui/view"
 
@@ -36,13 +37,27 @@ function ValueChip({ block }: { block: Extract<DisplayBlock, { kind: "value" }> 
 function AnswerBody({ view }: { view: AnswerView }) {
   const notes = view.blocks.filter((b): b is Extract<DisplayBlock, { kind: "note" }> => b.kind === "note")
   const flow = view.blocks.filter((b) => b.kind !== "note")
+  const banner = view.banner ? (
+    <div className="space-y-1">
+      <p className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${VERDICT_STYLE[view.banner.verdict].cls}`}>
+        <span aria-hidden="true">{VERDICT_STYLE[view.banner.verdict].glyph}</span>{view.banner.label}
+      </p>
+      {view.layout && view.banner.verdict === "verified" ? <p className="text-xs text-muted-foreground">Todos os valores foram recalculados de forma independente a partir do seu arquivo.</p> : null}
+    </div>
+  ) : null
+  if (view.layout) {
+    return (
+      <div className="space-y-3">
+        {banner}
+        <AnswerLayoutView layout={view.layout} />
+        {notes.length > 0 ? <ul className="space-y-1 border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">{notes.map((n, i) => <li key={i}>{n.text}</li>)}</ul> : null}
+        {view.stopped ? <p className="text-xs text-muted-foreground">A resposta foi interrompida por segurança. Reformule a pergunta.</p> : null}
+      </div>
+    )
+  }
   return (
     <div className="space-y-2">
-      {view.banner ? (
-        <p className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${VERDICT_STYLE[view.banner.verdict].cls}`}>
-          <span aria-hidden="true">{VERDICT_STYLE[view.banner.verdict].glyph}</span>{view.banner.label}
-        </p>
-      ) : null}
+      {banner}
       <p className="whitespace-pre-line break-words leading-relaxed text-foreground">
         {flow.map((b, i) => (b.kind === "value" ? <ValueChip key={i} block={b} /> : <span key={i}>{b.kind === "text" ? b.text : ""}</span>))}
       </p>

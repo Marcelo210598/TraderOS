@@ -287,5 +287,23 @@ await test("S2 — TurnSession.stopWithFailure: resposta canônica de falha (CAP
   assert.deepEqual(await s.stopWithFailure(), { ok: false, code: "TURN_CLOSED" })
 })
 
+await test("Y7a — E7-20: turno respondido com consulta devolve `layout` (cartões/tabelas) cujas células batem com o texto corrido; recusa/fora de escopo e resposta interrompida ⇒ layout null; a conversa gravada NÃO contém layout", async () => {
+  const e = await env(); const f = fake(() => calls(["metrics_query", Q])); const r = await run(e, f, { question: "Qual foi meu resultado e minha taxa de acerto?" })
+  assert.equal(r.ok, true, r.code); assert.ok(r.layout && Array.isArray(r.layout.blocks) && r.layout.blocks.length > 0, "layout presente")
+  const values = (r.response.segments as Any[]).filter((s) => s.kind === "value"); const cells: Any[] = []
+  for (const b of r.layout.blocks) { if (b.kind === "stats") b.items.forEach((i: Any) => cells.push(i.cell)); if (b.kind === "line") b.parts.forEach((p: Any) => p.cell && cells.push(p.cell)) }
+  assert.ok(cells.length >= 2); for (const c of cells) assert.ok(values.some((v: Any) => (c.note === null ? v.text === c.text : v.text.startsWith("indisponível")) && v.combined === c.combined), `célula sem valor correspondente: ${jstr(c)}`)
+  const stored = jstr(await messagesOf(e, r.conversationId)); assert.doesNotMatch(stored, /"layout"|"blocks"|"kind":"table"/, "o layout não é gravado")
+  const eOff = await env(); const rOff = await run(eOff, fake(() => text("oi")), { question: "Alguma dica?" }); assert.equal(rOff.ok, true); assert.equal(rOff.layout, null)
+  const eStop = await env(); const rStop = await run(eStop, fake(() => calls(BAD_ARGS)), { question: "x" }); assert.equal(rStop.outcome, "STOPPED"); assert.equal(rStop.layout, null)
+})
+
+await test("Y7b — E7-20: falha ao montar o layout NÃO derruba o turno (ANSWERED sem layout); o texto corrido continua igual", async () => {
+  const e = await env(); const base = await run(e, fake(() => calls(["metrics_query", Q])), { question: "Qual foi meu resultado?" })
+  const e2 = await env(); const r = await run(e2, fake(() => calls(["metrics_query", Q])), { question: "Qual foi meu resultado?", layout: () => { throw new Error("boom") } })
+  assert.equal(r.ok, true, r.code); assert.equal(r.outcome, "ANSWERED"); assert.equal(r.layout, null); const norm = (x: unknown): string => jstr(x).replace(/ev_[0-9a-f]{32}/g, "REF"); assert.equal(norm(r.response), norm(base.response), "só os refs (salgados por conta) mudam entre ambientes")
+  const r3 = await run(await env(), fake(() => calls(["metrics_query", Q])), { question: "q", layout: "não é função" }); assert.equal(r3.ok, false); assert.equal(r3.code, "INVALID_ARGS")
+})
+
 if (process.env.COLLECT) console.log(JSON.stringify({ passed, failed }))
 else console.log(`\n${passed} testes ✓`)

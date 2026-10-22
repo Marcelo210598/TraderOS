@@ -1,5 +1,6 @@
 // Tela do AI Partner (E7-15e, D-U4/D-U5): RenderedAnswer (o que o servidor já validou e renderizou) → blocos de exibição. Só dados de TEXTO: nada vira HTML, link nem atributo; o bloco de valor
 // NÃO carrega `ref` nem `path` (identificadores internos nunca chegam à tela). Entrada malformada ⇒ null (a tela mostra erro genérico, nunca meia resposta). Puro, determinístico, saída congelada, nunca lança.
+import { toLayout, type AnswerLayout } from "./layout.ts"
 export type Verdict = "verified" | "partial" | "unverified" | "mismatch"
 export type DisplayBlock =
   | { readonly kind: "text"; readonly text: string }
@@ -9,6 +10,8 @@ export interface AnswerView {
   readonly blocks: readonly DisplayBlock[]
   readonly banner: { readonly verdict: Verdict; readonly label: string } | null
   readonly stopped: boolean
+  /** E7-20: cartões/tabelas opcionais; ausente ou malformado = null (a tela usa o texto corrido). */
+  readonly layout: AnswerLayout | null
 }
 
 /** Veredito combinado do contrato → palavra da tela (a cor nunca é a única informação). */
@@ -48,7 +51,7 @@ export function toBlocks(input: unknown): AnswerView | null {
       banner = { verdict: v.verdict, label: typeof input.banner.label === "string" && input.banner.label !== "" ? input.banner.label : v.label }
     }
     if (input.stopReason !== null && input.stopReason !== "REGEN_EXHAUSTED") return null
-    return deepFreeze({ blocks, banner, stopped: input.stopReason !== null })
+    return deepFreeze({ blocks, banner, stopped: input.stopReason !== null, layout: input.layout === undefined ? null : toLayout(input.layout) })
   } catch {
     return null
   }
