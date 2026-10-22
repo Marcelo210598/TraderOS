@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 22/10/2026 — AI Partner: E7-17 CORRIGIDO (motor desempata saídas iguais por `id`; `compare` PERIOD deixa de dar TAMPERED intermitente) — backup atualizado; origin intocado `eb8a28a`; NADA em prod
+Causa: `sequenceOrder` desempatava por posição no array; o verificador remonta os trades na ordem do id salgado ⇒ com saídas empatadas drawdown/recovery divergiam (~75% TAMPERED por sal). Correção: desempate por `id` (resultado depende só do conjunto). 6 testes novos (T1–T3b+T2c, 20 sais ⇒ 100/100 VALID), baseline pós-E7-17 (60/120 hashes mudaram, só cenários com saída empatada), 4 testes antigos de E5.2/E6 atualizados, aviso provisório removido do prompt. `test:domain` 1506 ✓, tsc 0, ESLint 0; mutações 5/6 (M6 equivalente no V8). Falta p/ liberar o chat: plano Developer da Groq (upgrade indisponível por alta demanda em 22/10) + teste logado em prod.
+
 ## ✅ 22/10/2026 — AI Partner: E7-15e camada visual (tela + prévia `/dev/ai-partner` + página real escondida `/ai-partner`) — commit `c8af757` no backup; origin intocado `eb8a28a`; NADA em prod
 Componente `src/components/ai-partner/ai-partner-screen.tsx` (chat, upload CSV, lista/apagar, uso, erros com ação; só nós de texto React), 15 cenários falsos em `preview-scenarios.ts`, prévia só com `NODE_ENV=development` (+1 linha no `proxy.ts`), página real `notFound()` sem `AI_PARTNER_UI=1`. Playwright 15 cenários × 320/390/768 = 0 rolagem horizontal, Enviar desabilitado no turno; tsc 0, ESLint 0. Falta: teste logado em produção com a variável só para o Marcelo, E7-17, plano Developer da Groq.
 
