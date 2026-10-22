@@ -52,10 +52,11 @@ function Block({ block, hideNotes }: { block: LayoutBlock; hideNotes: ReadonlySe
   }
   const helps = block.columns.filter((c) => c.help !== null)
   const { shown, empty } = splitEmptyRows(block.rows)
+  const wide = block.columns.length > 5 // 6+ colunas não cabem na coluna do chat: um cartão por linha, em qualquer largura
   return (
     <div className="space-y-2">
       {block.caption ? <p className="text-sm font-medium text-foreground">{block.caption}</p> : null}
-      <div className="space-y-2 sm:hidden">
+      <div className={wide ? "grid gap-2 sm:grid-cols-2" : "space-y-2 sm:hidden"}>
         {shown.map((r) => (
           <div key={r.label} className="rounded-lg border border-border bg-card/60 px-3 py-2.5">
             <p className="text-sm font-medium text-foreground">{r.label}{r.tag ? <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] font-normal text-muted-foreground">{r.tag}</span> : null}</p>
@@ -65,12 +66,12 @@ function Block({ block, hideNotes }: { block: LayoutBlock; hideNotes: ReadonlySe
           </div>
         ))}
       </div>
-      <div className="hidden overflow-x-auto rounded-lg border border-border sm:block">
-        <table className="w-full min-w-max border-collapse text-sm">
+      <div className={wide ? "hidden" : "hidden overflow-x-auto rounded-lg border border-border sm:block"}>
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-muted/50 text-left text-xs text-muted-foreground">
               <th scope="col" className="sticky left-0 bg-muted px-3 py-2 font-medium" />
-              {block.columns.map((c) => <th key={c.label} scope="col" className="whitespace-nowrap px-3 py-2 text-right font-medium">{c.label}</th>)}
+              {block.columns.map((c) => <th key={c.label} scope="col" className="min-w-[5.5rem] px-2.5 py-2 text-right align-bottom font-medium leading-tight">{c.label}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -79,7 +80,7 @@ function Block({ block, hideNotes }: { block: LayoutBlock; hideNotes: ReadonlySe
                 <th scope="row" className="sticky left-0 whitespace-nowrap bg-card px-3 py-2 text-left font-medium text-foreground">
                   {r.label}{r.tag ? <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-[0.65rem] font-normal text-muted-foreground">{r.tag}</span> : null}
                 </th>
-                {r.cells.map((c, i) => <td key={i} className="whitespace-nowrap px-3 py-2 text-right align-top"><Value cell={c} /></td>)}
+                {r.cells.map((c, i) => <td key={i} className="whitespace-nowrap px-2.5 py-2 text-right align-top"><Value cell={c} /></td>)}
               </tr>
             ))}
           </tbody>

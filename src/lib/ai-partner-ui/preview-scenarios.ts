@@ -52,6 +52,15 @@ const LAYOUT_GROUPS = { blocks: [
     ] },
   { kind: "note", tone: "caveat", text: "Cada conta tem poucos trades: o resultado é indicativo, não conclusivo." },
 ] }
+const LAYOUT_WIDE = { blocks: [
+  { kind: "title", text: "Por conta" },
+  { kind: "table", caption: null,
+    columns: ["Total de trades", "Taxa de acerto", "Resultado antes dos custos", "Resultado após custos", "Trade médio", "Fator de lucro", "Rebaixamento máximo em dólares"].map((label) => ({ label, help: null })),
+    rows: [
+      { label: "Conta A", tag: "amostra pequena", cells: [c("8"), c("25,00%"), c("-US$ 514,50"), c("-US$ 544,50"), c("-US$ 68,06"), c("0,4430"), c("US$ 80,80")] },
+      { label: "Conta B", tag: "amostra pequena", cells: [c("7"), c("42,86%"), c("-US$ 457,50"), c("-US$ 497,40"), c("-US$ 71,06"), c("0,2132"), c("US$ 122,00")] },
+    ] },
+] }
 const exitRows = (legs: boolean) => legs
   ? [["alvo", c("0"), c("—", "verified", NA_ORD), c("—", "verified", NA_ORD)], ["stop", c("6"), c("-US$ 566,60"), c("54,38%")], ["manual", c("6"), c("US$ 69,20"), c("-6,64%")], ["desconhecido", c("11"), c("-US$ 544,50"), c("52,26%")]]
   : [["alvo", c("0"), c("—", "verified", NA_TRD), c("—", "verified", NA_TRD)], ["stop", c("3"), c("-US$ 566,60"), c("54,38%")], ["manual", c("4"), c("US$ 69,20"), c("-6,64%")], ["misto", c("0"), c("—", "verified", NA_TRD), c("—", "verified", NA_TRD)], ["desconhecido", c("8"), c("-US$ 544,50"), c("52,26%")]]
@@ -97,6 +106,7 @@ const PLAIN = (r: ChatReply | Failure) => () => r
 export const SCENARIOS: readonly Scenario[] = [
   { id: "L-query", label: "Layout · resultado e taxa de acerto", imports: [IMPORT], reply: PLAIN(answer(FALLBACK, "VERIFIED", null, "ANSWERED", LAYOUT_QUERY)) },
   { id: "L-groups", label: "Layout · resultado por conta (tabela)", imports: [IMPORT], reply: PLAIN(answer(FALLBACK, "VERIFIED", null, "ANSWERED", LAYOUT_GROUPS)) },
+  { id: "L-wide", label: "Layout · tabela larga (7 colunas)", imports: [IMPORT], reply: PLAIN(answer(FALLBACK, "VERIFIED", null, "ANSWERED", LAYOUT_WIDE)) },
   { id: "L-exits", label: "Layout · saídas por motivo (2 tabelas)", imports: [IMPORT], reply: PLAIN(answer(FALLBACK, "VERIFIED", null, "ANSWERED", LAYOUT_EXITS)) },
   { id: "L-extremes", label: "Layout · maior ganho e perda", imports: [IMPORT], reply: PLAIN(answer(FALLBACK, "VERIFIED", null, "ANSWERED", LAYOUT_EXTREMES)) },
   { id: "L-mixed", label: "Layout · selos mistos e indisponível", imports: [IMPORT], reply: PLAIN(answer(FALLBACK, "VERIFIED_PARTIAL", null, "ANSWERED", LAYOUT_MIXED)) },

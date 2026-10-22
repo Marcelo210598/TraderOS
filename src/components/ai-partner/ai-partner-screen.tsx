@@ -200,7 +200,7 @@ export function AiPartnerScreen({ transport }: { transport: Transport }) {
                 <p className="max-w-[85%] whitespace-pre-line break-words rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground">{m.text}</p>
               </div>
             ) : (
-              <div key={m.id} className="max-w-[95%] space-y-2">
+              <div key={m.id} className={`space-y-2 ${m.view.layout ? "w-full" : "max-w-[95%]"}`}>
                 <div className="rounded-2xl rounded-bl-sm border border-border bg-background px-3 py-2.5 text-sm"><AnswerBody view={m.view} prior={state.messages.slice(0, idx).flatMap((x) => (x.role === "assistant" ? [x.view] : []))} /></div>
                 {isNoDataReply(m.view) ? <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Perguntas que eu respondo (veja também “Como perguntar” abaixo):</p><Suggestions onPick={send} disabled={state.pending} /></div> : null}
               </div>
