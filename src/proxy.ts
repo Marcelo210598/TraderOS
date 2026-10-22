@@ -1,6 +1,7 @@
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 import { isEvidenceLabEnabled, isEvidenceLabPath } from "@/lib/dev/evidence-lab/guard"
+import { isAiPartnerPreviewEnabled } from "@/lib/ai-partner-ui/guards"
 
 const PUBLIC_ROUTES = ["/login", "/cadastro", "/blog", "/", "/share", "/opengraph-image", "/twitter-image", "/termos", "/privacidade", "/mesas"]
 const AUTH_ROUTES = ["/login", "/cadastro"]
@@ -20,6 +21,8 @@ export default auth((req) => {
   // (allowlist em src/lib/dev/evidence-lab/guard.ts). Em produção isEvidenceLabEnabled() é false: esta linha nunca libera nada e o
   // fluxo de autenticação abaixo fica exatamente como era (anônimo → /login; logado → a própria página responde 404).
   if (isEvidenceLabPath(nextUrl.pathname) && isEvidenceLabEnabled()) return NextResponse.next()
+  // Prévia do AI Partner (/dev/ai-partner): mesma regra (só NODE_ENV=development; transporte falso, sem backend).
+  if (nextUrl.pathname === "/dev/ai-partner" && isAiPartnerPreviewEnabled(process.env)) return NextResponse.next()
 
   // opengraph-image/twitter-image do Next.js viram rotas sem extensão (ex: /opengraph-image),
   // então o matcher abaixo não os exclui como faz com robots.txt/sitemap.xml — precisam
