@@ -2,7 +2,7 @@
 // Testes escritos ANTES do código. Expectativa: docs/ai-partner/E7-15e-expectativa.md (D-U2, D-U4, D-U5; U1–U6).
 //   node scripts/test-ai-partner-ui.mts       (COLLECT=1 só para a análise de mutações)
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -219,6 +219,57 @@ await test("U6e — nenhuma dessas camadas tem dangerouslySetInnerHTML, innerHTM
     assert.doesNotMatch(src.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, ""), /dangerouslySetInnerHTML|innerHTML|\beval\s*\(|new Function|localStorage|sessionStorage|\bimport\s*\(/, f)
   }
   assert.doesNotMatch(readFileSync(`${ROOT}src/lib/ai-partner-ui/view.ts`, "utf8"), /process\.env/)
+})
+
+// ── E7-18: acesso só para e-mails permitidos (página E chat) ──
+await test("L1 — isAiPartnerUserAllowed: exige AI_PARTNER_UI '1' E e-mail na lista (exato, sem diferença de maiúsculas/espaços); lista ausente/vazia ⇒ ninguém; e-mail parecido ou ausente ⇒ não", () => {
+  const g = need(mod.guards, "guards")
+  const f = g.isAiPartnerUserAllowed
+  assert.equal(typeof f, "function", "isAiPartnerUserAllowed ainda não existe")
+  const on = (list?: string) => ({ AI_PARTNER_UI: "1", ...(list === undefined ? {} : { AI_PARTNER_ALLOWED_EMAILS: list }) })
+  assert.equal(f(on("a@x.com"), "a@x.com"), true)
+  assert.equal(f(on(" A@X.com , b@y.org "), "b@Y.ORG"), true, "vários, espaços e maiúsculas")
+  assert.equal(f(on("a@x.com"), "  a@x.com "), true, "e-mail da sessão com espaços nas pontas")
+  for (const e of ["ba@x.com", "a@x.com.br", "a@x.co", "xa@x.com", "a@x.com,b@y.org", "", null, undefined, 5, {}]) assert.equal(f(on("a@x.com"), e), false, jstr(e))
+  for (const e of ["", "   "]) assert.equal(f(on("a@x.com,,"), e), false, "e-mail vazio nunca casa com entrada vazia da lista")
+  for (const list of [undefined, "", " ", ",", " , ,", ";"]) assert.equal(f(on(list), "a@x.com"), false, `lista ${jstr(list)}`)
+  for (const ui of [undefined, "0", "true", " 1", "11", ""]) assert.equal(f({ ...(ui === undefined ? {} : { AI_PARTNER_UI: ui }), AI_PARTNER_ALLOWED_EMAILS: "a@x.com" }, "a@x.com"), false, `UI ${jstr(ui)}`)
+  assert.equal(f({ AI_PARTNER_ALLOWED_EMAILS: "a@x.com" }, "a@x.com"), false, "lista sem a flag")
+})
+
+const SRC = (f: string): string => readFileSync(`${ROOT}${f}`, "utf8")
+await test("L2 — a página real chama isAiPartnerUserAllowed com o e-mail da sessão e dá notFound() ANTES de renderizar a tela", () => {
+  const src = SRC("src/app/(app)/ai-partner/page.tsx")
+  const call = src.search(/if\s*\(\s*!\s*isAiPartnerUserAllowed\(\s*process\.env\s*,\s*user\.email/)
+  assert.ok(call >= 0, "a página não consulta a lista de e-mails")
+  const nf = src.indexOf("notFound()", call)
+  const render = src.indexOf("<AiPartnerRealScreen", call)
+  assert.ok(nf >= 0 && render >= 0 && nf < render, "notFound() tem de vir antes da tela")
+  assert.match(src, /isAiPartnerPageEnabled\(process\.env\)/, "continua exigindo AI_PARTNER_UI")
+})
+
+await test("L3 — aiPartnerChatCtx: quem não passa na lista fica com deps null (rota ⇒ 503 NOT_CONFIGURED); a lista é lida do e-mail da SESSÃO", () => {
+  const src = SRC("src/app/api/ai-partner/_ctx.ts")
+  const fn = src.slice(src.indexOf("export async function aiPartnerChatCtx"))
+  assert.match(fn, /deps:\s*built\.ok\s*&&\s*isAiPartnerUserAllowed\(\s*process\.env\s*,\s*session\?\.user\?\.email\s*\)\s*\?\s*built\.deps\s*:\s*null/, "deps tem de ser null quando não permitido (e-mail da sessão)")
+  // o ctx dos imports (já em produção) NÃO muda (D-L2)
+  const imp = src.slice(src.indexOf("export async function aiPartnerCtx"), src.indexOf("// Chat (E7-15c)"))
+  assert.doesNotMatch(imp, /isAiPartnerUserAllowed/)
+})
+
+await test("L4 — nenhum e-mail real no repositório: o endereço do dono nunca aparece em src/, scripts/, docs/, fixtures/ nem .env.example; guards/_ctx/página não têm endereço fixo", () => {
+  const owner = ["difoggi", "junior", "marcelo", "@", "gmail", ".com"].join("")
+  const hits: string[] = []
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(`${ROOT}${dir}`, { withFileTypes: true })) {
+      const rel = `${dir}/${e.name}`
+      if (e.isDirectory()) { if (e.name !== "node_modules" && e.name !== ".next") walk(rel) } else if (/\.(ts|tsx|mts|md|json|css|txt|example)$/.test(e.name) && readFileSync(`${ROOT}${rel}`, "utf8").toLowerCase().includes(owner)) hits.push(rel)
+    }
+  }
+  for (const d of ["src", "scripts", "docs", "fixtures"]) walk(d)
+  try { if (readFileSync(`${ROOT}.env.example`, "utf8").toLowerCase().includes(owner)) hits.push(".env.example") } catch { /* sem .env.example */ }
+  assert.deepEqual(hits, [])
+  for (const f of ["src/lib/ai-partner-ui/guards.ts", "src/app/api/ai-partner/_ctx.ts", "src/app/(app)/ai-partner/page.tsx"]) assert.doesNotMatch(SRC(f), /[\w.+-]+@[\w-]+\.[a-z]{2,}/i, `${f} tem e-mail fixo`)
 })
 
 if (process.env.COLLECT) console.log(JSON.stringify({ passed, failed }))
