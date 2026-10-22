@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 22/10/2026 — AI Partner: E7-15e camada visual (tela + prévia `/dev/ai-partner` + página real escondida `/ai-partner`) — commit `c8af757` no backup; origin intocado `eb8a28a`; NADA em prod
+Componente `src/components/ai-partner/ai-partner-screen.tsx` (chat, upload CSV, lista/apagar, uso, erros com ação; só nós de texto React), 15 cenários falsos em `preview-scenarios.ts`, prévia só com `NODE_ENV=development` (+1 linha no `proxy.ts`), página real `notFound()` sem `AI_PARTNER_UI=1`. Playwright 15 cenários × 320/390/768 = 0 rolagem horizontal, Enviar desabilitado no turno; tsc 0, ESLint 0. Falta: teste logado em produção com a variável só para o Marcelo, E7-17, plano Developer da Groq.
+
 ## ✅ 21/10/2026 — AI Partner: E7-15e lógica pura da tela (19/19 ✓, 1494 testes de domínio) — backup atualizado; origin intocado `eb8a28a`
 Lógica pura da UI (`src/lib/ai-partner-ui/`): `view.ts` (`toBlocks` com vereditos em pt-BR, higienização sem ref/path e saída congelada), `errors.ts` (24 códigos de erro com mensagem própria e ação; `NOT_FOUND` oferece `newConversation` só no chat), `chat-state.ts` (reducer puro e congelado, sem eco do servidor, `retry` sem duplicar pergunta), `guards.ts` (prévia só em dev, página real travada em `AI_PARTNER_UI=1`), `transport.ts` (timeout 75 s > maxDuration da Vercel, upload multipart sem header de content-type manual, validação de sha offline). Suíte `test-ai-partner-ui.mts` (19/19 ✓), `test:domain` 1494 ✓, `tsc` 0, ESLint 0, 39 mutações (38 pegas, 1 equivalente). Próximo: componentes de UI, prévia em `/dev/ai-partner` e testes visuais no Playwright (320, 390 e 768 px).
 
