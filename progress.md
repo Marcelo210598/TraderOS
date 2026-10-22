@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 22/10/2026 — AI Partner: E7-19 memória curta entre perguntas (medida ao vivo na Groq) — origin intocado `eb8a28a`; NADA em prod ainda
+`src/lib/agent/memory.ts` (`buildMemory`): últimas 3 perguntas + consulta (capacidade+args) da MESMA conversa, ≤ 600 caracteres, nunca resultados/refs/aliases/options; anexada ao system (formato [system,user] intacto); falha ⇒ turno sem memória. `test:domain` 1527 ✓, mutações pegas após reforço. AO VIVO (4 encadeadas + controle, 9.888 tokens, 0 429): T2 "E a taxa de acerto de cada uma?" ⇒ groupBy account + winRate (controle sem memória falhou: groupBy strategy, 3.214 tokens); T3 "E por hora do dia?" ⇒ groupBy hour; T4 assunto novo ⇒ sem herdar groupBy. Tokens/turno 1.565→1.731 (memória +100 a +166, ≈ +6–11%). Falta: deploy (Marcelo).
+
 ## ✅ 22/10/2026 — AI Partner: instrução ao usuário na tela + números do teste logado conferidos contra o CSV — origin intocado `eb8a28a`
 Conferido contra o CSV (soma das linhas, oráculo do fixture): −US$ 1.041,90; 5 de 15 ciclos = 33,33% (por linhas seria 37,04%); período 24/09–01/10; 27 linhas ⇒ 15 trades. Tela: "Como perguntar" (5 avisos: perguntas independentes, escopo, limites, trade = ciclo, selos) no estado vazio e dentro da conversa; sugestões voltam abaixo de resposta sem dados. `test:domain` 1513 ✓, mutações 7/7. Pendente: deploy (guarda 4/min + instrução) pelo Marcelo; apagar arquivo na tela; memória entre perguntas (a estudar).
 

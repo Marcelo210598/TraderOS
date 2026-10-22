@@ -189,3 +189,4 @@ Lucid, FFF, Apex, Tradeify e Bulenox em `/mesas`. Cron vigia Lucid, FFF e Buleno
 - **AI Partner — 22/10/2026 (E7-18 trava por e-mail)** — página e chat só para e-mails da lista (`AI_PARTNER_ALLOWED_EMAILS`) + `AI_PARTNER_UI=1`; 1510 ✓. Próximo: checklist de produção (snapshot Neon, 2 variáveis Vercel, deploy) só com OK do Marcelo.
 - **AI Partner — 22/10/2026 (teste logado em produção)** — funcionou ponta a ponta só para o e-mail do Marcelo; guarda global da Groq 1→4/min; falta novo deploy do ajuste e conferir números vs CSV.
 - **AI Partner — 22/10/2026 (instrução ao usuário)** — 'Como perguntar' + sugestões após recusa; números do teste logado conferidos contra o CSV. Próximo: deploy e avaliar memória entre perguntas.
+- **AI Partner — 22/10/2026 (E7-19 memória curta)** — 3 últimas consultas no system; ao vivo: resolve 'e a taxa de acerto de cada uma?' (controle sem memória falha); +6–11% tokens. Falta deploy.
