@@ -158,7 +158,7 @@ await test("H14 — conversationId de OUTRO usuário ou inexistente ⇒ 404 NOT_
 })
 
 await test("H15 — guarda global da Groq: estouro ⇒ 429 BUSY com Retry-After; o modelo NÃO é criado e a cota VOLTA (uso 0, lease livre); a guarda roda DENTRO do turno, DEPOIS da reserva (assim Free sem cota/pool nunca a consome)", async () => {
-  assert.equal(GROQ_GLOBAL_TURNS_PER_MIN, 1)
+  assert.equal(GROQ_GLOBAL_TURNS_PER_MIN, 4, "base 8K tokens/min ÷ ~1,5K por turno medido (E7-16): 4 turnos ≈ 6,3K")
   const rig = await mkRig(); const { ctx, log } = mkCtx(rig, { guard: { ok: false, retryAfterSec: 30 } }); const r = await ask(ctx)
   assert.equal(r.status, 429); assert.equal((await body(r)).code, "BUSY"); assert.equal(r.headers.get("retry-after"), "30"); assert.equal(log.guard, 1); assert.equal(await usageOf(rig), 0); assert.equal(rig.calls.model, 0); assert.equal((await ask(mkCtx(rig).ctx)).status, 200, "o lease foi liberado")
 })

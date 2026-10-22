@@ -14,8 +14,8 @@ import type { PersistentSalts } from "./salt-store.ts"
 
 /** Turnos por minuto por usuário (a cota mensal é a proteção de custo; isto é só contra rajada). */
 export const CHAT_USER_PER_MIN = 5
-/** Turnos por minuto da ORGANIZAÇÃO inteira na Groq (plano base: 8K tokens/min). Ponto de partida; sobe com o plano Developer. */
-export const GROQ_GLOBAL_TURNS_PER_MIN = 1
+/** Turnos por minuto da ORGANIZAÇÃO inteira na Groq (plano base: 8K tokens/min). Medido no E7-16: ~1,5K tokens por turno ⇒ 4 turnos ≈ 6,3K < 8K (era 1 quando o turno custava 5–8K). Sobe com o plano Developer. */
+export const GROQ_GLOBAL_TURNS_PER_MIN = 4
 export const MAX_CHAT_BODY_BYTES = 8192
 /** Prazo do turno: abaixo do `maxDuration` da rota (60 s) e do lease da reserva (90 s). */
 export const TURN_DEADLINE_MS = 50_000
