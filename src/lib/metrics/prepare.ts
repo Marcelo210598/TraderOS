@@ -190,9 +190,9 @@ export function prepareTrades(trades: AnalyticsTrade[], o: ResolvedOptions): Tra
   })
 }
 
-/** Ordena a sequência (estável: empate de instante mantém a ordem de entrada dos dados). */
+/** Ordena a sequência: instante de saída e, no EMPATE, o `id` do trade — o resultado depende só do conjunto, nunca da ordem do array (E7-17: construtor e verificador da Evidence recebem ordens diferentes). */
 export function sequenceOrder<T extends TradeRow>(rows: T[]): T[] {
-  return [...rows].sort((a, b) => a.orderKey - b.orderKey || a.index - b.index)
+  return [...rows].sort((a, b) => a.orderKey - b.orderKey || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 }
 
 /**

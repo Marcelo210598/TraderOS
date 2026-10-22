@@ -233,14 +233,14 @@ test("PRIVACIDADE: nenhum nome de conta em nenhum bundle do corpus nem em nenhum
   }
 })
 
-test("ORDEM × HASHES: trocar a ordem de entrada muda o evidenceHash (a sequência está no selo) e NUNCA o tradeSetHash", () => {
+test("ORDEM × HASHES (E7-17): trocar a ordem do array não muda NADA — nem tradeSetHash, nem a ordem registrada, nem o evidenceHash (o desempate é o id)", () => {
   const d = DATASETS[0]
   const rev: Data = { ...d, trades: [...d.trades].reverse() }
   const a = explain(d, "maxDrawdown", { kind: "METRICS", ...calculateMetricsTraced(d.trades) })
   const b = explain(rev, "maxDrawdown", { kind: "METRICS", ...calculateMetricsTraced(rev.trades) })
   assert.equal(a.evidence.metrics[0].population.tradeSetHash, b.evidence.metrics[0].population.tradeSetHash)
-  assert.notEqual(a.evidenceHash, b.evidenceHash)
-  assert.notDeepEqual(a.evidence.metrics[0].population.sequence.order, b.evidence.metrics[0].population.sequence.order)
+  assert.deepEqual(a.evidence.metrics[0].population.sequence.order, b.evidence.metrics[0].population.sequence.order)
+  assert.equal(a.evidenceHash, b.evidenceHash)
 })
 
 console.log(`\n${passed} testes ok`)

@@ -1,5 +1,6 @@
 // Evidence — ordem da sequência (empates de saída/entrada) registrada na Evidence e reproduzida pelo verificador.   node scripts/test-evidence-sequence.mts
-// Princípio: o motor NÃO mudou (baseline congelado de antes da mudança, em fixtures/_synthetic/engine-baseline-pre-sequence.json);
+// Princípio: sem empate de saída o motor NÃO mudou (baseline pré-sequência em fixtures/_synthetic/engine-baseline-pre-sequence.json). Desde o E7-17 o desempate de saídas iguais é o `id` do trade
+// (não mais a ordem do array): o resultado depende só do CONJUNTO; o baseline de empates está em engine-baseline-pos-e7-17.json.
 // a Evidence só registra, como subproduto do trace, a ordem que o motor usou, e o verificador alimenta o MESMO motor com ela.
 // Oráculos de drawdown/sequência: tabelas escritas à mão (centavos), não o motor.
 import assert from "node:assert/strict"
@@ -77,12 +78,27 @@ const PTS_B = [-2, 3, -2, 4, -1]
 const A = exitTie(PTS_A)
 const B = exitTie(PTS_B)
 
+// Oráculo INDEPENDENTE (laço simples em centavos, sem o motor): ordem = id crescente (todas as saídas empatam), líquido de cada trade = 10·pts − 2,40.
+function oracleOf(d: { trades: AnalyticsTrade[] }, pts: number[]) {
+  const rows = d.trades.map((t, i) => ({ id: t.id, c: Math.round(pts[i] * 1000 - 240) })).sort((a, b) => (a.id < b.id ? -1 : 1))
+  let eq = 0, peak = 0, maxDd = 0, w = 0, l = 0, maxW = 0, maxL = 0
+  for (const r of rows) {
+    eq += r.c
+    peak = Math.max(peak, eq)
+    maxDd = Math.max(maxDd, peak - eq)
+    if (r.c > 0) { w += 1; l = 0 } else if (r.c < 0) { l += 1; w = 0 } else { w = 0; l = 0 }
+    maxW = Math.max(maxW, w); maxL = Math.max(maxL, l)
+  }
+  return { maxDrawdown: maxDd / 100, maxDrawdownR: Math.round(maxDd * 10) / 100000, maxConsecutiveLosses: maxL, maxConsecutiveWins: maxW, currentStreak: w > 0 ? w : -l }
+}
+
 // ── 0. o motor não mudou ─────────────────────────────────────────────────────
 
 const baseline = JSON.parse(readFileSync(fileURLToPath(new URL("../fixtures/_synthetic/engine-baseline-pre-sequence.json", import.meta.url)), "utf8")) as Record<string, string>
+const baselineE717 = JSON.parse(readFileSync(fileURLToPath(new URL("../fixtures/_synthetic/engine-baseline-pos-e7-17.json", import.meta.url)), "utf8")) as Record<string, string>
 const sha = (x: unknown) => createHash("sha256").update(JSON.stringify(x)).digest("hex")
 
-test("NÃO REGRESSÃO: calculateMetrics/aggregateTrades dão EXATAMENTE os mesmos resultados de antes (baseline pré-mudança, 120 hashes: empates de saída/entrada, 3 ordens de entrada, com/sem R, 4 agrupamentos)", () => {
+test("NÃO REGRESSÃO (E7-17): onde a ordem não importa (entryTie, noTie) os resultados são EXATAMENTE os do baseline pré-mudança; onde há empate de SAÍDA (exitTie, pairsTie) o resultado não depende mais da ordem do array e está congelado no baseline pós-E7-17 (120 hashes)", () => {
   const pts = [4, 3, -2, -3, -1, 6, 0, 2, -4, 5, 1, -1, 7, 3, -5, -2, 2, 2, -1, 3]
   const mk = (exit: (i: number) => string, entry: (i: number) => string) => pts.map((p, i) => ({ account: i % 3 ? "Sim101" : "Sim102", entryPrice: 2000, exitPrice: 2000 + p, entryAt: entry(i), exitAt: exit(i) }))
   const sets: Record<string, ReturnType<typeof mk>> = {
@@ -103,7 +119,14 @@ test("NÃO REGRESSÃO: calculateMetrics/aggregateTrades dão EXATAMENTE os mesmo
     }
   }
   assert.equal(Object.keys(baseline).length, 120)
-  assert.deepEqual(got, baseline)
+  assert.equal(Object.keys(baselineE717).length, 120)
+  // sem empate de saída o desempate nunca é consultado: nada mudou desde antes da sequência
+  const untied = (k: string) => k.startsWith("entryTie/") || k.startsWith("noTie/")
+  assert.deepEqual(Object.fromEntries(Object.entries(got).filter(([k]) => untied(k))), Object.fromEntries(Object.entries(baseline).filter(([k]) => untied(k))))
+  // com empate de saída: as 3 ordens de entrada dão o MESMO resultado (invariância) …
+  for (const k of Object.keys(got).filter((k) => !untied(k) && k.split("/")[2] !== "0")) assert.equal(got[k], got[k.replace(/\/[12]\//, "/0/")], k)
+  // … e tudo está congelado no baseline atual
+  assert.deepEqual(got, baselineE717)
 })
 
 test("NÃO REGRESSÃO: o resultado do caminho traced é idêntico ao de calculateMetrics/aggregateTrades (o trace só observa)", () => {
@@ -115,19 +138,15 @@ test("NÃO REGRESSÃO: o resultado do caminho traced é idêntico ao de calculat
 
 // ── 1–5. oráculo à mão: empate de saída, drawdown, drawdown em R, sequências ─────────────────────────────
 
-test("EMPATE DE SAÍDA: o motor desempata pela ordem de entrada dos dados (oráculo à mão) — e a ordem de entrada muda drawdown e sequências", () => {
+test("EMPATE DE SAÍDA (E7-17): o motor desempata pelo id (oráculo independente) e a ordem do array não muda NADA (drawdown e sequências)", () => {
   assert.equal(new Set(A.trades.map((t) => t.trade.exit.at.instantUtc)).size, 1)
-  const ma = calculateMetrics(A.trades).metrics
-  const mb = calculateMetrics(B.trades).metrics
-  assert.equal(ma.maxDrawdown.value, 44.8)
-  assert.equal(ma.maxDrawdownR.value, 0.448)
-  assert.equal(ma.maxConsecutiveLosses.value, 2)
-  assert.equal(ma.maxConsecutiveWins.value, 1)
-  assert.equal(ma.currentStreak.value, -1)
-  assert.equal(mb.maxDrawdown.value, 22.4)
-  assert.equal(mb.maxDrawdownR.value, 0.224)
-  assert.equal(mb.maxConsecutiveLosses.value, 1)
-  assert.equal(mb.maxConsecutiveWins.value, 1)
+  for (const [d, pts] of [[A, PTS_A], [B, PTS_B]] as const) {
+    const want = oracleOf(d, pts)
+    for (const arr of [d.trades, [...d.trades].reverse(), [d.trades[2], d.trades[0], d.trades[4], d.trades[1], d.trades[3]]]) {
+      const m = calculateMetrics(arr).metrics
+      for (const k of Object.keys(want) as Array<keyof typeof want>) assert.equal(m[k].value, want[k], k)
+    }
+  }
   // o conjunto é o mesmo: tradeSetHash NÃO depende da ordem
   assert.equal(calculateMetrics(A.trades).population.tradeSetHash.length, 64)
 })
@@ -146,30 +165,25 @@ test("ENTRADAS COM O MESMO HORÁRIO e saídas distintas: a ordem é a das saída
   }
 })
 
-test("REGISTRO: a ordem do bundle = a ordem de entrada dos dados em empate (≠ ordem por tradeId); só em métrica sequencial; população inteira", () => {
+test("REGISTRO: a ordem do bundle = a ordem do motor (instante e, no empate, id); só em métrica sequencial; população inteira", () => {
   for (const d of [A, B]) {
     for (const id of METRIC_IDS) {
       const s = seqOf(bundleOf(id, d))
       if ((SEQUENCE_METRICS as readonly string[]).includes(id)) {
         assert.equal(s.dependent, true, id)
-        assert.deepEqual(s.order, ids(d), id)
+        assert.deepEqual(s.order, [...ids(d)].sort(), id)
       } else assert.deepEqual(s, { dependent: false, order: null }, id)
     }
-    assert.notDeepEqual([...ids(d)].sort(), ids(d), "a ordem registrada não pode coincidir por acaso com a ordem por tradeId")
   }
   // o trace do motor é a fonte: mesma lista
-  assert.deepEqual(calculateMetricsTraced(A.trades).trace.sequence, ids(A))
-  assert.deepEqual(calculateMetricsTraced(B.trades).trace.sequence, ids(B))
+  assert.deepEqual(calculateMetricsTraced(A.trades).trace.sequence, [...ids(A)].sort())
+  assert.deepEqual(calculateMetricsTraced(B.trades).trace.sequence, [...ids(B)].sort())
 })
 
 test("VERIFICADOR: reproduz drawdown, drawdown em R e sequências (oráculo) a partir da ordem registrada ⇒ VALID, V4.sequence PASS", () => {
-  const oracle: Array<[string, Any, Any]> = [
-    ["maxDrawdown", 44.8, 22.4],
-    ["maxDrawdownR", 0.448, 0.224],
-    ["maxConsecutiveLosses", 2, 1],
-    ["maxConsecutiveWins", 1, 1],
-    ["currentStreak", -1, -1],
-  ]
+  const oa = oracleOf(A, PTS_A)
+  const ob = oracleOf(B, PTS_B)
+  const oracle: Array<[string, Any, Any]> = (["maxDrawdown", "maxDrawdownR", "maxConsecutiveLosses", "maxConsecutiveWins", "currentStreak"] as const).map((k) => [k, oa[k], ob[k]])
   for (const [id, va, vb] of oracle) {
     for (const [d, want] of [[A, va], [B, vb]] as const) {
       const b = bundleOf(id, d)
@@ -194,7 +208,7 @@ test("MÉTRICA NÃO SEQUENCIAL: V4.sequence é NOT_APPLICABLE e não impede VALI
 test("GRUPOS: a ordem de cada grupo é a do PRÓPRIO grupo (subsequência da total), reproduzida pelo verificador", () => {
   const G = exitTie([3, -2, -2, 4, -1, 2, -3, 1], (i) => (i % 2 ? "Sim102" : "Sim101"))
   const total = calculateMetricsTraced(G.trades).trace.sequence
-  assert.deepEqual(total, ids(G))
+  assert.deepEqual(total, [...ids(G)].sort())
   const ag = aggregateTradesTraced(G.trades, { groupBy: "account" })
   assert.equal(ag.result.groups.length, 2)
   ag.result.groups.forEach((_, gi) => {
@@ -217,15 +231,13 @@ test("GRUPOS: a ordem de cada grupo é a do PRÓPRIO grupo (subsequência da tot
 
 // ── 7. reconstrução da ordem pelo verifyEvidence + 8. ordem adulterada com selo refeito ────────────────────────
 
-test("ADULTERAÇÃO da ordem com selo recalculado: trocar empatados que mudam o resultado ⇒ TAMPERED (value/contributors); a ordem sozinha continua coerente com os instantes", () => {
+test("ADULTERAÇÃO da ordem com selo recalculado: trocar empatados ⇒ TAMPERED (V4.sequence: a ordem registrada contradiz o motor); selo refeito não esconde", () => {
   const b = bundleOf("maxDrawdown", A)
   assert.equal(verifyEvidence(b).status, "VALID")
   const swapped = verifyEvidence(edit(b, (x) => { const o = x.evidence.metrics[0].population.sequence.order; [o[0], o[1]] = [o[1], o[0]] }))
   assert.equal(swapped.status, "TAMPERED")
   assert.equal(check(swapped, "V1.seal").status, "PASS") // selo refeito
-  assert.equal(check(swapped, "V4.sequence").status, "PASS") // empatados podem ser permutados: não contradiz os instantes…
-  assert.equal(check(swapped, "V4.metric-value").status, "FAIL") // …mas o resultado declarado (44,8) não sai dessa ordem (22,4)
-  assert.equal(check(swapped, "V4.contributors").status, "FAIL")
+  assert.equal(check(swapped, "V4.sequence").status, "FAIL") // E7-17: a ordem dos empatados é o id; outra ordem contradiz o motor
   // o selo NÃO refeito é pego pelo V1
   assert.equal(check(verifyEvidence(edit(b, (x) => { const o = x.evidence.metrics[0].population.sequence.order; [o[0], o[1]] = [o[1], o[0]] }, false)), "V1.seal").status, "FAIL")
   // o evidenceHash entra a ordem: duas ordens ⇒ dois selos; o tradeSetHash é o mesmo

@@ -208,7 +208,7 @@ await test("L19 — prompt do sistema (D-S5): SEM a seção de formato (segments
   assert.ok(SYSTEM_PROMPT.length <= 2800, `prompt com ${SYSTEM_PROMPT.length} caracteres`)
   assert.doesNotMatch(SYSTEM_PROMPT, /segments|claims|"slot"|POPULATION_DECLARED|evidenceRef|JSON/); assert.match(SYSTEM_PROMPT, /recus/i); assert.match(SYSTEM_PROMPT, /conselho/i)
   for (const id of ["netPnl", "winRate", "totalTrades"]) assert.ok(SYSTEM_PROMPT.includes(id), id); for (const g of ["dayOfWeek", "hour", "exitReason"]) assert.ok(SYSTEM_PROMPT.includes(g), g)
-  for (const id of ["maxDrawdown", "currentDrawdown", "maxConsecutiveWins", "recoveryFactor"]) assert.match(SYSTEM_PROMPT, new RegExp(`evite[^\\n]*${id}`), `E7-17 (medido ao vivo): o prompt avisa para evitar ${id} em compare PERIOD`)
+  assert.doesNotMatch(SYSTEM_PROMPT, /evite[^\n]*(maxDrawdown|recoveryFactor)/, "E7-17 corrigido no motor: o aviso provisório sobre compare PERIOD saiu do prompt")
   const e = await env(); const f = fake(() => calls(["metrics_query", Q])); await run(e, f)
   assert.deepEqual(f.requests[0].messages.map((m: Any) => m.role), ["system", "user"]); assert.ok(f.requests[0].messages[0].content.startsWith(SYSTEM_PROMPT), "a base do prompt é a mesma")
 })

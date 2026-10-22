@@ -404,10 +404,10 @@ test("EMPATE DE SAÍDA: a Evidence registra a ordem do motor ⇒ métrica sequen
   assert.equal(new Set(T.map((t) => t.trade.exit.at.instantUtc)).size, 1, "todas as saídas empatam")
   const winsA = calculateMetrics(T).metrics.maxConsecutiveWins.value
   const winsC = calculateMetrics([T[1], T[0], T[2], T[3]]).metrics.maxConsecutiveWins.value
-  assert.notEqual(winsA, winsC, "a métrica depende da ordem de entrada")
+  assert.equal(winsA, winsC, "E7-17: com empate de saída o desempate é o id; a métrica não depende mais da ordem do array")
   const ok = bundle("maxConsecutiveWins", T, [R])
   assert.equal(ok.evidence.metrics[0].population.sequence.dependent, true)
-  assert.deepEqual(ok.evidence.metrics[0].population.sequence.order, T.map((t) => t.id)) // a ordem de entrada dos dados = a que o motor usou
+  assert.deepEqual(ok.evidence.metrics[0].population.sequence.order, T.map((t) => t.id).sort()) // E7-17: todas empatam ⇒ a ordem que o motor usou é a do id
   assert.equal(verifyEvidence(ok).status, "VALID")
   // tirar a ordem registrada (com selo refeito) NÃO vira VALID: UNVERIFIABLE com motivo explícito
   const stripped = verifyEvidence(edit(ok, (x) => (x.evidence.metrics[0].population.sequence.order = null)))
