@@ -72,6 +72,8 @@ export interface TurnSession {
   commit(): Promise<CommitOutcome>
   /** E7-16 emenda (D-P1): período dos dados do pin (AAAA-MM-DD) para ancorar datas relativas do modelo; null se indisponível. NÃO cria evidência, NÃO conta chamada, NÃO muda estado. */
   dataPeriod(): Promise<{ readonly from: string; readonly to: string } | null>
+  /** E7-19: o que a conversa já tinha ANTES deste turno (mensagens gravadas + consulta de cada ref), só leitura; alimenta a memória curta do chat. */
+  history(): { readonly messages: readonly unknown[]; readonly specOf: (ref: string) => { readonly capability: string; readonly args: unknown } | null }
   /** Estado de trabalho (somente leitura). */
   state(): TurnState
   ledger(): Ledger
@@ -350,6 +352,7 @@ function buildSession(deps: TurnDeps, userId: string, turnPin: DatasetPin, provi
     stopForBudget: () => queued(doStopForBudget),
     stopWithFailure: () => queued(doStopWithFailure),
     dataPeriod: () => queued(doDataPeriod),
+    history: () => ({ messages: open.messages, specOf: (ref) => specWork(ref) }),
     commit: () => queued(doCommit),
     state: () => state,
     ledger: () => ledger,

@@ -11,7 +11,7 @@ export const SUGGESTIONS: readonly string[] = Object.freeze([
 
 export interface HelpItem { readonly title: string; readonly text: string }
 export const HELP_ITEMS: readonly HelpItem[] = Object.freeze([
-  { title: "Cada pergunta é independente", text: "Eu não lembro das respostas anteriores. Em perguntas de acompanhamento, repita o que importa: o período, a conta ou o ativo (ex.: “resultado da conta Sim101 entre 24/09 e 28/09”)." },
+  { title: "Lembro das 3 últimas perguntas", text: "Dentro da conversa, lembro das 3 últimas perguntas (só as consultas, não os números), então dá para perguntar “e a outra conta?”. Em “Nova conversa” eu começo do zero. Se mudar de assunto, diga o período, a conta ou o ativo." },
   { title: "O que eu respondo", text: "Resultado, taxa de acerto, médias, sequências e drawdown; por dia, hora, dia da semana, conta, estratégia, ativo ou motivo de saída; comparação entre dois períodos ou duas contas; ranking de grupos." },
   { title: "O que eu não faço", text: "Não dou conselho, não prevejo o mercado, não sugiro comprar ou vender e não explico o “porquê” de um resultado. Eu só leio o arquivo que você enviou." },
   { title: "“Trade” é um ciclo de posição", text: "Um trade vai da entrada até a posição zerar. Por isso um arquivo com 27 linhas pode virar 15 trades, e a taxa de acerto é calculada sobre os trades, não sobre as linhas." },

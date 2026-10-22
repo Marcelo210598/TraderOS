@@ -6,6 +6,7 @@ import { CAPABILITY_LABELS } from "../agent/catalog.ts"
 import type { CapabilityId } from "../agent/contract.ts"
 import { composeAnswer, composeOffScope } from "../agent/composer.ts"
 import { renderAnswer, type RenderedAnswer } from "../agent/render.ts"
+import { MEMORY_HEADER, MEMORY_INSTRUCTION, MEMORY_MAX_CHARS, buildMemory } from "../agent/memory.ts"
 import { systemPromptFor } from "../agent/system-prompt.ts"
 import { notices, validatorStop } from "../agent/turn.ts"
 import { openTurn, type CommitCode, type OpenTurnCode, type TurnDeps, type TurnSession } from "./turn-session.ts"
@@ -61,6 +62,8 @@ export interface ChatTurnRequest {
   readonly onStep?: (step: ChatStep) => void | Promise<void>
   /** Compositor injetável (testes simulam falha); padrão: o do servidor. */
   readonly compose?: typeof composeAnswer
+  /** Memória curta injetável (testes simulam falha); padrão: `buildMemory`. Síncrona: qualquer coisa que não seja um texto válido vira "sem memória". */
+  readonly memory?: (messages: readonly unknown[], specOf: (ref: string) => unknown) => unknown
 }
 export type ChatTurnCode = OpenTurnCode | CommitCode | "MODEL_ERROR" | "COMPOSE_FAILED"
 export type ChatTurnResult =
@@ -82,11 +85,12 @@ export async function runChatTurn(req: ChatTurnRequest): Promise<ChatTurnResult>
     if (!isRecord(req) || !isRecord(req.model) || typeof req.model.complete !== "function") return fail("INVALID_ARGS")
     if (req.onStep !== undefined && typeof req.onStep !== "function") return fail("INVALID_ARGS")
     if (req.compose !== undefined && typeof req.compose !== "function") return fail("INVALID_ARGS")
+    if (req.memory !== undefined && typeof req.memory !== "function") return fail("INVALID_ARGS")
     const question = req.question
     if (typeof question !== "string") return fail("INVALID_ARGS")
     const opened = await openTurn(req.deps, { userId: req.userId, conversationId: req.conversationId, pin: req.pin, userMessage: question })
     if (!opened.ok) return fail(opened.code)
-    return await drive(opened.session, req.model, question, req.onStep, req.compose ?? composeAnswer)
+    return await drive(opened.session, req.model, question, req.onStep, req.compose ?? composeAnswer, req.memory ?? buildMemory)
   } catch {
     return fail("STORAGE_ERROR")
   }
@@ -103,9 +107,21 @@ function describe(out: unknown): { content: string; argsInvalid: boolean; ref: s
   return { content: jstr(r), argsInvalid: r.ok !== true && err === "ARGS_INVALID", ref: r.ok === true && typeof ev === "string" ? ev : null }
 }
 
-async function drive(session: TurnSession, model: ModelPort, question: string, onStep: ChatTurnRequest["onStep"], compose: typeof composeAnswer): Promise<ChatTurnResult> {
+/** D-M5: a memória nunca derruba o turno. Só vale um texto que começa com o cabeçalho e cabe no orçamento; o resto (lançar, Promise, lixo) = sem memória. */
+function memoryFor(session: TurnSession, memory: NonNullable<ChatTurnRequest["memory"]>): string | null {
+  try {
+    const h = session.history()
+    const m = memory(h.messages, h.specOf)
+    return typeof m === "string" && m.startsWith(MEMORY_HEADER) && m.length <= MEMORY_MAX_CHARS ? m : null
+  } catch {
+    return null
+  }
+}
+
+async function drive(session: TurnSession, model: ModelPort, question: string, onStep: ChatTurnRequest["onStep"], compose: typeof composeAnswer, memory: NonNullable<ChatTurnRequest["memory"]>): Promise<ChatTurnResult> {
   const step = async (s: ChatStep): Promise<void> => { try { await onStep?.(s) } catch { /* o progresso é cortesia: nunca derruba o turno */ } }
-  const messages: ChatMessage[] = [{ role: "system", content: systemPromptFor(await session.dataPeriod()) }, { role: "user", content: question }]
+  const mem = memoryFor(session, memory)
+  const messages: ChatMessage[] = [{ role: "system", content: systemPromptFor(await session.dataPeriod()) + (mem === null ? "" : `\n\n${MEMORY_INSTRUCTION}\n${mem}`) }, { role: "user", content: question }]
   let tokens = 0, modelCalls = 0
 
   const finish = async (outcome: "ANSWERED" | "STOPPED", response: RenderedAnswer): Promise<ChatTurnResult> => {

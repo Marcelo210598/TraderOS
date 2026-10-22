@@ -273,15 +273,15 @@ await test("L4 — nenhum e-mail real no repositório: o endereço do dono nunca
 })
 
 // ── instrução ao usuário (help.ts) ──
-await test("H1 — help: exemplos sem conselho/previsão (nenhum pede dica, comprar, vender, melhorar), ≤ 4000 caracteres e únicos; os 5 itens de ajuda cobrem independência das perguntas, escopo, limites, 'trade = ciclo' e selos; texto puro (sem HTML)", () => {
+await test("H1 — help: exemplos sem conselho/previsão (nenhum pede dica, comprar, vender, melhorar), ≤ 4000 caracteres e únicos; os 5 itens de ajuda cobrem a memória curta (3 últimas perguntas, só consultas), escopo, limites, 'trade = ciclo' e selos; texto puro (sem HTML)", () => {
   const h = need(mod.help, "help")
   assert.ok(h.SUGGESTIONS.length >= 4 && new Set(h.SUGGESTIONS).size === h.SUGGESTIONS.length)
   for (const q of h.SUGGESTIONS) { assert.ok(q.length > 5 && q.length <= 4000, q); assert.doesNotMatch(q, /dica|compr|vend|melhor(ar|e)\b|previs|devo|conselho|recomend/i, q) }
   assert.equal(Object.isFrozen(h.SUGGESTIONS), true); assert.equal(Object.isFrozen(h.HELP_ITEMS), true)
   const all = h.HELP_ITEMS.map((i: Any) => `${i.title} ${i.text}`).join(" | ")
   assert.equal(h.HELP_ITEMS.length, 5)
-  for (const re of [/independente/i, /não lembro/i, /repita/i, /conselho/i, /ciclo de posição/i, /da entrada até a posição zerar/i, /27 linhas.*15 trades/i, /verificado/i]) assert.match(all, re, String(re))
-  assert.doesNotMatch(all, /[<>]|https?:|javascript:/i)
+  for (const re of [/lembro das 3 últimas perguntas/i, /só as consultas, não os números/i, /Nova conversa/, /conselho/i, /ciclo de posição/i, /da entrada até a posição zerar/i, /27 linhas.*15 trades/i, /verificado/i]) assert.match(all, re, String(re))
+  assert.doesNotMatch(all, /[<>]|https?:|javascript:/i); assert.doesNotMatch(all, /não lembro/i, "E7-19: a memória curta existe")
 })
 await test("H2 — isNoDataReply: sem valor e sem selo (recusa/fora de escopo/interrompida) ⇒ true; qualquer valor ou selo ⇒ false; entrada vinda de toBlocks", () => {
   const h = need(mod.help, "help"), v = need(mod.view, "view")
