@@ -192,3 +192,4 @@ Lucid, FFF, Apex, Tradeify e Bulenox em `/mesas`. Cron vigia Lucid, FFF e Buleno
 - **AI Partner — 22/10/2026 (E7-19 memória curta)** — 3 últimas consultas no system; ao vivo: resolve 'e a taxa de acerto de cada uma?' (controle sem memória falha); +6–11% tokens. Falta deploy.
 - **AI Partner — 22/10/2026 (E7-20 layout)** — cartões/tabelas + explicações derivados no servidor; 1547 ✓; ao vivo 0 divergência. Falta deploy.
 - **AI Partner — 22/10/2026 (polimento das respostas)** — sem repetição de explicações, legenda recolhida, linhas vazias resumidas; falta deploy.
+- **Sync NT8 — 03/11/2026 (medição + spec)** — fix do importador NO AR (`0ae36ed`: descarta MAE/MFE falsos de trade manual; prod 0 falsos). Spec do contrato de dados com 18 casos (`docs/SPEC-SYNC-NT8-CONTRATO-DE-DADOS.md`, sem commit). Sync segue desligado. Próximo: revisão do Antigravity → testes T1–T16 → módulo → migração em branch. Snapshot `historico/2026-11-03.md`.

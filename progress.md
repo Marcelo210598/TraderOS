@@ -1,5 +1,8 @@
 # TraderOS — Progresso
 
+## ✅ 03/11/2026 — Sync automático NT8: medição na VM + spec do contrato (nada do sync em prod) — fix do importador NO AR (`0ae36ed`)
+Fills/ciclos/MAE-MFE/comissão medidos com dado real (Sim101 + Lucid). Achados: `ex.Position` por instrumento, `MarketPosition` = direção do fill, `Account.Executions` sobrevive a reinício (mesmo dia), MAE/MFE do relatório NT8 é FALSO em trade manual (importador agora descarta; dry-run em prod: 0 falsos), janela de MAE/MFE = trade inteiro, Lucid sem comissão nas execuções. Spec `docs/SPEC-SYNC-NT8-CONTRATO-DE-DADOS.md` (T1–T18). Próximo: revisão do Antigravity → testes de domínio T1–T16 (ver falhar) → módulo → migração Neon em branch. Snapshot: `historico/2026-11-03.md`.
+
 ## ✅ 22/10/2026 — AI Partner: polimento no ar + correção de tabela larga (colunas cortadas no teste logado) — origin intocado `eb8a28a`; correção aguarda deploy
 Teste logado do polimento OK (1ª resposta completa; 2ª enxuta; legendas fechadas; 'Sem ocorrências'). Defeito visto no print: tabela 'Por conta' com 7 métricas cortada com rolagem lateral. Correção só de tela: 6+ colunas ⇒ um cartão por linha (2 por linha em tela larga), cabeçalhos quebram linha, bolha do layout ocupa a largura toda. `test:domain` verde, mutação coberta.
 
