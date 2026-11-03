@@ -8,6 +8,7 @@ import {
 import { cn, signedUsd } from "@/lib/utils"
 import { ACCOUNT_OPTIONS } from "@/lib/accounts"
 import { pointValueFor } from "@/lib/instruments"
+import { guardNt8Excursion } from "@/lib/journal/mae-mfe-guard"
 import { detectAccountLabel } from "@/lib/account-label"
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
@@ -280,10 +281,15 @@ function parseNinjaTraderGridPtBr(headers: string[], lines: string[], sep: strin
     // MAE/MFE vêm em dólar no export BR — converte pra pontos (mesma unidade
     // que o resto do app usa) dividindo pelo valor do ponto × quantidade.
     const pv = pointValueFor(instrument) * (quantity || 1)
-    const maeDollar = parseBRNumber(get("mae") || "0")
-    const mfeDollar = parseBRNumber(get("mfe") || "0")
-    const mae = isNaN(maeDollar) || pv === 0 ? null : maeDollar / pv
-    const mfe = isNaN(mfeDollar) || pv === 0 ? null : mfeDollar / pv
+    // Trade manual (sem estratégia) vem com MAE = MFE = lucro bruto: dado falso, descartado.
+    const guarded = guardNt8Excursion({
+      maeUsd: parseBRNumber(get("mae") || "0"),
+      mfeUsd: parseBRNumber(get("mfe") || "0"),
+      profitUsd: isNaN(pnl) ? 0 : pnl,
+      feesUsd: commission,
+    })
+    const mae = guarded.maeUsd === null || pv === 0 ? null : guarded.maeUsd / pv
+    const mfe = guarded.mfeUsd === null || pv === 0 ? null : guarded.mfeUsd / pv
 
     if (!entryTimeRaw) errors.push("hora de entrada ausente")
     if (!instrument) errors.push("ativo ausente")
